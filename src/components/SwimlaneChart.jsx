@@ -53,7 +53,7 @@ export default function SwimlaneChart({ data }) {
         <Tooltip content={<ChartTooltip />} cursor={{ fill: 'var(--surface-2)' }} />
         <Bar dataKey="activeCount" radius={[0, 4, 4, 0]} maxBarSize={22}>
           {data.map((entry) => (
-            <Cell key={entry.name} fill="var(--series-blue)" />
+            <Cell key={entry.name} fill="var(--brand-green)" />
           ))}
         </Bar>
       </BarChart>

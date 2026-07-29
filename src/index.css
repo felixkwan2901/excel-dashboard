@@ -1,37 +1,64 @@
+/*
+ * This app commits to a single dark, high-contrast look (teenage.engineering-
+ * style), rather than following the viewer's light/dark preference.
+ */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./assets/fonts/inter-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('./assets/fonts/inter-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('./assets/fonts/inter-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('./assets/fonts/inter-700.woff2') format('woff2');
+}
+
 :root {
-  color-scheme: light;
+  color-scheme: dark;
 
-  --brand-navy: #1b365d;
-  --brand-navy-ink: #14294a;
-  --brand-slate: #4a777a;
+  --brand-green: #40b44a;
+  --brand-green-dim: #2e8a37;
 
-  --surface-1: #fcfcfb;
-  --surface-2: #f2f4f6;
-  --page-plane: #eef1f4;
+  --page-plane: #0a0a0a;
+  --surface-1: #121212;
+  --surface-2: #191919;
 
-  --text-primary: #0b0b0b;
-  --text-secondary: #52514e;
-  --text-muted: #898781;
+  --text-primary: #f2f2f0;
+  --text-secondary: #a8a8a4;
+  --text-muted: #6b6b67;
 
-  --gridline: #e1e0d9;
-  --baseline: #c3c2b7;
-  --border: rgba(11, 11, 11, 0.1);
-
-  --series-blue: #2a78d6;
-  --series-orange: #eb6834;
-  --series-aqua: #1baf7a;
+  --gridline: #262624;
+  --baseline: #38382f;
+  --border: rgba(242, 242, 240, 0.12);
 
   --status-good: #0ca30c;
-  --status-good-bg: #e3f6e3;
-  --status-warning: #b9790a;
-  --status-warning-bg: #fef3dc;
-  --status-serious: #ec835a;
-  --status-critical: #d03b3b;
-  --status-critical-bg: #fbe4e4;
+  --status-good-bg: rgba(12, 163, 12, 0.16);
+  --status-warning: #fab219;
+  --status-warning-bg: rgba(250, 178, 25, 0.16);
+  --status-critical: #e66767;
+  --status-critical-bg: rgba(230, 103, 103, 0.16);
 
-  --shadow: 0 1px 2px rgba(11, 11, 11, 0.04), 0 8px 24px rgba(11, 11, 11, 0.06);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.45);
 
-  --sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 
   font: 16px/1.5 var(--sans);
   color: var(--text-primary);
@@ -40,38 +67,6 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:where(:not([data-theme='light'])) {
-    color-scheme: dark;
-
-    --surface-1: #1a1a19;
-    --surface-2: #222221;
-    --page-plane: #121212;
-
-    --text-primary: #ffffff;
-    --text-secondary: #c3c2b7;
-    --text-muted: #898781;
-
-    --gridline: #2c2c2a;
-    --baseline: #383835;
-    --border: rgba(255, 255, 255, 0.1);
-
-    --series-blue: #3987e5;
-    --series-orange: #d95926;
-    --series-aqua: #199e70;
-
-    --status-good: #0ca30c;
-    --status-good-bg: rgba(12, 163, 12, 0.16);
-    --status-warning: #fab219;
-    --status-warning-bg: rgba(250, 178, 25, 0.16);
-    --status-serious: #ec835a;
-    --status-critical: #e66767;
-    --status-critical-bg: rgba(230, 103, 103, 0.16);
-
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
-  }
 }
 
 * {
@@ -84,4 +79,8 @@ body {
 
 #root {
   min-height: 100vh;
+}
+
+a {
+  color: inherit;
 }

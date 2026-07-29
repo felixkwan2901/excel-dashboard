@@ -19,6 +19,28 @@ const SWIMLANE_BENCHMARKS = {
   '6. Accounts & Billing': { avgCycleHrs: 8.0, targetSlaHrs: 12.0 },
 }
 
+const SERVICE_TYPE_ORDER = ['Commercial', 'Residential', 'Home Ventilation']
+
+export function computeCategories(jobs) {
+  return SERVICE_TYPE_ORDER.map((name) => ({
+    name,
+    jobCount: jobs.filter((j) => j.serviceType === name).length,
+  }))
+}
+
+export function computeCompanies(jobs) {
+  const order = []
+  const counts = new Map()
+  for (const job of jobs) {
+    if (!counts.has(job.client)) {
+      order.push(job.client)
+      counts.set(job.client, 0)
+    }
+    counts.set(job.client, counts.get(job.client) + 1)
+  }
+  return order.map((name) => ({ name, jobCount: counts.get(name) }))
+}
+
 export function computeKpis(jobs) {
   const totalJobs = jobs.length
   const aiPassed = jobs.filter((j) => j.aiStatus === 'Passed').length

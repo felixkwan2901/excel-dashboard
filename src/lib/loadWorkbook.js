@@ -4,6 +4,7 @@ import workbookUrl from '../../Cassidy_Davies_Electrical_BPMN_Data.xlsx?url'
 const JOB_HEADERS = [
   'jobId',
   'client',
+  'serviceType',
   'category',
   'createdAt',
   'swimlane',
@@ -12,14 +13,6 @@ const JOB_HEADERS = [
   'tech',
   'value',
   'processId',
-]
-
-const MATRIX_HEADERS = [
-  'number',
-  'role',
-  'elementType',
-  'responsibilities',
-  'integrationPoint',
 ]
 
 function sheetRows(sheet) {
@@ -32,7 +25,9 @@ function rowsAfterHeader(rows, headerMatch, headerKeys) {
   const out = []
   for (let i = headerIdx + 1; i < rows.length; i++) {
     const row = rows[i]
-    if (!row[0]) break
+    // Stop at the sheet's totals row (e.g. "Total Pipeline Value") — it fills
+    // column A but leaves the rest blank, unlike a real data row.
+    if (!row[0] || !row[1]) break
     const record = {}
     headerKeys.forEach((key, col) => {
       record[key] = row[col] ?? ''
@@ -52,8 +47,5 @@ export async function loadWorkbook() {
     value: Number(job.value) || 0,
   }))
 
-  const matrixRows = sheetRows(workbook.Sheets['Swimlane Reference'])
-  const swimlaneReference = rowsAfterHeader(matrixRows, 'Swimlane #', MATRIX_HEADERS)
-
-  return { jobs, swimlaneReference }
+  return { jobs }
 }
