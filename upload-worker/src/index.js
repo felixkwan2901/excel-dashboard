@@ -1,0 +1,168 @@
+const OWNER = 'felixkwan2901'
+const REPO = 'excel-dashboard'
+const FILE_PATH = 'Cassidy_Davies_Electrical_BPMN_Data.xlsx'
+const BRANCH = 'main'
+const MAX_BYTES = 8 * 1024 * 1024 // 8MB
+
+const PAGE_STYLE = `
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: #0a0a0a; color: #f2f2f0; font: 16px/1.5 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    padding: 20px;
+  }
+  .card {
+    width: 100%; max-width: 420px; background: #121212; border: 1px solid rgba(242,242,240,0.12);
+    border-radius: 12px; padding: 28px;
+  }
+  h1 { font-size: 18px; margin: 0 0 6px; }
+  p.sub { color: #a8a8a4; font-size: 13px; margin: 0 0 24px; }
+  label { display: block; font-size: 13px; color: #a8a8a4; margin: 16px 0 6px; }
+  input[type="file"], input[type="password"] {
+    width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 8px;
+    border: 1px solid rgba(242,242,240,0.12); background: #191919; color: #f2f2f0; font: inherit; font-size: 13px;
+  }
+  button {
+    margin-top: 22px; width: 100%; padding: 12px; border-radius: 8px; border: 0;
+    background: #40b44a; color: #06210a; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  button:hover { background: #4bc656; }
+  .result { border-radius: 8px; padding: 14px 16px; font-size: 13px; margin-top: 20px; }
+  .result.ok { background: rgba(12,163,12,0.16); color: #0ca30c; }
+  .result.err { background: rgba(230,103,103,0.16); color: #e66767; }
+  a { color: #40b44a; }
+`
+
+function renderForm(message) {
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Update job data — Cassidy-Davies Electrical</title>
+<style>${PAGE_STYLE}</style>
+</head>
+<body>
+  <div class="card">
+    <h1>Update job data</h1>
+    <p class="sub">Choose the updated Excel file and enter the upload password. The dashboard updates automatically within a couple of minutes.</p>
+    ${message ?? ''}
+    <form method="POST" action="/upload" enctype="multipart/form-data">
+      <label for="password">Upload password</label>
+      <input type="password" id="password" name="password" required />
+
+      <label for="file">Excel file (.xlsx)</label>
+      <input type="file" id="file" name="file" accept=".xlsx" required />
+
+      <button type="submit">Upload</button>
+    </form>
+  </div>
+</body>
+</html>`
+}
+
+function html(body, status = 200) {
+  return new Response(body, { status, headers: { 'Content-Type': 'text/html; charset=utf-8' } })
+}
+
+function arrayBufferToBase64(buffer) {
+  let binary = ''
+  const bytes = new Uint8Array(buffer)
+  const chunkSize = 0x8000
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize))
+  }
+  return btoa(binary)
+}
+
+async function githubRequest(path, env, init) {
+  const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/${path}`, {
+    ...init,
+    headers: {
+      Authorization: `Bearer ${env.GITHUB_TOKEN}`,
+      Accept: 'application/vnd.github+json',
+      'User-Agent': 'cde-data-upload-worker',
+      ...(init?.headers ?? {}),
+    },
+  })
+  return res
+}
+
+async function handleUpload(request, env) {
+  const form = await request.formData()
+  const password = form.get('password')
+  const file = form.get('file')
+
+  if (!env.UPLOAD_PASSWORD || password !== env.UPLOAD_PASSWORD) {
+    return html(renderForm(`<div class="result err">Wrong password. Please try again.</div>`), 401)
+  }
+
+  if (!file || typeof file === 'string') {
+    return html(renderForm(`<div class="result err">No file was selected.</div>`), 400)
+  }
+
+  if (!file.name.toLowerCase().endsWith('.xlsx')) {
+    return html(renderForm(`<div class="result err">Please upload a .xlsx file.</div>`), 400)
+  }
+
+  if (file.size > MAX_BYTES) {
+    return html(renderForm(`<div class="result err">That file is too large (max 8MB).</div>`), 400)
+  }
+
+  const buffer = await file.arrayBuffer()
+  const contentBase64 = arrayBufferToBase64(buffer)
+
+  const currentRes = await githubRequest(`contents/${FILE_PATH}?ref=${BRANCH}`, env)
+  if (!currentRes.ok) {
+    const body = await currentRes.text()
+    return html(
+      renderForm(`<div class="result err">Couldn't read the current file from GitHub (${currentRes.status}). ${body.slice(0, 200)}</div>`),
+      502
+    )
+  }
+  const current = await currentRes.json()
+
+  const putRes = await githubRequest(`contents/${FILE_PATH}`, env, {
+    method: 'PUT',
+    body: JSON.stringify({
+      message: `Update job data via upload form (${new Date().toISOString()})`,
+      content: contentBase64,
+      sha: current.sha,
+      branch: BRANCH,
+    }),
+  })
+
+  if (!putRes.ok) {
+    const body = await putRes.text()
+    return html(
+      renderForm(`<div class="result err">GitHub rejected the update (${putRes.status}). ${body.slice(0, 200)}</div>`),
+      502
+    )
+  }
+
+  return html(
+    renderForm(
+      `<div class="result ok">Uploaded. The dashboard will rebuild and go live in a couple of minutes — <a href="https://felixkwan2901.github.io/excel-dashboard/" target="_blank">check the site</a>.</div>`
+    )
+  )
+}
+
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url)
+
+    if (request.method === 'GET' && url.pathname === '/') {
+      return html(renderForm())
+    }
+
+    if (request.method === 'POST' && url.pathname === '/upload') {
+      try {
+        return await handleUpload(request, env)
+      } catch (err) {
+        return html(renderForm(`<div class="result err">Unexpected error: ${String(err.message ?? err)}</div>`), 500)
+      }
+    }
+
+    return new Response('Not found', { status: 404 })
+  },
+}
