@@ -24,11 +24,22 @@ const SERVICE_TYPE_ORDER = ['Commercial', 'Residential', 'Home Ventilation']
 export function computeCategories(jobs) {
   return SERVICE_TYPE_ORDER.map((name) => {
     const categoryJobs = jobs.filter((j) => j.serviceType === name)
+    const pendingCount = categoryJobs.filter((j) => j.approvalStatus === 'Pending').length
+    const urgentCount = categoryJobs.filter((j) => j.aiStatus === 'Flagged').length
+    const jobCount = categoryJobs.length
+    const onTrackCount = jobCount - pendingCount - urgentCount
+    const progressPercent = jobCount > 0 ? Math.round((onTrackCount / jobCount) * 100) : 100
+    const lastActivity = categoryJobs.reduce(
+      (latest, j) => (j.createdAt > latest ? j.createdAt : latest),
+      categoryJobs[0]?.createdAt ?? ''
+    )
     return {
       name,
-      jobCount: categoryJobs.length,
-      pendingCount: categoryJobs.filter((j) => j.approvalStatus === 'Pending').length,
-      urgentCount: categoryJobs.filter((j) => j.aiStatus === 'Flagged').length,
+      jobCount,
+      pendingCount,
+      urgentCount,
+      progressPercent,
+      lastActivity,
     }
   })
 }
@@ -63,7 +74,33 @@ export function computeKpis(jobs) {
   const aiPassed = jobs.filter((j) => j.aiStatus === 'Passed').length
   const pendingApproval = jobs.filter((j) => j.approvalStatus === 'Pending').length
   const pipelineValue = jobs.reduce((sum, j) => sum + j.value, 0)
-  return { totalJobs, aiPassed, pendingApproval, pipelineValue }
+  const urgentCount = jobs.filter((j) => j.aiStatus === 'Flagged').length
+  return { totalJobs, aiPassed, pendingApproval, pipelineValue, urgentCount }
+}
+
+const MS_PER_DAY = 1000 * 60 * 60 * 24
+const BILLING_STAGE = '6. Accounts & Billing'
+
+// Two metrics defined from the data we actually have (no completion-event
+// log or per-job progress % exists in the sheet):
+//  - "completed this week" = jobs that reached the terminal billing stage
+//    and were logged in the last 7 days — a proxy for "billed this week."
+//  - "average completion" = the mean of each category's on-track ratio
+//    (jobs with no open pending/urgent flag) — "how clean is the workload,"
+//    not a per-job progress percentage.
+export function computeGlobalStats(jobs, today = new Date()) {
+  const completedThisWeek = jobs.filter((j) => {
+    if (j.swimlane !== BILLING_STAGE) return false
+    const days = (today - new Date(j.createdAt)) / MS_PER_DAY
+    return days >= 0 && days <= 7
+  }).length
+
+  const categories = computeCategories(jobs)
+  const averageCompletion = categories.length
+    ? Math.round(categories.reduce((sum, c) => sum + c.progressPercent, 0) / categories.length)
+    : 0
+
+  return { completedThisWeek, averageCompletion }
 }
 
 export function computeSwimlaneStats(jobs) {
