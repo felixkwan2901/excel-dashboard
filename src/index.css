@@ -2,6 +2,12 @@
  * This app commits to a single dark, high-contrast look (teenage.engineering-
  * style), rather than following the viewer's light/dark preference.
  */
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+@custom-variant dark (&:is(.dark *));
+
 @font-face {
   font-family: 'Inter';
   font-style: normal;
@@ -30,12 +36,20 @@
   font-display: swap;
   src: url('./assets/fonts/inter-700.woff2') format('woff2');
 }
+@font-face {
+  font-family: 'Fraunces';
+  font-style: italic;
+  font-weight: 500;
+  font-display: swap;
+  src: url('./assets/fonts/fraunces-italic-500.woff2') format('woff2');
+}
 
 :root {
   color-scheme: dark;
 
   --brand-green: #40b44a;
   --brand-green-dim: #2e8a37;
+  --brand-green-ink: #06210a;
 
   --page-plane: #0a0a0a;
   --surface-1: #121212;
@@ -59,6 +73,7 @@
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.45);
 
   --sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --serif: 'Fraunces', Georgia, 'Times New Roman', serif;
 
   font: 16px/1.5 var(--sans);
   color: var(--text-primary);
@@ -67,6 +82,103 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /*
+   * shadcn/ui components (Button, Card, …) are styled against this semantic
+   * token set. This app has one fixed dark theme (no light/dark toggle), so
+   * these map straight onto the palette above instead of shadcn's default
+   * light-mode values — the components render correctly without needing a
+   * `.dark` class anywhere.
+   */
+  --background: var(--page-plane);
+  --foreground: var(--text-primary);
+  --card: var(--surface-1);
+  --card-foreground: var(--text-primary);
+  --popover: var(--surface-2);
+  --popover-foreground: var(--text-primary);
+  --primary: var(--brand-green);
+  --primary-foreground: var(--brand-green-ink);
+  --secondary: var(--surface-2);
+  --secondary-foreground: var(--text-primary);
+  --muted: var(--surface-2);
+  --muted-foreground: var(--text-muted);
+  --accent: var(--surface-2);
+  --accent-foreground: var(--text-primary);
+  --destructive: var(--status-critical);
+  --input: var(--border);
+  --ring: var(--brand-green);
+  --chart-1: var(--brand-green);
+  --chart-2: var(--status-good);
+  --chart-3: var(--status-warning);
+  --chart-4: var(--status-critical);
+  --chart-5: var(--text-secondary);
+  --radius: 0.625rem;
+  --sidebar: var(--surface-1);
+  --sidebar-foreground: var(--text-primary);
+  --sidebar-primary: var(--brand-green);
+  --sidebar-primary-foreground: var(--brand-green-ink);
+  --sidebar-accent: var(--surface-2);
+  --sidebar-accent-foreground: var(--text-primary);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--brand-green);
+}
+
+/* Bridges Tailwind's generated utilities (bg-brand-green, text-surface-1, …
+   and shadcn's bg-primary, border-border, etc.) to the tokens above, so
+   there is one source of truth rather than a parallel color system. */
+@theme inline {
+  --color-brand-green: var(--brand-green);
+  --color-page-plane: var(--page-plane);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-gridline: var(--gridline);
+  --color-status-good: var(--status-good);
+  --color-status-warning: var(--status-warning);
+  --color-status-critical: var(--status-critical);
+  --font-sans: var(--sans);
+  --font-serif: var(--serif);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
 * {
@@ -83,4 +195,10 @@ body {
 
 a {
   color: inherit;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
 }

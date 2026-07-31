@@ -22,23 +22,40 @@ const SWIMLANE_BENCHMARKS = {
 const SERVICE_TYPE_ORDER = ['Commercial', 'Residential', 'Home Ventilation']
 
 export function computeCategories(jobs) {
-  return SERVICE_TYPE_ORDER.map((name) => ({
-    name,
-    jobCount: jobs.filter((j) => j.serviceType === name).length,
-  }))
+  return SERVICE_TYPE_ORDER.map((name) => {
+    const categoryJobs = jobs.filter((j) => j.serviceType === name)
+    return {
+      name,
+      jobCount: categoryJobs.length,
+      pendingCount: categoryJobs.filter((j) => j.approvalStatus === 'Pending').length,
+      urgentCount: categoryJobs.filter((j) => j.aiStatus === 'Flagged').length,
+    }
+  })
 }
 
 export function computeCompanies(jobs) {
   const order = []
-  const counts = new Map()
   for (const job of jobs) {
-    if (!counts.has(job.client)) {
-      order.push(job.client)
-      counts.set(job.client, 0)
-    }
-    counts.set(job.client, counts.get(job.client) + 1)
+    if (!order.includes(job.client)) order.push(job.client)
   }
-  return order.map((name) => ({ name, jobCount: counts.get(name) }))
+  return order.map((name) => {
+    const companyJobs = jobs.filter((j) => j.client === name)
+    const pendingCount = companyJobs.filter((j) => j.approvalStatus === 'Pending').length
+    const urgentCount = companyJobs.filter((j) => j.aiStatus === 'Flagged').length
+    const lastActivity = companyJobs.reduce(
+      (latest, j) => (j.createdAt > latest ? j.createdAt : latest),
+      companyJobs[0].createdAt
+    )
+    const status = urgentCount > 0 ? 'Urgent' : pendingCount > 0 ? 'Needs approval' : 'On track'
+    return {
+      name,
+      jobCount: companyJobs.length,
+      pendingCount,
+      urgentCount,
+      lastActivity,
+      status,
+    }
+  })
 }
 
 export function computeKpis(jobs) {

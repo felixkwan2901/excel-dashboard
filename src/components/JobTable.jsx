@@ -18,8 +18,8 @@ const COLUMNS = [
   { key: 'value', label: 'Est. value', num: true },
 ]
 
-export default function JobTable({ jobs, swimlanes }) {
-  const [query, setQuery] = useState('')
+export default function JobTable({ jobs, swimlanes, initialQuery = '' }) {
+  const [query, setQuery] = useState(initialQuery)
   const [swimlaneFilter, setSwimlaneFilter] = useState('all')
   const [sort, setSort] = useState({ key: 'jobId', dir: 1 })
 
