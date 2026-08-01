@@ -1,9 +1,9 @@
 import { ChevronRight } from 'lucide-react'
 
 const STATUS_STYLES = {
-  Urgent: 'bg-red-500/10 text-red-400 border-red-500/20',
-  'Needs approval': 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-  'On track': 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+  Urgent: 'bg-white/10 text-white border-white/15',
+  'Needs approval': 'bg-white/[0.06] text-neutral-300 border-white/10',
+  'On track': 'bg-white/[0.04] text-neutral-400 border-white/10',
 }
 
 const DATE = new Intl.DateTimeFormat('en-NZ', { day: '2-digit', month: 'short' })

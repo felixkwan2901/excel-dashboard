@@ -70,23 +70,6 @@
   isolation: isolate;
 }
 
-.hero-photo__bg {
-  position: absolute;
-  inset: -20px;
-  background-size: cover;
-  background-position: center 65%;
-  filter: blur(12px) saturate(0.95);
-  z-index: -2;
-}
-
-.hero-photo::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, rgba(11, 15, 18, 0.55) 0%, rgba(11, 15, 18, 0.3) 40%, rgba(11, 15, 18, 0.75) 100%);
-  z-index: -1;
-}
-
 .hero-photo__content {
   position: relative;
   width: 100%;

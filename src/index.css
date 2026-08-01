@@ -43,9 +43,12 @@
   --brand-green-dim: #2bb045;
   --brand-green-ink: #05200c;
 
-  --page-plane: #0b0f12;
+  --page-plane: #050505;
+  --page-plane-2: #0b0f14;
+  --page-plane-3: #12161c;
   --surface-1: #111827;
   --surface-2: #171f2e;
+  --glass-card: rgba(255, 255, 255, 0.05);
 
   --text-primary: #f2f2f0;
   --text-secondary: #a8a8a4;
@@ -55,12 +58,20 @@
   --baseline: #38382f;
   --border: rgba(255, 255, 255, 0.08);
 
-  --status-good: #0ca30c;
-  --status-good-bg: rgba(12, 163, 12, 0.16);
-  --status-warning: #fab219;
-  --status-warning-bg: rgba(250, 178, 25, 0.16);
-  --status-critical: #e66767;
-  --status-critical-bg: rgba(230, 103, 103, 0.16);
+  /*
+   * Status is communicated through weight/typography first, not hue — the
+   * brand green is reserved for actions/selected states/small highlights,
+   * not for a red/amber/green traffic-light system. "Good" keeps a faint
+   * green tint since an approved/passed state is effectively a confirmed
+   * action; pending/flagged read as neutral grays, differentiated by their
+   * icon glyph and label rather than color.
+   */
+  --status-good: var(--brand-green-dim);
+  --status-good-bg: rgba(57, 211, 83, 0.12);
+  --status-warning: var(--text-secondary);
+  --status-warning-bg: rgba(255, 255, 255, 0.06);
+  --status-critical: var(--text-primary);
+  --status-critical-bg: rgba(255, 255, 255, 0.1);
 
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.45);
 
@@ -177,6 +188,74 @@
 
 body {
   margin: 0;
+  position: relative;
+}
+
+/*
+ * Site-wide backdrop: an almost-flat dark plane. The faint grid + green
+ * glows are the only nod to an "electrical" identity, treated as texture
+ * (~10-20% visible) under a heavy dark overlay — desaturated, low-contrast,
+ * slightly blurred so it reads as ambient depth and never competes with
+ * card content or text. Fixed + behind #root so it persists across every
+ * view without being tied to any single page's markup.
+ */
+body::before {
+  content: '';
+  position: fixed;
+  inset: -20px;
+  z-index: -1;
+  pointer-events: none;
+  filter: saturate(0.55) contrast(0.92) blur(3px);
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    radial-gradient(680px circle at 15% 12%, rgba(34, 197, 94, 0.07), transparent 60%),
+    radial-gradient(620px circle at 88% 78%, rgba(52, 211, 153, 0.05), transparent 60%),
+    radial-gradient(520px circle at 92% 8%, rgba(34, 197, 94, 0.035), transparent 55%),
+    linear-gradient(160deg, var(--page-plane-2) 0%, var(--page-plane) 55%, var(--page-plane-3) 100%);
+  background-size:
+    48px 48px,
+    48px 48px,
+    140% 140%,
+    140% 140%,
+    140% 140%,
+    100% 100%;
+  background-position:
+    center,
+    center,
+    0% 0%,
+    100% 100%,
+    100% 0%,
+    center;
+  background-repeat: repeat, repeat, no-repeat, no-repeat, no-repeat, no-repeat;
+  animation: backdrop-drift 50s ease-in-out infinite alternate;
+}
+
+@keyframes backdrop-drift {
+  0% {
+    background-position:
+      center,
+      center,
+      0% 0%,
+      100% 100%,
+      100% 0%,
+      center;
+  }
+  100% {
+    background-position:
+      center,
+      center,
+      8% 6%,
+      92% 92%,
+      94% 4%,
+      center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body::before {
+    animation: none;
+  }
 }
 
 #root {

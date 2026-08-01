@@ -17,7 +17,6 @@ import RecentActivity from './components/RecentActivity'
 import ProjectList from './components/ProjectList'
 import ProjectDetail from './components/ProjectDetail'
 import Reveal from './components/Reveal'
-import heroImage from './assets/hero-site-photo.jpg'
 import './App.css'
 
 const APPROVAL_OVERRIDES_KEY = 'cde-approval-overrides'
@@ -149,11 +148,6 @@ export default function App() {
       {view === 'home' && (
         <main>
           <Reveal as="section" index={0} className="hero-photo">
-            <div
-              className="hero-photo__bg"
-              style={{ backgroundImage: `url(${heroImage})` }}
-              aria-hidden="true"
-            />
             <div className="hero-photo__content">
               <div className="mx-auto w-full max-w-6xl">
                 <div className="mb-8">
@@ -219,13 +213,13 @@ export default function App() {
               </div>
               <div className="flex gap-2">
                 {categories.find((c) => c.name === selectedCategory)?.pendingCount > 0 && (
-                  <span className="rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-400">
+                  <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-xs font-semibold text-neutral-300">
                     {categories.find((c) => c.name === selectedCategory).pendingCount} pending
                     approval
                   </span>
                 )}
                 {categories.find((c) => c.name === selectedCategory)?.urgentCount > 0 && (
-                  <span className="rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1 text-xs font-semibold text-red-400">
+                  <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold text-white">
                     {categories.find((c) => c.name === selectedCategory).urgentCount} urgent
                   </span>
                 )}

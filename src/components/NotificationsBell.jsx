@@ -24,7 +24,7 @@ export default function NotificationsBell({ urgentJobs, onSelectJob }) {
       >
         <Bell size={16} aria-hidden="true" />
         {urgentJobs.length > 0 && (
-          <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white">
+          <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-white px-1 text-[10px] font-semibold text-[#12161c]">
             {urgentJobs.length}
           </span>
         )}
