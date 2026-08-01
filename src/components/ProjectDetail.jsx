@@ -1,3 +1,4 @@
+import { ArrowLeft, CheckCircle2, RotateCcw } from 'lucide-react'
 import StatusBadge from './StatusBadge'
 
 const CURRENCY = new Intl.NumberFormat('en-NZ', {
@@ -12,46 +13,81 @@ const DATE = new Intl.DateTimeFormat('en-NZ', {
   year: 'numeric',
 })
 
-export default function ProjectDetail({ job, onBack }) {
+function Field({ label, children }) {
   return (
-    <div className="project-detail">
-      <button className="back-link" onClick={onBack}>
-        ← all projects
+    <div className="flex flex-col gap-1.5">
+      <span className="text-xs font-medium tracking-wide text-neutral-500 uppercase">{label}</span>
+      <div className="text-[15px] text-neutral-100">{children}</div>
+    </div>
+  )
+}
+
+export default function ProjectDetail({ job, onBack, onChangeApproval }) {
+  const isApproved = job.approvalStatus === 'Approved'
+
+  return (
+    <div className="mx-auto flex max-w-4xl flex-col gap-6">
+      <button
+        onClick={onBack}
+        className="flex w-fit items-center gap-1.5 rounded-full border border-white/10 px-3.5 py-1.5 text-sm text-neutral-300 transition-colors hover:border-white/20 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
+      >
+        <ArrowLeft size={14} aria-hidden="true" />
+        All projects
       </button>
 
-      <div className="project-detail__header">
-        <div>
-          <span className="project-detail__id">{job.jobId}</span>
-          <h1>{job.client}</h1>
-          <p>{job.category}</p>
+      <div className="rounded-2xl border border-white/10 bg-[#111827] p-7">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-sm text-neutral-500 tabular-nums">{job.jobId}</p>
+            <h1 className="mt-1 text-3xl font-bold text-white">{job.client}</h1>
+            <p className="mt-1 text-neutral-400">{job.category}</p>
+          </div>
+          <p className="text-3xl font-bold text-emerald-400 tabular-nums">
+            {CURRENCY.format(job.value)}
+          </p>
         </div>
-        <span className="project-detail__value">{CURRENCY.format(job.value)}</span>
-      </div>
 
-      <div className="project-detail__grid">
-        <div className="project-detail__field">
-          <span className="project-detail__label">Current swimlane</span>
-          <span>{job.swimlane}</span>
+        <div className="mt-7 grid grid-cols-1 gap-6 border-t border-white/10 pt-7 sm:grid-cols-2 lg:grid-cols-4">
+          <Field label="Current swimlane">{job.swimlane}</Field>
+          <Field label="Assigned technician">{job.tech}</Field>
+          <Field label="Created">{DATE.format(new Date(job.createdAt))}</Field>
+          <Field label="BPMN process ID">{job.processId}</Field>
         </div>
-        <div className="project-detail__field">
-          <span className="project-detail__label">Assigned technician</span>
-          <span>{job.tech}</span>
-        </div>
-        <div className="project-detail__field">
-          <span className="project-detail__label">Created</span>
-          <span>{DATE.format(new Date(job.createdAt))}</span>
-        </div>
-        <div className="project-detail__field">
-          <span className="project-detail__label">BPMN process ID</span>
-          <span>{job.processId}</span>
-        </div>
-        <div className="project-detail__field">
-          <span className="project-detail__label">AI check status</span>
-          <StatusBadge label={job.aiStatus} />
-        </div>
-        <div className="project-detail__field">
-          <span className="project-detail__label">Approval status</span>
-          <StatusBadge label={job.approvalStatus} />
+
+        <div className="mt-6 grid grid-cols-1 gap-6 border-t border-white/10 pt-6 sm:grid-cols-2">
+          <Field label="AI check status">
+            <StatusBadge label={job.aiStatus} />
+          </Field>
+
+          <Field label="Approval status">
+            <div className="flex flex-wrap items-center gap-3">
+              <StatusBadge label={job.approvalStatus} />
+              {onChangeApproval && (
+                <button
+                  onClick={() =>
+                    onChangeApproval(job.jobId, isApproved ? 'Pending' : 'Approved')
+                  }
+                  className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 ${
+                    isApproved
+                      ? 'border border-white/10 text-neutral-400 hover:border-white/20 hover:text-white'
+                      : 'bg-emerald-500 text-emerald-950 hover:bg-emerald-400'
+                  }`}
+                >
+                  {isApproved ? (
+                    <>
+                      <RotateCcw size={12} aria-hidden="true" />
+                      Revert to pending
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 size={12} aria-hidden="true" />
+                      Mark as approved
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          </Field>
         </div>
       </div>
     </div>

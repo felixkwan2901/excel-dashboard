@@ -13,11 +13,22 @@ import SwimlaneTable from './components/SwimlaneTable'
 import JobTable from './components/JobTable'
 import CategoryGrid from './components/CategoryGrid'
 import CompanyList from './components/CompanyList'
+import RecentActivity from './components/RecentActivity'
 import ProjectList from './components/ProjectList'
 import ProjectDetail from './components/ProjectDetail'
 import Reveal from './components/Reveal'
 import heroImage from './assets/hero-site-photo.jpg'
 import './App.css'
+
+const APPROVAL_OVERRIDES_KEY = 'cde-approval-overrides'
+
+function loadApprovalOverrides() {
+  try {
+    return JSON.parse(localStorage.getItem(APPROVAL_OVERRIDES_KEY)) ?? {}
+  } catch {
+    return {}
+  }
+}
 
 export default function App() {
   const [state, setState] = useState({ status: 'loading' })
@@ -27,6 +38,8 @@ export default function App() {
   const [selectedJobId, setSelectedJobId] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [dashboardQuery, setDashboardQuery] = useState('')
+  const [companyFilter, setCompanyFilter] = useState('all')
+  const [approvalOverrides, setApprovalOverrides] = useState(loadApprovalOverrides)
 
   useEffect(() => {
     loadWorkbook()
@@ -34,7 +47,20 @@ export default function App() {
       .catch((error) => setState({ status: 'error', error }))
   }, [])
 
-  const jobs = state.status === 'ready' ? state.jobs : []
+  function setJobApproval(jobId, approvalStatus) {
+    setApprovalOverrides((prev) => {
+      const next = { ...prev, [jobId]: approvalStatus }
+      localStorage.setItem(APPROVAL_OVERRIDES_KEY, JSON.stringify(next))
+      return next
+    })
+  }
+
+  const jobs = useMemo(() => {
+    if (state.status !== 'ready') return []
+    return state.jobs.map((job) =>
+      approvalOverrides[job.jobId] ? { ...job, approvalStatus: approvalOverrides[job.jobId] } : job
+    )
+  }, [state, approvalOverrides])
   const kpis = state.status === 'ready' ? computeKpis(jobs) : null
   const swimlaneStats = state.status === 'ready' ? computeSwimlaneStats(jobs) : null
   const categories = useMemo(() => computeCategories(jobs), [jobs])
@@ -45,6 +71,20 @@ export default function App() {
     [jobs, selectedCategory]
   )
   const companies = useMemo(() => computeCompanies(categoryJobs), [categoryJobs])
+
+  const filteredCompanies = useMemo(() => {
+    if (companyFilter === 'needsApproval') {
+      return companies.filter((c) => c.status === 'Needs approval')
+    }
+    if (companyFilter === 'urgent') {
+      return companies.filter((c) => c.status === 'Urgent')
+    }
+    if (companyFilter === 'recentlyUpdated') {
+      const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000
+      return companies.filter((c) => new Date(c.lastActivity).getTime() >= cutoff)
+    }
+    return companies
+  }, [companies, companyFilter])
 
   const companyJobs = useMemo(
     () => categoryJobs.filter((job) => job.client === selectedClient),
@@ -66,6 +106,7 @@ export default function App() {
 
   function openCategory(name) {
     setSelectedCategory(name)
+    setCompanyFilter('all')
     setView('category')
   }
 
@@ -115,6 +156,15 @@ export default function App() {
             />
             <div className="hero-photo__content">
               <div className="mx-auto w-full max-w-6xl">
+                <div className="mb-8">
+                  <h1 className="text-4xl font-semibold text-white sm:text-5xl">
+                    Today&apos;s operations
+                  </h1>
+                  <p className="mt-2 max-w-md text-neutral-300">
+                    A live look at every active job across Cassidy-Davies Electrical.
+                  </p>
+                </div>
+
                 {kpis && (
                   <div className="mb-10">
                     <StatsRow kpis={kpis} />
@@ -182,7 +232,32 @@ export default function App() {
               </div>
             </div>
 
-            <CompanyList companies={companies} onSelect={openCompany} />
+            <div className="mb-6 flex flex-wrap gap-2">
+              {[
+                { key: 'all', label: 'All' },
+                { key: 'needsApproval', label: 'Needs Approval' },
+                { key: 'urgent', label: 'Urgent' },
+                { key: 'recentlyUpdated', label: 'Recently Updated' },
+              ].map((chip) => (
+                <button
+                  key={chip.key}
+                  onClick={() => setCompanyFilter(chip.key)}
+                  className={`rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                    companyFilter === chip.key
+                      ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-400'
+                      : 'border-white/10 text-neutral-400 hover:border-white/20 hover:text-white'
+                  }`}
+                >
+                  {chip.label}
+                </button>
+              ))}
+            </div>
+
+            <CompanyList companies={filteredCompanies} onSelect={openCompany} />
+
+            <div className="mt-8">
+              <RecentActivity jobs={categoryJobs} />
+            </div>
           </Reveal>
         </main>
       )}
@@ -203,7 +278,11 @@ export default function App() {
       {view === 'project' && selectedJob && (
         <main className="dashboard">
           <Reveal index={0}>
-            <ProjectDetail job={selectedJob} onBack={() => setView('company')} />
+            <ProjectDetail
+              job={selectedJob}
+              onBack={() => setView('company')}
+              onChangeApproval={setJobApproval}
+            />
           </Reveal>
         </main>
       )}
