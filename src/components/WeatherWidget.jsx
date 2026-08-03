@@ -4,7 +4,7 @@ import { fetchWeather } from '../lib/weatherApi'
 const REFRESH_MS = 30 * 60 * 1000 // 30 minutes
 
 const WIDGET_CLASS =
-  'hidden items-center gap-2 rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-1.5 text-xs text-neutral-500 md:flex'
+  'flex items-center gap-2 rounded-lg border border-white/[0.06] bg-white/[0.03] px-2.5 py-1.5 text-xs text-neutral-500 sm:px-3'
 
 export default function WeatherWidget() {
   const [state, setState] = useState({ status: 'loading' })
@@ -39,10 +39,10 @@ export default function WeatherWidget() {
       <span className="text-sm grayscale" aria-hidden="true">
         {w.icon}
       </span>
-      <span className="font-medium text-neutral-300">Christchurch</span>
-      <span className="text-neutral-700">·</span>
+      <span className="hidden font-medium text-neutral-300 sm:inline">Christchurch</span>
+      <span className="hidden text-neutral-700 sm:inline">·</span>
       <span className="tabular-nums text-neutral-300">{w.tempC}°C</span>
-      <span className="text-neutral-500">{w.condition}</span>
+      <span className="hidden text-neutral-500 lg:inline">{w.condition}</span>
     </div>
   )
 }
