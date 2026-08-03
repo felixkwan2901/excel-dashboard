@@ -47,7 +47,7 @@ export default function CategoryCard({ category: cat, index, onSelect, size = 'c
       {image && (
         <>
           <div
-            className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-105 [filter:brightness(0.4)_contrast(0.85)_saturate(0.7)]"
+            className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-105 [filter:brightness(0.75)_contrast(0.95)_saturate(0.9)]"
             style={{ backgroundImage: `url(${image})` }}
             aria-hidden="true"
           />
@@ -55,7 +55,7 @@ export default function CategoryCard({ category: cat, index, onSelect, size = 'c
             className="absolute inset-0"
             style={{
               background:
-                'linear-gradient(0deg, rgba(5,6,8,0.98) 0%, rgba(5,6,8,0.85) 40%, rgba(5,6,8,0.45) 100%)',
+                'linear-gradient(0deg, rgba(5,6,8,0.92) 0%, rgba(5,6,8,0.62) 45%, rgba(5,6,8,0.18) 100%)',
             }}
             aria-hidden="true"
           />
