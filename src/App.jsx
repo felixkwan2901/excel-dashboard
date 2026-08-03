@@ -150,12 +150,12 @@ export default function App() {
           <Reveal as="section" index={0} className="hero-photo">
             <div className="hero-photo__content">
               <div className="mx-auto w-full max-w-6xl">
-                <div className="mb-8">
-                  <h1 className="text-4xl font-semibold text-white sm:text-5xl">
-                    Today&apos;s operations
+                <div className="mb-10">
+                  <h1 className="text-4xl leading-tight font-semibold tracking-tight text-white">
+                    Operations Overview
                   </h1>
-                  <p className="mt-2 max-w-md text-neutral-300">
-                    A live look at every active job across Cassidy-Davies Electrical.
+                  <p className="mt-3 max-w-md text-[15px] text-neutral-400">
+                    Monitor active jobs, project status, and field operations in real time.
                   </p>
                 </div>
 
@@ -165,8 +165,8 @@ export default function App() {
                   </div>
                 )}
 
-                <div className="mb-8 flex items-center justify-between gap-3">
-                  <h2 className="text-lg font-semibold text-white">Service categories</h2>
+                <div className="mb-6 flex items-center justify-between gap-3">
+                  <h2 className="text-2xl font-medium text-white">Service categories</h2>
                   <button className="hero-photo__cta" onClick={goDashboard}>
                     View progress →
                   </button>
@@ -238,7 +238,7 @@ export default function App() {
                   onClick={() => setCompanyFilter(chip.key)}
                   className={`rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors ${
                     companyFilter === chip.key
-                      ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-400'
+                      ? 'border-brand-green/50 bg-brand-green/10 text-brand-green'
                       : 'border-white/10 text-neutral-400 hover:border-white/20 hover:text-white'
                   }`}
                 >

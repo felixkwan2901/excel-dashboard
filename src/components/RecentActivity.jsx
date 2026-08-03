@@ -14,7 +14,7 @@ export default function RecentActivity({ jobs, limit = 5 }) {
     .slice(0, limit)
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-[#111827] p-7">
+    <div className="rounded-2xl border border-white/10 bg-[#11161c] p-7">
       <h2 className="mb-5 text-lg font-semibold text-white">Recent activity</h2>
 
       {recent.length === 0 && <p className="text-sm text-neutral-400">Nothing logged yet.</p>}

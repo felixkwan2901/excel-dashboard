@@ -16,7 +16,7 @@ const DATE = new Intl.DateTimeFormat('en-NZ', {
 function Field({ label, children }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="text-xs font-medium tracking-wide text-neutral-500 uppercase">{label}</span>
+      <span className="text-[13px] font-medium text-neutral-500">{label}</span>
       <div className="text-[15px] text-neutral-100">{children}</div>
     </div>
   )
@@ -29,20 +29,20 @@ export default function ProjectDetail({ job, onBack, onChangeApproval }) {
     <div className="mx-auto flex max-w-4xl flex-col gap-6">
       <button
         onClick={onBack}
-        className="flex w-fit items-center gap-1.5 rounded-full border border-white/10 px-3.5 py-1.5 text-sm text-neutral-300 transition-colors hover:border-white/20 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
+        className="flex w-fit items-center gap-1.5 rounded-full border border-white/10 px-3.5 py-1.5 text-sm text-neutral-300 transition-colors hover:border-white/20 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green"
       >
         <ArrowLeft size={14} aria-hidden="true" />
         All projects
       </button>
 
-      <div className="rounded-2xl border border-white/10 bg-[#111827] p-7">
+      <div className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-7">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-sm text-neutral-500 tabular-nums">{job.jobId}</p>
             <h1 className="mt-1 text-3xl font-bold text-white">{job.client}</h1>
             <p className="mt-1 text-neutral-400">{job.category}</p>
           </div>
-          <p className="text-3xl font-bold text-emerald-400 tabular-nums">
+          <p className="text-3xl font-bold text-brand-green tabular-nums">
             {CURRENCY.format(job.value)}
           </p>
         </div>
@@ -67,10 +67,10 @@ export default function ProjectDetail({ job, onBack, onChangeApproval }) {
                   onClick={() =>
                     onChangeApproval(job.jobId, isApproved ? 'Pending' : 'Approved')
                   }
-                  className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 ${
+                  className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green ${
                     isApproved
                       ? 'border border-white/10 text-neutral-400 hover:border-white/20 hover:text-white'
-                      : 'bg-emerald-500 text-emerald-950 hover:bg-emerald-400'
+                      : 'bg-brand-green text-brand-green-ink hover:-translate-y-0.5 hover:shadow-[0_4px_14px_rgba(56,184,106,0.25)]'
                   }`}
                 >
                   {isApproved ? (

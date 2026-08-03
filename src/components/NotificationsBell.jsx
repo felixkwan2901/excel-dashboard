@@ -20,7 +20,7 @@ export default function NotificationsBell({ urgentJobs, onSelectJob }) {
         onClick={() => setOpen((v) => !v)}
         aria-label={`Notifications: ${urgentJobs.length} urgent job${urgentJobs.length === 1 ? '' : 's'}`}
         aria-expanded={open}
-        className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-white/[0.08] text-neutral-300 transition-colors hover:border-white/20 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
+        className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-white/[0.08] text-neutral-300 transition-colors hover:border-white/20 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green"
       >
         <Bell size={16} aria-hidden="true" />
         {urgentJobs.length > 0 && (
@@ -33,11 +33,9 @@ export default function NotificationsBell({ urgentJobs, onSelectJob }) {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 z-20 mt-2 w-72 rounded-xl border border-white/[0.08] bg-[#111827] p-2 shadow-lg shadow-black/40"
+          className="absolute right-0 z-20 mt-2 w-72 rounded-xl border border-white/[0.08] bg-[#11161c] p-2 shadow-lg shadow-black/40"
         >
-          <p className="px-2 py-1.5 text-xs font-semibold tracking-wide text-neutral-400 uppercase">
-            Urgent jobs
-          </p>
+          <p className="px-2 py-1.5 text-[13px] font-medium text-neutral-400">Urgent jobs</p>
           {urgentJobs.length === 0 && (
             <p className="px-2 py-3 text-sm text-neutral-400">Nothing urgent right now.</p>
           )}

@@ -19,7 +19,7 @@ function initials(name) {
 export default function CompanyList({ companies, onSelect }) {
   if (companies.length === 0) {
     return (
-      <div className="rounded-2xl border border-white/10 bg-[#111827] p-7 text-center text-sm text-neutral-400">
+      <div className="rounded-2xl border border-white/10 bg-[#11161c] p-7 text-center text-sm text-neutral-400">
         No companies match this filter.
       </div>
     )
@@ -31,10 +31,10 @@ export default function CompanyList({ companies, onSelect }) {
         <button
           key={company.name}
           onClick={() => onSelect(company.name)}
-          className="group flex flex-col gap-5 rounded-2xl border border-white/10 bg-[#111827] p-7 text-left transition-all hover:-translate-y-[3px] hover:border-emerald-500/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
+          className="group flex flex-col gap-5 rounded-2xl border border-white/10 bg-[#11161c] p-7 text-left transition-all hover:-translate-y-[3px] hover:border-brand-green/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green"
         >
           <div className="flex items-center gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-sm font-semibold text-emerald-400">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-green/10 text-sm font-semibold text-brand-green">
               {initials(company.name)}
             </span>
             <div className="min-w-0">
@@ -56,7 +56,7 @@ export default function CompanyList({ companies, onSelect }) {
             </span>
           </div>
 
-          <div className="mt-auto flex items-center justify-end gap-1 border-t border-white/10 pt-4 text-sm font-semibold text-emerald-400">
+          <div className="mt-auto flex items-center justify-end gap-1 border-t border-white/10 pt-4 text-sm font-semibold text-brand-green">
             View projects
             <ChevronRight
               size={14}

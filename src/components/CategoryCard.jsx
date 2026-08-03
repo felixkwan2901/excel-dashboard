@@ -23,11 +23,8 @@ function progressTone(cat) {
   return 'good'
 }
 
-function summaryLine(cat) {
-  const parts = []
-  if (cat.pendingCount > 0) parts.push(`${cat.pendingCount} pending approval`)
-  if (cat.urgentCount > 0) parts.push(`${cat.urgentCount} urgent`)
-  return parts.length ? parts.join(' • ') : 'All on track'
+function onTrackCount(cat) {
+  return Math.max(cat.jobCount - cat.pendingCount - cat.urgentCount, 0)
 }
 
 export default function CategoryCard({ category: cat, index, onSelect, size = 'compact' }) {
@@ -43,14 +40,14 @@ export default function CategoryCard({ category: cat, index, onSelect, size = 'c
       whileHover={{ scale: 1.01, y: -4 }}
       whileFocus={{ scale: 1.01, y: -4 }}
       transition={{ duration: 0.4, delay: index * 0.08, ease: 'easeOut' }}
-      className={`group relative flex flex-col justify-end overflow-hidden rounded-2xl border border-white/10 text-left transition-colors hover:border-emerald-500/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 ${
-        isLarge ? 'min-h-[280px] p-7 sm:min-h-[360px]' : 'min-h-[260px] p-6 sm:min-h-[320px]'
+      className={`group relative flex flex-col justify-end overflow-hidden rounded-[18px] border border-white/[0.06] text-left transition-colors hover:border-brand-green/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green ${
+        isLarge ? 'min-h-[300px] p-7 sm:min-h-[380px]' : 'min-h-[280px] p-6 sm:min-h-[340px]'
       }`}
     >
       {image && (
         <>
           <div
-            className="absolute inset-0 bg-cover bg-center brightness-[0.55] saturate-[0.6] transition-transform duration-500 group-hover:scale-105"
+            className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-105 [filter:brightness(0.4)_contrast(0.85)_saturate(0.7)]"
             style={{ backgroundImage: `url(${image})` }}
             aria-hidden="true"
           />
@@ -58,36 +55,44 @@ export default function CategoryCard({ category: cat, index, onSelect, size = 'c
             className="absolute inset-0"
             style={{
               background:
-                'linear-gradient(0deg, rgba(5,5,5,0.97) 0%, rgba(5,5,5,0.75) 45%, rgba(5,5,5,0.35) 100%)',
+                'linear-gradient(0deg, rgba(5,6,8,0.98) 0%, rgba(5,6,8,0.85) 40%, rgba(5,6,8,0.45) 100%)',
             }}
             aria-hidden="true"
           />
         </>
       )}
 
-      <div className="relative flex items-start justify-between gap-3">
-        <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/10 text-white">
-          <Icon size={20} strokeWidth={1.75} aria-hidden="true" />
+      <div className="relative flex items-center gap-2.5">
+        <span className="flex h-8 w-8 items-center justify-center rounded-md bg-white/[0.08] text-neutral-300">
+          <Icon size={16} strokeWidth={1.75} aria-hidden="true" />
         </span>
-        <span className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-xs font-semibold text-neutral-200">
-          {cat.jobCount} active
-        </span>
-      </div>
-
-      <div className="relative mt-auto flex flex-col gap-1.5 pt-6">
-        <span className={`font-semibold text-white ${isLarge ? 'text-3xl' : 'text-xl'}`}>
+        <span className={`font-semibold text-white ${isLarge ? 'text-2xl' : 'text-xl'}`}>
           {cat.name}
         </span>
-        <span className="text-sm text-neutral-400">{summaryLine(cat)}</span>
       </div>
 
-      <div className="relative mt-4">
+      <div className="relative mt-5">
         <ProgressBar percent={cat.progressPercent} tone={progressTone(cat)} />
       </div>
 
-      <div className="relative mt-4 flex items-center justify-end border-t border-white/10 pt-4 text-sm">
-        <span className="flex items-center gap-1 font-semibold text-neutral-300 transition-colors group-hover:text-emerald-400">
-          View category
+      <div className="relative mt-5 grid grid-cols-3 divide-x divide-white/10">
+        <div className="pr-3">
+          <p className="text-lg font-semibold text-white tabular-nums">{onTrackCount(cat)}</p>
+          <p className="mt-0.5 text-[12px] text-neutral-500">Active</p>
+        </div>
+        <div className="px-3">
+          <p className="text-lg font-semibold text-white tabular-nums">{cat.pendingCount}</p>
+          <p className="mt-0.5 text-[12px] text-neutral-500">Pending</p>
+        </div>
+        <div className="pl-3">
+          <p className="text-lg font-semibold text-white tabular-nums">{cat.urgentCount}</p>
+          <p className="mt-0.5 text-[12px] text-neutral-500">Urgent</p>
+        </div>
+      </div>
+
+      <div className="relative mt-5 flex items-center justify-end border-t border-white/10 pt-4 text-sm">
+        <span className="flex items-center gap-1 font-semibold text-neutral-300 transition-colors group-hover:text-brand-green">
+          View details
           <ChevronRight
             size={14}
             className="transition-transform duration-200 group-hover:translate-x-1"

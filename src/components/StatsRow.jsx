@@ -1,24 +1,39 @@
 import { AlertTriangle, Briefcase, Clock } from 'lucide-react'
 import StatCard from './StatCard'
-import WeatherWidget from './WeatherWidget'
 
 export default function StatsRow({ kpis }) {
+  const pendingContext =
+    kpis.pendingApproval > 0
+      ? `Oldest waiting ${kpis.oldestPendingDays}d`
+      : 'Nothing waiting'
+
+  const urgentContext =
+    kpis.urgentCount > 0
+      ? `Across ${kpis.urgentCategoryCount} categor${kpis.urgentCategoryCount === 1 ? 'y' : 'ies'}`
+      : 'Nothing flagged'
+
   return (
-    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-      <StatCard icon={Briefcase} label="Active jobs" value={kpis.totalJobs} />
+    <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+      <StatCard
+        icon={Briefcase}
+        label="Active Jobs"
+        value={kpis.totalJobs}
+        context={`${kpis.categoryCount} service categories`}
+      />
       <StatCard
         icon={Clock}
-        label="Pending approval"
+        label="Pending Approval"
         value={kpis.pendingApproval}
-        tone={kpis.pendingApproval > 0 ? 'warning' : 'neutral'}
+        context={pendingContext}
+        tone={kpis.pendingApproval > 0 ? 'critical' : 'neutral'}
       />
       <StatCard
         icon={AlertTriangle}
-        label="Urgent tasks"
+        label="Urgent Tasks"
         value={kpis.urgentCount}
+        context={urgentContext}
         tone={kpis.urgentCount > 0 ? 'critical' : 'neutral'}
       />
-      <WeatherWidget />
     </div>
   )
 }

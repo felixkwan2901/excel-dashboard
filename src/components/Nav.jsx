@@ -1,6 +1,7 @@
 import Logo from './Logo'
 import SearchBar from './SearchBar'
 import NotificationsBell from './NotificationsBell'
+import WeatherWidget from './WeatherWidget'
 
 export default function Nav({
   view,
@@ -14,28 +15,31 @@ export default function Nav({
 }) {
   return (
     <header className="site-nav">
-      <button className="site-nav__brand" onClick={onGoHome}>
-        <Logo size={28} />
-        <span className="site-nav__brand-text">Cassidy-Davies Electrical</span>
-      </button>
+      <div className="flex items-center gap-7">
+        <button className="site-nav__brand" onClick={onGoHome}>
+          <Logo size={28} />
+          <span className="site-nav__brand-text">Cassidy-Davies Electrical</span>
+        </button>
 
-      <nav className="flex items-center gap-1" aria-label="Primary">
-        <button
-          className={`site-nav__link ${view === 'dashboard' ? 'is-active' : ''}`}
-          onClick={onGoDashboard}
-        >
-          Dashboard
-        </button>
-        <button
-          className={`site-nav__link ${view === 'home' ? 'is-active' : ''}`}
-          onClick={onGoHome}
-        >
-          Projects
-        </button>
-      </nav>
+        <nav className="flex items-center gap-1" aria-label="Primary">
+          <button
+            className={`site-nav__link ${view === 'dashboard' ? 'is-active' : ''}`}
+            onClick={onGoDashboard}
+          >
+            Dashboard
+          </button>
+          <button
+            className={`site-nav__link ${view === 'home' ? 'is-active' : ''}`}
+            onClick={onGoHome}
+          >
+            Projects
+          </button>
+        </nav>
+      </div>
 
       <div className="ml-auto flex items-center gap-3">
         <SearchBar value={searchValue} onChange={onSearchChange} onSubmit={onSearchSubmit} />
+        <WeatherWidget />
         <NotificationsBell urgentJobs={urgentJobs} onSelectJob={onSelectUrgentJob} />
       </div>
     </header>

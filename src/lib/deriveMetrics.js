@@ -69,13 +69,34 @@ export function computeCompanies(jobs) {
   })
 }
 
-export function computeKpis(jobs) {
+const MS_PER_DAY_KPI = 1000 * 60 * 60 * 24
+
+export function computeKpis(jobs, today = new Date()) {
   const totalJobs = jobs.length
   const aiPassed = jobs.filter((j) => j.aiStatus === 'Passed').length
-  const pendingApproval = jobs.filter((j) => j.approvalStatus === 'Pending').length
+  const pendingJobs = jobs.filter((j) => j.approvalStatus === 'Pending')
+  const pendingApproval = pendingJobs.length
   const pipelineValue = jobs.reduce((sum, j) => sum + j.value, 0)
-  const urgentCount = jobs.filter((j) => j.aiStatus === 'Flagged').length
-  return { totalJobs, aiPassed, pendingApproval, pipelineValue, urgentCount }
+  const urgentJobs = jobs.filter((j) => j.aiStatus === 'Flagged')
+  const urgentCount = urgentJobs.length
+
+  const categoryCount = new Set(jobs.map((j) => j.serviceType)).size
+  const oldestPendingDays = pendingJobs.reduce((max, j) => {
+    const days = Math.floor((today - new Date(j.createdAt)) / MS_PER_DAY_KPI)
+    return Math.max(max, days)
+  }, 0)
+  const urgentCategoryCount = new Set(urgentJobs.map((j) => j.serviceType)).size
+
+  return {
+    totalJobs,
+    aiPassed,
+    pendingApproval,
+    pipelineValue,
+    urgentCount,
+    categoryCount,
+    oldestPendingDays,
+    urgentCategoryCount,
+  }
 }
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24
