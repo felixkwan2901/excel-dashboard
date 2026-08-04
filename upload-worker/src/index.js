@@ -69,7 +69,7 @@ Respond with ONLY a JSON array, one entry per job, in this exact shape:
 [{"jobId": "CDE-2026-001", "aiStatus": "Passed", "aiReason": "Short reason here"}]`
 
   const res = await fetch(
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent',
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent',
     {
       method: 'POST',
       headers: {
