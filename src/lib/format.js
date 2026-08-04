@@ -9,15 +9,18 @@ export const PERCENT = new Intl.NumberFormat('en-NZ', {
   maximumFractionDigits: 1,
 })
 
-// Claim/margin figures that should be ~0 sometimes land at e.g. -$0.01 from
-// rounding during the claim process — clamp anything within a cent/0.1pt of
-// zero so it reads as a clean "$0"/"0%" instead of a stray negative sign.
+// Claim/margin figures that should read as "done" often land at a small
+// non-zero value (e.g. -$14, not exactly 0) that these formatters' own
+// rounding (whole dollars, 0.1-point percent) collapses to zero — but the
+// negative sign survives the rounding, producing a confusing "-$0"/"-0%".
+// Clamp based on what the formatter will actually display, not an arbitrary
+// epsilon, so any value that rounds to zero reads as a clean positive zero.
 export function money(v) {
   if (v === null) return '—'
-  return CURRENCY.format(Math.abs(v) < 0.01 ? 0 : v)
+  return CURRENCY.format(Math.round(v) === 0 ? 0 : v)
 }
 
 export function percent(v) {
   if (v === null) return '—'
-  return PERCENT.format(Math.abs(v) < 0.001 ? 0 : v)
+  return PERCENT.format(Math.round(v * 1000) === 0 ? 0 : v)
 }

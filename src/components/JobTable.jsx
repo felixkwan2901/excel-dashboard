@@ -1,24 +1,6 @@
 import { useMemo, useState } from 'react'
 import StatusBadge from './StatusBadge'
-
-const CURRENCY = new Intl.NumberFormat('en-NZ', {
-  style: 'currency',
-  currency: 'NZD',
-  maximumFractionDigits: 0,
-})
-
-const PERCENT = new Intl.NumberFormat('en-NZ', {
-  style: 'percent',
-  maximumFractionDigits: 1,
-})
-
-function formatMoney(v) {
-  return v === null ? '—' : CURRENCY.format(v)
-}
-
-function formatPercent(v) {
-  return v === null ? '—' : PERCENT.format(v)
-}
+import { money, percent } from '../lib/format'
 
 const COLUMNS = [
   { key: 'jobNumber', label: 'Job Number' },
@@ -36,9 +18,9 @@ function renderCell(job, key) {
     case 'totalActualCost':
     case 'remainingToClaim':
     case 'gpPerHour':
-      return formatMoney(job[key])
+      return money(job[key])
     case 'marginToDate':
-      return formatPercent(job.marginToDate)
+      return percent(job.marginToDate)
     default:
       return job[key]
   }
