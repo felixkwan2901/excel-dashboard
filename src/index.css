@@ -262,14 +262,28 @@ body::before {
 }
 
 /* The dark ambient backdrop and page background are a screen-only effect —
-   left on, they render as a dark/green sheet behind every printed page. */
+   left on, they render as a dark/green sheet behind every printed page.
+   `color-scheme: dark` also has to be overridden here: it's what makes the
+   browser paint any page area past the content's height with a dark
+   default canvas instead of white, which is where the leftover black strip
+   at the bottom of a short printed page comes from. */
 @media print {
+  :root {
+    color-scheme: light;
+  }
   body::before {
     display: none;
   }
   html,
-  body {
+  body,
+  #root {
     background: #fff;
+    height: auto;
+    min-height: 0;
+  }
+  @page {
+    size: landscape;
+    margin: 12mm;
   }
 }
 
