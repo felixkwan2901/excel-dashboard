@@ -1,66 +1,66 @@
 {
   "CDE-2026-001": {
-    "aiStatus": "Flagged",
-    "aiReason": "Approved job is missing assigned technician and value."
+    "aiStatus": "Passed",
+    "aiReason": ""
   },
   "CDE-2026-002": {
     "aiStatus": "Passed",
-    "aiReason": "Pending status is normal for this pipeline stage."
+    "aiReason": ""
   },
   "CDE-2026-003": {
-    "aiStatus": "Flagged",
-    "aiReason": "Approved job is missing assigned technician and value."
+    "aiStatus": "Passed",
+    "aiReason": ""
   },
   "CDE-2026-004": {
     "aiStatus": "Flagged",
-    "aiReason": "Job is explicitly flagged in the swimlane."
+    "aiReason": "No technician assigned"
   },
   "CDE-2026-005": {
-    "aiStatus": "Flagged",
-    "aiReason": "Approved job is missing assigned technician and value."
+    "aiStatus": "Passed",
+    "aiReason": ""
   },
   "CDE-2026-006": {
-    "aiStatus": "Passed",
-    "aiReason": "Pending status is normal for this pipeline stage."
+    "aiStatus": "Flagged",
+    "aiReason": "No technician assigned"
   },
   "CDE-2026-008": {
-    "aiStatus": "Flagged",
-    "aiReason": "Approved job is missing assigned technician and value."
+    "aiStatus": "Passed",
+    "aiReason": ""
   },
   "CDE-2026-009": {
     "aiStatus": "Passed",
-    "aiReason": "Pending status is normal for this pipeline stage."
+    "aiReason": ""
   },
   "CDE-2026-010": {
-    "aiStatus": "Flagged",
-    "aiReason": "Approved job is missing assigned technician and value."
+    "aiStatus": "Passed",
+    "aiReason": ""
   },
   "CDE-2026-011": {
     "aiStatus": "Flagged",
-    "aiReason": "Job is explicitly flagged in the swimlane."
+    "aiReason": "No technician assigned"
   },
   "CDE-2026-012": {
-    "aiStatus": "Flagged",
-    "aiReason": "Approved job is missing assigned technician and value."
+    "aiStatus": "Passed",
+    "aiReason": ""
   },
   "CDE-2026-013": {
-    "aiStatus": "Flagged",
-    "aiReason": "Approved job is missing assigned technician and value."
+    "aiStatus": "Passed",
+    "aiReason": ""
   },
   "CDE-2026-014": {
-    "aiStatus": "Passed",
-    "aiReason": "Pending status is normal for this pipeline stage."
+    "aiStatus": "Flagged",
+    "aiReason": "No technician assigned"
   },
   "CDE-2026-015": {
     "aiStatus": "Passed",
-    "aiReason": "Pending status is normal for this pipeline stage."
+    "aiReason": ""
   },
   "CDE-2026-016": {
-    "aiStatus": "Flagged",
-    "aiReason": "Approved job is missing assigned technician and value."
+    "aiStatus": "Passed",
+    "aiReason": ""
   },
   "CDE-2026-017": {
-    "aiStatus": "Flagged",
-    "aiReason": "Approved job is missing assigned technician and value."
+    "aiStatus": "Passed",
+    "aiReason": ""
   }
 }
