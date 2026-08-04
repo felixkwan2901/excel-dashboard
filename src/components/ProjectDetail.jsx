@@ -12,12 +12,17 @@ const PERCENT = new Intl.NumberFormat('en-NZ', {
   maximumFractionDigits: 1,
 })
 
+// Claim/margin figures that should be ~0 sometimes land at e.g. -$0.01 from
+// rounding during the claim process — clamp anything within a cent/0.1pt of
+// zero so it reads as a clean "$0"/"0%" instead of a stray negative sign.
 function money(v) {
-  return v === null ? '—' : CURRENCY.format(v)
+  if (v === null) return '—'
+  return CURRENCY.format(Math.abs(v) < 0.01 ? 0 : v)
 }
 
 function percent(v) {
-  return v === null ? '—' : PERCENT.format(v)
+  if (v === null) return '—'
+  return PERCENT.format(Math.abs(v) < 0.001 ? 0 : v)
 }
 
 function statusReasons(job) {
@@ -31,11 +36,13 @@ function statusReasons(job) {
   return reasons
 }
 
-function Field({ label, children }) {
+function Field({ label, children, warn }) {
   return (
     <div className="flex flex-col gap-1.5">
       <span className="text-[13px] font-medium text-neutral-500">{label}</span>
-      <div className="text-[15px] text-neutral-100">{children}</div>
+      <div className={`text-[15px] ${warn ? 'font-semibold text-amber-400' : 'text-neutral-100'}`}>
+        {children}
+      </div>
     </div>
   )
 }
@@ -77,7 +84,9 @@ export default function ProjectDetail({ job, onBack }) {
 
         <Section title="Cost">
           <Field label="Total quoted">{money(job.totalQuotedCost)}</Field>
-          <Field label="Total actual">{money(job.totalActualCost)}</Field>
+          <Field label="Total actual" warn={job.overBudget}>
+            {money(job.totalActualCost)}
+          </Field>
           <Field label="Materials (quoted / actual)">
             {money(job.quotedMaterialCost)} / {money(job.actualMaterialCost)}
           </Field>
@@ -102,7 +111,9 @@ export default function ProjectDetail({ job, onBack }) {
         </Section>
 
         <Section title="Margin">
-          <Field label="Margin to date">{percent(job.marginToDate)}</Field>
+          <Field label="Margin to date" warn={job.losingMargin}>
+            {percent(job.marginToDate)}
+          </Field>
           <Field label="Quoted margin">{percent(job.quotedMargin)}</Field>
           <Field label="GP $/hour">{money(job.gpPerHour)}</Field>
           <Field label="Quoted GP $/hour">{money(job.quotedGpPerHour)}</Field>
