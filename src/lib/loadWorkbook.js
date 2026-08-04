@@ -54,33 +54,63 @@ function toNumber(v) {
 }
 
 // A row is a real job's summary row only if it has a positive job number
-// and a real name — this is what distinguishes it from the "Week 1..5"
-// snapshot rows (blank job number), the blank separator row between every
-// job block, and the handful of junk rows in the sheet (job number 0 with
-// no name, or a placeholder name like "Contracting").
+// and a real name — this is what distinguishes a genuine "Start of month"
+// row from the handful of junk blocks in the sheet (job number 0, or a
+// placeholder name like "Contracting").
 function isValidJobRow(row) {
   const num = row[0]
   const name = row[1]
   return typeof num === 'number' && num > 0 && typeof name === 'string' && name.trim() !== '' && name.trim() !== '0'
 }
 
+// Every job is a block of rows: one "Start of month" row (has Job Number/
+// Job Name) followed by "Week 1".."Week 5" rows (blank Job Number/Name,
+// updated figures) — quoted price, actual cost, claim-to-date, and margin
+// all keep changing week to week as the job progresses and gets revised.
+// "Start of month" is just the baseline snapshot, not the current one, so
+// each job's numbers are taken from the LAST row of its block (its most
+// recent week) — only jobNumber/jobName come from the block's first row,
+// since later rows leave those blank.
+//
+// Blocks are delimited by the literal "Week" column text ("Start of
+// month" starts a new block, "Week N" continues the current one) rather
+// than by blank-row detection — the junk blocks below job 9508 have their
+// own "Start of month"/"Week N" rows too despite an invalid job number, so
+// checking for blank cells alone would merge them into the prior real job.
 function rowsAfterHeader(rows) {
   const headerIdx = rows.findIndex((row) => normalizeHeader(row[0]) === 'job number')
   if (headerIdx === -1) return []
   const columnMap = buildColumnMap(rows[headerIdx])
 
-  const out = []
+  const blocks = []
+  let current = null
   for (let i = headerIdx + 1; i < rows.length; i++) {
     const row = rows[i]
-    if (!isValidJobRow(row)) continue
-    const record = {}
-    for (const field of Object.keys(FIELD_HEADER_ALIASES)) {
-      const col = columnMap[field]
-      record[field] = col !== undefined ? row[col] : ''
+    const weekLabel = row[2]
+    if (weekLabel === 'Start of month') {
+      if (current) blocks.push(current)
+      current = { startRow: row, lastRow: row }
+    } else if (current && typeof weekLabel === 'string' && weekLabel.startsWith('Week')) {
+      current.lastRow = row
     }
-    out.push(record)
   }
-  return out
+  if (current) blocks.push(current)
+
+  return blocks
+    .filter((block) => isValidJobRow(block.startRow))
+    .map((block) => {
+      const record = {}
+      for (const field of Object.keys(FIELD_HEADER_ALIASES)) {
+        const col = columnMap[field]
+        if (col === undefined) {
+          record[field] = ''
+          continue
+        }
+        // jobNumber/jobName only ever appear on the block's first row.
+        record[field] = field === 'jobNumber' || field === 'jobName' ? block.startRow[col] : block.lastRow[col]
+      }
+      return record
+    })
 }
 
 function withDerivedFields(job) {
