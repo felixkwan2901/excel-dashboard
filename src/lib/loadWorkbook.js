@@ -75,6 +75,28 @@ function weekRowHasData(row, columnMap) {
   return Number.isFinite(n) && n > 0
 }
 
+// The job-costing data has moved to a different tab before (Sheet1 →
+// "Deliverables Sheet" once already), and the workbook also carries a
+// near-duplicate "…Test Sheet" tab with the same columns — so rather than
+// hardcode a tab name, find whichever sheet actually has the job-costing
+// header row (Job Number + Quoted Price + Total actual cost all present).
+// Test-named tabs are only used as a last resort, in case the real sheet
+// ever gets renamed to include "test" itself.
+function findJobsSheet(workbook) {
+  const candidates = []
+  for (const name of workbook.SheetNames) {
+    const rows = sheetRows(workbook.Sheets[name])
+    const headerIdx = rows.findIndex((row) => normalizeHeader(row[0]) === 'job number')
+    if (headerIdx === -1) continue
+    const columnMap = buildColumnMap(rows[headerIdx])
+    if (columnMap.jobNumber === undefined || columnMap.quotedPrice === undefined) continue
+    if (columnMap.totalActualCost === undefined) continue
+    candidates.push({ name, rows })
+  }
+  const preferred = candidates.find((c) => !normalizeHeader(c.name).includes('test'))
+  return (preferred ?? candidates[0])?.rows ?? []
+}
+
 // Every job is a block of rows: one "Start of month" row (has Job Number/
 // Job Name) followed by "Week 1".."Week 5" rows (blank Job Number/Name,
 // updated figures) — quoted price, actual cost, claim-to-date, and margin
@@ -188,7 +210,7 @@ export async function loadWorkbook() {
   const buffer = await fetch(workbookUrl).then((res) => res.arrayBuffer())
   const workbook = XLSX.read(buffer, { type: 'array' })
 
-  const jobRows = sheetRows(workbook.Sheets['Sheet1'])
+  const jobRows = findJobsSheet(workbook)
   const jobs = rowsAfterHeader(jobRows).map(withDerivedFields)
 
   return { jobs }

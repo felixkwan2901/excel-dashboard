@@ -14,6 +14,8 @@ const MAX_BYTES = 8 * 1024 * 1024 // 8MB
 const FIELD_HEADER_ALIASES = {
   jobNumber: ['Job Number'],
   jobName: ['Job Name'],
+  quotedPrice: ['Quoted Price'],
+  totalActualCost: ['Total actual cost'],
 }
 
 function normalizeHeader(text) {
@@ -40,22 +42,38 @@ function isValidJobRow(row) {
   return typeof num === 'number' && num > 0 && typeof name === 'string' && name.trim() !== '' && name.trim() !== '0'
 }
 
+// The job-costing data has moved to a different tab before (Sheet1 →
+// "Deliverables Sheet" once already), and the workbook also carries a
+// near-duplicate "…Test Sheet" tab with the same columns — so rather than
+// hardcode a tab name, find whichever sheet actually has the job-costing
+// header row (mirrors src/lib/loadWorkbook.js's findJobsSheet).
+function findJobsSheetRows(workbook) {
+  const candidates = []
+  for (const name of workbook.SheetNames) {
+    const sheet = workbook.Sheets[name]
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false, defval: '' })
+    const headerIdx = rows.findIndex((row) => normalizeHeader(row[0]) === 'job number')
+    if (headerIdx === -1) continue
+    const columnMap = buildColumnMap(rows[headerIdx])
+    if (columnMap.jobNumber === undefined || columnMap.quotedPrice === undefined) continue
+    if (columnMap.totalActualCost === undefined) continue
+    candidates.push({ name, rows, headerIdx })
+  }
+  const preferred = candidates.find((c) => !normalizeHeader(c.name).includes('test'))
+  return preferred ?? candidates[0] ?? null
+}
+
 // Only used to sanity-check the upload and report a job count back to the
 // person uploading — the dashboard itself re-parses the file independently
 // (src/lib/loadWorkbook.js) once it's live.
 function countValidJobs(buffer) {
   const workbook = XLSX.read(buffer, { type: 'array' })
-  const sheet = workbook.Sheets['Sheet1']
-  if (!sheet) return 0
-
-  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false, defval: '' })
-  const headerIdx = rows.findIndex((row) => normalizeHeader(row[0]) === 'job number')
-  if (headerIdx === -1) return 0
-  buildColumnMap(rows[headerIdx]) // validates the header row is shaped as expected
+  const found = findJobsSheetRows(workbook)
+  if (!found) return 0
 
   let count = 0
-  for (let i = headerIdx + 1; i < rows.length; i++) {
-    if (isValidJobRow(rows[i])) count++
+  for (let i = found.headerIdx + 1; i < found.rows.length; i++) {
+    if (isValidJobRow(found.rows[i])) count++
   }
   return count
 }
