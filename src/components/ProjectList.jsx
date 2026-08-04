@@ -24,7 +24,6 @@ export default function ProjectList({ jobs, onSelect, showClient = true }) {
                 {job.category}
               </span>
             </span>
-            <span className="project-row__stage">{job.swimlane.replace(/^\d+\.\s*/, '')}</span>
             <span className="project-row__badges">
               <StatusBadge label={job.aiStatus} />
               <StatusBadge label={job.approvalStatus} />

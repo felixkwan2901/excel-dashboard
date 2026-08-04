@@ -8,6 +8,15 @@ on:
 permissions:
   contents: write
 
+# The upload worker can land two commits in quick succession (data file,
+# then AI checks), each triggering its own run of this workflow. Without
+# this, both runs build in parallel and race to push gh-pages, and the
+# loser fails with a ref-lock conflict. Serialize so the second run always
+# starts from a clean gh-pages state.
+concurrency:
+  group: pages-deploy
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest

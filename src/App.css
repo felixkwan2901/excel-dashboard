@@ -162,12 +162,6 @@
   color: var(--text-muted);
 }
 
-.project-row__stage {
-  font-size: 12px;
-  color: var(--brand-green);
-  flex: 0 0 190px;
-}
-
 .project-row__badges {
   display: none;
   gap: 6px;
@@ -189,12 +183,6 @@
 @media (min-width: 720px) {
   .project-row__badges {
     display: flex;
-  }
-}
-
-@media (max-width: 640px) {
-  .project-row__stage {
-    display: none;
   }
 }
 
@@ -256,28 +244,6 @@
   font-size: 16px;
   font-weight: 600;
   color: var(--text-primary);
-}
-
-.chart-tooltip {
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 8px 12px;
-  box-shadow: var(--shadow);
-  font-size: 13px;
-}
-
-.chart-tooltip__title {
-  font-weight: 600;
-  margin-bottom: 4px;
-  color: var(--text-primary);
-}
-
-.chart-tooltip__row {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  color: var(--text-secondary);
 }
 
 .table-scroll {

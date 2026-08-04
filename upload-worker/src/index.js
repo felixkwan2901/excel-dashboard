@@ -7,39 +7,55 @@ const AI_CHECKS_PATH = 'ai-checks.json'
 const BRANCH = 'main'
 const MAX_BYTES = 8 * 1024 * 1024 // 8MB
 
-const JOB_HEADERS = [
-  'jobId',
-  'client',
-  'serviceType',
-  'category',
-  'createdAt',
-  'swimlane',
-  'aiStatus',
-  'approvalStatus',
-  'tech',
-  'value',
-  'processId',
-]
+// Columns are located by header text, not position — mirrors
+// src/lib/loadWorkbook.js (kept in sync manually since this worker runs
+// isolated from the frontend build). A prior sheet edit removed some
+// columns entirely, which silently scrambled every field after the change
+// point under the old position-based parsing.
+const FIELD_HEADER_ALIASES = {
+  jobId: ['Job ID'],
+  client: ['Client Name'],
+  serviceType: ['Service Type'],
+  category: ['Job Category'],
+  createdAt: ['Creation Date'],
+  approvalStatus: ['Approval Status', 'AI Check Status'],
+  tech: ['Assigned Tech'],
+  value: ['Est. Value ($)', 'Est. Value'],
+}
 
-// Mirrors src/lib/loadWorkbook.js's row parsing — kept in sync manually
-// since this worker runs isolated from the frontend build.
+function normalizeHeader(text) {
+  return String(text ?? '').trim().toLowerCase()
+}
+
+function buildColumnMap(headerRow) {
+  const normalized = headerRow.map(normalizeHeader)
+  const columnMap = {}
+  for (const [field, aliases] of Object.entries(FIELD_HEADER_ALIASES)) {
+    const col = aliases.map((alias) => normalized.indexOf(normalizeHeader(alias))).find((idx) => idx !== -1)
+    if (col !== undefined && col !== -1) columnMap[field] = col
+  }
+  return columnMap
+}
+
 function parseJobs(buffer) {
   const workbook = XLSX.read(buffer, { type: 'array' })
   const sheet = workbook.Sheets['Job Directory']
   if (!sheet) return []
 
   const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false, defval: '' })
-  const headerIdx = rows.findIndex((row) => row[0] === 'Job ID')
+  const headerIdx = rows.findIndex((row) => normalizeHeader(row[0]) === 'job id')
   if (headerIdx === -1) return []
+  const columnMap = buildColumnMap(rows[headerIdx])
 
   const jobs = []
   for (let i = headerIdx + 1; i < rows.length; i++) {
     const row = rows[i]
     if (!row[0] || !row[1]) break
     const record = {}
-    JOB_HEADERS.forEach((key, col) => {
-      record[key] = row[col] ?? ''
-    })
+    for (const field of Object.keys(FIELD_HEADER_ALIASES)) {
+      const col = columnMap[field]
+      record[field] = col !== undefined ? (row[col] ?? '') : ''
+    }
     jobs.push(record)
   }
   return jobs
@@ -50,7 +66,7 @@ async function runAiChecks(jobs, env) {
 
   const prompt = `You are a compliance reviewer for an electrical contracting company's job pipeline.
 For each job below, decide if it should be "Passed" or "Flagged" for manual review, and give a short reason (under 12 words).
-Flag jobs that look risky or inconsistent — e.g. no technician assigned this late in the process, unusually high value for the job category, or a swimlane/approval mismatch. Otherwise pass them.
+Flag jobs that look risky or inconsistent — e.g. no technician assigned, unusually high value for the job category, or a value/approval mismatch. Otherwise pass them.
 
 Jobs (JSON):
 ${JSON.stringify(
@@ -58,7 +74,6 @@ ${JSON.stringify(
     jobId: j.jobId,
     category: j.category,
     serviceType: j.serviceType,
-    swimlane: j.swimlane,
     tech: j.tech,
     value: j.value,
     approvalStatus: j.approvalStatus,

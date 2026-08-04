@@ -1,14 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { loadWorkbook } from './lib/loadWorkbook'
-import {
-  computeKpis,
-  computeSwimlaneStats,
-  computeCategories,
-  computeCompanies,
-} from './lib/deriveMetrics'
+import { computeKpis, computeCategories, computeCompanies } from './lib/deriveMetrics'
 import Nav from './components/Nav'
 import StatsRow from './components/StatsRow'
-import SwimlaneChart from './components/SwimlaneChart'
 import JobTable from './components/JobTable'
 import CategoryGrid from './components/CategoryGrid'
 import CompanyList from './components/CompanyList'
@@ -60,7 +54,6 @@ export default function App() {
     )
   }, [state, approvalOverrides])
   const kpis = state.status === 'ready' ? computeKpis(jobs) : null
-  const swimlaneStats = state.status === 'ready' ? computeSwimlaneStats(jobs) : null
   const categories = useMemo(() => computeCategories(jobs), [jobs])
   const urgentJobs = useMemo(() => jobs.filter((j) => j.aiStatus === 'Flagged'), [jobs])
 
@@ -293,17 +286,10 @@ export default function App() {
             </p>
           )}
           {state.status === 'ready' && (
-            <>
-              <Reveal as="section" index={0} className="panel">
-                <h2>Active jobs by swimlane</h2>
-                <SwimlaneChart data={swimlaneStats} />
-              </Reveal>
-
-              <Reveal as="section" index={1} className="panel">
-                <h2>Job directory</h2>
-                <JobTable jobs={jobs} swimlanes={swimlaneStats} initialQuery={dashboardQuery} />
-              </Reveal>
-            </>
+            <Reveal as="section" index={0} className="panel">
+              <h2>Job directory</h2>
+              <JobTable jobs={jobs} initialQuery={dashboardQuery} />
+            </Reveal>
           )}
         </main>
       )}

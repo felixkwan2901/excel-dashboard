@@ -1,12 +1,3 @@
-const SWIMLANE_ORDER = [
-  '1. Client / Portal',
-  '2. Service Coordinator',
-  '3. Central Knowledge Repository',
-  '4. AI Validation Layer',
-  '5. Electrical Technician',
-  '6. Accounts & Billing',
-]
-
 const SERVICE_TYPE_ORDER = ['Commercial', 'Residential', 'Home Ventilation']
 
 export function computeCategories(jobs) {
@@ -85,40 +76,4 @@ export function computeKpis(jobs, today = new Date()) {
     oldestPendingDays,
     urgentCategoryCount,
   }
-}
-
-const MS_PER_DAY = 1000 * 60 * 60 * 24
-const BILLING_STAGE = '6. Accounts & Billing'
-
-// Two metrics defined from the data we actually have (no completion-event
-// log or per-job progress % exists in the sheet):
-//  - "completed this week" = jobs that reached the terminal billing stage
-//    and were logged in the last 7 days — a proxy for "billed this week."
-//  - "average completion" = the mean of each category's on-track ratio
-//    (jobs with no open pending/urgent flag) — "how clean is the workload,"
-//    not a per-job progress percentage.
-export function computeGlobalStats(jobs, today = new Date()) {
-  const completedThisWeek = jobs.filter((j) => {
-    if (j.swimlane !== BILLING_STAGE) return false
-    const days = (today - new Date(j.createdAt)) / MS_PER_DAY
-    return days >= 0 && days <= 7
-  }).length
-
-  const categories = computeCategories(jobs)
-  const averageCompletion = categories.length
-    ? Math.round(categories.reduce((sum, c) => sum + c.progressPercent, 0) / categories.length)
-    : 0
-
-  return { completedThisWeek, averageCompletion }
-}
-
-export function computeSwimlaneStats(jobs) {
-  return SWIMLANE_ORDER.map((name) => {
-    const activeCount = jobs.filter((j) => j.swimlane === name).length
-    return {
-      name,
-      shortName: name.replace(/^\d+\.\s*/, ''),
-      activeCount,
-    }
-  })
 }

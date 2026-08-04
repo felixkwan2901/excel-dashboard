@@ -13,20 +13,17 @@ const COLUMNS = [
   { key: 'jobId', label: 'Job ID' },
   { key: 'client', label: 'Client' },
   { key: 'category', label: 'Job category' },
-  { key: 'swimlane', label: 'Swimlane' },
   { key: 'tech', label: 'Assigned tech' },
   { key: 'value', label: 'Est. value', num: true },
 ]
 
-export default function JobTable({ jobs, swimlanes, initialQuery = '' }) {
+export default function JobTable({ jobs, initialQuery = '' }) {
   const [query, setQuery] = useState(initialQuery)
-  const [swimlaneFilter, setSwimlaneFilter] = useState('all')
   const [sort, setSort] = useState({ key: 'jobId', dir: 1 })
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     return jobs
-      .filter((job) => swimlaneFilter === 'all' || job.swimlane === swimlaneFilter)
       .filter((job) =>
         !q ||
         job.client.toLowerCase().includes(q) ||
@@ -39,7 +36,7 @@ export default function JobTable({ jobs, swimlanes, initialQuery = '' }) {
         if (typeof av === 'number') return (av - bv) * sort.dir
         return String(av).localeCompare(String(bv)) * sort.dir
       })
-  }, [jobs, query, swimlaneFilter, sort])
+  }, [jobs, query, sort])
 
   function toggleSort(key) {
     setSort((prev) => (prev.key === key ? { key, dir: -prev.dir } : { key, dir: 1 }))
@@ -55,18 +52,6 @@ export default function JobTable({ jobs, swimlanes, initialQuery = '' }) {
           onChange={(e) => setQuery(e.target.value)}
           className="filter-input"
         />
-        <select
-          value={swimlaneFilter}
-          onChange={(e) => setSwimlaneFilter(e.target.value)}
-          className="filter-select"
-        >
-          <option value="all">All swimlanes</option>
-          {swimlanes.map((s) => (
-            <option key={s.name} value={s.name}>
-              {s.shortName}
-            </option>
-          ))}
-        </select>
         <span className="table-filters__count">
           {filtered.length} of {jobs.length} jobs
         </span>
@@ -97,7 +82,6 @@ export default function JobTable({ jobs, swimlanes, initialQuery = '' }) {
                 <td className="tabular">{job.jobId}</td>
                 <td>{job.client}</td>
                 <td>{job.category}</td>
-                <td>{job.swimlane.replace(/^\d+\.\s*/, '')}</td>
                 <td>{job.tech}</td>
                 <td className="num tabular">{CURRENCY.format(job.value)}</td>
                 <td>
@@ -111,7 +95,7 @@ export default function JobTable({ jobs, swimlanes, initialQuery = '' }) {
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={9} className="empty-row">
+                <td colSpan={8} className="empty-row">
                   No jobs match your filters.
                 </td>
               </tr>

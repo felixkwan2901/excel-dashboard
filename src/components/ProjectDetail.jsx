@@ -47,11 +47,9 @@ export default function ProjectDetail({ job, onBack, onChangeApproval }) {
           </p>
         </div>
 
-        <div className="mt-7 grid grid-cols-1 gap-6 border-t border-white/10 pt-7 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="Current swimlane">{job.swimlane}</Field>
+        <div className="mt-7 grid grid-cols-1 gap-6 border-t border-white/10 pt-7 sm:grid-cols-2">
           <Field label="Assigned technician">{job.tech}</Field>
           <Field label="Created">{DATE.format(new Date(job.createdAt))}</Field>
-          <Field label="BPMN process ID">{job.processId}</Field>
         </div>
 
         <div className="mt-6 grid grid-cols-1 gap-6 border-t border-white/10 pt-6 sm:grid-cols-2">
