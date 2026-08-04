@@ -9,6 +9,7 @@ import CompanyList from './components/CompanyList'
 import RecentActivity from './components/RecentActivity'
 import ProjectList from './components/ProjectList'
 import ProjectDetail from './components/ProjectDetail'
+import LastSynced from './components/LastSynced'
 import Reveal from './components/Reveal'
 import './App.css'
 
@@ -149,6 +150,9 @@ export default function App() {
                   <p className="mt-3 max-w-md text-[15px] text-neutral-400">
                     Monitor active jobs, project status, and field operations in real time.
                   </p>
+                  <div className="mt-2">
+                    <LastSynced />
+                  </div>
                 </div>
 
                 {kpis && (

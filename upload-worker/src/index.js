@@ -4,6 +4,7 @@ const OWNER = 'felixkwan2901'
 const REPO = 'excel-dashboard'
 const FILE_PATH = 'Cassidy_Davies_Electrical_BPMN_Data.xlsx'
 const AI_CHECKS_PATH = 'ai-checks.json'
+const SYNC_META_PATH = 'sync-meta.json'
 const BRANCH = 'main'
 const MAX_BYTES = 8 * 1024 * 1024 // 8MB
 
@@ -310,6 +311,19 @@ async function handleUpload(request, env) {
       renderForm(`<div class="result err">GitHub rejected the update (${putRes.status}). ${body.slice(0, 200)}</div>`),
       502
     )
+  }
+
+  const uploadedAt = new Date().toISOString()
+
+  // Best-effort, like the AI checks below — the data upload has already
+  // succeeded, so a sync-meta write failure shouldn't fail the whole request.
+  try {
+    await putFileWithRetry(SYNC_META_PATH, env, {
+      contentBase64: textToBase64(JSON.stringify({ updatedAt: uploadedAt }, null, 2)),
+      message: `Update sync timestamp (${uploadedAt})`,
+    })
+  } catch {
+    // Non-critical: the dashboard just won't show a fresh "Last updated" time.
   }
 
   // AI checks are best-effort: if this fails (bad key, quota, malformed
