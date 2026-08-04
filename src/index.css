@@ -52,19 +52,19 @@
 
   --text-primary: #f5f7fa;
   --text-secondary: #a5afb8;
-  --text-muted: #7c8791;
+  --text-muted: #8b95a1;
 
   --gridline: #232b3a;
   --baseline: #38382f;
   --border: rgba(255, 255, 255, 0.06);
 
   /*
-   * Status is communicated through weight/typography first, not hue — the
-   * brand green is reserved for actions/selected states/small highlights,
-   * not for a red/amber/green traffic-light system. "Good" keeps a faint
-   * green tint since an approved/passed state is effectively a confirmed
-   * action; pending/flagged read as neutral grays, differentiated by their
-   * icon glyph and label rather than color.
+   * Approval is a real, confirmed action, so it gets the one solid-fill
+   * brand-green treatment on the page — everything else stays a step more
+   * restrained so Approved reads as clearly distinct. Flagged uses a soft
+   * amber/orange (not a harsh red) as the one genuine "needs attention"
+   * warning color in the palette; pending/passed stay neutral, told apart
+   * by icon glyph and label rather than hue.
    */
   --status-good: var(--brand-green-dim);
   --status-good-bg: rgba(57, 211, 83, 0.12);
@@ -72,6 +72,8 @@
   --status-warning-bg: rgba(255, 255, 255, 0.06);
   --status-critical: var(--text-primary);
   --status-critical-bg: rgba(255, 255, 255, 0.1);
+  --status-flagged: #f2a94e;
+  --status-flagged-bg: rgba(242, 169, 78, 0.14);
 
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.45);
 

@@ -404,9 +404,13 @@ export default function App() {
 
       {view === 'dashboard' && (
         <main className="dashboard">
-          <button className="back-link" onClick={goHome}>
-            ← current projects
-          </button>
+          <nav className="flex items-center gap-1.5 text-sm text-text-muted">
+            <button className="transition-colors hover:text-text-primary" onClick={goHome}>
+              Operations Overview
+            </button>
+            <span aria-hidden="true">/</span>
+            <span className="text-text-primary">Job Directory</span>
+          </nav>
 
           {state.status === 'loading' && <p className="dashboard__status">Loading workbook…</p>}
           {state.status === 'error' && (

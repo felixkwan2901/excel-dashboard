@@ -20,8 +20,33 @@ const COLUMNS = [
   { key: 'createdAt', label: 'Created' },
 ]
 
+// "CDE-2026-001" -> mute the repeating "CDE-2026-" prefix, bold the
+// trailing digits that actually distinguish one job from the next.
+function renderJobId(jobId) {
+  const match = /^(.*-)(\d+)$/.exec(jobId)
+  if (!match) return jobId
+  const [, prefix, suffix] = match
+  return (
+    <>
+      <span className="text-neutral-500">{prefix}</span>
+      <span className="font-semibold text-white">{suffix}</span>
+    </>
+  )
+}
+
+function renderTech(tech) {
+  if (tech === 'Unassigned') {
+    return <span className="text-neutral-500 italic">Unassigned</span>
+  }
+  return tech
+}
+
 function renderCell(job, key) {
   switch (key) {
+    case 'jobId':
+      return renderJobId(job.jobId)
+    case 'tech':
+      return renderTech(job.tech)
     case 'value':
       return CURRENCY.format(job.value)
     case 'aiStatus':
@@ -68,6 +93,15 @@ export default function JobTable({ jobs, initialQuery = '', initialStatusFilter 
       })
   }, [jobs, query, statusFilter, sort])
 
+  const statusCounts = useMemo(
+    () => ({
+      all: jobs.length,
+      pending: jobs.filter((job) => job.approvalStatus === 'Pending').length,
+      urgent: jobs.filter((job) => job.aiStatus === 'Flagged').length,
+    }),
+    [jobs]
+  )
+
   function toggleSort(key) {
     setSort((prev) => (prev.key === key ? { key, dir: -prev.dir } : { key, dir: 1 }))
   }
@@ -85,7 +119,7 @@ export default function JobTable({ jobs, initialQuery = '', initialStatusFilter 
                 : 'border-white/10 text-neutral-400 hover:border-white/20 hover:text-white'
             }`}
           >
-            {chip.label}
+            {chip.label} ({statusCounts[chip.key]})
           </button>
         ))}
       </div>
@@ -139,9 +173,14 @@ export default function JobTable({ jobs, initialQuery = '', initialStatusFilter 
               >
                 {COLUMNS.map((col) => {
                   const tabular = col.key === 'jobId' || col.key === 'createdAt' || col.num
-                  const className = col.num ? 'num tabular' : tabular ? 'tabular' : undefined
+                  const className = [
+                    col.num ? 'num tabular' : tabular ? 'tabular' : '',
+                    col.key === 'createdAt' ? 'text-neutral-400' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')
                   return (
-                    <td key={col.key} className={className}>
+                    <td key={col.key} className={className || undefined}>
                       {renderCell(job, col.key)}
                     </td>
                   )
