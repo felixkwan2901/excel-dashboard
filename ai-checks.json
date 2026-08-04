@@ -1,66 +1,66 @@
 {
   "CDE-2026-001": {
-    "aiStatus": "Passed",
-    "aiReason": "Standard commercial power distribution job with proper approval."
+    "aiStatus": "Flagged",
+    "aiReason": "Approved job is missing assigned technician and value."
   },
   "CDE-2026-002": {
     "aiStatus": "Passed",
-    "aiReason": "Valid switchboard upgrade with standard approval."
+    "aiReason": "Pending status is normal for this pipeline stage."
   },
   "CDE-2026-003": {
-    "aiStatus": "Passed",
-    "aiReason": "Motor control centre repair approved and normal."
+    "aiStatus": "Flagged",
+    "aiReason": "Approved job is missing assigned technician and value."
   },
   "CDE-2026-004": {
     "aiStatus": "Flagged",
-    "aiReason": "Flagged swimlane and unassigned approval status."
+    "aiReason": "Job is explicitly flagged in the swimlane."
   },
   "CDE-2026-005": {
-    "aiStatus": "Passed",
-    "aiReason": "Refrigeration wiring job properly approved."
+    "aiStatus": "Flagged",
+    "aiReason": "Approved job is missing assigned technician and value."
   },
   "CDE-2026-006": {
     "aiStatus": "Passed",
-    "aiReason": "Low-value emergency maintenance requires no special review."
+    "aiReason": "Pending status is normal for this pipeline stage."
   },
   "CDE-2026-008": {
-    "aiStatus": "Passed",
-    "aiReason": "Residential safety upgrade with standard approval."
+    "aiStatus": "Flagged",
+    "aiReason": "Approved job is missing assigned technician and value."
   },
   "CDE-2026-009": {
     "aiStatus": "Passed",
-    "aiReason": "EV charger installation properly approved."
+    "aiReason": "Pending status is normal for this pipeline stage."
   },
   "CDE-2026-010": {
-    "aiStatus": "Passed",
-    "aiReason": "Smart lighting setup approved and consistent."
+    "aiStatus": "Flagged",
+    "aiReason": "Approved job is missing assigned technician and value."
   },
   "CDE-2026-011": {
     "aiStatus": "Flagged",
-    "aiReason": "Flagged swimlane with unassigned approval."
+    "aiReason": "Job is explicitly flagged in the swimlane."
   },
   "CDE-2026-012": {
-    "aiStatus": "Passed",
-    "aiReason": "Outdoor lighting job properly approved."
+    "aiStatus": "Flagged",
+    "aiReason": "Approved job is missing assigned technician and value."
   },
   "CDE-2026-013": {
-    "aiStatus": "Passed",
-    "aiReason": "Heat pump installation standard and approved."
+    "aiStatus": "Flagged",
+    "aiReason": "Approved job is missing assigned technician and value."
   },
   "CDE-2026-014": {
     "aiStatus": "Passed",
-    "aiReason": "Low-value ventilation service requires no review."
+    "aiReason": "Pending status is normal for this pipeline stage."
   },
   "CDE-2026-015": {
     "aiStatus": "Passed",
-    "aiReason": "Whole-home ventilation system properly approved."
+    "aiReason": "Pending status is normal for this pipeline stage."
   },
   "CDE-2026-016": {
-    "aiStatus": "Passed",
-    "aiReason": "Minor extraction fan upgrade approved."
+    "aiStatus": "Flagged",
+    "aiReason": "Approved job is missing assigned technician and value."
   },
   "CDE-2026-017": {
-    "aiStatus": "Passed",
-    "aiReason": "Ventilation install standard and approved."
+    "aiStatus": "Flagged",
+    "aiReason": "Approved job is missing assigned technician and value."
   }
 }
