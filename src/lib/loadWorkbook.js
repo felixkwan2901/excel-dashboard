@@ -63,14 +63,27 @@ function isValidJobRow(row) {
   return typeof num === 'number' && num > 0 && typeof name === 'string' && name.trim() !== '' && name.trim() !== '0'
 }
 
+// A week row counts as having real data if it has a positive quoted
+// price — that field is carried forward unchanged from the previous week
+// whenever nothing was revised, so it only reads as 0/blank on a week
+// that genuinely hasn't been filled in yet (e.g. St Barnabas Church's
+// Week 5 is entirely blank/zero while Weeks 1-4 have real figures).
+function weekRowHasData(row, columnMap) {
+  const col = columnMap.quotedPrice
+  if (col === undefined) return true
+  const n = Number(row[col])
+  return Number.isFinite(n) && n > 0
+}
+
 // Every job is a block of rows: one "Start of month" row (has Job Number/
 // Job Name) followed by "Week 1".."Week 5" rows (blank Job Number/Name,
 // updated figures) — quoted price, actual cost, claim-to-date, and margin
 // all keep changing week to week as the job progresses and gets revised.
 // "Start of month" is just the baseline snapshot, not the current one, so
-// each job's numbers are taken from the LAST row of its block (its most
-// recent week) — only jobNumber/jobName come from the block's first row,
-// since later rows leave those blank.
+// each job's numbers are taken from the most recent week that actually has
+// data, walking backwards past any trailing blank/not-yet-updated weeks —
+// only jobNumber/jobName come from the block's first row, since later rows
+// leave those blank.
 //
 // Blocks are delimited by the literal "Week" column text ("Start of
 // month" starts a new block, "Week N" continues the current one) rather
@@ -89,9 +102,9 @@ function rowsAfterHeader(rows) {
     const weekLabel = row[2]
     if (weekLabel === 'Start of month') {
       if (current) blocks.push(current)
-      current = { startRow: row, lastRow: row }
+      current = { startRow: row, weekRows: [row] }
     } else if (current && typeof weekLabel === 'string' && weekLabel.startsWith('Week')) {
-      current.lastRow = row
+      current.weekRows.push(row)
     }
   }
   if (current) blocks.push(current)
@@ -99,6 +112,14 @@ function rowsAfterHeader(rows) {
   return blocks
     .filter((block) => isValidJobRow(block.startRow))
     .map((block) => {
+      let dataRow = block.weekRows[block.weekRows.length - 1]
+      for (let i = block.weekRows.length - 1; i >= 0; i--) {
+        if (weekRowHasData(block.weekRows[i], columnMap)) {
+          dataRow = block.weekRows[i]
+          break
+        }
+      }
+
       const record = {}
       for (const field of Object.keys(FIELD_HEADER_ALIASES)) {
         const col = columnMap[field]
@@ -107,7 +128,7 @@ function rowsAfterHeader(rows) {
           continue
         }
         // jobNumber/jobName only ever appear on the block's first row.
-        record[field] = field === 'jobNumber' || field === 'jobName' ? block.startRow[col] : block.lastRow[col]
+        record[field] = field === 'jobNumber' || field === 'jobName' ? block.startRow[col] : dataRow[col]
       }
       return record
     })
