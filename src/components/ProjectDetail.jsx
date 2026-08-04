@@ -1,4 +1,4 @@
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, AlertTriangle } from 'lucide-react'
 import StatusBadge from './StatusBadge'
 import { money, percent } from '../lib/format'
 import { statusReasons } from '../lib/statusReasons'
@@ -43,11 +43,32 @@ export default function ProjectDetail({ job, onBack }) {
           <div>
             <p className="text-sm text-neutral-500 tabular-nums">Job {job.jobNumber}</p>
             <h1 className="mt-1 text-3xl font-bold text-white">{job.jobName}</h1>
+            <div className="mt-2">
+              <StatusBadge flagged={job.flagged} />
+            </div>
           </div>
           <p className="text-3xl font-bold text-brand-green tabular-nums">
             {money(job.quotedPrice)}
           </p>
         </div>
+
+        {job.flagged && reasons.length > 0 && (
+          <div className="mt-5 flex items-start gap-3 rounded-xl border border-amber-400/30 bg-amber-400/[0.08] p-4">
+            <AlertTriangle
+              size={18}
+              className="mt-0.5 shrink-0 text-amber-400"
+              aria-hidden="true"
+            />
+            <div className="flex flex-col gap-1">
+              <p className="text-[13px] font-semibold text-amber-400">Why this job is flagged</p>
+              {reasons.map((reason) => (
+                <p key={reason} className="text-[13px] text-neutral-200">
+                  {reason}
+                </p>
+              ))}
+            </div>
+          </div>
+        )}
 
         <Section title="Cost">
           <Field label="Total quoted">{money(job.totalQuotedCost)}</Field>
@@ -85,19 +106,6 @@ export default function ProjectDetail({ job, onBack }) {
           <Field label="GP $/hour">{money(job.gpPerHour)}</Field>
           <Field label="Quoted GP $/hour">{money(job.quotedGpPerHour)}</Field>
         </Section>
-
-        <div className="mt-6 border-t border-white/10 pt-6">
-          <Field label="Status">
-            <div className="flex flex-col gap-1.5">
-              <StatusBadge flagged={job.flagged} />
-              {reasons.map((reason) => (
-                <p key={reason} className="text-[13px] text-neutral-500">
-                  {reason}
-                </p>
-              ))}
-            </div>
-          </Field>
-        </div>
       </div>
     </div>
   )
