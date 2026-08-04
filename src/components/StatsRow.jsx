@@ -1,4 +1,4 @@
-import { AlertTriangle, Briefcase, TrendingUp } from 'lucide-react'
+import { AlertTriangle, Briefcase, Printer, TrendingUp } from 'lucide-react'
 import StatCard from './StatCard'
 
 const CURRENCY = new Intl.NumberFormat('en-NZ', {
@@ -8,7 +8,7 @@ const CURRENCY = new Intl.NumberFormat('en-NZ', {
   notation: 'compact',
 })
 
-export default function StatsRow({ kpis, onSelectFilter }) {
+export default function StatsRow({ kpis, onSelectFilter, onPrintReport }) {
   const needsReviewContext =
     kpis.needsReviewCount > 0
       ? `${kpis.overBudgetCount} over budget, ${kpis.losingMarginCount} losing margin`
@@ -43,6 +43,22 @@ export default function StatsRow({ kpis, onSelectFilter }) {
         context={needsReviewContext}
         tone={kpis.needsReviewCount > 0 ? 'critical' : 'neutral'}
         onClick={onSelectFilter ? () => onSelectFilter('needsReview') : undefined}
+        secondaryAction={
+          onPrintReport && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onPrintReport()
+              }}
+              aria-label="Print needs-review report"
+              title="Print needs-review report"
+              className="flex h-8 w-8 items-center justify-center rounded-md text-neutral-400 transition-colors hover:bg-white/[0.08] hover:text-white"
+            >
+              <Printer size={15} strokeWidth={1.75} aria-hidden="true" />
+            </button>
+          )
+        }
       />
       <StatCard
         icon={TrendingUp}

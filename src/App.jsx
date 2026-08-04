@@ -146,7 +146,7 @@ export default function App() {
 
                 {kpis && (
                   <div className="mb-10">
-                    <StatsRow kpis={kpis} onSelectFilter={goDashboard} />
+                    <StatsRow kpis={kpis} onSelectFilter={goDashboard} onPrintReport={goReviewReport} />
                   </div>
                 )}
 

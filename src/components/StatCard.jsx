@@ -1,18 +1,47 @@
 import AnimatedNumber from './AnimatedNumber'
 
-export default function StatCard({ icon: Icon, label, value, format, context, tone = 'neutral', onClick }) {
+// Renders as a real <button> when clickable, EXCEPT when a secondaryAction
+// is also present — a button can't contain another button, so in that case
+// the card becomes a div with its own role/keyboard handling and the
+// secondary action renders as a sibling button in the corner.
+export default function StatCard({
+  icon: Icon,
+  label,
+  value,
+  format,
+  context,
+  tone = 'neutral',
+  onClick,
+  secondaryAction,
+}) {
   const emphasis = tone === 'critical'
-  const Tag = onClick ? 'button' : 'div'
+  const clickableProps = onClick
+    ? secondaryAction
+      ? {
+          role: 'button',
+          tabIndex: 0,
+          onClick,
+          onKeyDown: (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              onClick()
+            }
+          },
+        }
+      : { onClick }
+    : {}
+  const Tag = onClick && !secondaryAction ? 'button' : 'div'
 
   return (
     <Tag
-      onClick={onClick}
-      className={`flex min-h-[152px] w-full flex-col justify-between gap-5 rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6 text-left shadow-[0_1px_2px_rgba(0,0,0,0.3)] transition-colors duration-300 hover:border-white/10 ${
+      {...clickableProps}
+      className={`relative flex min-h-[152px] w-full flex-col justify-between gap-5 rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6 text-left shadow-[0_1px_2px_rgba(0,0,0,0.3)] transition-colors duration-300 hover:border-white/10 ${
         onClick
           ? 'cursor-pointer hover:border-brand-green/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green'
           : ''
       }`}
     >
+      {secondaryAction && <div className="absolute top-5 right-5">{secondaryAction}</div>}
       <span
         className={`flex h-8 w-8 items-center justify-center rounded-md ${
           emphasis ? 'bg-white/[0.1] text-neutral-100' : 'bg-white/[0.06] text-neutral-400'
