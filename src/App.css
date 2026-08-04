@@ -244,18 +244,6 @@
   padding: 64px 0;
 }
 
-.panel-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-
-@media (max-width: 900px) {
-  .panel-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
 .panel {
   background: var(--surface-1);
   border: 1px solid var(--border);
@@ -400,30 +388,6 @@
 
 .badge__icon {
   font-size: 10px;
-}
-
-.compliance-pill {
-  display: inline-block;
-  padding: 3px 9px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-.compliance-pill--good {
-  color: var(--status-good);
-  background: var(--status-good-bg);
-}
-
-.compliance-pill--warning {
-  color: var(--status-warning);
-  background: var(--status-warning-bg);
-}
-
-.compliance-pill--critical {
-  color: var(--status-critical);
-  background: var(--status-critical-bg);
 }
 
 /* ---------- project detail ---------- */

@@ -9,7 +9,6 @@ import {
 import Nav from './components/Nav'
 import StatsRow from './components/StatsRow'
 import SwimlaneChart from './components/SwimlaneChart'
-import SwimlaneTable from './components/SwimlaneTable'
 import JobTable from './components/JobTable'
 import CategoryGrid from './components/CategoryGrid'
 import CompanyList from './components/CompanyList'
@@ -295,15 +294,9 @@ export default function App() {
           )}
           {state.status === 'ready' && (
             <>
-              <Reveal as="section" index={0} className="panel-grid">
-                <div className="panel">
-                  <h2>Active jobs by swimlane</h2>
-                  <SwimlaneChart data={swimlaneStats} />
-                </div>
-                <div className="panel">
-                  <h2>Swimlane SLA compliance</h2>
-                  <SwimlaneTable data={swimlaneStats} />
-                </div>
+              <Reveal as="section" index={0} className="panel">
+                <h2>Active jobs by swimlane</h2>
+                <SwimlaneChart data={swimlaneStats} />
               </Reveal>
 
               <Reveal as="section" index={1} className="panel">
