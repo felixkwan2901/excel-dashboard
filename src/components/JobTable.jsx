@@ -49,9 +49,14 @@ const STATUS_FILTERS = [
   { key: 'needsReview', label: 'Needs review' },
 ]
 
-export default function JobTable({ jobs, initialQuery = '', initialStatusFilter = 'all', onSelectJob }) {
-  const [query, setQuery] = useState(initialQuery)
-  const [statusFilter, setStatusFilter] = useState(initialStatusFilter)
+export default function JobTable({
+  jobs,
+  query,
+  onQueryChange,
+  statusFilter,
+  onStatusFilterChange,
+  onSelectJob,
+}) {
   const [sort, setSort] = useState({ key: 'jobNumber', dir: 1 })
 
   const filtered = useMemo(() => {
@@ -93,7 +98,7 @@ export default function JobTable({ jobs, initialQuery = '', initialStatusFilter 
         {STATUS_FILTERS.map((chip) => (
           <button
             key={chip.key}
-            onClick={() => setStatusFilter(chip.key)}
+            onClick={() => onStatusFilterChange(chip.key)}
             className={`rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors ${
               statusFilter === chip.key
                 ? 'border-brand-green/50 bg-brand-green/10 text-brand-green'
@@ -110,7 +115,7 @@ export default function JobTable({ jobs, initialQuery = '', initialStatusFilter 
           type="search"
           placeholder="Search job number or job name…"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => onQueryChange(e.target.value)}
           className="filter-input"
         />
         <span className="table-filters__count">

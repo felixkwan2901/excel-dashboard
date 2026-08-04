@@ -92,6 +92,21 @@ export default function App() {
     })
   }
 
+  function updateDashboardQuery(nextQuery) {
+    setDashboardQuery(nextQuery)
+    replaceUrlState({ view: 'dashboard', selectedJobId, dashboardQuery: nextQuery, dashboardFilter })
+  }
+
+  function updateDashboardFilter(nextFilter) {
+    setDashboardFilter(nextFilter)
+    replaceUrlState({
+      view: 'dashboard',
+      selectedJobId,
+      dashboardQuery,
+      dashboardFilter: nextFilter,
+    })
+  }
+
   return (
     <div className="site">
       <Nav
@@ -181,8 +196,10 @@ export default function App() {
               <h2>Job directory</h2>
               <JobTable
                 jobs={jobs}
-                initialQuery={dashboardQuery}
-                initialStatusFilter={dashboardFilter}
+                query={dashboardQuery}
+                onQueryChange={updateDashboardQuery}
+                statusFilter={dashboardFilter}
+                onStatusFilterChange={updateDashboardFilter}
                 onSelectJob={(jobNumber) => {
                   const job = jobs.find((j) => j.jobNumber === jobNumber)
                   if (job) openJob(job)

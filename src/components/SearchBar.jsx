@@ -28,8 +28,8 @@ export default function SearchBar({ value, onChange, onSubmit }) {
         type="search"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Search jobs, clients, categories…"
-        aria-label="Search jobs, clients, or categories"
+        placeholder="Search job number or job name…"
+        aria-label="Search job number or job name"
         className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] py-2 pr-14 pl-9 text-sm text-white placeholder:text-neutral-500 focus:border-brand-green/50 focus:outline-none"
       />
       <kbd className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 rounded border border-white/[0.08] px-1.5 py-0.5 text-[11px] text-neutral-500">
