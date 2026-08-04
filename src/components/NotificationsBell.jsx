@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Bell } from 'lucide-react'
 
-export default function NotificationsBell({ urgentJobs, onSelectJob }) {
+export default function NotificationsBell({ flaggedJobs, onSelectJob }) {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
 
@@ -18,14 +18,14 @@ export default function NotificationsBell({ urgentJobs, onSelectJob }) {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        aria-label={`Notifications: ${urgentJobs.length} urgent job${urgentJobs.length === 1 ? '' : 's'}`}
+        aria-label={`Notifications: ${flaggedJobs.length} job${flaggedJobs.length === 1 ? '' : 's'} need review`}
         aria-expanded={open}
         className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-white/[0.08] text-neutral-300 transition-colors hover:border-white/20 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green"
       >
         <Bell size={16} aria-hidden="true" />
-        {urgentJobs.length > 0 && (
+        {flaggedJobs.length > 0 && (
           <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-white px-1 text-[10px] font-semibold text-[#12161c]">
-            {urgentJobs.length}
+            {flaggedJobs.length}
           </span>
         )}
       </button>
@@ -35,13 +35,13 @@ export default function NotificationsBell({ urgentJobs, onSelectJob }) {
           role="menu"
           className="absolute right-0 z-20 mt-2 w-72 rounded-xl border border-white/[0.08] bg-[#11161c] p-2 shadow-lg shadow-black/40"
         >
-          <p className="px-2 py-1.5 text-[13px] font-medium text-neutral-400">Urgent jobs</p>
-          {urgentJobs.length === 0 && (
-            <p className="px-2 py-3 text-sm text-neutral-400">Nothing urgent right now.</p>
+          <p className="px-2 py-1.5 text-[13px] font-medium text-neutral-400">Needs review</p>
+          {flaggedJobs.length === 0 && (
+            <p className="px-2 py-3 text-sm text-neutral-400">Nothing flagged right now.</p>
           )}
-          {urgentJobs.map((job) => (
+          {flaggedJobs.map((job) => (
             <button
-              key={job.jobId}
+              key={job.jobNumber}
               role="menuitem"
               onClick={() => {
                 onSelectJob(job)
@@ -49,10 +49,8 @@ export default function NotificationsBell({ urgentJobs, onSelectJob }) {
               }}
               className="flex w-full flex-col gap-0.5 rounded-lg px-2 py-2 text-left transition-colors hover:bg-white/[0.06]"
             >
-              <span className="text-sm font-semibold text-white">{job.jobId}</span>
-              <span className="text-xs text-neutral-400">
-                {job.client} · {job.category}
-              </span>
+              <span className="text-sm font-semibold text-white">Job {job.jobNumber}</span>
+              <span className="text-xs text-neutral-400">{job.jobName}</span>
             </button>
           ))}
         </div>

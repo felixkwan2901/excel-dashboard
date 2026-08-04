@@ -10,8 +10,8 @@ export default function Nav({
   searchValue,
   onSearchChange,
   onSearchSubmit,
-  urgentJobs,
-  onSelectUrgentJob,
+  flaggedJobs,
+  onSelectFlaggedJob,
 }) {
   return (
     <header className="site-nav">
@@ -40,7 +40,7 @@ export default function Nav({
       <div className="ml-auto flex items-center gap-3">
         <SearchBar value={searchValue} onChange={onSearchChange} onSubmit={onSearchSubmit} />
         <WeatherWidget />
-        <NotificationsBell urgentJobs={urgentJobs} onSelectJob={onSelectUrgentJob} />
+        <NotificationsBell flaggedJobs={flaggedJobs} onSelectJob={onSelectFlaggedJob} />
       </div>
     </header>
   )

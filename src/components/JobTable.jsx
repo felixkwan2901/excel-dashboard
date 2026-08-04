@@ -7,54 +7,38 @@ const CURRENCY = new Intl.NumberFormat('en-NZ', {
   maximumFractionDigits: 0,
 })
 
-const DATE = new Intl.DateTimeFormat('en-NZ', { day: '2-digit', month: 'short' })
+const PERCENT = new Intl.NumberFormat('en-NZ', {
+  style: 'percent',
+  maximumFractionDigits: 1,
+})
+
+function formatMoney(v) {
+  return v === null ? '—' : CURRENCY.format(v)
+}
+
+function formatPercent(v) {
+  return v === null ? '—' : PERCENT.format(v)
+}
 
 const COLUMNS = [
-  { key: 'jobId', label: 'Job ID' },
-  { key: 'client', label: 'Client' },
-  { key: 'category', label: 'Job category' },
-  { key: 'tech', label: 'Assigned tech' },
-  { key: 'value', label: 'Est. value', num: true },
-  { key: 'aiStatus', label: 'AI check' },
-  { key: 'approvalStatus', label: 'Approval' },
-  { key: 'createdAt', label: 'Created' },
+  { key: 'jobNumber', label: 'Job Number' },
+  { key: 'jobName', label: 'Job Name' },
+  { key: 'quotedPrice', label: 'Quoted Price', num: true },
+  { key: 'totalActualCost', label: 'Actual Cost', num: true },
+  { key: 'remainingToClaim', label: 'Remaining to Claim', num: true },
+  { key: 'marginToDate', label: 'Margin', num: true },
+  { key: 'gpPerHour', label: 'GP $/hr', num: true },
 ]
-
-// "CDE-2026-001" -> mute the repeating "CDE-2026-" prefix, bold the
-// trailing digits that actually distinguish one job from the next.
-function renderJobId(jobId) {
-  const match = /^(.*-)(\d+)$/.exec(jobId)
-  if (!match) return jobId
-  const [, prefix, suffix] = match
-  return (
-    <>
-      <span className="text-neutral-500">{prefix}</span>
-      <span className="font-semibold text-white">{suffix}</span>
-    </>
-  )
-}
-
-function renderTech(tech) {
-  if (tech === 'Unassigned') {
-    return <span className="text-neutral-500 italic">Unassigned</span>
-  }
-  return tech
-}
 
 function renderCell(job, key) {
   switch (key) {
-    case 'jobId':
-      return renderJobId(job.jobId)
-    case 'tech':
-      return renderTech(job.tech)
-    case 'value':
-      return CURRENCY.format(job.value)
-    case 'aiStatus':
-      return <StatusBadge label={job.aiStatus} />
-    case 'approvalStatus':
-      return <StatusBadge label={job.approvalStatus} />
-    case 'createdAt':
-      return DATE.format(new Date(job.createdAt))
+    case 'quotedPrice':
+    case 'totalActualCost':
+    case 'remainingToClaim':
+    case 'gpPerHour':
+      return formatMoney(job[key])
+    case 'marginToDate':
+      return formatPercent(job.marginToDate)
     default:
       return job[key]
   }
@@ -62,32 +46,30 @@ function renderCell(job, key) {
 
 const STATUS_FILTERS = [
   { key: 'all', label: 'All' },
-  { key: 'pending', label: 'Pending approval' },
-  { key: 'urgent', label: 'Urgent' },
+  { key: 'needsReview', label: 'Needs review' },
 ]
 
 export default function JobTable({ jobs, initialQuery = '', initialStatusFilter = 'all', onSelectJob }) {
   const [query, setQuery] = useState(initialQuery)
   const [statusFilter, setStatusFilter] = useState(initialStatusFilter)
-  const [sort, setSort] = useState({ key: 'jobId', dir: 1 })
+  const [sort, setSort] = useState({ key: 'jobNumber', dir: 1 })
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     return jobs
-      .filter((job) => {
-        if (statusFilter === 'pending') return job.approvalStatus === 'Pending'
-        if (statusFilter === 'urgent') return job.aiStatus === 'Flagged'
-        return true
-      })
-      .filter((job) =>
-        !q ||
-        job.client.toLowerCase().includes(q) ||
-        job.category.toLowerCase().includes(q) ||
-        job.jobId.toLowerCase().includes(q)
+      .filter((job) => (statusFilter === 'needsReview' ? job.flagged : true))
+      .filter(
+        (job) =>
+          !q ||
+          job.jobName.toLowerCase().includes(q) ||
+          job.jobNumber.toLowerCase().includes(q)
       )
       .sort((a, b) => {
         const av = a[sort.key]
         const bv = b[sort.key]
+        if (av === null && bv === null) return 0
+        if (av === null) return 1
+        if (bv === null) return -1
         if (typeof av === 'number') return (av - bv) * sort.dir
         return String(av).localeCompare(String(bv)) * sort.dir
       })
@@ -96,8 +78,7 @@ export default function JobTable({ jobs, initialQuery = '', initialStatusFilter 
   const statusCounts = useMemo(
     () => ({
       all: jobs.length,
-      pending: jobs.filter((job) => job.approvalStatus === 'Pending').length,
-      urgent: jobs.filter((job) => job.aiStatus === 'Flagged').length,
+      needsReview: jobs.filter((job) => job.flagged).length,
     }),
     [jobs]
   )
@@ -127,7 +108,7 @@ export default function JobTable({ jobs, initialQuery = '', initialStatusFilter 
       <div className="table-filters">
         <input
           type="search"
-          placeholder="Search client, job ID, or category…"
+          placeholder="Search job number or job name…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="filter-input"
@@ -154,42 +135,37 @@ export default function JobTable({ jobs, initialQuery = '', initialStatusFilter 
                   {sort.key === col.key && (sort.dir === 1 ? ' ▲' : ' ▼')}
                 </th>
               ))}
+              <th>Status</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((job) => (
               <tr
-                key={job.jobId}
-                onClick={() => onSelectJob?.(job.jobId)}
+                key={job.jobNumber}
+                onClick={() => onSelectJob?.(job.jobNumber)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault()
-                    onSelectJob?.(job.jobId)
+                    onSelectJob?.(job.jobNumber)
                   }
                 }}
                 tabIndex={onSelectJob ? 0 : undefined}
                 role={onSelectJob ? 'button' : undefined}
                 className={onSelectJob ? 'row-clickable' : undefined}
               >
-                {COLUMNS.map((col) => {
-                  const tabular = col.key === 'jobId' || col.key === 'createdAt' || col.num
-                  const className = [
-                    col.num ? 'num tabular' : tabular ? 'tabular' : '',
-                    col.key === 'createdAt' ? 'text-neutral-400' : '',
-                  ]
-                    .filter(Boolean)
-                    .join(' ')
-                  return (
-                    <td key={col.key} className={className || undefined}>
-                      {renderCell(job, col.key)}
-                    </td>
-                  )
-                })}
+                {COLUMNS.map((col) => (
+                  <td key={col.key} className={col.num ? 'num tabular' : undefined}>
+                    {renderCell(job, col.key)}
+                  </td>
+                ))}
+                <td>
+                  <StatusBadge flagged={job.flagged} />
+                </td>
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={COLUMNS.length} className="empty-row">
+                <td colSpan={COLUMNS.length + 1} className="empty-row">
                   No jobs match your filters.
                 </td>
               </tr>

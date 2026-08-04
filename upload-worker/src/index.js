@@ -3,32 +3,21 @@ import * as XLSX from 'xlsx'
 const OWNER = 'felixkwan2901'
 const REPO = 'excel-dashboard'
 const FILE_PATH = 'Cassidy_Davies_Electrical_BPMN_Data.xlsx'
-const AI_CHECKS_PATH = 'ai-checks.json'
 const SYNC_META_PATH = 'sync-meta.json'
-const AUDIT_LOG_PATH = 'audit-log.json'
 const BRANCH = 'main'
 const MAX_BYTES = 8 * 1024 * 1024 // 8MB
-const MAX_AUDIT_ENTRIES = 500
-const APPROVAL_STATUSES = ['Approved', 'Pending']
 
 // Columns are located by header text, not position — mirrors
 // src/lib/loadWorkbook.js (kept in sync manually since this worker runs
-// isolated from the frontend build). A prior sheet edit removed some
-// columns entirely, which silently scrambled every field after the change
-// point under the old position-based parsing.
+// isolated from the frontend build). The real headers have embedded
+// newlines ("Job\nNumber"), so header matching normalizes whitespace.
 const FIELD_HEADER_ALIASES = {
-  jobId: ['Job ID'],
-  client: ['Client Name'],
-  serviceType: ['Service Type'],
-  category: ['Job Category'],
-  createdAt: ['Creation Date'],
-  approvalStatus: ['Approval Status', 'AI Check Status'],
-  tech: ['Assigned Tech'],
-  value: ['Est. Value ($)', 'Est. Value'],
+  jobNumber: ['Job Number'],
+  jobName: ['Job Name'],
 }
 
 function normalizeHeader(text) {
-  return String(text ?? '').trim().toLowerCase()
+  return String(text ?? '').replace(/\s+/g, ' ').trim().toLowerCase()
 }
 
 function buildColumnMap(headerRow) {
@@ -41,134 +30,34 @@ function buildColumnMap(headerRow) {
   return columnMap
 }
 
-function parseJobs(buffer) {
+// A row is a real job's summary row only if it has a positive job number
+// and a real name — distinguishes it from "Week 1..5" snapshot rows (blank
+// job number), the blank separator row between every job block, and the
+// handful of junk rows in the sheet (job number 0, or a placeholder name).
+function isValidJobRow(row) {
+  const num = row[0]
+  const name = row[1]
+  return typeof num === 'number' && num > 0 && typeof name === 'string' && name.trim() !== '' && name.trim() !== '0'
+}
+
+// Only used to sanity-check the upload and report a job count back to the
+// person uploading — the dashboard itself re-parses the file independently
+// (src/lib/loadWorkbook.js) once it's live.
+function countValidJobs(buffer) {
   const workbook = XLSX.read(buffer, { type: 'array' })
-  const sheet = workbook.Sheets['Job Directory']
-  if (!sheet) return []
+  const sheet = workbook.Sheets['Sheet1']
+  if (!sheet) return 0
 
   const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false, defval: '' })
-  const headerIdx = rows.findIndex((row) => normalizeHeader(row[0]) === 'job id')
-  if (headerIdx === -1) return []
-  const columnMap = buildColumnMap(rows[headerIdx])
+  const headerIdx = rows.findIndex((row) => normalizeHeader(row[0]) === 'job number')
+  if (headerIdx === -1) return 0
+  buildColumnMap(rows[headerIdx]) // validates the header row is shaped as expected
 
-  const jobs = []
+  let count = 0
   for (let i = headerIdx + 1; i < rows.length; i++) {
-    const row = rows[i]
-    if (!row[0] || !row[1]) break
-    const record = {}
-    for (const field of Object.keys(FIELD_HEADER_ALIASES)) {
-      const col = columnMap[field]
-      record[field] = col !== undefined ? (row[col] ?? '') : ''
-    }
-    jobs.push(record)
+    if (isValidJobRow(rows[i])) count++
   }
-  return jobs
-}
-
-// Deterministic checks against the actual job fields — no model involved,
-// so these reasons are always factually true. The Gemini call is reserved
-// for judgment calls we genuinely can't compute ourselves (see
-// runAiOutlierCheck below).
-function ruleBasedFlags(job) {
-  const reasons = []
-
-  const tech = String(job.tech ?? '').trim()
-  if (!tech || tech.toLowerCase() === 'unassigned') {
-    reasons.push('No technician assigned')
-  }
-
-  const value = Number(job.value)
-  if (!value || Number.isNaN(value)) {
-    reasons.push('Job value is missing or zero')
-  }
-
-  return reasons
-}
-
-// Asks Gemini ONLY whether a job's value looks like an outlier for its
-// category — the one judgment call in this pipeline that isn't a simple
-// field check. Missing tech/value are excluded from the prompt entirely
-// since ruleBasedFlags already covers those deterministically; asking the
-// model about facts we can just look up is how it ended up inventing wrong
-// reasons before.
-async function runAiOutlierCheck(jobs, env) {
-  if (!env.GEMINI_API_KEY || jobs.length === 0) return {}
-
-  const prompt = `You are reviewing job values for an electrical contracting company, grouped by category.
-Look ONLY at whether a job's value is a clear outlier compared to other jobs of the same category/serviceType. Do not consider technician assignment, approval status, or anything else — those are checked separately.
-
-Jobs (JSON):
-${JSON.stringify(
-  jobs.map((j) => ({
-    jobId: j.jobId,
-    category: j.category,
-    serviceType: j.serviceType,
-    value: j.value,
-  }))
-)}
-
-Respond with ONLY a JSON array. Include an entry ONLY for jobs whose value is a clear outlier for their category — if none are outliers, respond with an empty array: [].
-Shape: [{"jobId": "CDE-2026-001", "reason": "Short reason under 12 words"}]`
-
-  const res = await fetch(
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent',
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': env.GEMINI_API_KEY,
-      },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: 'application/json' },
-      }),
-    }
-  )
-
-  if (!res.ok) {
-    throw new Error(`Gemini request failed (${res.status}): ${(await res.text()).slice(0, 300)}`)
-  }
-
-  const data = await res.json()
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text
-  if (!text) throw new Error('Gemini returned no content')
-
-  const results = JSON.parse(text)
-  const byJobId = {}
-  for (const r of results) {
-    if (!r.jobId) continue
-    byJobId[r.jobId] = String(r.reason ?? 'Value is an outlier for its category').slice(0, 160)
-  }
-  return byJobId
-}
-
-// Combines the deterministic field checks (always correct, since they're
-// read straight from the data) with the model's outlier judgment (the one
-// thing that actually needs a model). A job's aiReason only ever contains
-// things that are true about it. If the AI call fails, jobs still get
-// flagged for real field problems — just without the outlier check.
-async function runAiChecks(jobs, env) {
-  let outliers = {}
-  let outlierError = null
-  try {
-    outliers = await runAiOutlierCheck(jobs, env)
-  } catch (err) {
-    outlierError = String(err.message ?? err)
-  }
-
-  const checks = {}
-  for (const job of jobs) {
-    if (!job.jobId) continue
-    const reasons = ruleBasedFlags(job)
-    if (outliers[job.jobId]) reasons.push(outliers[job.jobId])
-
-    checks[job.jobId] = {
-      aiStatus: reasons.length > 0 ? 'Flagged' : 'Passed',
-      aiReason: reasons.join('; ').slice(0, 160),
-    }
-  }
-
-  return { checks, outlierError }
+  return count
 }
 
 const PAGE_STYLE = `
@@ -246,31 +135,6 @@ function textToBase64(text) {
   return arrayBufferToBase64(new TextEncoder().encode(text))
 }
 
-function base64ToText(base64) {
-  const binary = atob(base64.replace(/\n/g, ''))
-  const bytes = new Uint8Array(binary.length)
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
-  return new TextDecoder().decode(bytes)
-}
-
-function json(body, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  })
-}
-
-// The dashboard (a different origin) calls /audit-log directly from the
-// browser, so this needs real CORS handling — unlike /upload, which is
-// only ever hit via the same-origin HTML form above.
-function withCors(res) {
-  const headers = new Headers(res.headers)
-  headers.set('Access-Control-Allow-Origin', '*')
-  headers.set('Access-Control-Allow-Methods', 'POST, OPTIONS')
-  headers.set('Access-Control-Allow-Headers', 'Content-Type')
-  return new Response(res.body, { status: res.status, headers })
-}
-
 async function githubRequest(path, env, init) {
   const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/${path}`, {
     ...init,
@@ -302,64 +166,6 @@ async function putFileWithRetry(path, env, { contentBase64, message, attempts = 
     if (lastRes.ok || lastRes.status !== 409) return lastRes
   }
   return lastRes
-}
-
-// Appends one entry to audit-log.json. The timestamp is server-generated
-// (never trust a client-supplied one), and previous/new status are
-// validated against the known approval states so a malformed or malicious
-// POST can't inject arbitrary junk into the log.
-async function handleAuditLog(request, env) {
-  let body
-  try {
-    body = await request.json()
-  } catch {
-    return json({ error: 'Invalid JSON body' }, 400)
-  }
-
-  const jobId = String(body.jobId ?? '').trim().slice(0, 40)
-  const previousStatus = String(body.previousStatus ?? '').trim()
-  const newStatus = String(body.newStatus ?? '').trim()
-  const session = String(body.session ?? '').trim().slice(0, 64)
-
-  if (!jobId || !APPROVAL_STATUSES.includes(previousStatus) || !APPROVAL_STATUSES.includes(newStatus)) {
-    return json({ error: 'Missing or invalid fields' }, 400)
-  }
-
-  const entry = {
-    timestamp: new Date().toISOString(),
-    jobId,
-    previousStatus,
-    newStatus,
-    ...(session && { session }),
-  }
-
-  const currentRes = await githubRequest(`contents/${AUDIT_LOG_PATH}?ref=${BRANCH}`, env)
-  let entries = []
-  if (currentRes.ok) {
-    try {
-      const current = await currentRes.json()
-      const parsed = JSON.parse(base64ToText(current.content))
-      if (Array.isArray(parsed)) entries = parsed
-    } catch {
-      entries = []
-    }
-  }
-
-  entries.push(entry)
-  if (entries.length > MAX_AUDIT_ENTRIES) {
-    entries = entries.slice(entries.length - MAX_AUDIT_ENTRIES)
-  }
-
-  const putRes = await putFileWithRetry(AUDIT_LOG_PATH, env, {
-    contentBase64: textToBase64(JSON.stringify(entries, null, 2)),
-    message: `Audit log: ${jobId} ${previousStatus} -> ${newStatus}`,
-  })
-
-  if (!putRes.ok) {
-    return json({ error: 'Failed to save audit entry' }, 502)
-  }
-
-  return json({ ok: true, entry })
 }
 
 async function handleUpload(request, env) {
@@ -401,8 +207,8 @@ async function handleUpload(request, env) {
 
   const uploadedAt = new Date().toISOString()
 
-  // Best-effort, like the AI checks below — the data upload has already
-  // succeeded, so a sync-meta write failure shouldn't fail the whole request.
+  // Best-effort: the data upload above has already succeeded, so a
+  // sync-meta write failure shouldn't fail the whole request.
   try {
     await putFileWithRetry(SYNC_META_PATH, env, {
       contentBase64: textToBase64(JSON.stringify({ updatedAt: uploadedAt }, null, 2)),
@@ -412,34 +218,17 @@ async function handleUpload(request, env) {
     // Non-critical: the dashboard just won't show a fresh "Last updated" time.
   }
 
-  // AI checks are best-effort: if this fails (bad key, quota, malformed
-  // response), the data upload above has already succeeded — don't block
-  // on it, just skip refreshing the AI check results this time.
-  let aiNote = ''
+  let jobCountNote = ''
   try {
-    const jobs = parseJobs(buffer)
-    const { checks, outlierError } = await runAiChecks(jobs, env)
-
-    if (Object.keys(checks).length > 0) {
-      const aiPutRes = await putFileWithRetry(AI_CHECKS_PATH, env, {
-        contentBase64: textToBase64(JSON.stringify(checks, null, 2)),
-        message: `Refresh AI job checks (${new Date().toISOString()})`,
-      })
-
-      if (!aiPutRes.ok) {
-        aiNote = ' (AI check ran, but saving the results failed.)'
-      } else {
-        aiNote = ` Reviewed ${Object.keys(checks).length} jobs.`
-        if (outlierError) aiNote += ` (Outlier check skipped: ${outlierError.slice(0, 120)})`
-      }
-    }
+    const jobCount = countValidJobs(buffer)
+    jobCountNote = ` Found ${jobCount} job${jobCount === 1 ? '' : 's'}.`
   } catch (err) {
-    aiNote = ` (Skipped AI check: ${String(err.message ?? err).slice(0, 150)})`
+    jobCountNote = ` (Couldn't verify the job count: ${String(err.message ?? err).slice(0, 150)})`
   }
 
   return html(
     renderForm(
-      `<div class="result ok">Uploaded.${aiNote} The dashboard will rebuild and go live in a couple of minutes — <a href="https://felixkwan2901.github.io/excel-dashboard/" target="_blank">check the site</a>.</div>`
+      `<div class="result ok">Uploaded.${jobCountNote} The dashboard will rebuild and go live in a couple of minutes — <a href="https://felixkwan2901.github.io/excel-dashboard/" target="_blank">check the site</a>.</div>`
     )
   )
 }
@@ -457,17 +246,6 @@ export default {
         return await handleUpload(request, env)
       } catch (err) {
         return html(renderForm(`<div class="result err">Unexpected error: ${String(err.message ?? err)}</div>`), 500)
-      }
-    }
-
-    if (url.pathname === '/audit-log') {
-      if (request.method === 'OPTIONS') return withCors(new Response(null, { status: 204 }))
-      if (request.method === 'POST') {
-        try {
-          return withCors(await handleAuditLog(request, env))
-        } catch (err) {
-          return withCors(json({ error: String(err.message ?? err) }, 500))
-        }
       }
     }
 
