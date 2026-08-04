@@ -15,7 +15,25 @@ const COLUMNS = [
   { key: 'category', label: 'Job category' },
   { key: 'tech', label: 'Assigned tech' },
   { key: 'value', label: 'Est. value', num: true },
+  { key: 'aiStatus', label: 'AI check' },
+  { key: 'approvalStatus', label: 'Approval' },
+  { key: 'createdAt', label: 'Created' },
 ]
+
+function renderCell(job, key) {
+  switch (key) {
+    case 'value':
+      return CURRENCY.format(job.value)
+    case 'aiStatus':
+      return <StatusBadge label={job.aiStatus} />
+    case 'approvalStatus':
+      return <StatusBadge label={job.approvalStatus} />
+    case 'createdAt':
+      return DATE.format(new Date(job.createdAt))
+    default:
+      return job[key]
+  }
+}
 
 export default function JobTable({ jobs, initialQuery = '' }) {
   const [query, setQuery] = useState(initialQuery)
@@ -66,36 +84,33 @@ export default function JobTable({ jobs, initialQuery = '' }) {
                   key={col.key}
                   className={col.num ? 'num sortable' : 'sortable'}
                   onClick={() => toggleSort(col.key)}
+                  aria-sort={
+                    sort.key === col.key ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'
+                  }
                 >
                   {col.label}
                   {sort.key === col.key && (sort.dir === 1 ? ' ▲' : ' ▼')}
                 </th>
               ))}
-              <th>AI check</th>
-              <th>Approval</th>
-              <th>Created</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((job) => (
               <tr key={job.jobId}>
-                <td className="tabular">{job.jobId}</td>
-                <td>{job.client}</td>
-                <td>{job.category}</td>
-                <td>{job.tech}</td>
-                <td className="num tabular">{CURRENCY.format(job.value)}</td>
-                <td>
-                  <StatusBadge label={job.aiStatus} />
-                </td>
-                <td>
-                  <StatusBadge label={job.approvalStatus} />
-                </td>
-                <td className="tabular">{DATE.format(new Date(job.createdAt))}</td>
+                {COLUMNS.map((col) => {
+                  const tabular = col.key === 'jobId' || col.key === 'createdAt' || col.num
+                  const className = col.num ? 'num tabular' : tabular ? 'tabular' : undefined
+                  return (
+                    <td key={col.key} className={className}>
+                      {renderCell(job, col.key)}
+                    </td>
+                  )
+                })}
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={8} className="empty-row">
+                <td colSpan={COLUMNS.length} className="empty-row">
                   No jobs match your filters.
                 </td>
               </tr>
