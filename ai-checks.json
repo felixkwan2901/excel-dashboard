@@ -5,15 +5,15 @@
   },
   "CDE-2026-002": {
     "aiStatus": "Passed",
-    "aiReason": "Switchboard upgrade properly approved and assigned."
+    "aiReason": "Valid switchboard upgrade with standard approval."
   },
   "CDE-2026-003": {
     "aiStatus": "Passed",
-    "aiReason": "Motor control repair has valid approval and tech."
+    "aiReason": "Motor control centre repair approved and normal."
   },
   "CDE-2026-004": {
     "aiStatus": "Flagged",
-    "aiReason": "Swimlane flagged and missing approval status."
+    "aiReason": "Flagged swimlane and unassigned approval status."
   },
   "CDE-2026-005": {
     "aiStatus": "Passed",
@@ -21,11 +21,11 @@
   },
   "CDE-2026-006": {
     "aiStatus": "Passed",
-    "aiReason": "Low value emergency lighting maintenance."
+    "aiReason": "Low-value emergency maintenance requires no special review."
   },
   "CDE-2026-008": {
     "aiStatus": "Passed",
-    "aiReason": "Residential switchboard safety upgrade approved."
+    "aiReason": "Residential safety upgrade with standard approval."
   },
   "CDE-2026-009": {
     "aiStatus": "Passed",
@@ -33,34 +33,34 @@
   },
   "CDE-2026-010": {
     "aiStatus": "Passed",
-    "aiReason": "Smart lighting setup approved by Sarah Jenkins."
+    "aiReason": "Smart lighting setup approved and consistent."
   },
   "CDE-2026-011": {
     "aiStatus": "Flagged",
-    "aiReason": "Flagged swimlane with unassigned approval status."
+    "aiReason": "Flagged swimlane with unassigned approval."
   },
   "CDE-2026-012": {
     "aiStatus": "Passed",
-    "aiReason": "Outdoor security lighting approved correctly."
+    "aiReason": "Outdoor lighting job properly approved."
   },
   "CDE-2026-013": {
     "aiStatus": "Passed",
-    "aiReason": "Heat pump installation properly approved."
+    "aiReason": "Heat pump installation standard and approved."
   },
   "CDE-2026-014": {
     "aiStatus": "Passed",
-    "aiReason": "Ventilation service within normal parameters."
+    "aiReason": "Low-value ventilation service requires no review."
   },
   "CDE-2026-015": {
     "aiStatus": "Passed",
-    "aiReason": "Whole-home ventilation system approved by Sarah Jenkins."
+    "aiReason": "Whole-home ventilation system properly approved."
   },
   "CDE-2026-016": {
     "aiStatus": "Passed",
-    "aiReason": "Bathroom extraction fan upgrade approved."
+    "aiReason": "Minor extraction fan upgrade approved."
   },
   "CDE-2026-017": {
     "aiStatus": "Passed",
-    "aiReason": "Heat recovery installation properly approved."
+    "aiReason": "Ventilation install standard and approved."
   }
 }
