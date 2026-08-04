@@ -172,7 +172,7 @@ export default function App() {
     pushUrlState({ view: 'project', selectedCategory, selectedClient, selectedJobId: jobId, companyFilter, dashboardQuery })
   }
 
-  function openUrgentJob(job) {
+  function openJob(job) {
     setSelectedJobId(job.jobId)
     setSelectedClient(job.client)
     setSelectedCategory(job.serviceType)
@@ -220,7 +220,7 @@ export default function App() {
         onSearchChange={setSearchQuery}
         onSearchSubmit={submitSearch}
         urgentJobs={urgentJobs}
-        onSelectUrgentJob={openUrgentJob}
+        onSelectUrgentJob={openJob}
       />
 
       {view === 'home' && (
@@ -378,7 +378,14 @@ export default function App() {
           {state.status === 'ready' && (
             <Reveal as="section" index={0} className="panel">
               <h2>Job directory</h2>
-              <JobTable jobs={jobs} initialQuery={dashboardQuery} />
+              <JobTable
+                jobs={jobs}
+                initialQuery={dashboardQuery}
+                onSelectJob={(jobId) => {
+                  const job = jobs.find((j) => j.jobId === jobId)
+                  if (job) openJob(job)
+                }}
+              />
             </Reveal>
           )}
         </main>

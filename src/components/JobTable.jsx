@@ -35,7 +35,7 @@ function renderCell(job, key) {
   }
 }
 
-export default function JobTable({ jobs, initialQuery = '' }) {
+export default function JobTable({ jobs, initialQuery = '', onSelectJob }) {
   const [query, setQuery] = useState(initialQuery)
   const [sort, setSort] = useState({ key: 'jobId', dir: 1 })
 
@@ -96,7 +96,19 @@ export default function JobTable({ jobs, initialQuery = '' }) {
           </thead>
           <tbody>
             {filtered.map((job) => (
-              <tr key={job.jobId}>
+              <tr
+                key={job.jobId}
+                onClick={() => onSelectJob?.(job.jobId)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    onSelectJob?.(job.jobId)
+                  }
+                }}
+                tabIndex={onSelectJob ? 0 : undefined}
+                role={onSelectJob ? 'button' : undefined}
+                className={onSelectJob ? 'row-clickable' : undefined}
+              >
                 {COLUMNS.map((col) => {
                   const tabular = col.key === 'jobId' || col.key === 'createdAt' || col.num
                   const className = col.num ? 'num tabular' : tabular ? 'tabular' : undefined
