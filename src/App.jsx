@@ -35,6 +35,7 @@ export default function App() {
   const [selectedJobId, setSelectedJobId] = useState(initialNav.selectedJobId)
   const [searchQuery, setSearchQuery] = useState('')
   const [dashboardQuery, setDashboardQuery] = useState(initialNav.dashboardQuery)
+  const [dashboardFilter, setDashboardFilter] = useState(initialNav.dashboardFilter)
   const [companyFilter, setCompanyFilter] = useState(initialNav.companyFilter)
   const [approvalOverrides, setApprovalOverrides] = useState(loadApprovalOverrides)
   const [auditLog, setAuditLog] = useState([])
@@ -58,6 +59,7 @@ export default function App() {
       setSelectedJobId(nav.selectedJobId)
       setCompanyFilter(nav.companyFilter)
       setDashboardQuery(nav.dashboardQuery)
+      setDashboardFilter(nav.dashboardFilter)
     }
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
@@ -138,12 +140,22 @@ export default function App() {
       selectedJobId: null,
       companyFilter: 'all',
       dashboardQuery,
+      dashboardFilter,
     })
   }
 
-  function goDashboard() {
+  function goDashboard(filterKey = 'all') {
+    setDashboardFilter(filterKey)
     setView('dashboard')
-    pushUrlState({ view: 'dashboard', selectedCategory, selectedClient, selectedJobId, companyFilter, dashboardQuery })
+    pushUrlState({
+      view: 'dashboard',
+      selectedCategory,
+      selectedClient,
+      selectedJobId,
+      companyFilter,
+      dashboardQuery,
+      dashboardFilter: filterKey,
+    })
   }
 
   function openCategory(name) {
@@ -157,19 +169,36 @@ export default function App() {
       selectedJobId: null,
       companyFilter: 'all',
       dashboardQuery,
+      dashboardFilter,
     })
   }
 
   function openCompany(name) {
     setSelectedClient(name)
     setView('company')
-    pushUrlState({ view: 'company', selectedCategory, selectedClient: name, selectedJobId: null, companyFilter, dashboardQuery })
+    pushUrlState({
+      view: 'company',
+      selectedCategory,
+      selectedClient: name,
+      selectedJobId: null,
+      companyFilter,
+      dashboardQuery,
+      dashboardFilter,
+    })
   }
 
   function openProject(jobId) {
     setSelectedJobId(jobId)
     setView('project')
-    pushUrlState({ view: 'project', selectedCategory, selectedClient, selectedJobId: jobId, companyFilter, dashboardQuery })
+    pushUrlState({
+      view: 'project',
+      selectedCategory,
+      selectedClient,
+      selectedJobId: jobId,
+      companyFilter,
+      dashboardQuery,
+      dashboardFilter,
+    })
   }
 
   function openJob(job) {
@@ -184,6 +213,7 @@ export default function App() {
       selectedJobId: job.jobId,
       companyFilter,
       dashboardQuery,
+      dashboardFilter,
     })
   }
 
@@ -193,7 +223,15 @@ export default function App() {
 
   function setFilter(key) {
     setCompanyFilter(key)
-    replaceUrlState({ view, selectedCategory, selectedClient, selectedJobId, companyFilter: key, dashboardQuery })
+    replaceUrlState({
+      view,
+      selectedCategory,
+      selectedClient,
+      selectedJobId,
+      companyFilter: key,
+      dashboardQuery,
+      dashboardFilter,
+    })
   }
 
   function submitSearch(e) {
@@ -207,6 +245,7 @@ export default function App() {
       selectedJobId,
       companyFilter,
       dashboardQuery: searchQuery,
+      dashboardFilter,
     })
   }
 
@@ -215,7 +254,7 @@ export default function App() {
       <Nav
         view={view}
         onGoHome={goHome}
-        onGoDashboard={goDashboard}
+        onGoDashboard={() => goDashboard()}
         searchValue={searchQuery}
         onSearchChange={setSearchQuery}
         onSearchSubmit={submitSearch}
@@ -242,13 +281,13 @@ export default function App() {
 
                 {kpis && (
                   <div className="mb-10">
-                    <StatsRow kpis={kpis} />
+                    <StatsRow kpis={kpis} onSelectFilter={goDashboard} />
                   </div>
                 )}
 
                 <div className="mb-6 flex items-center justify-between gap-3">
                   <h2 className="text-2xl font-medium text-white">Service categories</h2>
-                  <button className="hero-photo__cta" onClick={goDashboard}>
+                  <button className="hero-photo__cta" onClick={() => goDashboard()}>
                     View progress →
                   </button>
                 </div>
@@ -381,6 +420,7 @@ export default function App() {
               <JobTable
                 jobs={jobs}
                 initialQuery={dashboardQuery}
+                initialStatusFilter={dashboardFilter}
                 onSelectJob={(jobId) => {
                   const job = jobs.find((j) => j.jobId === jobId)
                   if (job) openJob(job)

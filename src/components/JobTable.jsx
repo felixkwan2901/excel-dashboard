@@ -35,13 +35,25 @@ function renderCell(job, key) {
   }
 }
 
-export default function JobTable({ jobs, initialQuery = '', onSelectJob }) {
+const STATUS_FILTERS = [
+  { key: 'all', label: 'All' },
+  { key: 'pending', label: 'Pending approval' },
+  { key: 'urgent', label: 'Urgent' },
+]
+
+export default function JobTable({ jobs, initialQuery = '', initialStatusFilter = 'all', onSelectJob }) {
   const [query, setQuery] = useState(initialQuery)
+  const [statusFilter, setStatusFilter] = useState(initialStatusFilter)
   const [sort, setSort] = useState({ key: 'jobId', dir: 1 })
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     return jobs
+      .filter((job) => {
+        if (statusFilter === 'pending') return job.approvalStatus === 'Pending'
+        if (statusFilter === 'urgent') return job.aiStatus === 'Flagged'
+        return true
+      })
       .filter((job) =>
         !q ||
         job.client.toLowerCase().includes(q) ||
@@ -54,7 +66,7 @@ export default function JobTable({ jobs, initialQuery = '', onSelectJob }) {
         if (typeof av === 'number') return (av - bv) * sort.dir
         return String(av).localeCompare(String(bv)) * sort.dir
       })
-  }, [jobs, query, sort])
+  }, [jobs, query, statusFilter, sort])
 
   function toggleSort(key) {
     setSort((prev) => (prev.key === key ? { key, dir: -prev.dir } : { key, dir: 1 }))
@@ -62,6 +74,22 @@ export default function JobTable({ jobs, initialQuery = '', onSelectJob }) {
 
   return (
     <div>
+      <div className="mb-3 flex flex-wrap gap-2">
+        {STATUS_FILTERS.map((chip) => (
+          <button
+            key={chip.key}
+            onClick={() => setStatusFilter(chip.key)}
+            className={`rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors ${
+              statusFilter === chip.key
+                ? 'border-brand-green/50 bg-brand-green/10 text-brand-green'
+                : 'border-white/10 text-neutral-400 hover:border-white/20 hover:text-white'
+            }`}
+          >
+            {chip.label}
+          </button>
+        ))}
+      </div>
+
       <div className="table-filters">
         <input
           type="search"

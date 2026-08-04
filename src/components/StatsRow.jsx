@@ -1,7 +1,7 @@
 import { AlertTriangle, Briefcase, Clock } from 'lucide-react'
 import StatCard from './StatCard'
 
-export default function StatsRow({ kpis }) {
+export default function StatsRow({ kpis, onSelectFilter }) {
   const pendingContext =
     kpis.pendingApproval > 0
       ? `Oldest waiting ${kpis.oldestPendingDays}d`
@@ -19,6 +19,7 @@ export default function StatsRow({ kpis }) {
         label="Active Jobs"
         value={kpis.totalJobs}
         context={`${kpis.categoryCount} service categories`}
+        onClick={onSelectFilter ? () => onSelectFilter('all') : undefined}
       />
       <StatCard
         icon={Clock}
@@ -26,6 +27,7 @@ export default function StatsRow({ kpis }) {
         value={kpis.pendingApproval}
         context={pendingContext}
         tone={kpis.pendingApproval > 0 ? 'critical' : 'neutral'}
+        onClick={onSelectFilter ? () => onSelectFilter('pending') : undefined}
       />
       <StatCard
         icon={AlertTriangle}
@@ -33,6 +35,7 @@ export default function StatsRow({ kpis }) {
         value={kpis.urgentCount}
         context={urgentContext}
         tone={kpis.urgentCount > 0 ? 'critical' : 'neutral'}
+        onClick={onSelectFilter ? () => onSelectFilter('urgent') : undefined}
       />
     </div>
   )

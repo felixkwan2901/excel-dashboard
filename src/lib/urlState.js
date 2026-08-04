@@ -11,6 +11,7 @@ const DEFAULTS = {
   selectedJobId: null,
   companyFilter: 'all',
   dashboardQuery: '',
+  dashboardFilter: 'all',
 }
 
 export function parseUrlState() {
@@ -22,6 +23,7 @@ export function parseUrlState() {
     selectedJobId: params.get('j') || DEFAULTS.selectedJobId,
     companyFilter: params.get('f') || DEFAULTS.companyFilter,
     dashboardQuery: params.get('dq') || DEFAULTS.dashboardQuery,
+    dashboardFilter: params.get('df') || DEFAULTS.dashboardFilter,
   }
 }
 
@@ -35,6 +37,9 @@ export function buildUrlSearch(navState) {
     params.set('f', navState.companyFilter)
   }
   if (navState.dashboardQuery) params.set('dq', navState.dashboardQuery)
+  if (navState.dashboardFilter && navState.dashboardFilter !== DEFAULTS.dashboardFilter) {
+    params.set('df', navState.dashboardFilter)
+  }
   const qs = params.toString()
   return qs ? `?${qs}` : window.location.pathname
 }
