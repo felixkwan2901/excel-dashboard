@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Bell } from 'lucide-react'
 
-export default function NotificationsBell({ flaggedJobs, onSelectJob }) {
+export default function NotificationsBell({ flaggedJobs, onSelectJob, onPrintReport }) {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
 
@@ -53,6 +53,16 @@ export default function NotificationsBell({ flaggedJobs, onSelectJob }) {
               <span className="text-xs text-neutral-400">{job.jobName}</span>
             </button>
           ))}
+          <button
+            role="menuitem"
+            onClick={() => {
+              onPrintReport()
+              setOpen(false)
+            }}
+            className="mt-1 w-full rounded-lg border-t border-white/[0.08] px-2 py-2 text-left text-sm font-medium text-brand-green transition-colors hover:bg-white/[0.06]"
+          >
+            Print full report →
+          </button>
         </div>
       )}
     </div>

@@ -6,6 +6,7 @@ import Nav from './components/Nav'
 import StatsRow from './components/StatsRow'
 import JobTable from './components/JobTable'
 import ProjectDetail from './components/ProjectDetail'
+import ReviewReport from './components/ReviewReport'
 import LastSynced from './components/LastSynced'
 import Reveal from './components/Reveal'
 import './App.css'
@@ -80,6 +81,11 @@ export default function App() {
     window.history.back()
   }
 
+  function goReviewReport() {
+    setView('review')
+    pushUrlState({ view: 'review', selectedJobId, dashboardQuery, dashboardFilter })
+  }
+
   function submitSearch(e) {
     e.preventDefault()
     setDashboardQuery(searchQuery)
@@ -118,6 +124,7 @@ export default function App() {
         onSearchSubmit={submitSearch}
         flaggedJobs={flaggedJobs}
         onSelectFlaggedJob={openJob}
+        onPrintReport={goReviewReport}
       />
 
       {view === 'home' && (
@@ -171,6 +178,14 @@ export default function App() {
         <main className="dashboard">
           <Reveal index={0}>
             <ProjectDetail job={selectedJob} onBack={goBack} />
+          </Reveal>
+        </main>
+      )}
+
+      {view === 'review' && (
+        <main className="dashboard">
+          <Reveal index={0}>
+            <ReviewReport jobs={flaggedJobs} onBack={goBack} />
           </Reveal>
         </main>
       )}

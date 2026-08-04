@@ -18,9 +18,14 @@ export default function StatsRow({ kpis, onSelectFilter }) {
   const avgMarginContext =
     kpis.avgMargin === null
       ? 'No margin data yet'
-      : kpis.avgQuotedMargin !== null
-        ? `Quoted avg ${Math.round(kpis.avgQuotedMargin * 100)}%`
-        : undefined
+      : [
+          kpis.dollarWeightedAvgMargin !== null
+            ? `$-weighted ${Math.round(kpis.dollarWeightedAvgMargin * 100)}%`
+            : null,
+          kpis.avgQuotedMargin !== null ? `Quoted avg ${Math.round(kpis.avgQuotedMargin * 100)}%` : null,
+        ]
+          .filter(Boolean)
+          .join(' · ') || undefined
 
   return (
     <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">

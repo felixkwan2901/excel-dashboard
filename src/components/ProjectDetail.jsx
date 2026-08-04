@@ -1,40 +1,7 @@
 import { ArrowLeft } from 'lucide-react'
 import StatusBadge from './StatusBadge'
-
-const CURRENCY = new Intl.NumberFormat('en-NZ', {
-  style: 'currency',
-  currency: 'NZD',
-  maximumFractionDigits: 0,
-})
-
-const PERCENT = new Intl.NumberFormat('en-NZ', {
-  style: 'percent',
-  maximumFractionDigits: 1,
-})
-
-// Claim/margin figures that should be ~0 sometimes land at e.g. -$0.01 from
-// rounding during the claim process — clamp anything within a cent/0.1pt of
-// zero so it reads as a clean "$0"/"0%" instead of a stray negative sign.
-function money(v) {
-  if (v === null) return '—'
-  return CURRENCY.format(Math.abs(v) < 0.01 ? 0 : v)
-}
-
-function percent(v) {
-  if (v === null) return '—'
-  return PERCENT.format(Math.abs(v) < 0.001 ? 0 : v)
-}
-
-function statusReasons(job) {
-  const reasons = []
-  if (job.overBudget) {
-    reasons.push(`Actual cost is ${money(job.totalActualCost - job.totalQuotedCost)} over quote`)
-  }
-  if (job.losingMargin) {
-    reasons.push(`Margin is currently ${percent(job.marginToDate)}`)
-  }
-  return reasons
-}
+import { money, percent } from '../lib/format'
+import { statusReasons } from '../lib/statusReasons'
 
 function Field({ label, children, warn }) {
   return (
