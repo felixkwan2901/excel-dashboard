@@ -31,10 +31,6 @@
     "aiStatus": "Passed",
     "aiReason": ""
   },
-  "CDE-2026-010": {
-    "aiStatus": "Passed",
-    "aiReason": ""
-  },
   "CDE-2026-011": {
     "aiStatus": "Flagged",
     "aiReason": "No technician assigned"
