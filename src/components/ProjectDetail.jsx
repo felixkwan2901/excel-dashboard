@@ -56,7 +56,10 @@ export default function ProjectDetail({ job, onBack, onChangeApproval }) {
 
         <div className="mt-6 grid grid-cols-1 gap-6 border-t border-white/10 pt-6 sm:grid-cols-2">
           <Field label="AI check status">
-            <StatusBadge label={job.aiStatus} />
+            <div className="flex flex-col gap-1.5">
+              <StatusBadge label={job.aiStatus} />
+              {job.aiReason && <p className="text-[13px] text-neutral-500">{job.aiReason}</p>}
+            </div>
           </Field>
 
           <Field label="Approval status">

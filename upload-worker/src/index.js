@@ -1,8 +1,107 @@
+import * as XLSX from 'xlsx'
+
 const OWNER = 'felixkwan2901'
 const REPO = 'excel-dashboard'
 const FILE_PATH = 'Cassidy_Davies_Electrical_BPMN_Data.xlsx'
+const AI_CHECKS_PATH = 'ai-checks.json'
 const BRANCH = 'main'
 const MAX_BYTES = 8 * 1024 * 1024 // 8MB
+
+const JOB_HEADERS = [
+  'jobId',
+  'client',
+  'serviceType',
+  'category',
+  'createdAt',
+  'swimlane',
+  'aiStatus',
+  'approvalStatus',
+  'tech',
+  'value',
+  'processId',
+]
+
+// Mirrors src/lib/loadWorkbook.js's row parsing — kept in sync manually
+// since this worker runs isolated from the frontend build.
+function parseJobs(buffer) {
+  const workbook = XLSX.read(buffer, { type: 'array' })
+  const sheet = workbook.Sheets['Job Directory']
+  if (!sheet) return []
+
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false, defval: '' })
+  const headerIdx = rows.findIndex((row) => row[0] === 'Job ID')
+  if (headerIdx === -1) return []
+
+  const jobs = []
+  for (let i = headerIdx + 1; i < rows.length; i++) {
+    const row = rows[i]
+    if (!row[0] || !row[1]) break
+    const record = {}
+    JOB_HEADERS.forEach((key, col) => {
+      record[key] = row[col] ?? ''
+    })
+    jobs.push(record)
+  }
+  return jobs
+}
+
+async function runAiChecks(jobs, env) {
+  if (!env.GEMINI_API_KEY || jobs.length === 0) return {}
+
+  const prompt = `You are a compliance reviewer for an electrical contracting company's job pipeline.
+For each job below, decide if it should be "Passed" or "Flagged" for manual review, and give a short reason (under 12 words).
+Flag jobs that look risky or inconsistent — e.g. no technician assigned this late in the process, unusually high value for the job category, or a swimlane/approval mismatch. Otherwise pass them.
+
+Jobs (JSON):
+${JSON.stringify(
+  jobs.map((j) => ({
+    jobId: j.jobId,
+    category: j.category,
+    serviceType: j.serviceType,
+    swimlane: j.swimlane,
+    tech: j.tech,
+    value: j.value,
+    approvalStatus: j.approvalStatus,
+  }))
+)}
+
+Respond with ONLY a JSON array, one entry per job, in this exact shape:
+[{"jobId": "CDE-2026-001", "aiStatus": "Passed", "aiReason": "Short reason here"}]`
+
+  const res = await fetch(
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': env.GEMINI_API_KEY,
+      },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: 'application/json' },
+      }),
+    }
+  )
+
+  if (!res.ok) {
+    throw new Error(`Gemini request failed (${res.status}): ${(await res.text()).slice(0, 300)}`)
+  }
+
+  const data = await res.json()
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text
+  if (!text) throw new Error('Gemini returned no content')
+
+  const results = JSON.parse(text)
+  const byJobId = {}
+  for (const r of results) {
+    if (!r.jobId) continue
+    byJobId[r.jobId] = {
+      aiStatus: r.aiStatus === 'Flagged' ? 'Flagged' : 'Passed',
+      aiReason: String(r.aiReason ?? '').slice(0, 160),
+    }
+  }
+  return byJobId
+}
 
 const PAGE_STYLE = `
   :root { color-scheme: dark; }
@@ -75,6 +174,10 @@ function arrayBufferToBase64(buffer) {
   return btoa(binary)
 }
 
+function textToBase64(text) {
+  return arrayBufferToBase64(new TextEncoder().encode(text))
+}
+
 async function githubRequest(path, env, init) {
   const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/${path}`, {
     ...init,
@@ -140,9 +243,39 @@ async function handleUpload(request, env) {
     )
   }
 
+  // AI checks are best-effort: if this fails (bad key, quota, malformed
+  // response), the data upload above has already succeeded — don't block
+  // on it, just skip refreshing the AI check results this time.
+  let aiNote = ''
+  try {
+    const jobs = parseJobs(buffer)
+    const aiChecks = await runAiChecks(jobs, env)
+
+    if (Object.keys(aiChecks).length > 0) {
+      const currentAiRes = await githubRequest(`contents/${AI_CHECKS_PATH}?ref=${BRANCH}`, env)
+      const currentAiSha = currentAiRes.ok ? (await currentAiRes.json()).sha : undefined
+
+      const aiPutRes = await githubRequest(`contents/${AI_CHECKS_PATH}`, env, {
+        method: 'PUT',
+        body: JSON.stringify({
+          message: `Refresh AI job checks (${new Date().toISOString()})`,
+          content: textToBase64(JSON.stringify(aiChecks, null, 2)),
+          sha: currentAiSha,
+          branch: BRANCH,
+        }),
+      })
+
+      aiNote = aiPutRes.ok
+        ? ` AI reviewed ${Object.keys(aiChecks).length} jobs.`
+        : ' (AI check ran, but saving the results failed.)'
+    }
+  } catch (err) {
+    aiNote = ` (Skipped AI check: ${String(err.message ?? err).slice(0, 150)})`
+  }
+
   return html(
     renderForm(
-      `<div class="result ok">Uploaded. The dashboard will rebuild and go live in a couple of minutes — <a href="https://felixkwan2901.github.io/excel-dashboard/" target="_blank">check the site</a>.</div>`
+      `<div class="result ok">Uploaded.${aiNote} The dashboard will rebuild and go live in a couple of minutes — <a href="https://felixkwan2901.github.io/excel-dashboard/" target="_blank">check the site</a>.</div>`
     )
   )
 }
