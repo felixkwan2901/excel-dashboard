@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { loadWorkbook } from './lib/loadWorkbook'
 import { loadAuditLog, recordApprovalChange } from './lib/auditLog'
 import { computeKpis, computeCategories, computeCompanies } from './lib/deriveMetrics'
+import { parseUrlState, pushUrlState, replaceUrlState } from './lib/urlState'
 import Nav from './components/Nav'
 import StatsRow from './components/StatsRow'
 import JobTable from './components/JobTable'
@@ -24,15 +25,17 @@ function loadApprovalOverrides() {
   }
 }
 
+const initialNav = parseUrlState()
+
 export default function App() {
   const [state, setState] = useState({ status: 'loading' })
-  const [view, setView] = useState('home')
-  const [selectedCategory, setSelectedCategory] = useState(null)
-  const [selectedClient, setSelectedClient] = useState(null)
-  const [selectedJobId, setSelectedJobId] = useState(null)
+  const [view, setView] = useState(initialNav.view)
+  const [selectedCategory, setSelectedCategory] = useState(initialNav.selectedCategory)
+  const [selectedClient, setSelectedClient] = useState(initialNav.selectedClient)
+  const [selectedJobId, setSelectedJobId] = useState(initialNav.selectedJobId)
   const [searchQuery, setSearchQuery] = useState('')
-  const [dashboardQuery, setDashboardQuery] = useState('')
-  const [companyFilter, setCompanyFilter] = useState('all')
+  const [dashboardQuery, setDashboardQuery] = useState(initialNav.dashboardQuery)
+  const [companyFilter, setCompanyFilter] = useState(initialNav.companyFilter)
   const [approvalOverrides, setApprovalOverrides] = useState(loadApprovalOverrides)
   const [auditLog, setAuditLog] = useState([])
   const [localAuditEntries, setLocalAuditEntries] = useState([])
@@ -42,6 +45,22 @@ export default function App() {
       .then(({ jobs }) => setState({ status: 'ready', jobs }))
       .catch((error) => setState({ status: 'error', error }))
     loadAuditLog().then(setAuditLog)
+
+    // Establish a well-formed history entry for the initial load (so a
+    // later back-navigation to it has a real `.state` to restore from),
+    // then listen for the browser's own back/forward buttons.
+    replaceUrlState(initialNav)
+    function onPopState(e) {
+      const nav = e.state || parseUrlState()
+      setView(nav.view)
+      setSelectedCategory(nav.selectedCategory)
+      setSelectedClient(nav.selectedClient)
+      setSelectedJobId(nav.selectedJobId)
+      setCompanyFilter(nav.companyFilter)
+      setDashboardQuery(nav.dashboardQuery)
+    }
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
   }, [])
 
   function setJobApproval(jobId, previousStatus, approvalStatus) {
@@ -112,26 +131,45 @@ export default function App() {
 
   function goHome() {
     setView('home')
+    pushUrlState({
+      view: 'home',
+      selectedCategory: null,
+      selectedClient: null,
+      selectedJobId: null,
+      companyFilter: 'all',
+      dashboardQuery,
+    })
   }
 
   function goDashboard() {
     setView('dashboard')
+    pushUrlState({ view: 'dashboard', selectedCategory, selectedClient, selectedJobId, companyFilter, dashboardQuery })
   }
 
   function openCategory(name) {
     setSelectedCategory(name)
     setCompanyFilter('all')
     setView('category')
+    pushUrlState({
+      view: 'category',
+      selectedCategory: name,
+      selectedClient: null,
+      selectedJobId: null,
+      companyFilter: 'all',
+      dashboardQuery,
+    })
   }
 
   function openCompany(name) {
     setSelectedClient(name)
     setView('company')
+    pushUrlState({ view: 'company', selectedCategory, selectedClient: name, selectedJobId: null, companyFilter, dashboardQuery })
   }
 
   function openProject(jobId) {
     setSelectedJobId(jobId)
     setView('project')
+    pushUrlState({ view: 'project', selectedCategory, selectedClient, selectedJobId: jobId, companyFilter, dashboardQuery })
   }
 
   function openUrgentJob(job) {
@@ -139,12 +177,37 @@ export default function App() {
     setSelectedClient(job.client)
     setSelectedCategory(job.serviceType)
     setView('project')
+    pushUrlState({
+      view: 'project',
+      selectedCategory: job.serviceType,
+      selectedClient: job.client,
+      selectedJobId: job.jobId,
+      companyFilter,
+      dashboardQuery,
+    })
+  }
+
+  function goBack() {
+    window.history.back()
+  }
+
+  function setFilter(key) {
+    setCompanyFilter(key)
+    replaceUrlState({ view, selectedCategory, selectedClient, selectedJobId, companyFilter: key, dashboardQuery })
   }
 
   function submitSearch(e) {
     e.preventDefault()
     setDashboardQuery(searchQuery)
     setView('dashboard')
+    pushUrlState({
+      view: 'dashboard',
+      selectedCategory,
+      selectedClient,
+      selectedJobId,
+      companyFilter,
+      dashboardQuery: searchQuery,
+    })
   }
 
   return (
@@ -253,7 +316,7 @@ export default function App() {
               ].map((chip) => (
                 <button
                   key={chip.key}
-                  onClick={() => setCompanyFilter(chip.key)}
+                  onClick={() => setFilter(chip.key)}
                   className={`rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors ${
                     companyFilter === chip.key
                       ? 'border-brand-green/50 bg-brand-green/10 text-brand-green'
@@ -276,7 +339,7 @@ export default function App() {
 
       {view === 'company' && (
         <main className="dashboard">
-          <button className="back-link" onClick={() => setView('category')}>
+          <button className="back-link" onClick={goBack}>
             ← {selectedCategory}
           </button>
           <Reveal index={0}>
@@ -292,7 +355,7 @@ export default function App() {
           <Reveal index={0}>
             <ProjectDetail
               job={selectedJob}
-              onBack={() => setView('company')}
+              onBack={goBack}
               onChangeApproval={setJobApproval}
               history={selectedJobHistory}
             />
