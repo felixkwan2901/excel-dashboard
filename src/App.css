@@ -396,4 +396,9 @@
   .site-footer {
     display: none;
   }
+
+  .dashboard {
+    max-width: none;
+    padding: 0;
+  }
 }

@@ -7,9 +7,25 @@ const GENERATED = new Intl.DateTimeFormat('en-NZ', {
   timeStyle: 'short',
 }).format(new Date())
 
-export default function ReviewReport({ jobs, onBack }) {
+function Stat({ label, children }) {
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-6">
+    <>
+      <span className="text-neutral-500 print:text-neutral-600">{label}</span>
+      <span className="text-neutral-200 print:text-black">{children}</span>
+    </>
+  )
+}
+
+export default function ReviewReport({ jobs, onBack }) {
+  const overBudgetJobs = jobs.filter((j) => j.overBudget)
+  const totalOverBudgetAmount = overBudgetJobs.reduce(
+    (sum, j) => sum + (j.totalActualCost - j.totalQuotedCost),
+    0
+  )
+  const losingMarginCount = jobs.filter((j) => j.losingMargin).length
+
+  return (
+    <div className="mx-auto flex max-w-4xl flex-col gap-6 print:max-w-none">
       <div className="flex items-center justify-between print:hidden">
         <button
           onClick={onBack}
@@ -34,6 +50,12 @@ export default function ReviewReport({ jobs, onBack }) {
             Cassidy-Davies Electrical · Generated {GENERATED} · {jobs.length} job
             {jobs.length === 1 ? '' : 's'} flagged
           </p>
+          {jobs.length > 0 && (
+            <p className="mt-1 text-sm text-neutral-500 print:text-neutral-600">
+              {overBudgetJobs.length} over budget by {money(totalOverBudgetAmount)} combined ·{' '}
+              {losingMarginCount} losing margin
+            </p>
+          )}
         </div>
 
         {jobs.length === 0 && (
@@ -45,8 +67,16 @@ export default function ReviewReport({ jobs, onBack }) {
         <ul className="divide-y divide-white/10 print:divide-neutral-300">
           {jobs.map((job) => {
             const reasons = statusReasons(job)
+            const variance =
+              job.totalActualCost !== null && job.totalQuotedCost !== null
+                ? job.totalActualCost - job.totalQuotedCost
+                : null
+
             return (
-              <li key={job.jobNumber} className="flex flex-wrap items-start justify-between gap-4 py-5">
+              <li
+                key={job.jobNumber}
+                className="flex flex-wrap items-start justify-between gap-4 py-5 print:break-inside-avoid"
+              >
                 <div>
                   <p className="text-sm text-neutral-500 tabular-nums print:text-neutral-600">
                     Job {job.jobNumber}
@@ -56,28 +86,26 @@ export default function ReviewReport({ jobs, onBack }) {
                   </p>
                   <ul className="mt-2 flex flex-col gap-1">
                     {reasons.map((reason) => (
-                      <li
-                        key={reason}
-                        className="text-[13px] text-amber-400 print:text-neutral-800"
-                      >
+                      <li key={reason} className="text-[13px] text-amber-400 print:text-neutral-800">
                         • {reason}
                       </li>
                     ))}
                   </ul>
                 </div>
                 <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-right text-[13px] tabular-nums">
-                  <span className="text-neutral-500 print:text-neutral-600">Quoted cost</span>
-                  <span className="text-neutral-200 print:text-black">
-                    {money(job.totalQuotedCost)}
-                  </span>
-                  <span className="text-neutral-500 print:text-neutral-600">Actual cost</span>
-                  <span className="text-neutral-200 print:text-black">
-                    {money(job.totalActualCost)}
-                  </span>
-                  <span className="text-neutral-500 print:text-neutral-600">Margin to date</span>
-                  <span className="text-neutral-200 print:text-black">
-                    {percent(job.marginToDate)}
-                  </span>
+                  <Stat label="Quoted cost">{money(job.totalQuotedCost)}</Stat>
+                  <Stat label="Actual cost">{money(job.totalActualCost)}</Stat>
+                  <Stat label="Variance">
+                    {variance === null ? '—' : `${variance > 0 ? '+' : ''}${money(variance)}`}
+                  </Stat>
+                  <Stat label="Labour hours (quoted / actual)">
+                    {job.quotedLabourHours === null ? '—' : job.quotedLabourHours} /{' '}
+                    {job.actualLabourHours === null ? '—' : job.actualLabourHours}
+                  </Stat>
+                  <Stat label="Margin to date (quoted)">
+                    {percent(job.marginToDate)} ({percent(job.quotedMargin)})
+                  </Stat>
+                  <Stat label="Remaining to claim">{money(job.remainingToClaim)}</Stat>
                 </div>
               </li>
             )

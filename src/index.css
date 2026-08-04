@@ -261,6 +261,18 @@ body::before {
   }
 }
 
+/* The dark ambient backdrop and page background are a screen-only effect —
+   left on, they render as a dark/green sheet behind every printed page. */
+@media print {
+  body::before {
+    display: none;
+  }
+  html,
+  body {
+    background: #fff;
+  }
+}
+
 #root {
   min-height: 100vh;
 }
