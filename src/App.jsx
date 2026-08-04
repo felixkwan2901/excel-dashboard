@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { loadWorkbook } from './lib/loadWorkbook'
+import { loadAuditLog, recordApprovalChange } from './lib/auditLog'
 import { computeKpis, computeCategories, computeCompanies } from './lib/deriveMetrics'
 import Nav from './components/Nav'
 import StatsRow from './components/StatsRow'
@@ -33,19 +34,31 @@ export default function App() {
   const [dashboardQuery, setDashboardQuery] = useState('')
   const [companyFilter, setCompanyFilter] = useState('all')
   const [approvalOverrides, setApprovalOverrides] = useState(loadApprovalOverrides)
+  const [auditLog, setAuditLog] = useState([])
+  const [localAuditEntries, setLocalAuditEntries] = useState([])
 
   useEffect(() => {
     loadWorkbook()
       .then(({ jobs }) => setState({ status: 'ready', jobs }))
       .catch((error) => setState({ status: 'error', error }))
+    loadAuditLog().then(setAuditLog)
   }, [])
 
-  function setJobApproval(jobId, approvalStatus) {
+  function setJobApproval(jobId, previousStatus, approvalStatus) {
     setApprovalOverrides((prev) => {
       const next = { ...prev, [jobId]: approvalStatus }
       localStorage.setItem(APPROVAL_OVERRIDES_KEY, JSON.stringify(next))
       return next
     })
+
+    const entry = {
+      timestamp: new Date().toISOString(),
+      jobId,
+      previousStatus,
+      newStatus: approvalStatus,
+    }
+    setLocalAuditEntries((prev) => [entry, ...prev])
+    recordApprovalChange(entry)
   }
 
   const jobs = useMemo(() => {
@@ -87,6 +100,15 @@ export default function App() {
     () => jobs.find((job) => job.jobId === selectedJobId) ?? null,
     [jobs, selectedJobId]
   )
+
+  const selectedJobHistory = useMemo(() => {
+    if (!selectedJobId) return []
+    const fromServer = auditLog.filter((entry) => entry.jobId === selectedJobId)
+    const fromThisSession = localAuditEntries.filter((entry) => entry.jobId === selectedJobId)
+    return [...fromThisSession, ...fromServer].sort(
+      (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
+    )
+  }, [auditLog, localAuditEntries, selectedJobId])
 
   function goHome() {
     setView('home')
@@ -272,6 +294,7 @@ export default function App() {
               job={selectedJob}
               onBack={() => setView('company')}
               onChangeApproval={setJobApproval}
+              history={selectedJobHistory}
             />
           </Reveal>
         </main>

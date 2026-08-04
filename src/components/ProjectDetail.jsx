@@ -1,4 +1,5 @@
-import { ArrowLeft, CheckCircle2, RotateCcw } from 'lucide-react'
+import { useState } from 'react'
+import { ArrowLeft, CheckCircle2, ChevronRight, RotateCcw } from 'lucide-react'
 import StatusBadge from './StatusBadge'
 
 const CURRENCY = new Intl.NumberFormat('en-NZ', {
@@ -13,6 +14,13 @@ const DATE = new Intl.DateTimeFormat('en-NZ', {
   year: 'numeric',
 })
 
+const DATE_TIME = new Intl.DateTimeFormat('en-NZ', {
+  day: '2-digit',
+  month: 'short',
+  hour: 'numeric',
+  minute: '2-digit',
+})
+
 function Field({ label, children }) {
   return (
     <div className="flex flex-col gap-1.5">
@@ -22,7 +30,48 @@ function Field({ label, children }) {
   )
 }
 
-export default function ProjectDetail({ job, onBack, onChangeApproval }) {
+function History({ entries }) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <div className="mt-6 border-t border-white/10 pt-6">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-1.5 text-[13px] font-semibold text-neutral-300 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green"
+      >
+        <ChevronRight
+          size={14}
+          className={`transition-transform duration-200 ${open ? 'rotate-90' : ''}`}
+          aria-hidden="true"
+        />
+        History{entries.length > 0 ? ` (${entries.length})` : ''}
+      </button>
+
+      {open && (
+        <ul className="mt-4 flex flex-col gap-3">
+          {entries.length === 0 && (
+            <p className="text-[13px] text-neutral-500">No changes recorded yet.</p>
+          )}
+          {entries.map((entry, i) => (
+            <li
+              key={`${entry.timestamp}-${i}`}
+              className="flex flex-wrap items-center justify-between gap-2 text-[13px]"
+            >
+              <span className="text-neutral-300">
+                {entry.previousStatus} → {entry.newStatus}
+              </span>
+              <span className="text-neutral-500 tabular-nums">
+                {DATE_TIME.format(new Date(entry.timestamp))}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+export default function ProjectDetail({ job, onBack, onChangeApproval, history = [] }) {
   const isApproved = job.approvalStatus === 'Approved'
 
   return (
@@ -66,7 +115,7 @@ export default function ProjectDetail({ job, onBack, onChangeApproval }) {
               {onChangeApproval && (
                 <button
                   onClick={() =>
-                    onChangeApproval(job.jobId, isApproved ? 'Pending' : 'Approved')
+                    onChangeApproval(job.jobId, job.approvalStatus, isApproved ? 'Pending' : 'Approved')
                   }
                   className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green ${
                     isApproved
@@ -90,6 +139,8 @@ export default function ProjectDetail({ job, onBack, onChangeApproval }) {
             </div>
           </Field>
         </div>
+
+        <History entries={history} />
       </div>
     </div>
   )

@@ -5,8 +5,11 @@ const REPO = 'excel-dashboard'
 const FILE_PATH = 'Cassidy_Davies_Electrical_BPMN_Data.xlsx'
 const AI_CHECKS_PATH = 'ai-checks.json'
 const SYNC_META_PATH = 'sync-meta.json'
+const AUDIT_LOG_PATH = 'audit-log.json'
 const BRANCH = 'main'
 const MAX_BYTES = 8 * 1024 * 1024 // 8MB
+const MAX_AUDIT_ENTRIES = 500
+const APPROVAL_STATUSES = ['Approved', 'Pending']
 
 // Columns are located by header text, not position — mirrors
 // src/lib/loadWorkbook.js (kept in sync manually since this worker runs
@@ -243,6 +246,31 @@ function textToBase64(text) {
   return arrayBufferToBase64(new TextEncoder().encode(text))
 }
 
+function base64ToText(base64) {
+  const binary = atob(base64.replace(/\n/g, ''))
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+  return new TextDecoder().decode(bytes)
+}
+
+function json(body, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
+
+// The dashboard (a different origin) calls /audit-log directly from the
+// browser, so this needs real CORS handling — unlike /upload, which is
+// only ever hit via the same-origin HTML form above.
+function withCors(res) {
+  const headers = new Headers(res.headers)
+  headers.set('Access-Control-Allow-Origin', '*')
+  headers.set('Access-Control-Allow-Methods', 'POST, OPTIONS')
+  headers.set('Access-Control-Allow-Headers', 'Content-Type')
+  return new Response(res.body, { status: res.status, headers })
+}
+
 async function githubRequest(path, env, init) {
   const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/${path}`, {
     ...init,
@@ -274,6 +302,64 @@ async function putFileWithRetry(path, env, { contentBase64, message, attempts = 
     if (lastRes.ok || lastRes.status !== 409) return lastRes
   }
   return lastRes
+}
+
+// Appends one entry to audit-log.json. The timestamp is server-generated
+// (never trust a client-supplied one), and previous/new status are
+// validated against the known approval states so a malformed or malicious
+// POST can't inject arbitrary junk into the log.
+async function handleAuditLog(request, env) {
+  let body
+  try {
+    body = await request.json()
+  } catch {
+    return json({ error: 'Invalid JSON body' }, 400)
+  }
+
+  const jobId = String(body.jobId ?? '').trim().slice(0, 40)
+  const previousStatus = String(body.previousStatus ?? '').trim()
+  const newStatus = String(body.newStatus ?? '').trim()
+  const session = String(body.session ?? '').trim().slice(0, 64)
+
+  if (!jobId || !APPROVAL_STATUSES.includes(previousStatus) || !APPROVAL_STATUSES.includes(newStatus)) {
+    return json({ error: 'Missing or invalid fields' }, 400)
+  }
+
+  const entry = {
+    timestamp: new Date().toISOString(),
+    jobId,
+    previousStatus,
+    newStatus,
+    ...(session && { session }),
+  }
+
+  const currentRes = await githubRequest(`contents/${AUDIT_LOG_PATH}?ref=${BRANCH}`, env)
+  let entries = []
+  if (currentRes.ok) {
+    try {
+      const current = await currentRes.json()
+      const parsed = JSON.parse(base64ToText(current.content))
+      if (Array.isArray(parsed)) entries = parsed
+    } catch {
+      entries = []
+    }
+  }
+
+  entries.push(entry)
+  if (entries.length > MAX_AUDIT_ENTRIES) {
+    entries = entries.slice(entries.length - MAX_AUDIT_ENTRIES)
+  }
+
+  const putRes = await putFileWithRetry(AUDIT_LOG_PATH, env, {
+    contentBase64: textToBase64(JSON.stringify(entries, null, 2)),
+    message: `Audit log: ${jobId} ${previousStatus} -> ${newStatus}`,
+  })
+
+  if (!putRes.ok) {
+    return json({ error: 'Failed to save audit entry' }, 502)
+  }
+
+  return json({ ok: true, entry })
 }
 
 async function handleUpload(request, env) {
@@ -371,6 +457,17 @@ export default {
         return await handleUpload(request, env)
       } catch (err) {
         return html(renderForm(`<div class="result err">Unexpected error: ${String(err.message ?? err)}</div>`), 500)
+      }
+    }
+
+    if (url.pathname === '/audit-log') {
+      if (request.method === 'OPTIONS') return withCors(new Response(null, { status: 204 }))
+      if (request.method === 'POST') {
+        try {
+          return withCors(await handleAuditLog(request, env))
+        } catch (err) {
+          return withCors(json({ error: String(err.message ?? err) }, 500))
+        }
       }
     }
 
