@@ -191,6 +191,26 @@ async function githubRequest(path, env, init) {
   return res
 }
 
+// Writes a file's content, fetching its current sha first. If another
+// commit lands on the branch between that fetch and this write (e.g. a
+// second upload, or unrelated repo activity), GitHub responds 409 — retry
+// once with a freshly-fetched sha rather than surfacing a raw conflict.
+async function putFileWithRetry(path, env, { contentBase64, message, attempts = 2 }) {
+  let lastRes
+  for (let i = 0; i < attempts; i++) {
+    const currentRes = await githubRequest(`contents/${path}?ref=${BRANCH}`, env)
+    const sha = currentRes.ok ? (await currentRes.json()).sha : undefined
+
+    lastRes = await githubRequest(`contents/${path}`, env, {
+      method: 'PUT',
+      body: JSON.stringify({ message, content: contentBase64, sha, branch: BRANCH }),
+    })
+
+    if (lastRes.ok || lastRes.status !== 409) return lastRes
+  }
+  return lastRes
+}
+
 async function handleUpload(request, env) {
   const form = await request.formData()
   const password = form.get('password')
@@ -215,24 +235,9 @@ async function handleUpload(request, env) {
   const buffer = await file.arrayBuffer()
   const contentBase64 = arrayBufferToBase64(buffer)
 
-  const currentRes = await githubRequest(`contents/${FILE_PATH}?ref=${BRANCH}`, env)
-  if (!currentRes.ok) {
-    const body = await currentRes.text()
-    return html(
-      renderForm(`<div class="result err">Couldn't read the current file from GitHub (${currentRes.status}). ${body.slice(0, 200)}</div>`),
-      502
-    )
-  }
-  const current = await currentRes.json()
-
-  const putRes = await githubRequest(`contents/${FILE_PATH}`, env, {
-    method: 'PUT',
-    body: JSON.stringify({
-      message: `Update job data via upload form (${new Date().toISOString()})`,
-      content: contentBase64,
-      sha: current.sha,
-      branch: BRANCH,
-    }),
+  const putRes = await putFileWithRetry(FILE_PATH, env, {
+    contentBase64,
+    message: `Update job data via upload form (${new Date().toISOString()})`,
   })
 
   if (!putRes.ok) {
@@ -252,17 +257,9 @@ async function handleUpload(request, env) {
     const aiChecks = await runAiChecks(jobs, env)
 
     if (Object.keys(aiChecks).length > 0) {
-      const currentAiRes = await githubRequest(`contents/${AI_CHECKS_PATH}?ref=${BRANCH}`, env)
-      const currentAiSha = currentAiRes.ok ? (await currentAiRes.json()).sha : undefined
-
-      const aiPutRes = await githubRequest(`contents/${AI_CHECKS_PATH}`, env, {
-        method: 'PUT',
-        body: JSON.stringify({
-          message: `Refresh AI job checks (${new Date().toISOString()})`,
-          content: textToBase64(JSON.stringify(aiChecks, null, 2)),
-          sha: currentAiSha,
-          branch: BRANCH,
-        }),
+      const aiPutRes = await putFileWithRetry(AI_CHECKS_PATH, env, {
+        contentBase64: textToBase64(JSON.stringify(aiChecks, null, 2)),
+        message: `Refresh AI job checks (${new Date().toISOString()})`,
       })
 
       aiNote = aiPutRes.ok
