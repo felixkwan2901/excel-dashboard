@@ -61,12 +61,37 @@ function parseJobs(buffer) {
   return jobs
 }
 
-async function runAiChecks(jobs, env) {
+// Deterministic checks against the actual job fields — no model involved,
+// so these reasons are always factually true. The Gemini call is reserved
+// for judgment calls we genuinely can't compute ourselves (see
+// runAiOutlierCheck below).
+function ruleBasedFlags(job) {
+  const reasons = []
+
+  const tech = String(job.tech ?? '').trim()
+  if (!tech || tech.toLowerCase() === 'unassigned') {
+    reasons.push('No technician assigned')
+  }
+
+  const value = Number(job.value)
+  if (!value || Number.isNaN(value)) {
+    reasons.push('Job value is missing or zero')
+  }
+
+  return reasons
+}
+
+// Asks Gemini ONLY whether a job's value looks like an outlier for its
+// category — the one judgment call in this pipeline that isn't a simple
+// field check. Missing tech/value are excluded from the prompt entirely
+// since ruleBasedFlags already covers those deterministically; asking the
+// model about facts we can just look up is how it ended up inventing wrong
+// reasons before.
+async function runAiOutlierCheck(jobs, env) {
   if (!env.GEMINI_API_KEY || jobs.length === 0) return {}
 
-  const prompt = `You are a compliance reviewer for an electrical contracting company's job pipeline.
-For each job below, decide if it should be "Passed" or "Flagged" for manual review, and give a short reason (under 12 words).
-Flag jobs that look risky or inconsistent — e.g. no technician assigned, unusually high value for the job category, or a value/approval mismatch. Otherwise pass them.
+  const prompt = `You are reviewing job values for an electrical contracting company, grouped by category.
+Look ONLY at whether a job's value is a clear outlier compared to other jobs of the same category/serviceType. Do not consider technician assignment, approval status, or anything else — those are checked separately.
 
 Jobs (JSON):
 ${JSON.stringify(
@@ -74,14 +99,12 @@ ${JSON.stringify(
     jobId: j.jobId,
     category: j.category,
     serviceType: j.serviceType,
-    tech: j.tech,
     value: j.value,
-    approvalStatus: j.approvalStatus,
   }))
 )}
 
-Respond with ONLY a JSON array, one entry per job, in this exact shape:
-[{"jobId": "CDE-2026-001", "aiStatus": "Passed", "aiReason": "Short reason here"}]`
+Respond with ONLY a JSON array. Include an entry ONLY for jobs whose value is a clear outlier for their category — if none are outliers, respond with an empty array: [].
+Shape: [{"jobId": "CDE-2026-001", "reason": "Short reason under 12 words"}]`
 
   const res = await fetch(
     'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent',
@@ -110,12 +133,38 @@ Respond with ONLY a JSON array, one entry per job, in this exact shape:
   const byJobId = {}
   for (const r of results) {
     if (!r.jobId) continue
-    byJobId[r.jobId] = {
-      aiStatus: r.aiStatus === 'Flagged' ? 'Flagged' : 'Passed',
-      aiReason: String(r.aiReason ?? '').slice(0, 160),
-    }
+    byJobId[r.jobId] = String(r.reason ?? 'Value is an outlier for its category').slice(0, 160)
   }
   return byJobId
+}
+
+// Combines the deterministic field checks (always correct, since they're
+// read straight from the data) with the model's outlier judgment (the one
+// thing that actually needs a model). A job's aiReason only ever contains
+// things that are true about it. If the AI call fails, jobs still get
+// flagged for real field problems — just without the outlier check.
+async function runAiChecks(jobs, env) {
+  let outliers = {}
+  let outlierError = null
+  try {
+    outliers = await runAiOutlierCheck(jobs, env)
+  } catch (err) {
+    outlierError = String(err.message ?? err)
+  }
+
+  const checks = {}
+  for (const job of jobs) {
+    if (!job.jobId) continue
+    const reasons = ruleBasedFlags(job)
+    if (outliers[job.jobId]) reasons.push(outliers[job.jobId])
+
+    checks[job.jobId] = {
+      aiStatus: reasons.length > 0 ? 'Flagged' : 'Passed',
+      aiReason: reasons.join('; ').slice(0, 160),
+    }
+  }
+
+  return { checks, outlierError }
 }
 
 const PAGE_STYLE = `
@@ -269,17 +318,20 @@ async function handleUpload(request, env) {
   let aiNote = ''
   try {
     const jobs = parseJobs(buffer)
-    const aiChecks = await runAiChecks(jobs, env)
+    const { checks, outlierError } = await runAiChecks(jobs, env)
 
-    if (Object.keys(aiChecks).length > 0) {
+    if (Object.keys(checks).length > 0) {
       const aiPutRes = await putFileWithRetry(AI_CHECKS_PATH, env, {
-        contentBase64: textToBase64(JSON.stringify(aiChecks, null, 2)),
+        contentBase64: textToBase64(JSON.stringify(checks, null, 2)),
         message: `Refresh AI job checks (${new Date().toISOString()})`,
       })
 
-      aiNote = aiPutRes.ok
-        ? ` AI reviewed ${Object.keys(aiChecks).length} jobs.`
-        : ' (AI check ran, but saving the results failed.)'
+      if (!aiPutRes.ok) {
+        aiNote = ' (AI check ran, but saving the results failed.)'
+      } else {
+        aiNote = ` Reviewed ${Object.keys(checks).length} jobs.`
+        if (outlierError) aiNote += ` (Outlier check skipped: ${outlierError.slice(0, 120)})`
+      }
     }
   } catch (err) {
     aiNote = ` (Skipped AI check: ${String(err.message ?? err).slice(0, 150)})`
