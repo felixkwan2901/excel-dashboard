@@ -19,14 +19,14 @@ export default function StatsRow({ kpis, onSelectFilter, onPrintReport }) {
     <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
       <StatCard
         icon={Briefcase}
-        label="Active Jobs"
+        label="Active jobs"
         value={kpis.activeJobs}
         context={`${CURRENCY.format(kpis.totalQuotedValue)} quoted total`}
         onClick={onSelectFilter ? () => onSelectFilter('all') : undefined}
       />
       <StatCard
         icon={AlertTriangle}
-        label="Needs Review"
+        label="Needs review"
         value={kpis.needsReviewCount}
         context={needsReviewContext}
         tone={kpis.needsReviewCount > 0 ? 'critical' : 'neutral'}

@@ -54,7 +54,7 @@ export default function StatCard({
           <AnimatedNumber value={value} format={format} />
         </p>
         <p className="mt-2.5 text-[15px] font-medium text-neutral-200">{label}</p>
-        {context && <p className="mt-1 text-[13px] text-neutral-500">{context}</p>}
+        {context && <p className="mt-1 text-[13px] text-neutral-400 tabular-nums">{context}</p>}
       </div>
     </Tag>
   )

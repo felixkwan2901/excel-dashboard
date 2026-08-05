@@ -31,6 +31,8 @@ export default function LastSynced() {
   if (!updatedAt) return null
 
   return (
-    <p className="text-[13px] text-neutral-500">Last updated: {formatRelativeTime(updatedAt)}</p>
+    <p className="text-[13px] text-neutral-400 tabular-nums">
+      Last updated: {formatRelativeTime(updatedAt)}
+    </p>
   )
 }

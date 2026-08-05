@@ -264,6 +264,10 @@
   white-space: nowrap;
 }
 
+.data-table tbody td {
+  padding: 16px 10px;
+}
+
 .data-table thead th {
   color: var(--text-muted);
   font-weight: 400;
@@ -275,6 +279,13 @@
 .data-table th.sortable {
   cursor: pointer;
   user-select: none;
+}
+
+/* Very subtle alternating row tint so a row is easier to track across
+   columns — kept faint enough to not compete with the hover/focus state
+   below, which is declared after this so it always wins on a tie. */
+.data-table tbody tr:nth-child(even) {
+  background-color: rgba(255, 255, 255, 0.015);
 }
 
 .row-clickable {
@@ -345,10 +356,10 @@
 .badge {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 3px 9px;
+  gap: 6px;
+  padding: 5px 12px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
 }
 
@@ -363,7 +374,7 @@
 }
 
 .badge__icon {
-  font-size: 10px;
+  font-size: 11px;
 }
 
 /* ---------- project detail ---------- */

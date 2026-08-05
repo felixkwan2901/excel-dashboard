@@ -5,12 +5,36 @@ import { money, percent } from '../lib/format'
 const COLUMNS = [
   { key: 'jobNumber', label: 'Job Number' },
   { key: 'jobName', label: 'Job Name' },
-  { key: 'quotedPrice', label: 'Quoted Price', num: true },
-  { key: 'totalActualCost', label: 'Actual Cost', num: true },
-  { key: 'remainingToClaim', label: 'Remaining to Claim', num: true },
+  { key: 'costProgress', label: 'Cost' },
   { key: 'marginToDate', label: 'Margin', num: true },
   { key: 'gpPerHour', label: 'GP $/hr', num: true },
 ]
+
+// Replaces the old separate Quoted Price / Actual Cost / Remaining to
+// Claim columns with one compact element: a bar showing actual cost as a
+// proportion of the quoted price, plus the two raw numbers underneath so
+// nothing is lost — just less crowded. Colors mirror the same red/amber/
+// green tiering as the Margin bar, scaled to this bar's own ratio: over
+// 100% of quote spent is red, 85-100% is "getting close" amber, under
+// that is comfortably green.
+function CostBar({ actual, quoted }) {
+  if (!quoted) return <span className="text-neutral-500">—</span>
+
+  const ratio = actual === null ? 0 : actual / quoted
+  const fillWidth = Math.min(Math.max(ratio, 0), 1) * 100
+  const fillColor = ratio > 1 ? 'bg-red-500' : ratio >= 0.85 ? 'bg-amber-400' : 'bg-brand-green'
+
+  return (
+    <div className="flex min-w-[140px] flex-col gap-1.5">
+      <div className="relative h-1.5 w-full rounded-full bg-white/[0.08]">
+        <div className={`absolute top-0 h-full rounded-full ${fillColor}`} style={{ width: `${fillWidth}%` }} />
+      </div>
+      <span className="text-[12px] tabular-nums text-neutral-400">
+        {money(actual)} of {money(quoted)}
+      </span>
+    </div>
+  )
+}
 
 // Bar is clipped to a fixed ±100% domain (rather than scaling to whatever
 // the widest job in view happens to be) so every row's bar is visually
@@ -38,20 +62,21 @@ function MarginBar({ value }) {
           style={{ left: negative ? `${50 - halfWidth}%` : '50%', width: `${halfWidth}%` }}
         />
       </div>
-      <span className={negative ? 'text-red-400' : 'text-neutral-200'}>{percent(value)}</span>
+      <span className={`tabular-nums ${negative ? 'text-red-400' : 'text-neutral-200'}`}>
+        {percent(value)}
+      </span>
     </div>
   )
 }
 
 function renderCell(job, key) {
   switch (key) {
-    case 'quotedPrice':
-    case 'totalActualCost':
-    case 'remainingToClaim':
-    case 'gpPerHour':
-      return money(job[key])
+    case 'costProgress':
+      return <CostBar actual={job.totalActualCost} quoted={job.quotedPrice} />
     case 'marginToDate':
       return <MarginBar value={job.marginToDate} />
+    case 'gpPerHour':
+      return <span className="text-[12px] tabular-nums text-neutral-400">{money(job.gpPerHour)}</span>
     default:
       return job[key]
   }
@@ -61,6 +86,16 @@ const STATUS_FILTERS = [
   { key: 'all', label: 'All' },
   { key: 'needsReview', label: 'Needs review' },
 ]
+
+// costProgress isn't a direct job field (it renders two fields as one
+// merged bar) — sort it by its underlying spend ratio instead.
+function sortValue(job, key) {
+  if (key === 'costProgress') {
+    if (!job.quotedPrice) return null
+    return job.totalActualCost === null ? null : job.totalActualCost / job.quotedPrice
+  }
+  return job[key]
+}
 
 export default function JobTable({
   jobs,
@@ -83,8 +118,8 @@ export default function JobTable({
           job.jobNumber.toLowerCase().includes(q)
       )
       .sort((a, b) => {
-        const av = a[sort.key]
-        const bv = b[sort.key]
+        const av = sortValue(a, sort.key)
+        const bv = sortValue(b, sort.key)
         if (av === null && bv === null) return 0
         if (av === null) return 1
         if (bv === null) return -1

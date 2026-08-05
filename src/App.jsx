@@ -133,8 +133,8 @@ export default function App() {
             <div className="hero-photo__content">
               <div className="mx-auto w-full max-w-6xl">
                 <div className="mb-10">
-                  <h1 className="text-4xl leading-tight font-semibold tracking-tight text-white">
-                    Operations Overview
+                  <h1 className="text-4xl leading-tight font-medium tracking-tight text-white">
+                    Operations overview
                   </h1>
                   <p className="mt-3 max-w-md text-[15px] text-neutral-400">
                     Monitor job costs, margins, and claim progress in real time.
@@ -193,7 +193,7 @@ export default function App() {
         <main className="dashboard">
           <nav className="flex items-center gap-1.5 text-sm text-text-muted">
             <button className="transition-colors hover:text-text-primary" onClick={goHome}>
-              Operations Overview
+              Operations overview
             </button>
             <span aria-hidden="true">/</span>
             <span className="text-text-primary">Job Directory</span>

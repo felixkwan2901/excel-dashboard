@@ -30,10 +30,10 @@ export default function MarginMeterCard({ actual, target, simpleAvg }) {
       </span>
 
       <div>
-        <p className="text-[15px] font-medium text-neutral-200">Average Margin ($-weighted)</p>
+        <p className="text-[15px] font-medium text-neutral-200">Overall margin</p>
 
         {!hasData ? (
-          <p className="mt-3 text-[13px] text-neutral-500">No margin data yet</p>
+          <p className="mt-3 text-[13px] text-neutral-400">No margin data yet</p>
         ) : (
           <>
             <div className="mt-3 flex items-baseline justify-between">
@@ -45,7 +45,7 @@ export default function MarginMeterCard({ actual, target, simpleAvg }) {
                 {Math.round(actualPct)}%
               </span>
               {targetPct !== null && (
-                <span className="text-[13px] tabular-nums text-neutral-500">
+                <span className="text-[13px] tabular-nums text-neutral-400">
                   Target {Math.round(targetPct)}%
                 </span>
               )}
@@ -74,7 +74,7 @@ export default function MarginMeterCard({ actual, target, simpleAvg }) {
             </div>
 
             {simpleAvg !== null && (
-              <p className="mt-2.5 text-[13px] text-neutral-500">
+              <p className="mt-2.5 text-[13px] tabular-nums text-neutral-400">
                 Simple avg across jobs: {Math.round(simpleAvg * 100)}%
               </p>
             )}
