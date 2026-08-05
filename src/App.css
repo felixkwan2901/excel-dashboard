@@ -4,6 +4,19 @@
   flex-direction: column;
 }
 
+/* Subtle attention pulse for the Needs Review card's warning icon —
+   referenced via Tailwind's arbitrary animate-[icon-pulse_...] utility,
+   gated by motion-safe: there so it's skipped under prefers-reduced-motion. */
+@keyframes icon-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
 /* ---------- nav ---------- */
 
 .site-nav {

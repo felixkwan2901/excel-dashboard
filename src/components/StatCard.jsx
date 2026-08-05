@@ -35,10 +35,10 @@ export default function StatCard({
   return (
     <Tag
       {...clickableProps}
-      className={`relative flex min-h-[152px] w-full flex-col justify-between gap-5 rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6 text-left shadow-[0_1px_2px_rgba(0,0,0,0.3)] transition-colors duration-300 hover:border-white/10 ${
+      className={`relative flex min-h-[152px] w-full flex-col justify-between gap-5 rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6 text-left shadow-[0_1px_2px_rgba(0,0,0,0.3)] hover:border-white/10 ${
         onClick
-          ? 'cursor-pointer hover:border-brand-green/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green'
-          : ''
+          ? 'cursor-pointer transition-[transform,border-color] duration-150 hover:-translate-y-0.5 hover:border-brand-green/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green'
+          : 'transition-colors duration-300'
       }`}
     >
       {secondaryAction && <div className="absolute top-5 right-5">{secondaryAction}</div>}
@@ -47,11 +47,16 @@ export default function StatCard({
           emphasis ? 'bg-white/[0.1] text-neutral-100' : 'bg-white/[0.06] text-neutral-400'
         }`}
       >
-        <Icon size={16} strokeWidth={1.75} aria-hidden="true" />
+        <Icon
+          size={16}
+          strokeWidth={1.75}
+          aria-hidden="true"
+          className={emphasis ? 'motion-safe:animate-[icon-pulse_2s_ease-in-out_infinite]' : undefined}
+        />
       </span>
       <div>
         <p className="text-[42px] leading-none font-semibold tracking-tight text-white tabular-nums">
-          <AnimatedNumber value={value} format={format} />
+          <AnimatedNumber value={value} format={format} duration={500} />
         </p>
         <p className="mt-2.5 text-[15px] font-medium text-neutral-200">{label}</p>
         {context && <p className="mt-1 text-[13px] text-neutral-400 tabular-nums">{context}</p>}

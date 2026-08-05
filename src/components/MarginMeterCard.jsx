@@ -1,7 +1,26 @@
 import { TrendingUp } from 'lucide-react'
+import AnimatedNumber from './AnimatedNumber'
 
 function clampPct(v) {
   return Math.max(0, Math.min(100, v))
+}
+
+// Same red/amber/green tiering as the Job Directory's Margin bar (which
+// itself mirrors the losingMargin<0 flag) — a separate signal from the
+// green/amber "on track vs quoted target" coloring below, since a margin
+// can be behind its quoted target yet still be healthy overall, or ahead
+// of target yet still be a thin, at-risk margin.
+function healthTier(actual) {
+  if (actual === null) return null
+  if (actual < 0) return 'critical'
+  if (actual < 0.15) return 'warning'
+  return 'good'
+}
+
+const BORDER_ACCENT = {
+  critical: 'border-l-red-500',
+  warning: 'border-l-amber-400',
+  good: 'border-l-brand-green',
 }
 
 // A compact horizontal meter replacing a plain number for the Average
@@ -22,9 +41,15 @@ export default function MarginMeterCard({ actual, target, simpleAvg }) {
   const fillWidth = clampPct((Math.max(actualPct, 0) / domainMax) * 100)
   const targetPos = targetPct !== null ? clampPct((Math.max(targetPct, 0) / domainMax) * 100) : null
   const onTrack = targetPct === null || actualPct >= targetPct
+  const tier = healthTier(actual)
+  const borderAccent = tier ? BORDER_ACCENT[tier] : null
 
   return (
-    <div className="relative flex min-h-[152px] w-full flex-col justify-between gap-5 rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6 text-left shadow-[0_1px_2px_rgba(0,0,0,0.3)] transition-colors duration-300 hover:border-white/10">
+    <div
+      className={`relative flex min-h-[152px] w-full flex-col justify-between gap-5 rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6 text-left shadow-[0_1px_2px_rgba(0,0,0,0.3)] transition-colors duration-300 hover:border-white/10 ${
+        borderAccent ? `border-l-4 ${borderAccent}` : ''
+      }`}
+    >
       <span className="flex h-8 w-8 items-center justify-center rounded-md bg-white/[0.06] text-neutral-400">
         <TrendingUp size={16} strokeWidth={1.75} aria-hidden="true" />
       </span>
@@ -42,7 +67,7 @@ export default function MarginMeterCard({ actual, target, simpleAvg }) {
                   onTrack ? 'text-brand-green' : 'text-amber-400'
                 }`}
               >
-                {Math.round(actualPct)}%
+                <AnimatedNumber value={Math.round(actualPct)} duration={500} format={(n) => `${n}%`} />
               </span>
               {targetPct !== null && (
                 <span className="text-[13px] tabular-nums text-neutral-400">
