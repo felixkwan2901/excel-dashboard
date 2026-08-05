@@ -71,8 +71,15 @@ export default function ProjectDetail({ job, onBack }) {
         )}
 
         <Section title="Cost">
-          <Field label="Total quoted">{money(job.totalQuotedCost)}</Field>
-          <Field label="Total actual" warn={job.overBudget}>
+          {/* "Total quoted cost" (this section) is the quoted cost basis —
+              materials + labour, before markup — and is intentionally a
+              smaller figure than the "Quoted Price" shown above (the
+              client-facing sale price); quotedMargin = (quotedPrice -
+              totalQuotedCost) / quotedPrice. They're two distinct figures,
+              not the same value shown twice, hence spelling out "cost"
+              here rather than just "Total quoted". */}
+          <Field label="Total quoted cost">{money(job.totalQuotedCost)}</Field>
+          <Field label="Total actual cost" warn={job.overBudget}>
             {money(job.totalActualCost)}
           </Field>
           <Field label="Materials (quoted / actual)">
