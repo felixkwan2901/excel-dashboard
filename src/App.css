@@ -93,27 +93,23 @@
 .hero-photo__cta {
   appearance: none;
   margin-top: 4px;
-  background: var(--brand-green);
-  border: 1px solid var(--brand-green);
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 999px;
   padding: 12px 24px;
-  color: var(--brand-green-ink);
+  color: var(--text-primary);
   font: inherit;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   transition:
-    transform 0.15s ease,
-    box-shadow 0.15s ease,
+    background-color 0.15s ease,
     border-color 0.15s ease;
 }
 
 .hero-photo__cta:hover {
-  transform: translateY(-1px);
-  border-color: rgba(56, 184, 106, 0.6);
-  box-shadow:
-    0 4px 14px rgba(56, 184, 106, 0.22),
-    0 1px 2px rgba(0, 0, 0, 0.3);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.4);
 }
 
 /* ---------- current projects (landing) ---------- */
