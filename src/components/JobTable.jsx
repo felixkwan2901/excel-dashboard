@@ -6,8 +6,8 @@ const COLUMNS = [
   { key: 'jobNumber', label: 'Job Number' },
   { key: 'jobName', label: 'Job Name' },
   { key: 'costProgress', label: 'Cost' },
-  { key: 'marginToDate', label: 'Margin', num: true },
   { key: 'gpPerHour', label: 'GP $/hr', num: true },
+  { key: 'marginToDate', label: 'Margin', num: true },
 ]
 
 // Replaces the old separate Quoted Price / Actual Cost / Remaining to
