@@ -41,29 +41,45 @@ function CostBar({ actual, quoted }) {
 // comparable to every other row's, and one extreme outlier (e.g. a job at
 // -298% margin) can't compress everything else down to invisibly thin
 // slivers. The clip only affects the bar's width — the percentage label
-// next to it always shows the real, unclipped value.
+// on top of it always shows the real, unclipped value.
 function MarginBar({ value }) {
   if (value === null) return <span className="text-neutral-500">—</span>
 
   const pct = value * 100
   const clipped = Math.max(-100, Math.min(100, pct))
-  const halfWidth = (Math.abs(clipped) / 100) * 50
+  const clippedAbs = Math.abs(clipped)
+  const halfWidth = (clippedAbs / 100) * 50
   const negative = clipped < 0
   // Color thresholds mirror how a job already gets flagged for losing
   // margin (marginToDate < 0 ⇒ red here too) — under 15% is a thin/at-risk
   // margin (amber), 15%+ is a healthy one (green).
   const fillColor = negative ? 'bg-red-500' : clipped < 15 ? 'bg-amber-400' : 'bg-brand-green'
 
+  // The label sits centered inside the bar, over whichever side the fill
+  // extends toward. Once that fill reaches at least half its max possible
+  // extent, it's covering the ground under the text, so switch to a dark
+  // shade from the same color family for contrast — below that, the text
+  // is mostly sitting over the empty track, so plain white reads better.
+  const filledUnderText = clippedAbs >= 50
+  const textStyle =
+    filledUnderText && !negative && !(clipped < 15) ? { color: 'var(--brand-green-ink)' } : undefined
+  const textClass = !filledUnderText
+    ? 'text-white'
+    : negative
+      ? 'text-red-950'
+      : clipped < 15
+        ? 'text-amber-950'
+        : ''
+
   return (
-    <div className="flex items-center gap-2">
-      <div className="relative h-1.5 w-16 shrink-0 rounded-full bg-white/[0.08]">
-        <div
-          className={`absolute top-0 h-full rounded-full ${fillColor}`}
-          style={{ left: negative ? `${50 - halfWidth}%` : '50%', width: `${halfWidth}%` }}
-        />
-      </div>
+    <div className="relative h-5 w-[120px] shrink-0 rounded-md bg-white/[0.08]">
+      <div
+        className={`absolute top-0 h-full rounded-md ${fillColor}`}
+        style={{ left: negative ? `${50 - halfWidth}%` : '50%', width: `${halfWidth}%` }}
+      />
       <span
-        className={`w-16 shrink-0 text-right tabular-nums ${negative ? 'text-red-400' : 'text-neutral-200'}`}
+        className={`absolute inset-0 flex items-center justify-center text-[12px] font-medium tabular-nums ${textClass}`}
+        style={textStyle}
       >
         {percent(value)}
       </span>
