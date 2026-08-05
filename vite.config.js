@@ -36,6 +36,16 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,xlsx}'],
+        // Without these, a new service worker installs but sits stuck in
+        // "waiting" behind any already-open tab — it only ever activates
+        // once every tab is closed, which for a long-lived open tab (or an
+        // installed PWA instance) can mean updates never actually land.
+        // skipWaiting activates a new SW immediately; clientsClaim makes it
+        // take control of already-open tabs right away instead of only new
+        // ones — together they're what makes the auto-reload in main.jsx
+        // actually fire promptly instead of waiting indefinitely.
+        skipWaiting: true,
+        clientsClaim: true,
       },
     }),
   ],
