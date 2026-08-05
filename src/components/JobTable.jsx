@@ -36,37 +36,36 @@ function CostBar({ actual, quoted }) {
   )
 }
 
-// Bar is clipped to a fixed ±100% domain (rather than scaling to whatever
-// the widest job in view happens to be) so every row's bar is visually
-// comparable to every other row's, and one extreme outlier (e.g. a job at
-// -298% margin) can't compress everything else down to invisibly thin
-// slivers. The clip only affects the bar's width — the percentage label
-// next to it always shows the real, unclipped value.
+// Pill position is clipped to a fixed ±100% domain (rather than scaling
+// to whatever the widest job in view happens to be) so every row's pill
+// is visually comparable to every other row's, and one extreme outlier
+// (e.g. a job at -298% margin) can't compress everything else toward the
+// center. The clip only affects the pill's position — the percentage
+// label next to it always shows the real, unclipped value.
 function MarginBar({ value }) {
   if (value === null) return <span className="text-neutral-500">—</span>
 
   const pct = value * 100
   const clipped = Math.max(-100, Math.min(100, pct))
-  const halfWidth = (Math.abs(clipped) / 100) * 50
+  const offset = (Math.abs(clipped) / 100) * 50
   const negative = clipped < 0
+  const warning = !negative && clipped < 15
   // Color thresholds mirror how a job already gets flagged for losing
   // margin (marginToDate < 0 ⇒ red here too) — under 15% is a thin/at-risk
   // margin (amber), 15%+ is a healthy one (green).
-  const fillColor = negative ? 'bg-red-500' : clipped < 15 ? 'bg-amber-400' : 'bg-brand-green'
+  const pillColor = negative ? 'bg-red-500' : warning ? 'bg-amber-400' : 'bg-brand-green'
+  const textColor = negative ? 'text-red-400' : warning ? 'text-amber-400' : 'text-neutral-200'
+  const pillPos = negative ? 50 - offset : 50 + offset
 
   return (
     <div className="flex items-center gap-2">
-      <div className="relative h-1.5 w-16 shrink-0 rounded-full bg-white/[0.08]">
+      <div className="relative h-1 w-[60px] shrink-0 rounded-full bg-white/[0.12]">
         <div
-          className={`absolute top-0 h-full rounded-full ${fillColor}`}
-          style={{ left: negative ? `${50 - halfWidth}%` : '50%', width: `${halfWidth}%` }}
+          className={`absolute top-1/2 h-1.5 w-[22px] -translate-x-1/2 -translate-y-1/2 rounded-full ${pillColor}`}
+          style={{ left: `${pillPos}%` }}
         />
       </div>
-      <span
-        className={`w-16 shrink-0 text-right tabular-nums ${negative ? 'text-red-400' : 'text-neutral-200'}`}
-      >
-        {percent(value)}
-      </span>
+      <span className={`tabular-nums ${textColor}`}>{percent(value)}</span>
     </div>
   )
 }
