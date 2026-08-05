@@ -62,7 +62,9 @@ function MarginBar({ value }) {
           style={{ left: negative ? `${50 - halfWidth}%` : '50%', width: `${halfWidth}%` }}
         />
       </div>
-      <span className={`tabular-nums ${negative ? 'text-red-400' : 'text-neutral-200'}`}>
+      <span
+        className={`w-16 shrink-0 text-right tabular-nums ${negative ? 'text-red-400' : 'text-neutral-200'}`}
+      >
         {percent(value)}
       </span>
     </div>
