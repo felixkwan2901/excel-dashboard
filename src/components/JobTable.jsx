@@ -7,7 +7,7 @@ const COLUMNS = [
   { key: 'jobName', label: 'Job Name' },
   { key: 'costProgress', label: 'Cost' },
   { key: 'gpPerHour', label: 'GP $/hr', num: true },
-  { key: 'marginToDate', label: 'Margin', num: true },
+  { key: 'marginToDate', label: 'Margin', num: true, centerHeader: true },
 ]
 
 // Replaces the old separate Quoted Price / Actual Cost / Remaining to
@@ -180,7 +180,7 @@ export default function JobTable({
               {COLUMNS.map((col) => (
                 <th
                   key={col.key}
-                  className={col.num ? 'num sortable' : 'sortable'}
+                  className={`${col.num ? 'num' : ''} ${col.centerHeader ? 'center-header' : ''} sortable`}
                   onClick={() => toggleSort(col.key)}
                   aria-sort={
                     sort.key === col.key ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'

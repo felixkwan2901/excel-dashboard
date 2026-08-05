@@ -317,6 +317,12 @@
   text-align: right;
 }
 
+/* Margin header only — its content below is a centered bar+percentage,
+   not right-aligned like the other numeric columns. */
+.data-table th.center-header {
+  text-align: center;
+}
+
 .tabular {
   font-variant-numeric: tabular-nums;
 }
