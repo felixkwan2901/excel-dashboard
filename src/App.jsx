@@ -150,8 +150,7 @@ export default function App() {
                   </div>
                 )}
 
-                <div className="mb-6 flex items-center justify-between gap-3">
-                  <h2 className="text-2xl font-medium text-white">Job Directory</h2>
+                <div className="mb-6 flex items-center justify-end gap-3">
                   <button className="hero-photo__cta" onClick={() => goDashboard()}>
                     View jobs →
                   </button>

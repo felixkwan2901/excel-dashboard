@@ -24,14 +24,14 @@ export default function Nav({
 
         <nav className="flex items-center gap-1" aria-label="Primary">
           <button
-            className={`site-nav__link ${view === 'dashboard' ? 'is-active' : ''}`}
-            onClick={onGoDashboard}
+            className={`site-nav__link ${view === 'home' ? 'is-active' : ''}`}
+            onClick={onGoHome}
           >
             Dashboard
           </button>
           <button
-            className={`site-nav__link ${view === 'home' ? 'is-active' : ''}`}
-            onClick={onGoHome}
+            className={`site-nav__link ${view === 'dashboard' ? 'is-active' : ''}`}
+            onClick={onGoDashboard}
           >
             Projects
           </button>
