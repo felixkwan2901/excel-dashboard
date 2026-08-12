@@ -13,6 +13,9 @@ dist-ssr
 *.local
 .wrangler
 
+# Weekly job P&L exports dropped in for scripts/update-jobs.mjs
+/imports
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
