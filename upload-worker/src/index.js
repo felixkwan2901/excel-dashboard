@@ -313,6 +313,7 @@ const PAGE_STYLE = `
   .result li { margin: 2px 0; }
   .result .muted { color: #a8a8a4; }
   a { color: #40b44a; }
+  .download-link { display: block; text-align: center; margin-top: 18px; font-size: 13px; }
 `
 
 function renderForm(message) {
@@ -338,6 +339,8 @@ function renderForm(message) {
 
       <button type="submit">Upload &amp; merge</button>
     </form>
+
+    <a class="download-link" href="/download">Download the current workbook</a>
   </div>
 </body>
 </html>`
@@ -546,6 +549,21 @@ export default {
         return await handleUpload(request, env)
       } catch (err) {
         return html(renderForm(`<div class="result err">Unexpected error: ${escapeHtml(String(err.message ?? err))}</div>`), 500)
+      }
+    }
+
+    if (request.method === 'GET' && url.pathname === '/download') {
+      try {
+        const buffer = await getFileBuffer(FILE_PATH, env)
+        return new Response(buffer, {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition': `attachment; filename="${FILE_PATH}"`,
+          },
+        })
+      } catch (err) {
+        return html(renderForm(`<div class="result err">Could not download the current workbook: ${escapeHtml(String(err.message ?? err))}</div>`), 502)
       }
     }
 
