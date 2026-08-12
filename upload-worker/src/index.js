@@ -330,8 +330,9 @@ const PAGE_STYLE = `
     background: #0a0a0a; color: #f2f2f0; font: 16px/1.5 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
     padding: 20px;
   }
+  .stack { width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 20px; }
   .card {
-    width: 100%; max-width: 480px; background: #121212; border: 1px solid rgba(242,242,240,0.12);
+    width: 100%; background: #121212; border: 1px solid rgba(242,242,240,0.12);
     border-radius: 12px; padding: 28px;
   }
   h1 { font-size: 18px; margin: 0 0 6px; }
@@ -341,11 +342,15 @@ const PAGE_STYLE = `
     width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 8px;
     border: 1px solid rgba(242,242,240,0.12); background: #191919; color: #f2f2f0; font: inherit; font-size: 13px;
   }
+  .checkbox-label { display: flex; align-items: flex-start; gap: 8px; margin-top: 16px; font-size: 12.5px; }
+  .checkbox-label input { margin-top: 2px; }
   button {
     margin-top: 22px; width: 100%; padding: 12px; border-radius: 8px; border: 0;
     background: #40b44a; color: #06210a; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
   }
   button:hover { background: #4bc656; }
+  button.secondary { background: transparent; border: 1px solid rgba(242,242,240,0.2); color: #f2f2f0; }
+  button.secondary:hover { background: rgba(242,242,240,0.06); }
   .result { border-radius: 8px; padding: 14px 16px; font-size: 13px; margin-top: 20px; }
   .result.ok { background: rgba(12,163,12,0.16); color: #b7f0b7; }
   .result.err { background: rgba(230,103,103,0.16); color: #e66767; }
@@ -366,21 +371,43 @@ function renderForm(message) {
 <style>${PAGE_STYLE}</style>
 </head>
 <body>
-  <div class="card">
-    <h1>Update job data</h1>
-    <p class="sub">Choose this week's downloaded job P&amp;L exports (as many as you like) and enter the upload password. Each job's figures are merged in automatically and the dashboard updates within a couple of minutes.</p>
+  <div class="stack">
     ${message ?? ''}
-    <form method="POST" action="/upload" enctype="multipart/form-data">
-      <label for="password">Upload password</label>
-      <input type="password" id="password" name="password" required />
 
-      <label for="files">Job exports (.xlsx, select multiple)</label>
-      <input type="file" id="files" name="files" accept=".xlsx" multiple required />
+    <div class="card">
+      <h1>Update job data</h1>
+      <p class="sub">Choose this week's downloaded job P&amp;L exports (as many as you like) and enter the upload password. Each job's figures are merged in automatically and the dashboard updates within a couple of minutes.</p>
+      <form method="POST" action="/upload" enctype="multipart/form-data">
+        <label for="password">Upload password</label>
+        <input type="password" id="password" name="password" required />
 
-      <button type="submit">Upload &amp; merge</button>
-    </form>
+        <label for="files">Job exports (.xlsx, select multiple)</label>
+        <input type="file" id="files" name="files" accept=".xlsx" multiple required />
 
-    <a class="download-link" href="/download">Download the current workbook</a>
+        <button type="submit">Upload &amp; merge</button>
+      </form>
+
+      <a class="download-link" href="/download">Download the current workbook</a>
+    </div>
+
+    <div class="card">
+      <h1>Replace with an edited file</h1>
+      <p class="sub">Already downloaded the workbook and fixed something directly in Excel? Upload that file here to replace the whole workbook as-is — no merging, this overwrites everything.</p>
+      <form method="POST" action="/replace" enctype="multipart/form-data">
+        <label for="replace-password">Upload password</label>
+        <input type="password" id="replace-password" name="password" required />
+
+        <label for="replace-file">Edited workbook (.xlsx)</label>
+        <input type="file" id="replace-file" name="file" accept=".xlsx" required />
+
+        <label class="checkbox-label">
+          <input type="checkbox" required />
+          I understand this replaces the entire workbook
+        </label>
+
+        <button type="submit" class="secondary">Replace workbook</button>
+      </form>
+    </div>
   </div>
 </body>
 </html>`
@@ -625,6 +652,76 @@ async function handleUpload(request, env) {
   })
 }
 
+// ---------------------------------------------------------------------------
+// Full-workbook replace — for when you've downloaded the current file and
+// edited it directly (fixing a mistake, adjusting figures by hand) rather
+// than uploading per-job exports to merge. This replaces the whole file
+// as-is; the only safety check is that it still looks like the right kind
+// of workbook (has the Deliverables Sheet), so an unrelated or corrupted
+// file doesn't overwrite the live data.
+// ---------------------------------------------------------------------------
+
+async function handleReplace(request, env) {
+  const form = await request.formData()
+  const password = form.get('password')
+
+  if (!env.UPLOAD_PASSWORD || password !== env.UPLOAD_PASSWORD) {
+    return respond(request, 401, { htmlMessage: `<div class="result err">Wrong password. Please try again.</div>`, data: { error: 'wrong_password', message: 'Wrong password.' } })
+  }
+
+  const file = form.get('file')
+  if (!file || typeof file === 'string') {
+    return respond(request, 400, { htmlMessage: `<div class="result err">No file was selected.</div>`, data: { error: 'no_file', message: 'No file was selected.' } })
+  }
+  if (!file.name.toLowerCase().endsWith('.xlsx')) {
+    return respond(request, 400, { htmlMessage: `<div class="result err">"${escapeHtml(file.name)}" isn't a .xlsx file.</div>`, data: { error: 'bad_file_type', message: `"${file.name}" isn't a .xlsx file.` } })
+  }
+  if (file.size > MAX_FILE_BYTES) {
+    return respond(request, 400, { htmlMessage: `<div class="result err">That file is too large (max 8MB).</div>`, data: { error: 'file_too_large', message: 'That file is too large (max 8MB).' } })
+  }
+
+  const buffer = await file.arrayBuffer()
+
+  let jobCount
+  try {
+    const wb = XLSX.read(buffer, { type: 'array' })
+    const { rows, headerIdx } = findDeliverablesSheet(wb)
+    const isValidJobBlock = (b) => Number(b.jobNumber) > 0 && String(b.jobName ?? '').trim() !== '' && String(b.jobName).trim() !== '0'
+    jobCount = buildJobBlocks(rows, headerIdx).filter(isValidJobBlock).length
+  } catch (err) {
+    const msg = `This doesn't look like a valid workbook: ${String(err.message ?? err)}. Nothing was changed.`
+    return respond(request, 400, { htmlMessage: `<div class="result err">${escapeHtml(msg)}</div>`, data: { error: 'invalid_workbook', message: msg } })
+  }
+
+  const contentBase64 = arrayBufferToBase64(buffer)
+  const putRes = await putFileWithRetry(FILE_PATH, env, {
+    contentBase64,
+    message: `Replace workbook with manually edited file (${new Date().toISOString()})`,
+  })
+
+  if (!putRes.ok) {
+    const body = await putRes.text()
+    const msg = `GitHub rejected the update (${putRes.status}). ${body.slice(0, 200)}`
+    return respond(request, 502, { htmlMessage: `<div class="result err">${escapeHtml(msg)}</div>`, data: { error: 'github_write_failed', message: msg } })
+  }
+
+  const uploadedAt = new Date().toISOString()
+  try {
+    await putFileWithRetry(SYNC_META_PATH, env, {
+      contentBase64: textToBase64(JSON.stringify({ updatedAt: uploadedAt }, null, 2)),
+      message: `Update sync timestamp (${uploadedAt})`,
+    })
+  } catch {
+    // Non-critical: the dashboard just won't show a fresh "Last updated" time.
+  }
+
+  const msg = `Replaced the workbook with your edited file (found ${jobCount} job${jobCount === 1 ? '' : 's'}). The dashboard will rebuild and go live in a couple of minutes.`
+  return respond(request, 200, {
+    htmlMessage: `<div class="result ok">${escapeHtml(msg)}</div>`,
+    data: { pushed: true, jobCount, message: msg },
+  })
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url)
@@ -640,6 +737,15 @@ export default {
     if (request.method === 'POST' && url.pathname === '/upload') {
       try {
         return await handleUpload(request, env)
+      } catch (err) {
+        const msg = `Unexpected error: ${String(err.message ?? err)}`
+        return respond(request, 500, { htmlMessage: `<div class="result err">${escapeHtml(msg)}</div>`, data: { error: 'unexpected', message: msg } })
+      }
+    }
+
+    if (request.method === 'POST' && url.pathname === '/replace') {
+      try {
+        return await handleReplace(request, env)
       } catch (err) {
         const msg = `Unexpected error: ${String(err.message ?? err)}`
         return respond(request, 500, { htmlMessage: `<div class="result err">${escapeHtml(msg)}</div>`, data: { error: 'unexpected', message: msg } })

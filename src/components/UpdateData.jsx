@@ -23,6 +23,12 @@ export default function UpdateData({ onBack }) {
   const [result, setResult] = useState(null)
   const [errorMessage, setErrorMessage] = useState('')
 
+  const [replacePassword, setReplacePassword] = useState('')
+  const [replaceFile, setReplaceFile] = useState(null)
+  const [replaceConfirmed, setReplaceConfirmed] = useState(false)
+  const [replaceStatus, setReplaceStatus] = useState('idle') // idle | submitting | done | error
+  const [replaceMessage, setReplaceMessage] = useState('')
+
   async function handleSubmit(e) {
     e.preventDefault()
     if (!files || files.length === 0) return
@@ -56,6 +62,32 @@ export default function UpdateData({ onBack }) {
     }
   }
 
+  async function handleReplaceSubmit(e) {
+    e.preventDefault()
+    if (!replaceFile || !replaceConfirmed) return
+
+    setReplaceStatus('submitting')
+    setReplaceMessage('')
+
+    const form = new FormData()
+    form.set('password', replacePassword)
+    form.set('file', replaceFile)
+
+    try {
+      const res = await fetch(`${UPLOAD_WORKER_URL}/replace`, {
+        method: 'POST',
+        body: form,
+        headers: { Accept: 'application/json' },
+      })
+      const payload = await res.json()
+      setReplaceMessage(payload.message ?? `Request failed (${res.status}).`)
+      setReplaceStatus(res.ok ? 'done' : 'error')
+    } catch (err) {
+      setReplaceMessage(`Could not reach the upload service: ${String(err.message ?? err)}`)
+      setReplaceStatus('error')
+    }
+  }
+
   return (
     <div className="mx-auto w-full max-w-2xl">
       <nav className="mb-6 flex items-center gap-1.5 text-sm text-text-muted">
@@ -65,6 +97,22 @@ export default function UpdateData({ onBack }) {
         <span aria-hidden="true">/</span>
         <span className="text-text-primary">Update data</span>
       </nav>
+
+      <Card className="mb-4">
+        <CardHeader>
+          <CardTitle className="text-sm">Check the current workbook first</CardTitle>
+          <p className="mt-1 text-sm text-text-muted">
+            You never need to find or upload the master file yourself — every upload below
+            automatically reads the live workbook and fills in each job&apos;s next empty week. If
+            you just want to see what&apos;s currently recorded before uploading, download it here.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <Button asChild variant="outline" className="w-full">
+            <a href={`${UPLOAD_WORKER_URL}/download`}>Download the current workbook</a>
+          </Button>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -109,13 +157,6 @@ export default function UpdateData({ onBack }) {
             <Button type="submit" disabled={status === 'submitting'} className="mt-1">
               {status === 'submitting' ? 'Uploading & merging…' : 'Upload & merge'}
             </Button>
-
-            <a
-              href={`${UPLOAD_WORKER_URL}/download`}
-              className="text-center text-xs text-text-muted transition-colors hover:text-text-primary"
-            >
-              Download the current workbook
-            </a>
           </form>
         </CardContent>
       </Card>
@@ -278,6 +319,69 @@ export default function UpdateData({ onBack }) {
           )}
         </div>
       )}
+
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle className="text-sm">Replace with an edited file</CardTitle>
+          <p className="mt-1 text-sm text-text-muted">
+            Already downloaded the workbook and fixed something directly in Excel? Upload that
+            file here to replace the whole workbook as-is — no merging, this overwrites
+            everything.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleReplaceSubmit} className="flex flex-col gap-4">
+            <div>
+              <label htmlFor="replace-password" className="mb-1.5 block text-xs text-text-muted">
+                Upload password
+              </label>
+              <input
+                id="replace-password"
+                type="password"
+                value={replacePassword}
+                onChange={(e) => setReplacePassword(e.target.value)}
+                required
+                className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-brand-green/50 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="replace-file" className="mb-1.5 block text-xs text-text-muted">
+                Edited workbook (.xlsx)
+              </label>
+              <input
+                id="replace-file"
+                type="file"
+                accept=".xlsx"
+                required
+                onChange={(e) => setReplaceFile(e.target.files?.[0] ?? null)}
+                className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white file:mr-3 file:rounded-md file:border-0 file:bg-white/[0.08] file:px-2.5 file:py-1 file:text-xs file:text-white"
+              />
+            </div>
+
+            <label className="flex items-start gap-2 text-xs text-text-muted">
+              <input
+                type="checkbox"
+                checked={replaceConfirmed}
+                onChange={(e) => setReplaceConfirmed(e.target.checked)}
+                required
+                className="mt-0.5"
+              />
+              I understand this replaces the entire workbook
+            </label>
+
+            <Button type="submit" variant="outline" disabled={replaceStatus === 'submitting'}>
+              {replaceStatus === 'submitting' ? 'Replacing…' : 'Replace workbook'}
+            </Button>
+          </form>
+
+          {replaceMessage && (
+            <p className={`mt-4 text-sm ${replaceStatus === 'error' ? 'text-status-critical' : 'text-text-primary'}`}>
+              {replaceMessage}
+            </p>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }
