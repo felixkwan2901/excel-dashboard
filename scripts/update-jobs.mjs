@@ -11,9 +11,15 @@
 //   2. Reads each unique export's "Quotes" sheet (for job number/name) and
 //      "Summary" sheet (for cost/margin figures).
 //   3. Finds each job's block in the workbook's Deliverables Sheet and
-//      overwrites that block's current data row with the refreshed figures.
-//   4. Reports which jobs were updated, which export files couldn't be
-//      matched to a job, and which existing jobs got no new data.
+//      fills the NEXT EMPTY week row after the block's current data (Week 1,
+//      then Week 2, ...) — preserving prior weeks' snapshots rather than
+//      overwriting them. If every week row (1-5) already has data, that job
+//      is reported as needing a manual monthly rollover first: move the
+//      current Week 5 figures up into "Start of month", clear Weeks 1-5,
+//      then re-run.
+//   4. Reports which jobs were updated, which jobs have no empty week slot
+//      left, which export files couldn't be matched to a job, and which
+//      existing jobs got no new data.
 //   5. Bumps sync-meta.json's timestamp.
 //
 // It does NOT commit or push — review the printed summary, then
@@ -197,13 +203,24 @@ function buildJobBlocks(rows, headerIdx) {
   return blocks
 }
 
-function pickDataRowIdx(block, rows) {
+// Finds the row this week's update should land in: the next EMPTY week
+// slot after whichever row currently holds data — not the last-filled row
+// itself. This advances week to week (Week 1, then Week 2, ...) so each
+// week's snapshot is preserved instead of being overwritten by the next
+// update. Returns null if every week slot in the block already has data
+// (the block needs a manual monthly rollover — see README note below).
+function pickTargetRowIdx(block, rows) {
+  let lastFilledPos = 0 // "Start of month" (position 0) always carries the baseline figures
   for (let i = block.weekIdxs.length - 1; i >= 0; i--) {
-    const idx = block.weekIdxs[i]
-    const qp = Number(rows[idx][3])
-    if (Number.isFinite(qp) && qp > 0) return idx
+    const qp = Number(rows[block.weekIdxs[i]][3])
+    if (Number.isFinite(qp) && qp > 0) {
+      lastFilledPos = i
+      break
+    }
   }
-  return block.weekIdxs[block.weekIdxs.length - 1]
+  const targetPos = lastFilledPos + 1
+  if (targetPos >= block.weekIdxs.length) return null
+  return block.weekIdxs[targetPos]
 }
 
 // ---------------------------------------------------------------------------
@@ -302,6 +319,7 @@ function main() {
 
   const updated = []
   const unmatchedFiles = []
+  const noRoomLeft = []
 
   for (const rec of extracted) {
     const jobNum = Number(rec.jobNumber)
@@ -310,10 +328,15 @@ function main() {
       unmatchedFiles.push(rec)
       continue
     }
-    const dataIdx = pickDataRowIdx(block, rows)
+    const dataIdx = pickTargetRowIdx(block, rows)
+    if (dataIdx === null) {
+      noRoomLeft.push(rec)
+      continue
+    }
+    const weekLabel = rows[dataIdx][2] || 'Start of month'
     const before = { totalActualCost: rows[dataIdx][8], claimToDate: rows[dataIdx][4], marginToDate: rows[dataIdx][25] }
     const after = applyJobUpdate(ws, rows, dataIdx, rec)
-    updated.push({ jobNumber: rec.jobNumber, jobName: rec.jobName, before, after })
+    updated.push({ jobNumber: rec.jobNumber, jobName: rec.jobName, weekLabel, before, after })
   }
 
   const updatedJobNumbers = new Set(updated.map((u) => Number(u.jobNumber)))
@@ -334,8 +357,14 @@ function main() {
   for (const u of updated) {
     const flag = u.after.marginToDate < 0 ? '  ⚠ NEGATIVE MARGIN' : u.after.marginToDate < 0.1 ? '  ⚠ thin margin' : ''
     console.log(
-      `  ${u.jobNumber}  ${u.jobName.padEnd(45)} margin ${(u.before.marginToDate * 100).toFixed(1)}% -> ${(u.after.marginToDate * 100).toFixed(1)}%${flag}`,
+      `  ${u.jobNumber}  ${u.jobName.padEnd(45)} -> ${u.weekLabel.padEnd(13)} margin ${(u.before.marginToDate * 100).toFixed(1)}% -> ${(u.after.marginToDate * 100).toFixed(1)}%${flag}`,
     )
+  }
+
+  if (noRoomLeft.length > 0) {
+    console.log(`\n${noRoomLeft.length} job(s) have no empty week slot left (Weeks 1-5 are all already filled in) — roll the month over first:`)
+    console.log('  Move the current Week 5 figures up into that job\'s "Start of month" row, clear Weeks 1-5, then re-run.')
+    for (const r of noRoomLeft) console.log(`  ${r.jobNumber}  ${r.jobName}`)
   }
 
   if (notUpdated.length > 0) {
