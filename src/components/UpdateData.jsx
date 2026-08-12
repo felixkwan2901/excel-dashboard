@@ -188,6 +188,30 @@ export default function UpdateData({ onBack }) {
             </Card>
           )}
 
+          {result.possibleDuplicates?.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm text-status-critical">
+                  Skipped as likely duplicate uploads ({result.possibleDuplicates.length})
+                </CardTitle>
+                <p className="text-xs text-text-muted">
+                  These exactly match figures already recorded — probably the same file uploaded
+                  twice. Nothing was written for these jobs. If a job genuinely had zero change
+                  this week, that&apos;s fine to ignore.
+                </p>
+              </CardHeader>
+              <CardContent>
+                <ul className="flex flex-col gap-1 text-sm text-text-secondary">
+                  {result.possibleDuplicates.map((d) => (
+                    <li key={d.jobNumber}>
+                      {d.jobNumber} {d.jobName} (matches {d.matchesWeek})
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
+
           {result.unmatchedFiles?.length > 0 && (
             <Card>
               <CardHeader>

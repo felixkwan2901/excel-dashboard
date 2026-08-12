@@ -16,10 +16,14 @@
 //      overwriting them. If every week row (1-5) already has data, that job
 //      is reported as needing a manual monthly rollover first: move the
 //      current Week 5 figures up into "Start of month", clear Weeks 1-5,
-//      then re-run.
-//   4. Reports which jobs were updated, which jobs have no empty week slot
-//      left, which export files couldn't be matched to a job, and which
-//      existing jobs got no new data.
+//      then re-run. If a job's new figures exactly match what's already
+//      recorded in its current week, it's skipped as a likely duplicate
+//      upload (the same file re-run by mistake) rather than silently
+//      consuming the next week slot.
+//   4. Reports which jobs were updated, which were skipped as likely
+//      duplicates, which jobs have no empty week slot left, which export
+//      files couldn't be matched to a job, and which existing jobs got no
+//      new data.
 //   5. Bumps sync-meta.json's timestamp.
 //   6. Archives everything that was in the folder (processed files,
 //      duplicates, unreadable files) into imports-archive/<YYYY-MM-DD>/,
@@ -206,13 +210,12 @@ function buildJobBlocks(rows, headerIdx) {
   return blocks
 }
 
-// Finds the row this week's update should land in: the next EMPTY week
-// slot after whichever row currently holds data — not the last-filled row
-// itself. This advances week to week (Week 1, then Week 2, ...) so each
-// week's snapshot is preserved instead of being overwritten by the next
-// update. Returns null if every week slot in the block already has data
-// (the block needs a manual monthly rollover — see README note below).
-function pickTargetRowIdx(block, rows) {
+// Finds the current row (last week with data) and the next EMPTY slot after
+// it — this advances week to week (Week 1, then Week 2, ...) so each week's
+// snapshot is preserved instead of being overwritten by the next update.
+// targetIdx is null if every week slot in the block already has data (the
+// block needs a manual monthly rollover — see README note below).
+function pickCurrentAndTargetRowIdx(block, rows) {
   let lastFilledPos = 0 // "Start of month" (position 0) always carries the baseline figures
   for (let i = block.weekIdxs.length - 1; i >= 0; i--) {
     const qp = Number(rows[block.weekIdxs[i]][3])
@@ -222,8 +225,29 @@ function pickTargetRowIdx(block, rows) {
     }
   }
   const targetPos = lastFilledPos + 1
-  if (targetPos >= block.weekIdxs.length) return null
-  return block.weekIdxs[targetPos]
+  return {
+    currentIdx: block.weekIdxs[lastFilledPos],
+    targetIdx: targetPos >= block.weekIdxs.length ? null : block.weekIdxs[targetPos],
+  }
+}
+
+// A new export whose key "actual" figures are identical to what's already
+// recorded in the current week is almost certainly the same file uploaded
+// twice rather than genuinely unchanged progress — real jobs' claims,
+// costs, and hours move even slightly most weeks. Comparing raw amounts
+// (not the derived percentages) keeps this robust to rounding noise.
+function looksLikeDuplicate(rec, rows, currentIdx) {
+  const checks = [
+    [COL.quotedPrice, rec.quotedPrice],
+    [COL.claimToDate, rec.claimToDate],
+    [COL.totalActualCost, rec.totalActualCost],
+    [COL.actualLabourCost, rec.actualLabourCost],
+    [COL.actualLabourHours, rec.actualLabourHours],
+  ]
+  return checks.every(([col, newVal]) => {
+    const existing = Number(rows[currentIdx][col])
+    return Number.isFinite(existing) && Number.isFinite(newVal) && Math.abs(existing - newVal) < 0.005
+  })
 }
 
 // ---------------------------------------------------------------------------
@@ -241,6 +265,24 @@ const COL = {
   quotedLabourCost: 14, actualLabourCost: 15, labourCostRemaining: 16, labourCostPctRemaining: 17,
   quotedLabourHours: 18, actualLabourHours: 19, labourHoursRemaining: 20, labourHourPctRemaining: 21,
   gpPerHour: 23, quotedGpPerHour: 24, marginToDate: 25, quotedMargin: 26,
+}
+
+// Displays money/percentage columns as actual currency/percent in Excel
+// instead of bare numbers.
+const CURRENCY_FMT = '$#,##0.00'
+const PERCENT_FMT = '0.0%'
+const NUMBER_FORMATS = {
+  [COL.quotedPrice]: CURRENCY_FMT, [COL.claimToDate]: CURRENCY_FMT, [COL.remainingToClaim]: CURRENCY_FMT,
+  [COL.pctClaimRemaining]: PERCENT_FMT,
+  [COL.totalQuotedCost]: CURRENCY_FMT, [COL.totalActualCost]: CURRENCY_FMT,
+  [COL.quotedMaterialCost]: CURRENCY_FMT, [COL.actualMaterialCost]: CURRENCY_FMT, [COL.materialCostRemaining]: CURRENCY_FMT,
+  [COL.materialPctRemaining]: PERCENT_FMT,
+  [COL.quotedLabourCost]: CURRENCY_FMT, [COL.actualLabourCost]: CURRENCY_FMT, [COL.labourCostRemaining]: CURRENCY_FMT,
+  [COL.labourCostPctRemaining]: PERCENT_FMT,
+  [COL.quotedLabourHours]: '#,##0.00', [COL.actualLabourHours]: '#,##0.00', [COL.labourHoursRemaining]: '#,##0.00',
+  [COL.labourHourPctRemaining]: PERCENT_FMT,
+  [COL.gpPerHour]: CURRENCY_FMT, [COL.quotedGpPerHour]: CURRENCY_FMT,
+  [COL.marginToDate]: PERCENT_FMT, [COL.quotedMargin]: PERCENT_FMT,
 }
 
 function applyJobUpdate(ws, rows, dataIdx, rec) {
@@ -280,7 +322,7 @@ function applyJobUpdate(ws, rows, dataIdx, rec) {
     const col = COL[field]
     const addr = XLSX.utils.encode_cell({ r: dataIdx, c: col })
     const existing = ws[addr]
-    ws[addr] = { ...(existing ?? {}), t: 'n', v: value }
+    ws[addr] = { ...(existing ?? {}), t: 'n', v: value, z: NUMBER_FORMATS[col] }
     delete ws[addr].w
     rows[dataIdx][col] = value
   }
@@ -355,6 +397,7 @@ function main() {
   const updated = []
   const unmatchedFiles = []
   const noRoomLeft = []
+  const possibleDuplicates = []
 
   for (const rec of extracted) {
     const jobNum = Number(rec.jobNumber)
@@ -363,14 +406,18 @@ function main() {
       unmatchedFiles.push(rec)
       continue
     }
-    const dataIdx = pickTargetRowIdx(block, rows)
-    if (dataIdx === null) {
+    const { currentIdx, targetIdx } = pickCurrentAndTargetRowIdx(block, rows)
+    if (targetIdx === null) {
       noRoomLeft.push(rec)
       continue
     }
-    const weekLabel = rows[dataIdx][2] || 'Start of month'
-    const before = { totalActualCost: rows[dataIdx][8], claimToDate: rows[dataIdx][4], marginToDate: rows[dataIdx][25] }
-    const after = applyJobUpdate(ws, rows, dataIdx, rec)
+    if (looksLikeDuplicate(rec, rows, currentIdx)) {
+      possibleDuplicates.push({ jobNumber: rec.jobNumber, jobName: rec.jobName, matchesWeek: rows[currentIdx][2] || 'Start of month' })
+      continue
+    }
+    const weekLabel = rows[targetIdx][2] || 'Start of month'
+    const before = { totalActualCost: rows[targetIdx][8], claimToDate: rows[targetIdx][4], marginToDate: rows[targetIdx][25] }
+    const after = applyJobUpdate(ws, rows, targetIdx, rec)
     updated.push({ jobNumber: rec.jobNumber, jobName: rec.jobName, weekLabel, before, after })
   }
 
@@ -394,6 +441,11 @@ function main() {
     console.log(
       `  ${u.jobNumber}  ${u.jobName.padEnd(45)} -> ${u.weekLabel.padEnd(13)} margin ${(u.before.marginToDate * 100).toFixed(1)}% -> ${(u.after.marginToDate * 100).toFixed(1)}%${flag}`,
     )
+  }
+
+  if (possibleDuplicates.length > 0) {
+    console.log(`\n${possibleDuplicates.length} job(s) skipped as likely duplicate uploads (figures exactly match what's already recorded):`)
+    for (const d of possibleDuplicates) console.log(`  ${d.jobNumber}  ${d.jobName}  (matches ${d.matchesWeek})`)
   }
 
   if (noRoomLeft.length > 0) {
