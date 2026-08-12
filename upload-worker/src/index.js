@@ -346,8 +346,37 @@ function renderForm(message) {
 </html>`
 }
 
+// Allows the dashboard site (a different origin) to call this worker
+// directly via fetch(), in addition to the worker's own HTML form.
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Accept',
+}
+
 function html(body, status = 200) {
-  return new Response(body, { status, headers: { 'Content-Type': 'text/html; charset=utf-8' } })
+  return new Response(body, { status, headers: { 'Content-Type': 'text/html; charset=utf-8', ...CORS_HEADERS } })
+}
+
+function json(payload, status = 200) {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
+  })
+}
+
+function wantsJsonResponse(request) {
+  return (request.headers.get('Accept') || '').includes('application/json')
+}
+
+// Renders either an HTML page (default, for the worker's own form) or a
+// plain JSON payload (for the dashboard's own "Update data" page, which
+// renders its own UI) depending on the request's Accept header.
+function respond(request, status, { htmlMessage, data }) {
+  if (wantsJsonResponse(request)) {
+    return json({ ok: status < 400, status, ...data }, status)
+  }
+  return html(renderForm(htmlMessage), status)
 }
 
 function escapeHtml(s) {
@@ -413,23 +442,32 @@ async function handleUpload(request, env) {
   const password = form.get('password')
 
   if (!env.UPLOAD_PASSWORD || password !== env.UPLOAD_PASSWORD) {
-    return html(renderForm(`<div class="result err">Wrong password. Please try again.</div>`), 401)
+    return respond(request, 401, { htmlMessage: `<div class="result err">Wrong password. Please try again.</div>`, data: { error: 'wrong_password', message: 'Wrong password.' } })
   }
 
   const files = form.getAll('files').filter((f) => f && typeof f !== 'string')
 
   if (files.length === 0) {
-    return html(renderForm(`<div class="result err">No files were selected.</div>`), 400)
+    return respond(request, 400, { htmlMessage: `<div class="result err">No files were selected.</div>`, data: { error: 'no_files', message: 'No files were selected.' } })
   }
   if (files.length > MAX_FILES) {
-    return html(renderForm(`<div class="result err">Too many files at once (max ${MAX_FILES}).</div>`), 400)
+    return respond(request, 400, {
+      htmlMessage: `<div class="result err">Too many files at once (max ${MAX_FILES}).</div>`,
+      data: { error: 'too_many_files', message: `Too many files at once (max ${MAX_FILES}).` },
+    })
   }
   for (const f of files) {
     if (!f.name.toLowerCase().endsWith('.xlsx')) {
-      return html(renderForm(`<div class="result err">"${escapeHtml(f.name)}" isn't a .xlsx file.</div>`), 400)
+      return respond(request, 400, {
+        htmlMessage: `<div class="result err">"${escapeHtml(f.name)}" isn't a .xlsx file.</div>`,
+        data: { error: 'bad_file_type', message: `"${f.name}" isn't a .xlsx file.` },
+      })
     }
     if (f.size > MAX_FILE_BYTES) {
-      return html(renderForm(`<div class="result err">"${escapeHtml(f.name)}" is too large (max 8MB per file).</div>`), 400)
+      return respond(request, 400, {
+        htmlMessage: `<div class="result err">"${escapeHtml(f.name)}" is too large (max 8MB per file).</div>`,
+        data: { error: 'file_too_large', message: `"${f.name}" is too large (max 8MB per file).` },
+      })
     }
   }
 
@@ -461,7 +499,8 @@ async function handleUpload(request, env) {
   try {
     currentBuffer = await getFileBuffer(FILE_PATH, env)
   } catch (err) {
-    return html(renderForm(`<div class="result err">Could not read the current workbook from GitHub: ${escapeHtml(String(err.message ?? err))}</div>`), 502)
+    const msg = `Could not read the current workbook from GitHub: ${String(err.message ?? err)}`
+    return respond(request, 502, { htmlMessage: `<div class="result err">${escapeHtml(msg)}</div>`, data: { error: 'github_read_failed', message: msg } })
   }
 
   const wb = XLSX.read(currentBuffer, { type: 'array' })
@@ -494,12 +533,10 @@ async function handleUpload(request, env) {
   }
 
   if (updated.length === 0) {
-    return html(
-      renderForm(
-        renderResultHtml({ updated, noRoomLeft, notUpdated: [], unmatchedFiles, failures, duplicateCount, pushed: false })
-      ),
-      400
-    )
+    return respond(request, 400, {
+      htmlMessage: renderResultHtml({ updated, noRoomLeft, notUpdated: [], unmatchedFiles, failures, duplicateCount, pushed: false }),
+      data: { updated, noRoomLeft, notUpdated: [], unmatchedFiles, failures, duplicateCount, pushed: false },
+    })
   }
 
   const updatedJobNumbers = new Set(updated.map((u) => Number(u.jobNumber)))
@@ -517,10 +554,8 @@ async function handleUpload(request, env) {
 
   if (!putRes.ok) {
     const body = await putRes.text()
-    return html(
-      renderForm(`<div class="result err">GitHub rejected the update (${putRes.status}). ${escapeHtml(body.slice(0, 200))}</div>`),
-      502
-    )
+    const msg = `GitHub rejected the update (${putRes.status}). ${body.slice(0, 200)}`
+    return respond(request, 502, { htmlMessage: `<div class="result err">${escapeHtml(msg)}</div>`, data: { error: 'github_write_failed', message: msg } })
   }
 
   const uploadedAt = new Date().toISOString()
@@ -533,12 +568,19 @@ async function handleUpload(request, env) {
     // Non-critical: the dashboard just won't show a fresh "Last updated" time.
   }
 
-  return html(renderForm(renderResultHtml({ updated, noRoomLeft, notUpdated, unmatchedFiles, failures, duplicateCount, pushed: true })))
+  return respond(request, 200, {
+    htmlMessage: renderResultHtml({ updated, noRoomLeft, notUpdated, unmatchedFiles, failures, duplicateCount, pushed: true }),
+    data: { updated, noRoomLeft, notUpdated, unmatchedFiles, failures, duplicateCount, pushed: true },
+  })
 }
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url)
+
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { status: 204, headers: CORS_HEADERS })
+    }
 
     if (request.method === 'GET' && url.pathname === '/') {
       return html(renderForm())
@@ -548,7 +590,8 @@ export default {
       try {
         return await handleUpload(request, env)
       } catch (err) {
-        return html(renderForm(`<div class="result err">Unexpected error: ${escapeHtml(String(err.message ?? err))}</div>`), 500)
+        const msg = `Unexpected error: ${String(err.message ?? err)}`
+        return respond(request, 500, { htmlMessage: `<div class="result err">${escapeHtml(msg)}</div>`, data: { error: 'unexpected', message: msg } })
       }
     }
 
@@ -560,6 +603,7 @@ export default {
           headers: {
             'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             'Content-Disposition': `attachment; filename="${FILE_PATH}"`,
+            ...CORS_HEADERS,
           },
         })
       } catch (err) {
