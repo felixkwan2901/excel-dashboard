@@ -13,6 +13,7 @@ export default function Nav({
   flaggedJobs,
   onSelectFlaggedJob,
   onPrintReport,
+  onGoUpdateData,
 }) {
   return (
     <header className="site-nav">
@@ -34,6 +35,12 @@ export default function Nav({
             onClick={onGoDashboard}
           >
             Projects
+          </button>
+          <button
+            className={`site-nav__link ${view === 'update' ? 'is-active' : ''}`}
+            onClick={onGoUpdateData}
+          >
+            Update data
           </button>
         </nav>
       </div>

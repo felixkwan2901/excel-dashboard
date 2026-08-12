@@ -7,6 +7,7 @@ import StatsRow from './components/StatsRow'
 import JobTable from './components/JobTable'
 import ProjectDetail from './components/ProjectDetail'
 import ReviewReport from './components/ReviewReport'
+import UpdateData from './components/UpdateData'
 import LastSynced from './components/LastSynced'
 import Reveal from './components/Reveal'
 import './App.css'
@@ -86,6 +87,11 @@ export default function App() {
     pushUrlState({ view: 'review', selectedJobId, dashboardQuery, dashboardFilter })
   }
 
+  function goUpdateData() {
+    setView('update')
+    pushUrlState({ view: 'update', selectedJobId, dashboardQuery, dashboardFilter })
+  }
+
   function submitSearch(e) {
     e.preventDefault()
     setDashboardQuery(searchQuery)
@@ -125,6 +131,7 @@ export default function App() {
         flaggedJobs={flaggedJobs}
         onSelectFlaggedJob={openJob}
         onPrintReport={goReviewReport}
+        onGoUpdateData={goUpdateData}
       />
 
       {view === 'home' && (
@@ -185,6 +192,14 @@ export default function App() {
         <main className="dashboard">
           <Reveal index={0}>
             <ReviewReport jobs={flaggedJobs} onBack={goBack} />
+          </Reveal>
+        </main>
+      )}
+
+      {view === 'update' && (
+        <main className="dashboard">
+          <Reveal index={0}>
+            <UpdateData onBack={goHome} />
           </Reveal>
         </main>
       )}
