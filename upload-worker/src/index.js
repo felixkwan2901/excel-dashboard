@@ -375,24 +375,7 @@ function renderForm(message) {
     ${message ?? ''}
 
     <div class="card">
-      <h1>Update job data</h1>
-      <p class="sub">Choose this week's downloaded job P&amp;L exports (as many as you like) and enter the upload password. Each job's figures are merged in automatically and the dashboard updates within a couple of minutes.</p>
-      <form method="POST" action="/upload" enctype="multipart/form-data">
-        <label for="password">Upload password</label>
-        <input type="password" id="password" name="password" required />
-
-        <label for="files">Job exports (.xlsx, select multiple)</label>
-        <input type="file" id="files" name="files" accept=".xlsx" multiple required />
-
-        <button type="submit">Upload &amp; merge</button>
-      </form>
-
-      <a class="download-link" href="/download">Download the current workbook</a>
-    </div>
-
-    <div class="card">
       <h1>Replace with an edited file</h1>
-      <p class="sub">Already downloaded the workbook and fixed something directly in Excel? Upload that file here to replace the whole workbook as-is — no merging, this overwrites everything.</p>
       <form method="POST" action="/replace" enctype="multipart/form-data">
         <label for="replace-password">Upload password</label>
         <input type="password" id="replace-password" name="password" required />
@@ -402,11 +385,28 @@ function renderForm(message) {
 
         <label class="checkbox-label">
           <input type="checkbox" required />
-          I understand this replaces the entire workbook
+          Replaces the entire workbook
         </label>
 
         <button type="submit" class="secondary">Replace workbook</button>
       </form>
+    </div>
+
+    <div class="card">
+      <h1>Update job data</h1>
+      <form method="POST" action="/upload" enctype="multipart/form-data">
+        <label for="password">Upload password</label>
+        <input type="password" id="password" name="password" required />
+
+        <label for="files">Job exports (.xlsx, select multiple)</label>
+        <input type="file" id="files" name="files" accept=".xlsx" multiple required />
+
+        <button type="submit">Upload &amp; merge</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <a class="download-link" href="/download">Download the current workbook</a>
     </div>
   </div>
 </body>
