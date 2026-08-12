@@ -232,13 +232,6 @@ function arrayBufferToBase64(buffer) {
   return btoa(binary)
 }
 
-function base64ToArrayBuffer(base64) {
-  const binary = atob(base64.replace(/\n/g, ''))
-  const bytes = new Uint8Array(binary.length)
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
-  return bytes.buffer
-}
-
 function textToBase64(text) {
   return arrayBufferToBase64(new TextEncoder().encode(text))
 }
@@ -255,11 +248,16 @@ async function githubRequest(path, env, init) {
   })
 }
 
-async function getFileContent(path, env) {
-  const res = await githubRequest(`contents/${path}?ref=${BRANCH}`, env)
+// GitHub's Contents API omits the JSON `content` field entirely for files
+// over 1MB (this workbook is ~1.6MB) — the raw media type bypasses that
+// JSON/base64 wrapper and streams the actual file bytes directly, with no
+// such size cap (good up to 100MB).
+async function getFileBuffer(path, env) {
+  const res = await githubRequest(`contents/${path}?ref=${BRANCH}`, env, {
+    headers: { Accept: 'application/vnd.github.raw+json' },
+  })
   if (!res.ok) throw new Error(`Could not fetch ${path} from GitHub (${res.status})`)
-  const json = await res.json()
-  return { buffer: base64ToArrayBuffer(json.content), sha: json.sha }
+  return res.arrayBuffer()
 }
 
 // Writes a file's content, fetching its current sha first. If another
@@ -456,14 +454,14 @@ async function handleUpload(request, env) {
     else extracted.push(rec)
   }
 
-  let current
+  let currentBuffer
   try {
-    current = await getFileContent(FILE_PATH, env)
+    currentBuffer = await getFileBuffer(FILE_PATH, env)
   } catch (err) {
     return html(renderForm(`<div class="result err">Could not read the current workbook from GitHub: ${escapeHtml(String(err.message ?? err))}</div>`), 502)
   }
 
-  const wb = XLSX.read(current.buffer, { type: 'array' })
+  const wb = XLSX.read(currentBuffer, { type: 'array' })
   const { name: sheetName, rows, headerIdx } = findDeliverablesSheet(wb)
   const ws = wb.Sheets[sheetName]
   const blocks = buildJobBlocks(rows, headerIdx)
