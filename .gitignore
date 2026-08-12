@@ -13,8 +13,10 @@ dist-ssr
 *.local
 .wrangler
 
-# Weekly job P&L exports dropped in for scripts/update-jobs.mjs
+# Weekly job P&L exports dropped in for scripts/update-jobs.mjs, and its
+# dated archive of past runs
 /imports
+/imports-archive
 
 # Editor directories and files
 .vscode/*

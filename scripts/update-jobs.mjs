@@ -21,14 +21,17 @@
 //      left, which export files couldn't be matched to a job, and which
 //      existing jobs got no new data.
 //   5. Bumps sync-meta.json's timestamp.
+//   6. Archives everything that was in the folder (processed files,
+//      duplicates, unreadable files) into imports-archive/<YYYY-MM-DD>/,
+//      leaving the folder empty and ready for next week's drop.
 //
 // It does NOT commit or push — review the printed summary, then
 // `git add Cassidy_Davies_Electrical_BPMN_Data.xlsx sync-meta.json`,
 // commit, and push yourself (or ask Claude to).
 
 import { createHash } from 'node:crypto'
-import { readFileSync, readdirSync, writeFileSync, mkdirSync, renameSync, statSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { readFileSync, readdirSync, writeFileSync, mkdirSync, renameSync, statSync, existsSync } from 'node:fs'
+import { join, resolve, dirname } from 'node:path'
 import * as XLSX from 'xlsx'
 
 // The ESM build of `xlsx` can't auto-detect Node's `fs` module, which
@@ -286,6 +289,38 @@ function applyJobUpdate(ws, rows, dataIdx, rec) {
 }
 
 // ---------------------------------------------------------------------------
+// 5. Archive everything that was in the folder (processed files, the
+//    _duplicates subfolder, unreadable files) into a dated subfolder of
+//    imports-archive/, then leave the source folder empty for next time.
+// ---------------------------------------------------------------------------
+
+function archiveProcessedFiles(sourceDir) {
+  const entries = readdirSync(sourceDir)
+  if (entries.length === 0) return null
+
+  const d = new Date()
+  const pad = (n) => String(n).padStart(2, '0')
+  const dateStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+  const archiveDir = join(dirname(sourceDir), 'imports-archive', dateStr)
+  mkdirSync(archiveDir, { recursive: true })
+
+  for (const name of entries) {
+    const src = join(sourceDir, name)
+    let dest = join(archiveDir, name)
+    if (existsSync(dest)) {
+      // Another run already archived a same-named file/folder today —
+      // suffix with a timestamp rather than overwrite it.
+      const stamp = Date.now()
+      const dot = name.lastIndexOf('.')
+      dest = join(archiveDir, dot > 0 ? `${name.slice(0, dot)}-${stamp}${name.slice(dot)}` : `${name}-${stamp}`)
+    }
+    renameSync(src, dest)
+  }
+
+  return { archiveDir, count: entries.length }
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -383,6 +418,12 @@ function main() {
   if (failures.length > 0) {
     console.log(`\n${failures.length} file(s) could not be read:`)
     for (const f of failures) console.log(`  ${f.file}: ${f.error}`)
+  }
+
+  const archived = archiveProcessedFiles(folder)
+  if (archived) {
+    console.log(`\nArchived ${archived.count} item(s) into ${archived.archiveDir}`)
+    console.log(`${folder} is now empty and ready for next week's files.`)
   }
 
   console.log('\nWorkbook updated. Review the numbers above, then:')
