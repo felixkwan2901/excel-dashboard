@@ -195,11 +195,11 @@ body {
 }
 
 /*
- * Site-wide backdrop: an almost-flat dark plane. The faint grid + green
- * glows are the only nod to an "electrical" identity, treated as texture
- * (~10-20% visible) under a heavy dark overlay — desaturated, low-contrast,
- * slightly blurred so it reads as ambient depth and never competes with
- * card content or text. Fixed + behind #root so it persists across every
+ * Site-wide backdrop: a real jobsite photo of the crew, pushed almost
+ * entirely into shadow by a heavy dark overlay so it reads as ambient
+ * texture (~10-15% visible) rather than a photo competing with card
+ * content or text. The faint grid + green glows sit on top as the
+ * "electrical" accent. Fixed + behind #root so it persists across every
  * view without being tied to any single page's markup.
  */
 body::before {
@@ -208,29 +208,35 @@ body::before {
   inset: -20px;
   z-index: -1;
   pointer-events: none;
-  filter: saturate(0.55) contrast(0.92) blur(3px);
+  filter: grayscale(0.35) saturate(0.7) contrast(0.95) brightness(1.05) blur(3px);
   background-image:
     linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-    radial-gradient(680px circle at 15% 12%, rgba(56, 184, 106, 0.07), transparent 60%),
-    radial-gradient(620px circle at 88% 78%, rgba(56, 184, 106, 0.05), transparent 60%),
-    radial-gradient(520px circle at 92% 8%, rgba(56, 184, 106, 0.035), transparent 55%),
-    linear-gradient(160deg, var(--page-plane-2) 0%, var(--page-plane) 55%, var(--page-plane-3) 100%);
+    radial-gradient(720px circle at 15% 12%, rgba(56, 184, 106, 0.09), transparent 60%),
+    radial-gradient(660px circle at 88% 78%, rgba(56, 184, 106, 0.065), transparent 60%),
+    radial-gradient(560px circle at 92% 8%, rgba(56, 184, 106, 0.05), transparent 55%),
+    radial-gradient(140% 100% at 50% 0%, transparent 40%, rgba(0, 0, 0, 0.5) 100%),
+    linear-gradient(160deg, rgba(12, 15, 20, 0.62) 0%, rgba(9, 11, 15, 0.7) 55%, rgba(17, 22, 28, 0.65) 100%),
+    url('./assets/1.png');
   background-size:
     48px 48px,
     48px 48px,
     140% 140%,
     140% 140%,
     140% 140%,
-    100% 100%;
+    100% 100%,
+    100% 100%,
+    cover;
   background-position:
     center,
     center,
     0% 0%,
     100% 100%,
     100% 0%,
+    center,
+    center,
     center;
-  background-repeat: repeat, repeat, no-repeat, no-repeat, no-repeat, no-repeat;
+  background-repeat: repeat, repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat;
   animation: backdrop-drift 50s ease-in-out infinite alternate;
 }
 
@@ -242,6 +248,8 @@ body::before {
       0% 0%,
       100% 100%,
       100% 0%,
+      center,
+      center,
       center;
   }
   100% {
@@ -251,6 +259,8 @@ body::before {
       8% 6%,
       92% 92%,
       94% 4%,
+      center,
+      center,
       center;
   }
 }
