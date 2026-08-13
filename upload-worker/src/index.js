@@ -541,6 +541,57 @@ function renderResultHtml({ updated, noRoomLeft, notUpdated, unmatchedFiles, fai
 }
 
 // ---------------------------------------------------------------------------
+// Data health check — for each job, is it stale (no weekly update recorded
+// yet this month, still sitting on the "Start of month" baseline the
+// dashboard falls back to) or does its current figures look like an error
+// (missing quoted price entirely, over budget, or negative margin)? Lets
+// you catch a situation like a replace/upload silently reverting a job's
+// data without having to dig through git history to notice.
+// ---------------------------------------------------------------------------
+
+async function handleHealth(request, env) {
+  let buffer
+  try {
+    buffer = await getFileBuffer(FILE_PATH, env)
+  } catch (err) {
+    const msg = `Could not read the current workbook from GitHub: ${String(err.message ?? err)}`
+    return respond(request, 502, { htmlMessage: `<div class="result err">${escapeHtml(msg)}</div>`, data: { error: 'github_read_failed', message: msg } })
+  }
+
+  const wb = new ExcelJS.Workbook()
+  await wb.xlsx.load(buffer)
+  const { rows, headerIdx } = findDeliverablesSheet(wb)
+  const blocks = buildJobBlocks(rows, headerIdx)
+  const isValidJobBlock = (b) => Number(b.jobNumber) > 0 && String(b.jobName ?? '').trim() !== '' && String(b.jobName).trim() !== '0'
+
+  const jobs = blocks.filter(isValidJobBlock).map((block) => {
+    const { currentIdx } = pickCurrentAndTargetRowIdx(block, rows)
+    const row = rows[currentIdx]
+    const weekLabel = row[2] || 'Start of month'
+    const quotedPrice = Number(row[3])
+    const totalQuotedCost = Number(row[7])
+    const totalActualCost = Number(row[8])
+    const marginToDate = Number(row[25])
+
+    return {
+      jobNumber: block.jobNumber,
+      jobName: block.jobName,
+      weekLabel,
+      stale: currentIdx === block.startIdx,
+      noData: !Number.isFinite(quotedPrice) || quotedPrice <= 0,
+      overBudget: Number.isFinite(totalActualCost) && Number.isFinite(totalQuotedCost) && totalActualCost > totalQuotedCost,
+      negativeMargin: Number.isFinite(marginToDate) && marginToDate < 0,
+      quotedPrice: Number.isFinite(quotedPrice) ? quotedPrice : null,
+      totalActualCost: Number.isFinite(totalActualCost) ? totalActualCost : null,
+      totalQuotedCost: Number.isFinite(totalQuotedCost) ? totalQuotedCost : null,
+      marginToDate: Number.isFinite(marginToDate) ? marginToDate : null,
+    }
+  })
+
+  return json({ ok: true, jobs })
+}
+
+// ---------------------------------------------------------------------------
 // Upload handler
 // ---------------------------------------------------------------------------
 
@@ -782,6 +833,15 @@ export default {
     if (request.method === 'POST' && url.pathname === '/replace') {
       try {
         return await handleReplace(request, env)
+      } catch (err) {
+        const msg = `Unexpected error: ${String(err.message ?? err)}`
+        return respond(request, 500, { htmlMessage: `<div class="result err">${escapeHtml(msg)}</div>`, data: { error: 'unexpected', message: msg } })
+      }
+    }
+
+    if (request.method === 'GET' && url.pathname === '/health') {
+      try {
+        return await handleHealth(request, env)
       } catch (err) {
         const msg = `Unexpected error: ${String(err.message ?? err)}`
         return respond(request, 500, { htmlMessage: `<div class="result err">${escapeHtml(msg)}</div>`, data: { error: 'unexpected', message: msg } })
