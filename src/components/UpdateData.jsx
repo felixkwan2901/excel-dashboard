@@ -29,10 +29,6 @@ export default function UpdateData({ onBack }) {
   const [replaceStatus, setReplaceStatus] = useState('idle') // idle | submitting | done | error
   const [replaceMessage, setReplaceMessage] = useState('')
 
-  const [healthStatus, setHealthStatus] = useState('idle') // idle | loading | done | error
-  const [healthJobs, setHealthJobs] = useState(null)
-  const [healthError, setHealthError] = useState('')
-
   async function handleSubmit(e) {
     e.preventDefault()
     if (!files || files.length === 0) return
@@ -92,31 +88,6 @@ export default function UpdateData({ onBack }) {
     }
   }
 
-  async function checkHealth() {
-    setHealthStatus('loading')
-    setHealthError('')
-    try {
-      const res = await fetch(`${UPLOAD_WORKER_URL}/health`, { headers: { Accept: 'application/json' } })
-      const payload = await res.json()
-      if (!res.ok) {
-        setHealthError(payload.message ?? `Request failed (${res.status}).`)
-        setHealthStatus('error')
-        return
-      }
-      setHealthJobs(payload.jobs)
-      setHealthStatus('done')
-    } catch (err) {
-      setHealthError(`Could not reach the upload service: ${String(err.message ?? err)}`)
-      setHealthStatus('error')
-    }
-  }
-
-  const staleJobs = healthJobs?.filter((j) => j.stale) ?? []
-  const noDataJobs = healthJobs?.filter((j) => j.noData) ?? []
-  const flaggedJobs = healthJobs?.filter((j) => !j.noData && (j.overBudget || j.negativeMargin)) ?? []
-  const problemJobNumbers = new Set([...staleJobs, ...noDataJobs, ...flaggedJobs].map((j) => j.jobNumber))
-  const healthyCount = (healthJobs?.length ?? 0) - problemJobNumbers.size
-
   return (
     <div className="mx-auto w-full max-w-2xl">
       <nav className="mb-6 flex items-center gap-1.5 text-sm text-text-muted">
@@ -126,68 +97,6 @@ export default function UpdateData({ onBack }) {
         <span aria-hidden="true">/</span>
         <span className="text-text-primary">Update data</span>
       </nav>
-
-      <Card className="mb-4">
-        <CardHeader>
-          <CardTitle className="text-sm">Check data health</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Button variant="outline" className="w-full" onClick={checkHealth} disabled={healthStatus === 'loading'}>
-            {healthStatus === 'loading' ? 'Checking…' : 'Check data health'}
-          </Button>
-
-          {healthStatus === 'error' && <p className="mt-4 text-sm text-status-critical">{healthError}</p>}
-
-          {healthStatus === 'done' && (
-            <div className="mt-4 flex flex-col gap-3">
-              <p className="text-sm text-text-secondary">
-                {healthyCount} of {healthJobs.length} job(s) look fine.
-              </p>
-
-              {staleJobs.length > 0 && (
-                <div>
-                  <p className="text-sm font-medium text-status-critical">
-                    Stale — no weekly update recorded yet ({staleJobs.length})
-                  </p>
-                  <ul className="mt-1 flex flex-col gap-1 text-sm text-text-secondary">
-                    {staleJobs.map((j) => (
-                      <li key={j.jobNumber}>{j.jobNumber} {j.jobName}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {noDataJobs.length > 0 && (
-                <div>
-                  <p className="text-sm font-medium text-status-critical">No quoted price at all ({noDataJobs.length})</p>
-                  <ul className="mt-1 flex flex-col gap-1 text-sm text-text-secondary">
-                    {noDataJobs.map((j) => (
-                      <li key={j.jobNumber}>{j.jobNumber} {j.jobName}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {flaggedJobs.length > 0 && (
-                <div>
-                  <p className="text-sm font-medium text-status-critical">
-                    Over budget or negative margin ({flaggedJobs.length})
-                  </p>
-                  <ul className="mt-1 flex flex-col gap-1 text-sm text-text-secondary">
-                    {flaggedJobs.map((j) => (
-                      <li key={j.jobNumber} className="flex items-center gap-2">
-                        <span>{j.jobNumber} {j.jobName}</span>
-                        {j.overBudget && <Badge variant="destructive">over budget</Badge>}
-                        {j.negativeMargin && <Badge variant="destructive">negative margin</Badge>}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
       <Card className="mb-4">
         <CardHeader>
