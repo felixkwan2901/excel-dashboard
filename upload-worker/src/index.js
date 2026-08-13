@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 
 const OWNER = 'felixkwan2901'
 const REPO = 'excel-dashboard'
@@ -18,10 +18,59 @@ function normalizeHeader(text) {
   return String(text ?? '').replace(/\s+/g, ' ').trim().toLowerCase()
 }
 
-function isValidJobRow(row) {
-  const num = row[0]
-  const name = row[1]
-  return typeof num === 'number' && num > 0 && typeof name === 'string' && name.trim() !== '' && name.trim() !== '0'
+// ExcelJS represents formula cells as {formula, result, ...} (result itself
+// being {error: '...'} if the formula currently evaluates to an error, e.g.
+// a #DIV/0! on a row with no inputs yet) rather than a plain value — this
+// resolves a cell's raw .value down to the same plain-value shape
+// `sheet_to_json({header:1})` used to hand back, so the rest of this file's
+// logic (written against plain 0-indexed rows[r][c] arrays) is unchanged.
+function resolveCellValue(v) {
+  if (v === null || v === undefined) return ''
+  if (typeof v === 'object') {
+    if ('error' in v) return ''
+    if ('result' in v) {
+      const r = v.result
+      if (r && typeof r === 'object' && 'error' in r) return ''
+      return r ?? ''
+    }
+    if ('richText' in v) return v.richText.map((t) => t.text).join('')
+  }
+  return v
+}
+
+function worksheetToRows(worksheet) {
+  const rows = []
+  const colCount = Math.max(worksheet.columnCount, 30)
+  for (let r = 1; r <= worksheet.rowCount; r++) {
+    const row = worksheet.getRow(r)
+    const arr = []
+    for (let c = 1; c <= colCount; c++) {
+      arr[c - 1] = resolveCellValue(row.getCell(c).value)
+    }
+    rows[r - 1] = arr
+  }
+  return rows
+}
+
+// Excel stores this sheet's formula columns as "shared formula" groups
+// spanning long row ranges (one master formula, many cells cloning it) —
+// ExcelJS's writer crashes ("Shared Formula master must exist...") if any
+// cell in such a group gets overwritten, which every update here does.
+// Flattening every formula cell to its plain cached value up front avoids
+// that entirely; nothing in this pipeline ever relies on live formula
+// recalculation anyway (values are recomputed to match, see
+// applyJobUpdate). Cell styling (fill/border/font/numFmt) is untouched —
+// only .value changes.
+function flattenFormulaCells(worksheet) {
+  worksheet.eachRow((row) => {
+    row.eachCell((cell) => {
+      const v = cell.value
+      if (v && typeof v === 'object' && ('formula' in v || 'sharedFormula' in v)) {
+        const r = v.result
+        cell.value = r && typeof r === 'object' && 'error' in r ? null : (r ?? null)
+      }
+    })
+  })
 }
 
 // Several sheets in the workbook share a "Job Number" first column (e.g.
@@ -30,15 +79,15 @@ function isValidJobRow(row) {
 // Deliverables Sheet.
 function findDeliverablesSheet(workbook) {
   const candidates = []
-  for (const name of workbook.SheetNames) {
-    const rows = XLSX.utils.sheet_to_json(workbook.Sheets[name], { header: 1, defval: '' })
+  for (const worksheet of workbook.worksheets) {
+    const rows = worksheetToRows(worksheet)
     const headerIdx = rows.findIndex((r) => normalizeHeader(r[0]) === 'job number')
     if (headerIdx === -1) continue
     const header = rows[headerIdx].map(normalizeHeader)
     if (!header.includes('quoted price') || !header.includes('total actual cost')) continue
-    candidates.push({ name, rows, headerIdx })
+    candidates.push({ worksheet, rows, headerIdx })
   }
-  const preferred = candidates.find((c) => !c.name.toLowerCase().includes('test'))
+  const preferred = candidates.find((c) => !c.worksheet.name.toLowerCase().includes('test'))
   const chosen = preferred ?? candidates[0]
   if (!chosen) throw new Error('Could not find the Deliverables Sheet in the current workbook')
   return chosen
@@ -89,24 +138,6 @@ const COL = {
   gpPerHour: 23, quotedGpPerHour: 24, marginToDate: 25, quotedMargin: 26,
 }
 
-// Displays money/percentage columns as actual currency/percent in Excel
-// instead of bare numbers.
-const CURRENCY_FMT = '$#,##0.00'
-const PERCENT_FMT = '0.0%'
-const NUMBER_FORMATS = {
-  [COL.quotedPrice]: CURRENCY_FMT, [COL.claimToDate]: CURRENCY_FMT, [COL.remainingToClaim]: CURRENCY_FMT,
-  [COL.pctClaimRemaining]: PERCENT_FMT,
-  [COL.totalQuotedCost]: CURRENCY_FMT, [COL.totalActualCost]: CURRENCY_FMT,
-  [COL.quotedMaterialCost]: CURRENCY_FMT, [COL.actualMaterialCost]: CURRENCY_FMT, [COL.materialCostRemaining]: CURRENCY_FMT,
-  [COL.materialPctRemaining]: PERCENT_FMT,
-  [COL.quotedLabourCost]: CURRENCY_FMT, [COL.actualLabourCost]: CURRENCY_FMT, [COL.labourCostRemaining]: CURRENCY_FMT,
-  [COL.labourCostPctRemaining]: PERCENT_FMT,
-  [COL.quotedLabourHours]: '#,##0.00', [COL.actualLabourHours]: '#,##0.00', [COL.labourHoursRemaining]: '#,##0.00',
-  [COL.labourHourPctRemaining]: PERCENT_FMT,
-  [COL.gpPerHour]: CURRENCY_FMT, [COL.quotedGpPerHour]: CURRENCY_FMT,
-  [COL.marginToDate]: PERCENT_FMT, [COL.quotedMargin]: PERCENT_FMT,
-}
-
 // A new export whose key "actual" figures are identical to what's already
 // recorded in the current week is almost certainly the same file uploaded
 // twice (or the same batch re-uploaded by mistake) rather than genuinely
@@ -129,8 +160,10 @@ function looksLikeDuplicate(rec, rows, currentIdx) {
 
 // "Material" columns in this sheet are really "everything non-labour" —
 // derived as a residual so the profit/margin formulas stay internally
-// consistent with the sheet's own formulas.
-function applyJobUpdate(ws, rows, dataIdx, rec) {
+// consistent with the sheet's own formulas. Only .value is ever set below —
+// the cell's existing fill/border/font/number-format (from the workbook's
+// own template) is left completely untouched.
+function applyJobUpdate(worksheet, rows, dataIdx, rec) {
   const {
     quotedPrice, claimToDate, totalQuotedCost, totalActualCost,
     quotedLabourCost, actualLabourCost, quotedLabourHours, actualLabourHours,
@@ -159,12 +192,10 @@ function applyJobUpdate(ws, rows, dataIdx, rec) {
     gpPerHour, quotedGpPerHour, marginToDate, quotedMargin,
   }
 
+  const excelRow = worksheet.getRow(dataIdx + 1)
   for (const [field, value] of Object.entries(values)) {
     const col = COL[field]
-    const addr = XLSX.utils.encode_cell({ r: dataIdx, c: col })
-    const existing = ws[addr]
-    ws[addr] = { ...(existing ?? {}), t: 'n', v: value, z: NUMBER_FORMATS[col] }
-    delete ws[addr].w
+    excelRow.getCell(col + 1).value = value
     rows[dataIdx][col] = value
   }
 
@@ -191,13 +222,16 @@ function parsePercent(v) {
   return v.includes('%') ? n / 100 : n
 }
 
-function extractJobExport(buffer, fileName) {
-  const wb = XLSX.read(buffer, { type: 'array' })
-  if (!wb.SheetNames.includes('Quotes') || !wb.SheetNames.includes('Summary')) {
+async function extractJobExport(buffer, fileName) {
+  const wb = new ExcelJS.Workbook()
+  await wb.xlsx.load(buffer)
+  const quotesSheet = wb.getWorksheet('Quotes')
+  const summarySheet = wb.getWorksheet('Summary')
+  if (!quotesSheet || !summarySheet) {
     return { file: fileName, error: 'missing Quotes/Summary sheet (likely a blank export or a different report type)' }
   }
 
-  const quoteRows = XLSX.utils.sheet_to_json(wb.Sheets['Quotes'], { header: 1, defval: '' })
+  const quoteRows = worksheetToRows(quotesSheet)
   let baseRow = null
   for (let i = 4; i < quoteRows.length; i++) {
     const r = quoteRows[i]
@@ -211,7 +245,7 @@ function extractJobExport(buffer, fileName) {
   const jobNumber = String(baseRow[0]).trim()
   const jobName = String(baseRow[1]).trim()
 
-  const summaryRows = XLSX.utils.sheet_to_json(wb.Sheets['Summary'], { header: 1, defval: '' })
+  const summaryRows = worksheetToRows(summarySheet)
   const rec = { file: fileName, jobNumber, jobName }
 
   for (const row of summaryRows) {
@@ -563,7 +597,7 @@ async function handleUpload(request, env) {
   const extracted = []
   const failures = []
   for (const { name, buffer } of uniqueBuffers) {
-    const rec = extractJobExport(buffer, name)
+    const rec = await extractJobExport(buffer, name)
     if (rec.error) failures.push(rec)
     else extracted.push(rec)
   }
@@ -576,9 +610,10 @@ async function handleUpload(request, env) {
     return respond(request, 502, { htmlMessage: `<div class="result err">${escapeHtml(msg)}</div>`, data: { error: 'github_read_failed', message: msg } })
   }
 
-  const wb = XLSX.read(currentBuffer, { type: 'array' })
-  const { name: sheetName, rows, headerIdx } = findDeliverablesSheet(wb)
-  const ws = wb.Sheets[sheetName]
+  const wb = new ExcelJS.Workbook()
+  await wb.xlsx.load(currentBuffer)
+  const { worksheet, rows, headerIdx } = findDeliverablesSheet(wb)
+  flattenFormulaCells(worksheet)
   const blocks = buildJobBlocks(rows, headerIdx)
   const isValidJobBlock = (b) => Number(b.jobNumber) > 0 && String(b.jobName ?? '').trim() !== '' && String(b.jobName).trim() !== '0'
   const existingJobNumbers = new Set(blocks.filter(isValidJobBlock).map((b) => Number(b.jobNumber)))
@@ -606,7 +641,7 @@ async function handleUpload(request, env) {
     }
     const weekLabel = rows[targetIdx][2] || 'Start of month'
     const before = { totalActualCost: rows[targetIdx][8], claimToDate: rows[targetIdx][4], marginToDate: rows[targetIdx][25] }
-    const after = applyJobUpdate(ws, rows, targetIdx, rec)
+    const after = applyJobUpdate(worksheet, rows, targetIdx, rec)
     updated.push({ jobNumber: rec.jobNumber, jobName: rec.jobName, weekLabel, before, after })
   }
 
@@ -622,7 +657,7 @@ async function handleUpload(request, env) {
     .filter((n) => !updatedJobNumbers.has(n))
     .map((n) => ({ jobNumber: n, jobName: blocks.find((b) => Number(b.jobNumber) === n)?.jobName ?? '' }))
 
-  const outputBuffer = XLSX.write(wb, { type: 'array', bookType: 'xlsx' })
+  const outputBuffer = await wb.xlsx.writeBuffer()
   const contentBase64 = arrayBufferToBase64(outputBuffer)
 
   const putRes = await putFileWithRetry(FILE_PATH, env, {
@@ -684,7 +719,8 @@ async function handleReplace(request, env) {
 
   let jobCount
   try {
-    const wb = XLSX.read(buffer, { type: 'array' })
+    const wb = new ExcelJS.Workbook()
+    await wb.xlsx.load(buffer)
     const { rows, headerIdx } = findDeliverablesSheet(wb)
     const isValidJobBlock = (b) => Number(b.jobNumber) > 0 && String(b.jobName ?? '').trim() !== '' && String(b.jobName).trim() !== '0'
     jobCount = buildJobBlocks(rows, headerIdx).filter(isValidJobBlock).length

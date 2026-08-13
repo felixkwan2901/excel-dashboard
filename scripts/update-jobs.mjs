@@ -29,6 +29,11 @@
 //      duplicates, unreadable files) into imports-archive/<YYYY-MM-DD>/,
 //      leaving the folder empty and ready for next week's drop.
 //
+// Uses ExcelJS rather than the `xlsx` package specifically because it
+// preserves the workbook's existing formatting (cell colors, borders,
+// fonts, number formats) when only a cell's .value is changed — `xlsx`'s
+// free tier silently drops all of that on write.
+//
 // It does NOT commit or push — review the printed summary, then
 // `git add Cassidy_Davies_Electrical_BPMN_Data.xlsx sync-meta.json`,
 // commit, and push yourself (or ask Claude to).
@@ -36,18 +41,7 @@
 import { createHash } from 'node:crypto'
 import { readFileSync, readdirSync, writeFileSync, mkdirSync, renameSync, statSync, existsSync } from 'node:fs'
 import { join, resolve, dirname } from 'node:path'
-import * as XLSX from 'xlsx'
-
-// The ESM build of `xlsx` can't auto-detect Node's `fs` module, which
-// breaks XLSX.readFile/writeFile under `import` (they throw "Cannot access
-// file ..." even when the file exists) — read/write buffers via node:fs
-// and hand them to XLSX.read/XLSX.write instead.
-function readWorkbook(path) {
-  return XLSX.read(readFileSync(path), { type: 'buffer', cellStyles: true })
-}
-function writeWorkbook(wb, path) {
-  writeFileSync(path, XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }))
-}
+import ExcelJS from 'exceljs'
 
 const folder = resolve(process.argv[2] ?? 'imports')
 const workbookPath = resolve('Cassidy_Davies_Electrical_BPMN_Data.xlsx')
@@ -85,6 +79,44 @@ function dedupeFolder(dir) {
 }
 
 // ---------------------------------------------------------------------------
+// Shared ExcelJS helpers — a worksheet read as a plain 0-indexed 2D array of
+// values (formula cells resolved to their cached result), matching the
+// shape the rest of this script's logic is written against.
+// ---------------------------------------------------------------------------
+
+function resolveCellValue(v) {
+  if (v === null || v === undefined) return ''
+  if (typeof v === 'object') {
+    if ('error' in v) return '' // e.g. a cached #DIV/0! on a formula cell with no inputs yet
+    if ('result' in v) {
+      const r = v.result
+      if (r && typeof r === 'object' && 'error' in r) return '' // formula's cached result is itself an error
+      return r ?? ''
+    }
+    if ('richText' in v) return v.richText.map((t) => t.text).join('')
+  }
+  return v
+}
+
+function worksheetToRows(worksheet) {
+  const rows = []
+  const colCount = Math.max(worksheet.columnCount, 30)
+  for (let r = 1; r <= worksheet.rowCount; r++) {
+    const row = worksheet.getRow(r)
+    const arr = []
+    for (let c = 1; c <= colCount; c++) {
+      arr[c - 1] = resolveCellValue(row.getCell(c).value)
+    }
+    rows[r - 1] = arr
+  }
+  return rows
+}
+
+function normalizeHeader(text) {
+  return String(text ?? '').replace(/\s+/g, ' ').trim().toLowerCase()
+}
+
+// ---------------------------------------------------------------------------
 // 2. Extract job number/name + cost figures from one export file.
 // ---------------------------------------------------------------------------
 
@@ -103,13 +135,17 @@ function parsePercent(v) {
   return v.includes('%') ? n / 100 : n
 }
 
-function extractJobExport(filePath) {
-  const wb = readWorkbook(filePath)
-  if (!wb.SheetNames.includes('Quotes') || !wb.SheetNames.includes('Summary')) {
+async function extractJobExport(filePath) {
+  const wb = new ExcelJS.Workbook()
+  await wb.xlsx.readFile(filePath)
+
+  const quotesSheet = wb.getWorksheet('Quotes')
+  const summarySheet = wb.getWorksheet('Summary')
+  if (!quotesSheet || !summarySheet) {
     return { file: filePath, error: 'missing Quotes/Summary sheet (likely a blank or different report type)' }
   }
 
-  const quoteRows = XLSX.utils.sheet_to_json(wb.Sheets['Quotes'], { header: 1, defval: '' })
+  const quoteRows = worksheetToRows(quotesSheet)
   let baseRow = null
   for (let i = 4; i < quoteRows.length; i++) {
     const r = quoteRows[i]
@@ -123,7 +159,7 @@ function extractJobExport(filePath) {
   const jobNumber = String(baseRow[0]).trim()
   const jobName = String(baseRow[1]).trim()
 
-  const summaryRows = XLSX.utils.sheet_to_json(wb.Sheets['Summary'], { header: 1, defval: '' })
+  const summaryRows = worksheetToRows(summarySheet)
   const rec = { file: filePath, jobNumber, jobName }
 
   for (const row of summaryRows) {
@@ -169,10 +205,6 @@ function extractJobExport(filePath) {
 // 3. Locate job blocks in the Deliverables Sheet.
 // ---------------------------------------------------------------------------
 
-function normalizeHeader(text) {
-  return String(text ?? '').replace(/\s+/g, ' ').trim().toLowerCase()
-}
-
 // Several sheets in this workbook share a "Job Number" first column (e.g.
 // "Main Sheet" is a checklist tab, not the costing tab) — matching on that
 // alone picks the wrong sheet. Only a sheet with the cost columns too
@@ -180,18 +212,39 @@ function normalizeHeader(text) {
 // disambiguation the dashboard's own loader (src/lib/loadWorkbook.js) uses.
 function findDeliverablesSheet(workbook) {
   const candidates = []
-  for (const name of workbook.SheetNames) {
-    const rows = XLSX.utils.sheet_to_json(workbook.Sheets[name], { header: 1, defval: '' })
+  for (const worksheet of workbook.worksheets) {
+    const rows = worksheetToRows(worksheet)
     const headerIdx = rows.findIndex((r) => normalizeHeader(r[0]) === 'job number')
     if (headerIdx === -1) continue
     const header = rows[headerIdx].map(normalizeHeader)
     if (!header.includes('quoted price') || !header.includes('total actual cost')) continue
-    candidates.push({ name, rows, headerIdx })
+    candidates.push({ worksheet, rows, headerIdx })
   }
-  const preferred = candidates.find((c) => !c.name.toLowerCase().includes('test'))
+  const preferred = candidates.find((c) => !c.worksheet.name.toLowerCase().includes('test'))
   const chosen = preferred ?? candidates[0]
   if (!chosen) throw new Error('Could not find the Deliverables Sheet (no sheet has Job Number + Quoted Price + Total actual cost columns)')
   return chosen
+}
+
+// Excel stores this sheet's formula columns as "shared formula" groups
+// spanning long row ranges (one master formula, many cells cloning it) —
+// ExcelJS's writer crashes ("Shared Formula master must exist...") if any
+// cell in such a group gets overwritten, which every update here does.
+// Flattening every formula cell to its plain cached value up front avoids
+// that entirely; nothing in this pipeline ever relies on live formula
+// recalculation anyway (values are recomputed to match, see
+// applyJobUpdate). Cell styling (fill/border/font/numFmt) is untouched —
+// only .value changes.
+function flattenFormulaCells(worksheet) {
+  worksheet.eachRow((row) => {
+    row.eachCell((cell) => {
+      const v = cell.value
+      if (v && typeof v === 'object' && ('formula' in v || 'sharedFormula' in v)) {
+        const r = v.result
+        cell.value = r && typeof r === 'object' && 'error' in r ? null : (r ?? null)
+      }
+    })
+  })
 }
 
 function buildJobBlocks(rows, headerIdx) {
@@ -251,11 +304,13 @@ function looksLikeDuplicate(rec, rows, currentIdx) {
 }
 
 // ---------------------------------------------------------------------------
-// 4. Apply one job's refreshed figures onto its data row.
-//    Columns are set by header meaning, not position — see FIELD_COLUMNS.
-//    Only genuine inputs are set directly; the rest are the sheet's own
-//    formula columns (kept intact) whose cached value we recompute to match
-//    (see README-level note in the repo docs for the derivation).
+// 4. Apply one job's refreshed figures onto its data row. Columns are set
+//    by header meaning, not position — see COL. Only genuine inputs are set
+//    directly (as plain .value assignments, so the sheet's own existing
+//    cell formatting is left completely untouched); the rest are the
+//    sheet's own formula columns (kept intact) whose cached value we
+//    recompute to match (see README-level note in the repo docs for the
+//    derivation).
 // ---------------------------------------------------------------------------
 
 const COL = {
@@ -267,25 +322,7 @@ const COL = {
   gpPerHour: 23, quotedGpPerHour: 24, marginToDate: 25, quotedMargin: 26,
 }
 
-// Displays money/percentage columns as actual currency/percent in Excel
-// instead of bare numbers.
-const CURRENCY_FMT = '$#,##0.00'
-const PERCENT_FMT = '0.0%'
-const NUMBER_FORMATS = {
-  [COL.quotedPrice]: CURRENCY_FMT, [COL.claimToDate]: CURRENCY_FMT, [COL.remainingToClaim]: CURRENCY_FMT,
-  [COL.pctClaimRemaining]: PERCENT_FMT,
-  [COL.totalQuotedCost]: CURRENCY_FMT, [COL.totalActualCost]: CURRENCY_FMT,
-  [COL.quotedMaterialCost]: CURRENCY_FMT, [COL.actualMaterialCost]: CURRENCY_FMT, [COL.materialCostRemaining]: CURRENCY_FMT,
-  [COL.materialPctRemaining]: PERCENT_FMT,
-  [COL.quotedLabourCost]: CURRENCY_FMT, [COL.actualLabourCost]: CURRENCY_FMT, [COL.labourCostRemaining]: CURRENCY_FMT,
-  [COL.labourCostPctRemaining]: PERCENT_FMT,
-  [COL.quotedLabourHours]: '#,##0.00', [COL.actualLabourHours]: '#,##0.00', [COL.labourHoursRemaining]: '#,##0.00',
-  [COL.labourHourPctRemaining]: PERCENT_FMT,
-  [COL.gpPerHour]: CURRENCY_FMT, [COL.quotedGpPerHour]: CURRENCY_FMT,
-  [COL.marginToDate]: PERCENT_FMT, [COL.quotedMargin]: PERCENT_FMT,
-}
-
-function applyJobUpdate(ws, rows, dataIdx, rec) {
+function applyJobUpdate(worksheet, rows, dataIdx, rec) {
   const {
     quotedPrice, claimToDate, totalQuotedCost, totalActualCost,
     quotedLabourCost, actualLabourCost, quotedLabourHours, actualLabourHours,
@@ -318,12 +355,10 @@ function applyJobUpdate(ws, rows, dataIdx, rec) {
     gpPerHour, quotedGpPerHour, marginToDate, quotedMargin,
   }
 
+  const excelRow = worksheet.getRow(dataIdx + 1)
   for (const [field, value] of Object.entries(values)) {
     const col = COL[field]
-    const addr = XLSX.utils.encode_cell({ r: dataIdx, c: col })
-    const existing = ws[addr]
-    ws[addr] = { ...(existing ?? {}), t: 'n', v: value, z: NUMBER_FORMATS[col] }
-    delete ws[addr].w
+    excelRow.getCell(col + 1).value = value // only .value changes — existing style/format untouched
     rows[dataIdx][col] = value
   }
 
@@ -366,7 +401,7 @@ function archiveProcessedFiles(sourceDir) {
 // Main
 // ---------------------------------------------------------------------------
 
-function main() {
+async function main() {
   console.log(`Reading exports from ${folder}`)
   const { kept, dupes } = dedupeFolder(folder)
   if (dupes.length > 0) {
@@ -378,15 +413,16 @@ function main() {
   const extracted = []
   const failures = []
   for (const name of kept) {
-    const rec = extractJobExport(join(folder, name))
+    const rec = await extractJobExport(join(folder, name))
     if (rec.error) failures.push(rec)
     else extracted.push(rec)
   }
 
   console.log(`Reading workbook: ${workbookPath}`)
-  const wb = readWorkbook(workbookPath)
-  const { name: sheetName, rows, headerIdx } = findDeliverablesSheet(wb)
-  const ws = wb.Sheets[sheetName]
+  const wb = new ExcelJS.Workbook()
+  await wb.xlsx.readFile(workbookPath)
+  const { worksheet, rows, headerIdx } = findDeliverablesSheet(wb)
+  flattenFormulaCells(worksheet)
   const blocks = buildJobBlocks(rows, headerIdx)
   // Real jobs only — a handful of junk blocks (job number 0 / blank name)
   // exist in the sheet and aren't real jobs, same filter the dashboard's
@@ -417,14 +453,14 @@ function main() {
     }
     const weekLabel = rows[targetIdx][2] || 'Start of month'
     const before = { totalActualCost: rows[targetIdx][8], claimToDate: rows[targetIdx][4], marginToDate: rows[targetIdx][25] }
-    const after = applyJobUpdate(ws, rows, targetIdx, rec)
+    const after = applyJobUpdate(worksheet, rows, targetIdx, rec)
     updated.push({ jobNumber: rec.jobNumber, jobName: rec.jobName, weekLabel, before, after })
   }
 
   const updatedJobNumbers = new Set(updated.map((u) => Number(u.jobNumber)))
   const notUpdated = [...existingJobNumbers].filter((n) => !updatedJobNumbers.has(n))
 
-  writeWorkbook(wb, workbookPath)
+  await wb.xlsx.writeFile(workbookPath)
 
   try {
     const meta = JSON.parse(readFileSync(syncMetaPath, 'utf8'))
