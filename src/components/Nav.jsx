@@ -15,6 +15,7 @@ export default function Nav({
   onPrintReport,
   onGoUpdateData,
   onGoMonthlyClaims,
+  onGoMainSheet,
 }) {
   return (
     <header className="site-nav">
@@ -42,6 +43,12 @@ export default function Nav({
             onClick={onGoMonthlyClaims}
           >
             Monthly claims
+          </button>
+          <button
+            className={`site-nav__link ${view === 'main-sheet' ? 'is-active' : ''}`}
+            onClick={onGoMainSheet}
+          >
+            Job checklist
           </button>
           <button
             className={`site-nav__link ${view === 'update' ? 'is-active' : ''}`}

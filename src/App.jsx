@@ -9,6 +9,7 @@ import ProjectDetail from './components/ProjectDetail'
 import ReviewReport from './components/ReviewReport'
 import UpdateData from './components/UpdateData'
 import MonthlyClaims from './components/MonthlyClaims'
+import MainSheetTab from './components/MainSheetTab'
 import LastSynced from './components/LastSynced'
 import Reveal from './components/Reveal'
 import './App.css'
@@ -25,7 +26,7 @@ export default function App() {
 
   useEffect(() => {
     loadWorkbook()
-      .then(({ jobs, monthlyClaims }) => setState({ status: 'ready', jobs, monthlyClaims }))
+      .then(({ jobs, monthlyClaims, mainSheet }) => setState({ status: 'ready', jobs, monthlyClaims, mainSheet }))
       .catch((error) => setState({ status: 'error', error }))
 
     // Establish a well-formed history entry for the initial load (so a
@@ -45,6 +46,7 @@ export default function App() {
 
   const jobs = state.status === 'ready' ? state.jobs : []
   const monthlyClaims = state.status === 'ready' ? state.monthlyClaims : { jobs: [], totals: [] }
+  const mainSheet = state.status === 'ready' ? state.mainSheet : { jobs: [], columns: [] }
   const kpis = state.status === 'ready' ? computeKpis(jobs) : null
   const flaggedJobs = useMemo(() => jobs.filter((j) => j.flagged), [jobs])
 
@@ -99,6 +101,11 @@ export default function App() {
     pushUrlState({ view: 'monthly-claims', selectedJobId, dashboardQuery, dashboardFilter })
   }
 
+  function goMainSheet() {
+    setView('main-sheet')
+    pushUrlState({ view: 'main-sheet', selectedJobId, dashboardQuery, dashboardFilter })
+  }
+
   function submitSearch(e) {
     e.preventDefault()
     setDashboardQuery(searchQuery)
@@ -140,6 +147,7 @@ export default function App() {
         onPrintReport={goReviewReport}
         onGoUpdateData={goUpdateData}
         onGoMonthlyClaims={goMonthlyClaims}
+        onGoMainSheet={goMainSheet}
       />
 
       {view === 'home' && (
@@ -216,6 +224,14 @@ export default function App() {
         <main className="dashboard">
           <Reveal index={0}>
             <MonthlyClaims monthlyClaims={monthlyClaims} onBack={goHome} />
+          </Reveal>
+        </main>
+      )}
+
+      {view === 'main-sheet' && (
+        <main className="dashboard">
+          <Reveal index={0}>
+            <MainSheetTab mainSheet={mainSheet} onBack={goHome} />
           </Reveal>
         </main>
       )}

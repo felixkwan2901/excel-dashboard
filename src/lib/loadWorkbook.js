@@ -283,6 +283,54 @@ function parseMonthlyClaims(workbook) {
   return { jobs, totals }
 }
 
+// "Main Sheet" is the project-handover checklist — one row per job (each
+// followed by a blank separator row, same pattern as the other sheets),
+// columns 3-22 each a Yes/No/N/A milestone ("Contract Signed & Returned",
+// "Warranty Signed & Returned", ...). Two header rows are combined per
+// column since some columns only carry a sub-label in the second row
+// (e.g. "Long Lead Time Materials Ordered" / "Ordered"). Values aren't
+// perfectly consistent in the source data (mixed "Yes"/"yes" casing, and
+// at least one cell holding a raw date instead of Yes/No) — read as plain
+// trimmed text rather than trying to coerce it, and let the editing UI
+// normalize it going forward.
+function parseMainSheet(workbook) {
+  const sheet = workbook.Sheets['Main Sheet']
+  if (!sheet) return { jobs: [], columns: [] }
+
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false, defval: '' })
+  const h1 = rows[1] ?? []
+  const h2 = rows[2] ?? []
+  const columns = []
+  for (let c = 3; c <= 22; c++) {
+    const label = [h1[c], h2[c]]
+      .map((s) => String(s ?? '').replace(/\s+/g, ' ').trim())
+      .filter(Boolean)
+      .join(' — ')
+    if (!label) continue
+    columns.push({ key: `col${c}`, col: c, label })
+  }
+
+  const jobs = []
+  for (let r = 3; r < rows.length; r++) {
+    const row = rows[r]
+    if (typeof row[0] !== 'number' || row[0] <= 0) continue
+    const jobName = String(row[1] ?? '').trim()
+    if (!jobName || jobName === '0') continue
+
+    const checklist = {}
+    for (const column of columns) checklist[column.key] = String(row[column.col] ?? '').trim()
+
+    jobs.push({
+      jobNumber: String(row[0]),
+      jobName,
+      jobOwner: String(row[2] ?? '').trim(),
+      checklist,
+    })
+  }
+
+  return { jobs, columns }
+}
+
 export async function loadWorkbook() {
   const buffer = await fetch(workbookUrl).then((res) => res.arrayBuffer())
   const workbook = XLSX.read(buffer, { type: 'array' })
@@ -290,6 +338,7 @@ export async function loadWorkbook() {
   const jobRows = findJobsSheet(workbook)
   const jobs = rowsAfterHeader(jobRows).map(withDerivedFields)
   const monthlyClaims = parseMonthlyClaims(workbook)
+  const mainSheet = parseMainSheet(workbook)
 
-  return { jobs, monthlyClaims }
+  return { jobs, monthlyClaims, mainSheet }
 }

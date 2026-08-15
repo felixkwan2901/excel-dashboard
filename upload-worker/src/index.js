@@ -809,6 +809,102 @@ async function handleReplace(request, env) {
   })
 }
 
+// ---------------------------------------------------------------------------
+// Main Sheet checklist edits — cell-level updates from the dashboard's Job
+// checklist tab (Yes/No/N/A toggles). Unlike the Deliverables Sheet, Main
+// Sheet itself has no formulas, so no flattening is needed here — but
+// loading the workbook at all still parses every sheet in the zip, the
+// same CPU-time cost that broke /health on Cloudflare's free plan, so this
+// carries the same risk until that's addressed.
+// ---------------------------------------------------------------------------
+
+async function handleMainSheetUpdate(request, env) {
+  const body = await request.json().catch(() => null)
+  if (!body) {
+    return respond(request, 400, { htmlMessage: `<div class="result err">Invalid request body.</div>`, data: { error: 'bad_request', message: 'Invalid request body.' } })
+  }
+  const { password, edits } = body
+
+  if (!env.UPLOAD_PASSWORD || password !== env.UPLOAD_PASSWORD) {
+    return respond(request, 401, { htmlMessage: `<div class="result err">Wrong password. Please try again.</div>`, data: { error: 'wrong_password', message: 'Wrong password.' } })
+  }
+  if (!Array.isArray(edits) || edits.length === 0) {
+    return respond(request, 400, { htmlMessage: `<div class="result err">No changes to save.</div>`, data: { error: 'no_edits', message: 'No changes to save.' } })
+  }
+
+  let currentBuffer
+  try {
+    currentBuffer = await getFileBuffer(FILE_PATH, env)
+  } catch (err) {
+    const msg = `Could not read the current workbook from GitHub: ${String(err.message ?? err)}`
+    return respond(request, 502, { htmlMessage: `<div class="result err">${escapeHtml(msg)}</div>`, data: { error: 'github_read_failed', message: msg } })
+  }
+
+  const wb = new ExcelJS.Workbook()
+  await wb.xlsx.load(currentBuffer)
+  const ws = wb.getWorksheet('Main Sheet')
+  if (!ws) {
+    const msg = 'Could not find "Main Sheet" in the current workbook.'
+    return respond(request, 500, { htmlMessage: `<div class="result err">${escapeHtml(msg)}</div>`, data: { error: 'sheet_not_found', message: msg } })
+  }
+
+  // Build jobNumber -> row index once, same validity rule used elsewhere.
+  const jobRowByNumber = new Map()
+  ws.eachRow((row, rowNumber) => {
+    const jobNumRaw = row.getCell(1).value
+    const jobNum = jobNumRaw && typeof jobNumRaw === 'object' ? jobNumRaw.result : jobNumRaw
+    if (typeof jobNum === 'number' && jobNum > 0) jobRowByNumber.set(String(jobNum), rowNumber)
+  })
+
+  let applied = 0
+  const notFound = []
+  for (const edit of edits) {
+    const rowNumber = jobRowByNumber.get(String(edit.jobNumber))
+    const col = Number(edit.col)
+    if (!rowNumber || !Number.isInteger(col) || col < 0) {
+      notFound.push(edit.jobNumber)
+      continue
+    }
+    ws.getRow(rowNumber).getCell(col + 1).value = String(edit.value ?? '')
+    applied++
+  }
+
+  if (applied === 0) {
+    const msg = 'None of the submitted edits matched a job in the current workbook.'
+    return respond(request, 400, { htmlMessage: `<div class="result err">${escapeHtml(msg)}</div>`, data: { error: 'no_matches', message: msg, notFound } })
+  }
+
+  const outputBuffer = await wb.xlsx.writeBuffer()
+  const contentBase64 = arrayBufferToBase64(outputBuffer)
+
+  const putRes = await putFileWithRetry(FILE_PATH, env, {
+    contentBase64,
+    message: `Update job checklist (${new Date().toISOString()})`,
+  })
+
+  if (!putRes.ok) {
+    const body = await putRes.text()
+    const msg = `GitHub rejected the update (${putRes.status}). ${body.slice(0, 200)}`
+    return respond(request, 502, { htmlMessage: `<div class="result err">${escapeHtml(msg)}</div>`, data: { error: 'github_write_failed', message: msg } })
+  }
+
+  const uploadedAt = new Date().toISOString()
+  try {
+    await putFileWithRetry(SYNC_META_PATH, env, {
+      contentBase64: textToBase64(JSON.stringify({ updatedAt: uploadedAt }, null, 2)),
+      message: `Update sync timestamp (${uploadedAt})`,
+    })
+  } catch {
+    // Non-critical: the dashboard just won't show a fresh "Last updated" time.
+  }
+
+  const msg = `Saved ${applied} checklist change(s). The dashboard will rebuild and go live in a couple of minutes.`
+  return respond(request, 200, {
+    htmlMessage: `<div class="result ok">${escapeHtml(msg)}</div>`,
+    data: { pushed: true, applied, notFound, message: msg },
+  })
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url)
@@ -833,6 +929,15 @@ export default {
     if (request.method === 'POST' && url.pathname === '/replace') {
       try {
         return await handleReplace(request, env)
+      } catch (err) {
+        const msg = `Unexpected error: ${String(err.message ?? err)}`
+        return respond(request, 500, { htmlMessage: `<div class="result err">${escapeHtml(msg)}</div>`, data: { error: 'unexpected', message: msg } })
+      }
+    }
+
+    if (request.method === 'POST' && url.pathname === '/main-sheet') {
+      try {
+        return await handleMainSheetUpdate(request, env)
       } catch (err) {
         const msg = `Unexpected error: ${String(err.message ?? err)}`
         return respond(request, 500, { htmlMessage: `<div class="result err">${escapeHtml(msg)}</div>`, data: { error: 'unexpected', message: msg } })
