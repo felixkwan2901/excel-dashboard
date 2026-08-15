@@ -8,6 +8,7 @@ import JobTable from './components/JobTable'
 import ProjectDetail from './components/ProjectDetail'
 import ReviewReport from './components/ReviewReport'
 import UpdateData from './components/UpdateData'
+import MonthlyClaims from './components/MonthlyClaims'
 import LastSynced from './components/LastSynced'
 import Reveal from './components/Reveal'
 import './App.css'
@@ -24,7 +25,7 @@ export default function App() {
 
   useEffect(() => {
     loadWorkbook()
-      .then(({ jobs }) => setState({ status: 'ready', jobs }))
+      .then(({ jobs, monthlyClaims }) => setState({ status: 'ready', jobs, monthlyClaims }))
       .catch((error) => setState({ status: 'error', error }))
 
     // Establish a well-formed history entry for the initial load (so a
@@ -43,6 +44,7 @@ export default function App() {
   }, [])
 
   const jobs = state.status === 'ready' ? state.jobs : []
+  const monthlyClaims = state.status === 'ready' ? state.monthlyClaims : { jobs: [], totals: [] }
   const kpis = state.status === 'ready' ? computeKpis(jobs) : null
   const flaggedJobs = useMemo(() => jobs.filter((j) => j.flagged), [jobs])
 
@@ -92,6 +94,11 @@ export default function App() {
     pushUrlState({ view: 'update', selectedJobId, dashboardQuery, dashboardFilter })
   }
 
+  function goMonthlyClaims() {
+    setView('monthly-claims')
+    pushUrlState({ view: 'monthly-claims', selectedJobId, dashboardQuery, dashboardFilter })
+  }
+
   function submitSearch(e) {
     e.preventDefault()
     setDashboardQuery(searchQuery)
@@ -132,6 +139,7 @@ export default function App() {
         onSelectFlaggedJob={openJob}
         onPrintReport={goReviewReport}
         onGoUpdateData={goUpdateData}
+        onGoMonthlyClaims={goMonthlyClaims}
       />
 
       {view === 'home' && (
@@ -200,6 +208,14 @@ export default function App() {
         <main className="dashboard">
           <Reveal index={0}>
             <UpdateData onBack={goHome} />
+          </Reveal>
+        </main>
+      )}
+
+      {view === 'monthly-claims' && (
+        <main className="dashboard">
+          <Reveal index={0}>
+            <MonthlyClaims monthlyClaims={monthlyClaims} onBack={goHome} />
           </Reveal>
         </main>
       )}

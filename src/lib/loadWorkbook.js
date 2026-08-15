@@ -227,12 +227,69 @@ function withDerivedFields(job) {
   }
 }
 
+// "Claim Calculator By Month" is a single current-month snapshot (not an
+// actual month-by-month history — there's no month column, just one row
+// per job) of this month's claim/costs/profit plus a projection to end of
+// month, closed out with two "Totals" rows splitting the whole book into
+// Commercial vs Residential. Read independently of the Deliverables Sheet
+// parsing above since it's a different shape (one row per job, no
+// Start-of-month/Week blocks).
+function parseMonthlyClaims(workbook) {
+  const sheet = workbook.Sheets['Claim Calculator By Month']
+  if (!sheet) return { jobs: [], totals: [] }
+
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false, defval: '' })
+  const jobs = []
+  const totals = []
+
+  for (const row of rows) {
+    // Only the Commercial row repeats "Totals" in column 0 — the
+    // Residential row leaves it blank, so the reliable signal both totals
+    // rows share is the "GP%" label sitting in the Retention column.
+    if (row[5] === 'GP%') {
+      totals.push({
+        category: String(row[1] ?? '').trim(),
+        claim: toNumber(row[2]),
+        costs: toNumber(row[3]),
+        profit: toNumber(row[4]),
+        gpPct: toNumber(row[6]),
+        eomGpPct: toNumber(row[8]),
+      })
+      continue
+    }
+
+    if (typeof row[0] !== 'number' || row[0] <= 0) continue
+    const jobName = String(row[1] ?? '').trim()
+    if (!jobName || jobName === '0') continue
+
+    jobs.push({
+      jobNumber: String(row[0]),
+      jobName,
+      claim: toNumber(row[2]),
+      costs: toNumber(row[3]),
+      profit: toNumber(row[4]),
+      margin: toNumber(row[6]),
+      quotedMargin: toNumber(row[7]),
+      hoursToCompleteBeforeEom: toNumber(row[8]),
+      costsToComeBeforeEom: toNumber(row[9]),
+      totalCostToComeBeforeEom: toNumber(row[10]),
+      estimatedMarginEom: toNumber(row[11]),
+      gpEndOfMonth: toNumber(row[12]),
+      hoursThisMonth: toNumber(row[13]),
+      gpPerHourThisMonth: toNumber(row[14]),
+    })
+  }
+
+  return { jobs, totals }
+}
+
 export async function loadWorkbook() {
   const buffer = await fetch(workbookUrl).then((res) => res.arrayBuffer())
   const workbook = XLSX.read(buffer, { type: 'array' })
 
   const jobRows = findJobsSheet(workbook)
   const jobs = rowsAfterHeader(jobRows).map(withDerivedFields)
+  const monthlyClaims = parseMonthlyClaims(workbook)
 
-  return { jobs }
+  return { jobs, monthlyClaims }
 }

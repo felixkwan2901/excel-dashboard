@@ -14,6 +14,7 @@ export default function Nav({
   onSelectFlaggedJob,
   onPrintReport,
   onGoUpdateData,
+  onGoMonthlyClaims,
 }) {
   return (
     <header className="site-nav">
@@ -35,6 +36,12 @@ export default function Nav({
             onClick={onGoDashboard}
           >
             Projects
+          </button>
+          <button
+            className={`site-nav__link ${view === 'monthly-claims' ? 'is-active' : ''}`}
+            onClick={onGoMonthlyClaims}
+          >
+            Monthly claims
           </button>
           <button
             className={`site-nav__link ${view === 'update' ? 'is-active' : ''}`}
