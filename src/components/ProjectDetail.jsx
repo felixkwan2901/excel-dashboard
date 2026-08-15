@@ -1,4 +1,5 @@
-import { ArrowLeft, AlertTriangle } from 'lucide-react'
+import { useState } from 'react'
+import { ArrowLeft, AlertTriangle, SlidersHorizontal } from 'lucide-react'
 import StatusBadge from './StatusBadge'
 import { money, percent } from '../lib/format'
 import { statusReasons } from '../lib/statusReasons'
@@ -27,16 +28,32 @@ function Section({ title, children }) {
 
 export default function ProjectDetail({ job, onBack }) {
   const reasons = statusReasons(job)
+  const [showCalculated, setShowCalculated] = useState(false)
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6">
-      <button
-        onClick={onBack}
-        className="flex w-fit items-center gap-1.5 rounded-full border border-white/10 px-3.5 py-1.5 text-sm text-neutral-300 transition-colors hover:border-white/20 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green"
-      >
-        <ArrowLeft size={14} aria-hidden="true" />
-        All jobs
-      </button>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <button
+          onClick={onBack}
+          className="flex w-fit items-center gap-1.5 rounded-full border border-white/10 px-3.5 py-1.5 text-sm text-neutral-300 transition-colors hover:border-white/20 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green"
+        >
+          <ArrowLeft size={14} aria-hidden="true" />
+          All jobs
+        </button>
+
+        <button
+          onClick={() => setShowCalculated((v) => !v)}
+          aria-pressed={showCalculated}
+          className={`flex w-fit items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green ${
+            showCalculated
+              ? 'border-brand-green/50 bg-brand-green/10 text-brand-green'
+              : 'border-white/10 text-neutral-400 hover:border-white/20 hover:text-white'
+          }`}
+        >
+          <SlidersHorizontal size={14} aria-hidden="true" />
+          {showCalculated ? 'Hide calculated figures' : 'Show calculated figures'}
+        </button>
+      </div>
 
       <div className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-7">
         <div className="flex flex-wrap items-start justify-between gap-4">
@@ -88,6 +105,13 @@ export default function ProjectDetail({ job, onBack }) {
           <Field label="Labour (quoted / actual)">
             {money(job.quotedLabourCost)} / {money(job.actualLabourCost)}
           </Field>
+          {showCalculated && (
+            <>
+              <Field label="Material cost remaining">{money(job.materialCostRemaining)}</Field>
+              <Field label="Material % remaining">{percent(job.materialPctRemaining)}</Field>
+              <Field label="Est. % of materials received">{percent(job.estimatedPctMaterialsReceived)}</Field>
+            </>
+          )}
         </Section>
 
         <Section title="Labour hours">
@@ -97,12 +121,25 @@ export default function ProjectDetail({ job, onBack }) {
           <Field label="Actual hours">
             {job.actualLabourHours === null ? '—' : job.actualLabourHours}
           </Field>
+          {showCalculated && (
+            <>
+              <Field label="Labour cost remaining">{money(job.labourCostRemaining)}</Field>
+              <Field label="Labour cost % remaining">{percent(job.labourCostPctRemaining)}</Field>
+              <Field label="Labour hours remaining">
+                {job.labourHoursRemaining === null ? '—' : job.labourHoursRemaining}
+              </Field>
+              <Field label="Labour hour % remaining">{percent(job.labourHourPctRemaining)}</Field>
+            </>
+          )}
         </Section>
 
         <Section title="Claim progress">
           <Field label="Claim to date">{money(job.claimToDate)}</Field>
           <Field label="Remaining to claim">{money(job.remainingToClaim)}</Field>
           <Field label="% claim remaining">{percent(job.pctClaimRemaining)}</Field>
+          {showCalculated && (
+            <Field label="Est. % of job complete">{percent(job.estimatedPctJobComplete)}</Field>
+          )}
         </Section>
 
         <Section title="Margin">

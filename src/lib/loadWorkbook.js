@@ -17,10 +17,17 @@ const FIELD_HEADER_ALIASES = {
   quotedMaterialCost: ['Quoted material cost'],
   actualMaterialCost: ['Actual material cost'],
   materialCostRemaining: ['Material cost remaining'],
+  materialPctRemaining: ['Material % remaining'],
+  estimatedPctMaterialsReceived: ['Estimated % of materials recieved', 'Estimated % of materials received'],
   quotedLabourCost: ['Quoted labour cost'],
   actualLabourCost: ['Actual labour cost'],
+  labourCostRemaining: ['Labour cost remaining'],
+  labourCostPctRemaining: ['Labour cost % remaining'],
   quotedLabourHours: ['Quoted labour hours'],
   actualLabourHours: ['Actual labour hours'],
+  labourHoursRemaining: ['Labour hours remaining'],
+  labourHourPctRemaining: ['Labour hour % remaining'],
+  estimatedPctJobComplete: ['Estimated % of job complete'],
   gpPerHour: ['GP $ Per Hour'],
   quotedGpPerHour: ['Quoted GP $ Per Hour'],
   marginToDate: ['Margin to date'],
@@ -168,10 +175,17 @@ function withDerivedFields(job) {
   const quotedMaterialCost = toNumber(job.quotedMaterialCost)
   const actualMaterialCost = toNumber(job.actualMaterialCost)
   const materialCostRemaining = toNumber(job.materialCostRemaining)
+  const materialPctRemaining = toNumber(job.materialPctRemaining)
+  const estimatedPctMaterialsReceived = toNumber(job.estimatedPctMaterialsReceived)
   const quotedLabourCost = toNumber(job.quotedLabourCost)
   const actualLabourCost = toNumber(job.actualLabourCost)
+  const labourCostRemaining = toNumber(job.labourCostRemaining)
+  const labourCostPctRemaining = toNumber(job.labourCostPctRemaining)
   const quotedLabourHours = toNumber(job.quotedLabourHours)
   const actualLabourHours = toNumber(job.actualLabourHours)
+  const labourHoursRemaining = toNumber(job.labourHoursRemaining)
+  const labourHourPctRemaining = toNumber(job.labourHourPctRemaining)
+  const estimatedPctJobComplete = toNumber(job.estimatedPctJobComplete)
   const gpPerHour = toNumber(job.gpPerHour)
   const quotedGpPerHour = toNumber(job.quotedGpPerHour)
   const marginToDate = toNumber(job.marginToDate)
@@ -192,10 +206,17 @@ function withDerivedFields(job) {
     quotedMaterialCost,
     actualMaterialCost,
     materialCostRemaining,
+    materialPctRemaining,
+    estimatedPctMaterialsReceived,
     quotedLabourCost,
     actualLabourCost,
+    labourCostRemaining,
+    labourCostPctRemaining,
     quotedLabourHours,
     actualLabourHours,
+    labourHoursRemaining,
+    labourHourPctRemaining,
+    estimatedPctJobComplete,
     gpPerHour,
     quotedGpPerHour,
     marginToDate,
