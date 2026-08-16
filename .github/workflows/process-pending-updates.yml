@@ -1,0 +1,58 @@
+name: Process pending data updates
+
+# The upload-worker (Cloudflare, free plan) stages requests here instead of
+# processing them itself — Excel parsing/writing (via ExcelJS) easily
+# exceeds the free plan's 10ms CPU-time limit for a workbook this size and
+# was crashing intermittently. This workflow runs on a full GitHub-hosted
+# runner (no such limit) and does the actual work.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'pending-updates/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# If the worker stages two requests in quick succession, each push
+# triggers its own run — serialize so the second always starts from the
+# first's committed result rather than both reading a stale workbook.
+concurrency:
+  group: process-pending-updates
+  cancel-in-progress: false
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Merge staged job exports
+        run: node scripts/update-jobs.mjs pending-updates/exports
+
+      - name: Apply staged workbook replacements
+        run: node scripts/apply-replace.mjs
+
+      - name: Apply staged checklist edits
+        run: node scripts/apply-main-sheet-edits.mjs
+
+      - name: Commit and push if anything changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Nothing to commit."
+          else
+            git commit -m "Process pending data updates ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
+            git push
+          fi

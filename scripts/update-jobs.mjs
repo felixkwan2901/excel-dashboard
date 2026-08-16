@@ -402,6 +402,11 @@ function archiveProcessedFiles(sourceDir) {
 // ---------------------------------------------------------------------------
 
 async function main() {
+  if (!existsSync(folder)) {
+    console.log(`${folder} doesn't exist — nothing to process.`)
+    return
+  }
+
   console.log(`Reading exports from ${folder}`)
   const { kept, dupes } = dedupeFolder(folder)
   if (dupes.length > 0) {

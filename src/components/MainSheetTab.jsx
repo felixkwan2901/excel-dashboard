@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Settings2 } from 'lucide-react'
+import { pollStagedStatus } from '../lib/pollStagedStatus'
 
 const UPLOAD_WORKER_URL = 'https://cde-data-upload.fkw24.workers.dev'
 
@@ -79,6 +80,11 @@ export default function MainSheetTab({ mainSheet, onBack }) {
     setStatus({ kind: 'idle', message: '' })
 
     const column = columnByKey.get(colKey)
+    function revert(message) {
+      setValues((prev) => ({ ...prev, [job.jobNumber]: { ...prev[job.jobNumber], [colKey]: previousValue } }))
+      setStatus({ kind: 'error', message })
+    }
+
     try {
       const res = await fetch(`${UPLOAD_WORKER_URL}/main-sheet`, {
         method: 'POST',
@@ -87,14 +93,26 @@ export default function MainSheetTab({ mainSheet, onBack }) {
       })
       const payload = await res.json()
       if (!res.ok) {
-        setValues((prev) => ({ ...prev, [job.jobNumber]: { ...prev[job.jobNumber], [colKey]: previousValue } }))
-        setStatus({ kind: 'error', message: payload.message ?? `Save failed (${res.status}) — reverted.` })
+        revert(payload.message ?? `Save failed (${res.status}) — reverted.`)
         return
       }
-      setStatus({ kind: 'ok', message: `Saved "${column.label}" for ${job.jobNumber} ${job.jobName}.` })
+
+      setStatus({ kind: 'idle', message: `Processing "${column.label}" for ${job.jobNumber} ${job.jobName}…` })
+      const result = await pollStagedStatus(payload.staged)
+      if (result.status === 'done') {
+        setStatus({ kind: 'ok', message: `Saved "${column.label}" for ${job.jobNumber} ${job.jobName}.` })
+      } else if (result.status === 'failed') {
+        revert(`${result.message} — reverted.`)
+      } else {
+        // Timed out waiting — the workflow may still finish it later, so
+        // don't revert (that could fight a save that lands right after).
+        setStatus({
+          kind: 'error',
+          message: `Still processing "${column.label}" after 3 minutes — check back shortly; the change may still land.`,
+        })
+      }
     } catch (err) {
-      setValues((prev) => ({ ...prev, [job.jobNumber]: { ...prev[job.jobNumber], [colKey]: previousValue } }))
-      setStatus({ kind: 'error', message: `Could not reach the upload service: ${String(err.message ?? err)} — reverted.` })
+      revert(`Could not reach the upload service: ${String(err.message ?? err)} — reverted.`)
     } finally {
       setSavingKeys((prev) => {
         const next = new Set(prev)
@@ -118,8 +136,8 @@ export default function MainSheetTab({ mainSheet, onBack }) {
         <div>
           <h1 className="text-2xl font-semibold text-white">Job checklist</h1>
           <p className="mt-1 text-sm text-neutral-400">
-            Pick a value from the dropdown — it saves immediately. From the workbook&apos;s Main
-            Sheet.
+            Pick a value from the dropdown to save it — usually takes 30-90 seconds to land. From
+            the workbook&apos;s Main Sheet.
           </p>
         </div>
         <button

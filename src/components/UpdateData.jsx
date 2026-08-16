@@ -1,41 +1,30 @@
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Button } from './ui/button'
-import { Badge } from './ui/badge'
+import { pollStagedStatus } from '../lib/pollStagedStatus'
 
 const UPLOAD_WORKER_URL = 'https://cde-data-upload.fkw24.workers.dev'
-
-function formatPct(n) {
-  return typeof n === 'number' ? `${(n * 100).toFixed(1)}%` : '—'
-}
-
-function marginBadge(margin) {
-  if (typeof margin !== 'number') return null
-  if (margin < 0) return <Badge variant="destructive">negative margin</Badge>
-  if (margin < 0.1) return <Badge variant="secondary">thin margin</Badge>
-  return null
-}
 
 export default function UpdateData({ onBack }) {
   const [password, setPassword] = useState('')
   const [files, setFiles] = useState(null)
-  const [status, setStatus] = useState('idle') // idle | submitting | done | error
-  const [result, setResult] = useState(null)
-  const [errorMessage, setErrorMessage] = useState('')
+  const [status, setStatus] = useState('idle') // idle | staging | processing | done | error
+  const [message, setMessage] = useState('')
+  const [fileResults, setFileResults] = useState(null) // [{ name, status, message }]
 
   const [replacePassword, setReplacePassword] = useState('')
   const [replaceFile, setReplaceFile] = useState(null)
   const [replaceConfirmed, setReplaceConfirmed] = useState(false)
-  const [replaceStatus, setReplaceStatus] = useState('idle') // idle | submitting | done | error
+  const [replaceStatus, setReplaceStatus] = useState('idle') // idle | staging | processing | done | error
   const [replaceMessage, setReplaceMessage] = useState('')
 
   async function handleSubmit(e) {
     e.preventDefault()
     if (!files || files.length === 0) return
 
-    setStatus('submitting')
-    setErrorMessage('')
-    setResult(null)
+    setStatus('staging')
+    setMessage('')
+    setFileResults(null)
 
     const form = new FormData()
     form.set('password', password)
@@ -48,16 +37,22 @@ export default function UpdateData({ onBack }) {
         headers: { Accept: 'application/json' },
       })
       const payload = await res.json()
-      if (!res.ok && !payload.updated) {
-        setErrorMessage(payload.message ?? `Request failed (${res.status}).`)
-        setResult(payload)
+      if (!res.ok) {
+        setMessage(payload.message ?? `Request failed (${res.status}).`)
         setStatus('error')
         return
       }
-      setResult(payload)
+
+      setStatus('processing')
+      setMessage(payload.message)
+
+      const staged = payload.staged ?? []
+      const names = staged.map((p) => p.split('/').pop().replace(/^\d+-[a-z0-9]+-/, ''))
+      const results = await Promise.all(staged.map((path) => pollStagedStatus(path)))
+      setFileResults(results.map((r, i) => ({ name: names[i], ...r })))
       setStatus('done')
     } catch (err) {
-      setErrorMessage(`Could not reach the upload service: ${String(err.message ?? err)}`)
+      setMessage(`Could not reach the upload service: ${String(err.message ?? err)}`)
       setStatus('error')
     }
   }
@@ -66,7 +61,7 @@ export default function UpdateData({ onBack }) {
     e.preventDefault()
     if (!replaceFile || !replaceConfirmed) return
 
-    setReplaceStatus('submitting')
+    setReplaceStatus('staging')
     setReplaceMessage('')
 
     const form = new FormData()
@@ -80,8 +75,25 @@ export default function UpdateData({ onBack }) {
         headers: { Accept: 'application/json' },
       })
       const payload = await res.json()
-      setReplaceMessage(payload.message ?? `Request failed (${res.status}).`)
-      setReplaceStatus(res.ok ? 'done' : 'error')
+      if (!res.ok) {
+        setReplaceMessage(payload.message ?? `Request failed (${res.status}).`)
+        setReplaceStatus('error')
+        return
+      }
+
+      setReplaceStatus('processing')
+      setReplaceMessage(payload.message)
+      const result = await pollStagedStatus(payload.staged)
+      if (result.status === 'done') {
+        setReplaceMessage('Replaced the workbook with your edited file. The dashboard will rebuild shortly.')
+        setReplaceStatus('done')
+      } else if (result.status === 'failed') {
+        setReplaceMessage(result.message)
+        setReplaceStatus('error')
+      } else {
+        setReplaceMessage('Still processing after 3 minutes — check back shortly; it may still land.')
+        setReplaceStatus('error')
+      }
     } catch (err) {
       setReplaceMessage(`Could not reach the upload service: ${String(err.message ?? err)}`)
       setReplaceStatus('error')
@@ -143,8 +155,16 @@ export default function UpdateData({ onBack }) {
               Replaces the entire workbook
             </label>
 
-            <Button type="submit" variant="outline" disabled={replaceStatus === 'submitting'}>
-              {replaceStatus === 'submitting' ? 'Replacing…' : 'Replace workbook'}
+            <Button
+              type="submit"
+              variant="outline"
+              disabled={replaceStatus === 'staging' || replaceStatus === 'processing'}
+            >
+              {replaceStatus === 'staging'
+                ? 'Uploading…'
+                : replaceStatus === 'processing'
+                  ? 'Processing…'
+                  : 'Replace workbook'}
             </Button>
           </form>
 
@@ -191,161 +211,47 @@ export default function UpdateData({ onBack }) {
               />
             </div>
 
-            <Button type="submit" disabled={status === 'submitting'} className="mt-1">
-              {status === 'submitting' ? 'Uploading & merging…' : 'Upload & merge'}
+            <Button type="submit" disabled={status === 'staging' || status === 'processing'} className="mt-1">
+              {status === 'staging' ? 'Uploading…' : status === 'processing' ? 'Processing…' : 'Upload & merge'}
             </Button>
           </form>
         </CardContent>
       </Card>
 
-      {status === 'error' && !result && (
+      {message && (
         <Card className="mt-4">
           <CardContent>
-            <p className="text-sm text-status-critical">{errorMessage}</p>
+            <p className={`text-sm ${status === 'error' ? 'text-status-critical' : 'text-text-primary'}`}>
+              {message}
+            </p>
           </CardContent>
         </Card>
       )}
 
-      {result && (
-        <div className="mt-4 flex flex-col gap-4">
-          <Card>
-            <CardContent>
-              <p className="text-sm text-text-primary">
-                {result.pushed
-                  ? `Merged ${result.updated.length} job(s) into the workbook. The dashboard will rebuild and go live in a couple of minutes.`
-                  : errorMessage || 'Nothing was merged — none of the uploaded file(s) matched a job that had room for a new update.'}
-              </p>
-            </CardContent>
-          </Card>
-
-          {result.updated?.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Updated ({result.updated.length})</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="flex flex-col gap-2 text-sm">
-                  {result.updated.map((u) => (
-                    <li key={u.jobNumber} className="flex items-center justify-between gap-3">
-                      <span className="text-text-secondary">
-                        {u.jobNumber} {u.jobName} → {u.weekLabel}
-                      </span>
-                      <span className="flex items-center gap-2 whitespace-nowrap">
-                        <span className="text-text-muted">
-                          {formatPct(u.before.marginToDate)} → {formatPct(u.after.marginToDate)}
-                        </span>
-                        {marginBadge(u.after.marginToDate)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-          )}
-
-          {result.noRoomLeft?.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm text-status-critical">
-                  No empty week slot left ({result.noRoomLeft.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="flex flex-col gap-1 text-sm text-text-secondary">
-                  {result.noRoomLeft.map((r) => (
-                    <li key={r.jobNumber}>
-                      {r.jobNumber} {r.jobName}
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-          )}
-
-          {result.possibleDuplicates?.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm text-status-critical">
-                  Skipped as likely duplicate uploads ({result.possibleDuplicates.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="flex flex-col gap-1 text-sm text-text-secondary">
-                  {result.possibleDuplicates.map((d) => (
-                    <li key={d.jobNumber}>
-                      {d.jobNumber} {d.jobName} (matches {d.matchesWeek})
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-          )}
-
-          {result.unmatchedFiles?.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm text-status-critical">
-                  Job number not found in workbook ({result.unmatchedFiles.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="flex flex-col gap-1 text-sm text-text-secondary">
-                  {result.unmatchedFiles.map((u) => (
-                    <li key={u.file}>
-                      {u.jobNumber} {u.jobName} ({u.file})
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-          )}
-
-          {result.failures?.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm text-status-critical">
-                  Could not read ({result.failures.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="flex flex-col gap-1 text-sm text-text-secondary">
-                  {result.failures.map((f) => (
-                    <li key={f.file}>
-                      {f.file}: {f.error}
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-          )}
-
-          {result.notUpdated?.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm text-text-muted">
-                  No new export this time ({result.notUpdated.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="flex flex-wrap gap-1.5 text-sm">
-                  {result.notUpdated.map((n) => (
-                    <li key={n.jobNumber}>
-                      <Badge variant="outline">
-                        {n.jobNumber} {n.jobName}
-                      </Badge>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-          )}
-
-          {result.duplicateCount > 0 && (
-            <p className="text-center text-xs text-text-muted">
-              Skipped {result.duplicateCount} exact duplicate file(s).
+      {fileResults && (
+        <Card className="mt-4">
+          <CardHeader>
+            <CardTitle className="text-sm">Results</CardTitle>
+            <p className="text-xs text-text-muted">
+              For the full per-job breakdown (which weeks filled, margin changes), check the
+              "Process pending data updates" run in GitHub Actions.
             </p>
-          )}
-        </div>
+          </CardHeader>
+          <CardContent>
+            <ul className="flex flex-col gap-2 text-sm">
+              {fileResults.map((r) => (
+                <li key={r.name} className="flex items-center justify-between gap-3">
+                  <span className="text-text-secondary">{r.name}</span>
+                  <span className={r.status === 'failed' ? 'text-status-critical' : 'text-brand-green'}>
+                    {r.status === 'done' && 'Processed'}
+                    {r.status === 'failed' && (r.message || 'Failed')}
+                    {r.status === 'timeout' && 'Still processing — check back shortly'}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
       )}
 
       <Card className="mt-6">
