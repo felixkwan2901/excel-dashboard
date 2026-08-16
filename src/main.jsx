@@ -24,6 +24,10 @@ registerSW({
   immediate: true,
   onRegisteredSW(_url, registration) {
     if (!registration) return
+    // Check right away too, not just on the recurring interval below — the
+    // interval alone meant a page load shortly after a fresh deploy could
+    // sit on the old version for up to 60s before the first check fired.
+    registration.update()
     setInterval(() => registration.update(), 60 * 1000)
   },
 })

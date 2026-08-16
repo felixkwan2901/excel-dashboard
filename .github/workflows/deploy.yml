@@ -35,3 +35,11 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
+          # Without this, every deploy wipes the previous build's content-hashed
+          # JS/CSS files entirely. A browser with a stale cached index.html (or
+          # an old service worker still serving the old shell) would then request
+          # a filename that's simply gone — a 404 before React even mounts, which
+          # shows as a blank page with no error to catch. Keeping old asset files
+          # around means a stale index.html still resolves, buying time for the
+          # update-check/reload path in main.jsx to catch up.
+          keep_files: true
