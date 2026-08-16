@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Settings2 } from 'lucide-react'
 import TrendBadge from './TrendBadge'
 import { money, percent } from '../lib/format'
+import { useLocalStorageState } from '../lib/useLocalStorageState'
 
 // Always shown, not part of the toggle panel.
 const FIXED_COLUMNS = [{ key: 'jobNumber', label: 'Job Number' }, { key: 'jobName', label: 'Job Name' }]
@@ -146,8 +147,12 @@ export default function JobTable({
   onSelectJob,
 }) {
   const [sort, setSort] = useState({ key: 'jobNumber', dir: 1 })
-  const [visibleKeys, setVisibleKeys] = useState(() => new Set(DEFAULT_OPTIONAL_KEYS))
-  const [showTrend, setShowTrend] = useState(true)
+  const [visibleKeys, setVisibleKeys] = useLocalStorageState(
+    'jobTable.visibleColumns',
+    new Set(DEFAULT_OPTIONAL_KEYS),
+    { serialize: (s) => JSON.stringify([...s]), deserialize: (s) => new Set(JSON.parse(s)) }
+  )
+  const [showTrend, setShowTrend] = useLocalStorageState('jobTable.showTrend', true)
   const [panelOpen, setPanelOpen] = useState(false)
 
   const columns = useMemo(

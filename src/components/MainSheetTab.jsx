@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Settings2 } from 'lucide-react'
 import { pollStagedStatus } from '../lib/pollStagedStatus'
+import { useLocalStorageState } from '../lib/useLocalStorageState'
 
 const UPLOAD_WORKER_URL = 'https://cde-data-upload.fkw24.workers.dev'
 
@@ -42,7 +43,11 @@ function ChecklistCell({ value, saving, onChange }) {
 export default function MainSheetTab({ mainSheet, onBack }) {
   const { jobs, columns } = mainSheet
 
-  const [visibleKeys, setVisibleKeys] = useState(() => new Set(columns.map((c) => c.key)))
+  const [visibleKeys, setVisibleKeys] = useLocalStorageState(
+    'mainSheetTab.visibleColumns',
+    new Set(columns.map((c) => c.key)),
+    { serialize: (s) => JSON.stringify([...s]), deserialize: (s) => new Set(JSON.parse(s)) }
+  )
   const [panelOpen, setPanelOpen] = useState(false)
   const [values, setValues] = useState(() => {
     const map = {}
