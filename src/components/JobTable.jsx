@@ -24,8 +24,7 @@ const OPTIONAL_COLUMNS = [
   { key: 'pctClaimRemaining', label: '% claim remaining', num: true, format: percent },
   { key: 'totalQuotedCost', label: 'Total quoted cost', num: true, format: money },
   { key: 'totalActualCost', label: 'Total actual cost', num: true, format: money },
-  { key: 'quotedMaterialCost', label: 'Quoted material cost', num: true, format: money },
-  { key: 'actualMaterialCost', label: 'Actual material cost', num: true, format: money },
+  { key: 'materialCostProgress', label: 'Material cost' },
   { key: 'materialCostRemaining', label: 'Material cost remaining', num: true, format: money },
   { key: 'materialPctRemaining', label: 'Material % remaining', num: true, format: percent },
   { key: 'estimatedPctMaterialsReceived', label: 'Est. % materials received', num: true, format: percent },
@@ -109,6 +108,8 @@ function renderCell(job, col) {
       return <CostBar actual={job.totalActualCost} quoted={job.quotedPrice} />
     case 'labourCostProgress':
       return <CostBar actual={job.actualLabourCost} quoted={job.quotedLabourCost} />
+    case 'materialCostProgress':
+      return <CostBar actual={job.actualMaterialCost} quoted={job.quotedMaterialCost} />
     case 'marginToDate':
       return <MarginBar value={job.marginToDate} />
     case 'gpPerHour':
@@ -134,6 +135,10 @@ function sortValue(job, key) {
   if (key === 'labourCostProgress') {
     if (!job.quotedLabourCost) return null
     return job.actualLabourCost === null ? null : job.actualLabourCost / job.quotedLabourCost
+  }
+  if (key === 'materialCostProgress') {
+    if (!job.quotedMaterialCost) return null
+    return job.actualMaterialCost === null ? null : job.actualMaterialCost / job.quotedMaterialCost
   }
   return job[key]
 }
