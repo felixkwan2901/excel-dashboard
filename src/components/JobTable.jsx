@@ -1,13 +1,44 @@
 import { useMemo, useState } from 'react'
+import { Settings2 } from 'lucide-react'
 import StatusBadge from './StatusBadge'
 import { money, percent } from '../lib/format'
 
-const COLUMNS = [
-  { key: 'jobNumber', label: 'Job Number' },
-  { key: 'jobName', label: 'Job Name' },
+// Always shown, not part of the toggle panel.
+const FIXED_COLUMNS = [{ key: 'jobNumber', label: 'Job Number' }, { key: 'jobName', label: 'Job Name' }]
+
+// Shown by default but still toggleable — the compact "at a glance" set
+// this table originally shipped with.
+const DEFAULT_OPTIONAL_KEYS = ['costProgress', 'gpPerHour', 'marginToDate']
+
+// Every other optional column: derived/calculated figures the workbook
+// carries that the table doesn't show unless turned on, so the table stays
+// uncluttered by default but nothing is permanently hidden.
+const OPTIONAL_COLUMNS = [
   { key: 'costProgress', label: 'Cost' },
   { key: 'gpPerHour', label: 'GP $/hr', num: true },
   { key: 'marginToDate', label: 'Margin', num: true, centerHeader: true },
+  { key: 'quotedPrice', label: 'Quoted price', num: true, format: money },
+  { key: 'claimToDate', label: 'Claim to date', num: true, format: money },
+  { key: 'remainingToClaim', label: 'Remaining to claim', num: true, format: money },
+  { key: 'pctClaimRemaining', label: '% claim remaining', num: true, format: percent },
+  { key: 'totalQuotedCost', label: 'Total quoted cost', num: true, format: money },
+  { key: 'totalActualCost', label: 'Total actual cost', num: true, format: money },
+  { key: 'quotedMaterialCost', label: 'Quoted material cost', num: true, format: money },
+  { key: 'actualMaterialCost', label: 'Actual material cost', num: true, format: money },
+  { key: 'materialCostRemaining', label: 'Material cost remaining', num: true, format: money },
+  { key: 'materialPctRemaining', label: 'Material % remaining', num: true, format: percent },
+  { key: 'estimatedPctMaterialsReceived', label: 'Est. % materials received', num: true, format: percent },
+  { key: 'quotedLabourCost', label: 'Quoted labour cost', num: true, format: money },
+  { key: 'actualLabourCost', label: 'Actual labour cost', num: true, format: money },
+  { key: 'labourCostRemaining', label: 'Labour cost remaining', num: true, format: money },
+  { key: 'labourCostPctRemaining', label: 'Labour cost % remaining', num: true, format: percent },
+  { key: 'quotedLabourHours', label: 'Quoted labour hours', num: true },
+  { key: 'actualLabourHours', label: 'Actual labour hours', num: true },
+  { key: 'labourHoursRemaining', label: 'Labour hours remaining', num: true },
+  { key: 'labourHourPctRemaining', label: 'Labour hour % remaining', num: true, format: percent },
+  { key: 'estimatedPctJobComplete', label: 'Est. % job complete', num: true, format: percent },
+  { key: 'quotedGpPerHour', label: 'Quoted GP $/hr', num: true, format: money },
+  { key: 'quotedMargin', label: 'Quoted margin', num: true, format: percent },
 ]
 
 // Replaces the old separate Quoted Price / Actual Cost / Remaining to
@@ -70,8 +101,8 @@ function MarginBar({ value }) {
   )
 }
 
-function renderCell(job, key) {
-  switch (key) {
+function renderCell(job, col) {
+  switch (col.key) {
     case 'costProgress':
       return <CostBar actual={job.totalActualCost} quoted={job.quotedPrice} />
     case 'marginToDate':
@@ -79,7 +110,8 @@ function renderCell(job, key) {
     case 'gpPerHour':
       return <span className="text-[12px] tabular-nums text-neutral-400">{money(job.gpPerHour)}</span>
     default:
-      return job[key]
+      if (col.format) return col.format(job[col.key])
+      return job[col.key] === null ? '—' : job[col.key]
   }
 }
 
@@ -107,6 +139,22 @@ export default function JobTable({
   onSelectJob,
 }) {
   const [sort, setSort] = useState({ key: 'jobNumber', dir: 1 })
+  const [visibleKeys, setVisibleKeys] = useState(() => new Set(DEFAULT_OPTIONAL_KEYS))
+  const [panelOpen, setPanelOpen] = useState(false)
+
+  const columns = useMemo(
+    () => [...FIXED_COLUMNS, ...OPTIONAL_COLUMNS.filter((c) => visibleKeys.has(c.key))],
+    [visibleKeys]
+  )
+
+  function toggleColumn(key) {
+    setVisibleKeys((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -143,20 +191,36 @@ export default function JobTable({
 
   return (
     <div>
-      <div className="mb-3 flex flex-wrap gap-2">
-        {STATUS_FILTERS.map((chip) => (
-          <button
-            key={chip.key}
-            onClick={() => onStatusFilterChange(chip.key)}
-            className={`rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors ${
-              statusFilter === chip.key
-                ? 'border-brand-green/50 bg-brand-green/10 text-brand-green'
-                : 'border-white/10 text-neutral-400 hover:border-white/20 hover:text-white'
-            }`}
-          >
-            {chip.label} ({statusCounts[chip.key]})
-          </button>
-        ))}
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap gap-2">
+          {STATUS_FILTERS.map((chip) => (
+            <button
+              key={chip.key}
+              onClick={() => onStatusFilterChange(chip.key)}
+              className={`rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                statusFilter === chip.key
+                  ? 'border-brand-green/50 bg-brand-green/10 text-brand-green'
+                  : 'border-white/10 text-neutral-400 hover:border-white/20 hover:text-white'
+              }`}
+            >
+              {chip.label} ({statusCounts[chip.key]})
+            </button>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setPanelOpen((v) => !v)}
+          aria-pressed={panelOpen}
+          className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors ${
+            panelOpen
+              ? 'border-brand-green/50 bg-brand-green/10 text-brand-green'
+              : 'border-white/10 text-neutral-400 hover:border-white/20 hover:text-white'
+          }`}
+        >
+          <Settings2 size={14} aria-hidden="true" />
+          Columns shown
+        </button>
       </div>
 
       <div className="table-filters">
@@ -172,60 +236,83 @@ export default function JobTable({
         </span>
       </div>
 
-      <div className="table-scroll">
-        <table className="data-table">
-          <thead>
-            <tr>
-              {COLUMNS.map((col) => (
-                <th
-                  key={col.key}
-                  className={`${col.num ? 'num' : ''} ${col.centerHeader ? 'center-header' : ''} sortable`}
-                  onClick={() => toggleSort(col.key)}
-                  aria-sort={
-                    sort.key === col.key ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'
-                  }
-                >
-                  {col.label}
-                  {sort.key === col.key && (sort.dir === 1 ? ' ▲' : ' ▼')}
-                </th>
-              ))}
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((job) => (
-              <tr
-                key={job.jobNumber}
-                onClick={() => onSelectJob?.(job.jobNumber)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    onSelectJob?.(job.jobNumber)
-                  }
-                }}
-                tabIndex={onSelectJob ? 0 : undefined}
-                role={onSelectJob ? 'button' : undefined}
-                className={onSelectJob ? 'row-clickable' : undefined}
-              >
-                {COLUMNS.map((col) => (
-                  <td key={col.key} className={col.num ? 'num tabular' : undefined}>
-                    {renderCell(job, col.key)}
-                  </td>
-                ))}
-                <td>
-                  <StatusBadge flagged={job.flagged} />
-                </td>
-              </tr>
-            ))}
-            {filtered.length === 0 && (
+      <div className="flex items-start gap-6">
+        <div className="table-scroll min-w-0 flex-1">
+          <table className="data-table">
+            <thead>
               <tr>
-                <td colSpan={COLUMNS.length + 1} className="empty-row">
-                  No jobs match your filters.
-                </td>
+                {columns.map((col) => (
+                  <th
+                    key={col.key}
+                    className={`${col.num ? 'num' : ''} ${col.centerHeader ? 'center-header' : ''} sortable`}
+                    onClick={() => toggleSort(col.key)}
+                    aria-sort={
+                      sort.key === col.key ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'
+                    }
+                  >
+                    {col.label}
+                    {sort.key === col.key && (sort.dir === 1 ? ' ▲' : ' ▼')}
+                  </th>
+                ))}
+                <th>Status</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filtered.map((job) => (
+                <tr
+                  key={job.jobNumber}
+                  onClick={() => onSelectJob?.(job.jobNumber)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      onSelectJob?.(job.jobNumber)
+                    }
+                  }}
+                  tabIndex={onSelectJob ? 0 : undefined}
+                  role={onSelectJob ? 'button' : undefined}
+                  className={onSelectJob ? 'row-clickable' : undefined}
+                >
+                  {columns.map((col) => (
+                    <td key={col.key} className={col.num ? 'num tabular' : undefined}>
+                      {renderCell(job, col)}
+                    </td>
+                  ))}
+                  <td>
+                    <StatusBadge flagged={job.flagged} />
+                  </td>
+                </tr>
+              ))}
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={columns.length + 1} className="empty-row">
+                    No jobs match your filters.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {panelOpen && (
+          <div className="w-64 shrink-0 rounded-[18px] border border-white/[0.06] bg-[#11161c] p-5">
+            <h2 className="mb-3 text-[13px] font-semibold tracking-wide text-neutral-400 uppercase">
+              Columns shown
+            </h2>
+            <div className="flex max-h-[420px] flex-col gap-2 overflow-y-auto">
+              {OPTIONAL_COLUMNS.map((c) => (
+                <label key={c.key} className="flex items-start gap-2 text-[13px] text-neutral-300">
+                  <input
+                    type="checkbox"
+                    checked={visibleKeys.has(c.key)}
+                    onChange={() => toggleColumn(c.key)}
+                    className="mt-0.5"
+                  />
+                  {c.label}
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

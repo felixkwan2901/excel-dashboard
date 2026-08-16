@@ -3,31 +3,38 @@ import { Settings2 } from 'lucide-react'
 
 const UPLOAD_WORKER_URL = 'https://cde-data-upload.fkw24.workers.dev'
 
-// Clicking a checklist cell cycles it through this sequence rather than
-// requiring a dropdown or drag gesture — fast for the common case (most
-// cells just need to flip Yes/No) while still reaching N/A and "not set".
-const CYCLE = ['', 'Yes', 'No', 'N/A']
+const OPTIONS = [
+  { value: '', label: 'Not set' },
+  { value: 'Yes', label: 'Yes' },
+  { value: 'No', label: 'No' },
+  { value: 'N/A', label: 'N/A' },
+]
 
-function nextValue(current) {
-  const idx = CYCLE.indexOf(current)
-  return CYCLE[(idx + 1) % CYCLE.length]
+const SELECT_STYLES = {
+  Yes: 'border-brand-green/40 bg-brand-green/10 text-brand-green',
+  No: 'border-red-500/30 bg-red-500/10 text-red-400',
+  'N/A': 'border-white/10 bg-white/[0.04] text-neutral-500',
+  '': 'border-white/10 bg-white/[0.02] text-neutral-600',
 }
 
-function ChecklistCell({ value, onClick }) {
-  const styles = {
-    Yes: 'border-brand-green/40 bg-brand-green/10 text-brand-green',
-    No: 'border-red-500/30 bg-red-500/10 text-red-400',
-    'N/A': 'border-white/10 bg-white/[0.04] text-neutral-500',
-    '': 'border-white/10 bg-white/[0.02] text-neutral-600',
-  }
+// A real <select> instead of a click-to-cycle button — opens as a native
+// dropdown you scroll/pick from (works the same with a trackpad, a touch
+// screen, or a keyboard), rather than requiring repeated taps to reach the
+// value you want.
+function ChecklistCell({ value, saving, onChange }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`w-full rounded-md border px-2 py-1 text-center text-[12px] font-medium transition-colors hover:border-white/25 ${styles[value] ?? styles['']}`}
+    <select
+      value={value}
+      disabled={saving}
+      onChange={(e) => onChange(e.target.value)}
+      className={`w-full rounded-md border px-2 py-1 text-center text-[12px] font-medium transition-colors focus:border-brand-green/50 focus:outline-none disabled:opacity-50 ${SELECT_STYLES[value] ?? SELECT_STYLES['']}`}
     >
-      {value || '—'}
-    </button>
+      {OPTIONS.map((o) => (
+        <option key={o.value} value={o.value} className="bg-[#11161c] text-neutral-200">
+          {o.label}
+        </option>
+      ))}
+    </select>
   )
 }
 
@@ -41,12 +48,12 @@ export default function MainSheetTab({ mainSheet, onBack }) {
     for (const job of jobs) map[job.jobNumber] = { ...job.checklist }
     return map
   })
-  const [dirty, setDirty] = useState(false)
   const [password, setPassword] = useState('')
-  const [saveStatus, setSaveStatus] = useState('idle') // idle | submitting | done | error
-  const [saveMessage, setSaveMessage] = useState('')
+  const [savingKeys, setSavingKeys] = useState(() => new Set())
+  const [status, setStatus] = useState({ kind: 'idle', message: '' }) // idle | ok | error
 
   const visibleColumns = useMemo(() => columns.filter((c) => visibleKeys.has(c.key)), [columns, visibleKeys])
+  const columnByKey = useMemo(() => new Map(columns.map((c) => [c.key, c])), [columns])
 
   function toggleColumn(key) {
     setVisibleKeys((prev) => {
@@ -57,48 +64,43 @@ export default function MainSheetTab({ mainSheet, onBack }) {
     })
   }
 
-  function cycleCell(jobNumber, colKey) {
-    setValues((prev) => ({
-      ...prev,
-      [jobNumber]: { ...prev[jobNumber], [colKey]: nextValue(prev[jobNumber][colKey]) },
-    }))
-    setDirty(true)
-    setSaveStatus('idle')
-  }
+  async function handleChange(job, colKey, newValue) {
+    const cellKey = `${job.jobNumber}:${colKey}`
+    const previousValue = values[job.jobNumber][colKey]
+    if (newValue === previousValue) return
 
-  async function handleSave(e) {
-    e.preventDefault()
-    setSaveStatus('submitting')
-    setSaveMessage('')
-
-    const edits = []
-    for (const job of jobs) {
-      for (const column of columns) {
-        const newVal = values[job.jobNumber][column.key]
-        if (newVal !== job.checklist[column.key]) {
-          edits.push({ jobNumber: job.jobNumber, col: column.col, value: newVal })
-        }
-      }
+    if (!password) {
+      setStatus({ kind: 'error', message: 'Enter the upload password above before making changes.' })
+      return
     }
 
+    setValues((prev) => ({ ...prev, [job.jobNumber]: { ...prev[job.jobNumber], [colKey]: newValue } }))
+    setSavingKeys((prev) => new Set(prev).add(cellKey))
+    setStatus({ kind: 'idle', message: '' })
+
+    const column = columnByKey.get(colKey)
     try {
       const res = await fetch(`${UPLOAD_WORKER_URL}/main-sheet`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ password, edits }),
+        body: JSON.stringify({ password, edits: [{ jobNumber: job.jobNumber, col: column.col, value: newValue }] }),
       })
       const payload = await res.json()
       if (!res.ok) {
-        setSaveMessage(payload.message ?? `Request failed (${res.status}).`)
-        setSaveStatus('error')
+        setValues((prev) => ({ ...prev, [job.jobNumber]: { ...prev[job.jobNumber], [colKey]: previousValue } }))
+        setStatus({ kind: 'error', message: payload.message ?? `Save failed (${res.status}) — reverted.` })
         return
       }
-      setSaveMessage(`Saved ${edits.length} change(s). The dashboard will rebuild in a couple of minutes.`)
-      setSaveStatus('done')
-      setDirty(false)
+      setStatus({ kind: 'ok', message: `Saved "${column.label}" for ${job.jobNumber} ${job.jobName}.` })
     } catch (err) {
-      setSaveMessage(`Could not reach the upload service: ${String(err.message ?? err)}`)
-      setSaveStatus('error')
+      setValues((prev) => ({ ...prev, [job.jobNumber]: { ...prev[job.jobNumber], [colKey]: previousValue } }))
+      setStatus({ kind: 'error', message: `Could not reach the upload service: ${String(err.message ?? err)} — reverted.` })
+    } finally {
+      setSavingKeys((prev) => {
+        const next = new Set(prev)
+        next.delete(cellKey)
+        return next
+      })
     }
   }
 
@@ -116,7 +118,8 @@ export default function MainSheetTab({ mainSheet, onBack }) {
         <div>
           <h1 className="text-2xl font-semibold text-white">Job checklist</h1>
           <p className="mt-1 text-sm text-neutral-400">
-            Click a cell to cycle Yes → No → N/A → not set. From the workbook&apos;s Main Sheet.
+            Pick a value from the dropdown — it saves immediately. From the workbook&apos;s Main
+            Sheet.
           </p>
         </div>
         <button
@@ -132,6 +135,24 @@ export default function MainSheetTab({ mainSheet, onBack }) {
           <Settings2 size={14} aria-hidden="true" />
           Columns shown
         </button>
+      </div>
+
+      <div className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-5">
+        <label htmlFor="main-sheet-password" className="mb-1.5 block text-xs text-neutral-500">
+          Upload password — required before any change can save
+        </label>
+        <input
+          id="main-sheet-password"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="w-full max-w-xs rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-brand-green/50 focus:outline-none"
+        />
+        {status.message && (
+          <p className={`mt-3 text-sm ${status.kind === 'error' ? 'text-red-400' : 'text-brand-green'}`}>
+            {status.message}
+          </p>
+        )}
       </div>
 
       <div className="flex items-start gap-6">
@@ -158,7 +179,8 @@ export default function MainSheetTab({ mainSheet, onBack }) {
                       <td key={c.key} className="min-w-[84px] p-1">
                         <ChecklistCell
                           value={values[job.jobNumber][c.key]}
-                          onClick={() => cycleCell(job.jobNumber, c.key)}
+                          saving={savingKeys.has(`${job.jobNumber}:${c.key}`)}
+                          onChange={(newValue) => handleChange(job, c.key, newValue)}
                         />
                       </td>
                     ))}
@@ -188,36 +210,6 @@ export default function MainSheetTab({ mainSheet, onBack }) {
               ))}
             </div>
           </div>
-        )}
-      </div>
-
-      <div className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6">
-        <form onSubmit={handleSave} className="flex flex-wrap items-end gap-3">
-          <div className="flex-1">
-            <label htmlFor="main-sheet-password" className="mb-1.5 block text-xs text-neutral-500">
-              Upload password
-            </label>
-            <input
-              id="main-sheet-password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full max-w-xs rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-brand-green/50 focus:outline-none"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={!dirty || saveStatus === 'submitting'}
-            className="rounded-lg bg-brand-green px-4 py-2 text-sm font-semibold text-[#06210a] transition-colors hover:bg-brand-green/90 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {saveStatus === 'submitting' ? 'Saving…' : 'Save changes'}
-          </button>
-        </form>
-        {saveMessage && (
-          <p className={`mt-3 text-sm ${saveStatus === 'error' ? 'text-red-400' : 'text-neutral-300'}`}>
-            {saveMessage}
-          </p>
         )}
       </div>
     </div>
