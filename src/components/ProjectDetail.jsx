@@ -99,6 +99,11 @@ export default function ProjectDetail({ job, onBack }) {
           <Field label="Total actual cost" warn={job.overBudget}>
             {money(job.totalActualCost)}
           </Field>
+          {job.projectedTotalCost !== null && (
+            <Field label="Projected total cost (at current pace)" warn={job.overBudget}>
+              {money(job.projectedTotalCost)}
+            </Field>
+          )}
           <Field label="Materials (quoted / actual)">
             {money(job.quotedMaterialCost)} / {money(job.actualMaterialCost)}
           </Field>

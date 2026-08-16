@@ -191,7 +191,26 @@ function withDerivedFields(job) {
   const marginToDate = toNumber(job.marginToDate)
   const quotedMargin = toNumber(job.quotedMargin)
 
-  const overBudget = totalActualCost !== null && totalQuotedCost !== null && totalActualCost > totalQuotedCost
+  // Comparing actual-cost-to-date against the full quote flags almost every
+  // ongoing job as "over budget" purely because it's mid-way through
+  // spending its budget, not because it's actually trending over. Once
+  // there's enough progress to divide by safely, project the final cost at
+  // the current burn rate (actual cost / % complete) and compare THAT to
+  // the quote instead — a job at 20% complete having spent 25% of its
+  // budget is projected to finish under quote and shouldn't be flagged;
+  // one at 90% complete on pace to land 20% over should be. Below 5%
+  // complete the projection divides by a near-zero denominator and swings
+  // wildly, so fall back to the old flat comparison until there's enough
+  // progress to make pace meaningful.
+  const MIN_PCT_COMPLETE_FOR_PACE = 0.05
+  const hasReliablePace = estimatedPctJobComplete !== null && estimatedPctJobComplete >= MIN_PCT_COMPLETE_FOR_PACE
+  const projectedTotalCost =
+    hasReliablePace && totalActualCost !== null ? totalActualCost / estimatedPctJobComplete : null
+  const projectedOverrun =
+    projectedTotalCost !== null && totalQuotedCost !== null ? projectedTotalCost - totalQuotedCost : null
+  const overBudget = hasReliablePace
+    ? projectedOverrun !== null && projectedOverrun > 0
+    : totalActualCost !== null && totalQuotedCost !== null && totalActualCost > totalQuotedCost
   const losingMargin = marginToDate !== null && marginToDate < 0
 
   return {
@@ -221,6 +240,8 @@ function withDerivedFields(job) {
     quotedGpPerHour,
     marginToDate,
     quotedMargin,
+    projectedTotalCost,
+    projectedOverrun,
     overBudget,
     losingMargin,
     flagged: overBudget || losingMargin,

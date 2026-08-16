@@ -39,6 +39,8 @@ const OPTIONAL_COLUMNS = [
   { key: 'estimatedPctJobComplete', label: 'Est. % job complete', num: true, format: percent },
   { key: 'quotedGpPerHour', label: 'Quoted GP $/hr', num: true, format: money },
   { key: 'quotedMargin', label: 'Quoted margin', num: true, format: percent },
+  { key: 'projectedTotalCost', label: 'Projected total cost', num: true, format: money },
+  { key: 'projectedOverrun', label: 'Projected overrun', num: true, format: money },
 ]
 
 // Replaces the old separate Quoted Price / Actual Cost / Remaining to
