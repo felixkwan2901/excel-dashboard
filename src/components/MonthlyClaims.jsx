@@ -114,19 +114,29 @@ export default function MonthlyClaims({ monthlyClaims, onBack }) {
   // is the more actionable starting question than "which job made the most".
   const [tableSort, setTableSort] = useState({ key: 'margin', dir: 1 })
 
+  // Every job in the workbook gets a row on the "Claim Calculator By Month"
+  // sheet whether or not it was claimed against this month — most fields
+  // (claim, costs, profit, margin, GP $/hr) just come out as flat zero for
+  // a job with no monthly activity. Repeating the full job list here, with
+  // most of it zeroed out, duplicates the Job Directory without adding
+  // anything a claim-focused view needs. Jobs actually claimed against
+  // this month are the ones worth showing.
+  const activeJobs = useMemo(() => jobs.filter((j) => j.claim !== 0 || j.costs !== 0), [jobs])
+  const inactiveCount = jobs.length - activeJobs.length
+
   const byProfit = useMemo(
-    () => [...jobs].filter((j) => j.profit !== null).sort((a, b) => (b.profit - a.profit) * profitDir),
-    [jobs, profitDir]
+    () => [...activeJobs].filter((j) => j.profit !== null).sort((a, b) => (b.profit - a.profit) * profitDir),
+    [activeJobs, profitDir]
   )
   const byGpPerHour = useMemo(
     () =>
-      [...jobs]
+      [...activeJobs]
         .filter((j) => j.gpPerHourThisMonth !== null)
         .sort((a, b) => (b.gpPerHourThisMonth - a.gpPerHourThisMonth) * gpDir),
-    [jobs, gpDir]
+    [activeJobs, gpDir]
   )
   const tableRows = useMemo(() => {
-    return [...jobs].sort((a, b) => {
+    return [...activeJobs].sort((a, b) => {
       const av = a[tableSort.key]
       const bv = b[tableSort.key]
       if (av === null && bv === null) return 0
@@ -135,7 +145,7 @@ export default function MonthlyClaims({ monthlyClaims, onBack }) {
       if (typeof av === 'number') return (av - bv) * tableSort.dir
       return String(av).localeCompare(String(bv)) * tableSort.dir
     })
-  }, [jobs, tableSort])
+  }, [activeJobs, tableSort])
 
   function toggleTableSort(key) {
     setTableSort((prev) => (prev.key === key ? { key, dir: -prev.dir } : { key, dir: 1 }))
@@ -205,7 +215,15 @@ export default function MonthlyClaims({ monthlyClaims, onBack }) {
       </div>
 
       <div className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6">
-        <h2 className="mb-4 text-[15px] font-medium text-neutral-100">All jobs — full figures</h2>
+        <div className="mb-4">
+          <h2 className="text-[15px] font-medium text-neutral-100">Jobs claimed this month — full figures</h2>
+          {inactiveCount > 0 && (
+            <p className="mt-1 text-[12px] text-neutral-500">
+              {inactiveCount} other job{inactiveCount === 1 ? '' : 's'} with no claim this month{' '}
+              {inactiveCount === 1 ? 'is' : 'are'} hidden — see the Job Directory for those.
+            </p>
+          )}
+        </div>
         <div className="table-scroll">
           <table className="data-table">
             <thead>
