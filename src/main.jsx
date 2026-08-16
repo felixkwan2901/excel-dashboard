@@ -5,72 +5,71 @@ import './index.css'
 import App from './App.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 
-// Both auto-reload triggers below (a new service worker taking over, and
-// the build-id check further down) used a plain in-memory flag to reload
-// at most once — which sounds safe, but a full page reload wipes all
-// in-memory state, so that guard doesn't survive the reload it's supposed
-// to be limiting. Right as a deploy is landing, GitHub Pages' CDN can
-// briefly serve inconsistent snapshots across its edge nodes (new
-// build-id.txt, still-old JS, or vice versa) for a few seconds — each
-// reload during that window sees ANOTHER apparent mismatch and reloads
-// again, immediately, forever, which is what "keeps refreshing on its
-// own" actually was. sessionStorage survives a reload (unlike a JS
-// variable), so a timestamp there caps this to at most one auto-reload
-// per 15 seconds, comfortably outlasting that propagation window while
-// still catching genuine staleness on the very next check.
-const RELOAD_COOLDOWN_MS = 15_000
-function reloadIfNotCoolingDown() {
-  const last = Number(sessionStorage.getItem('cde.lastAutoReload') || 0)
-  if (Date.now() - last < RELOAD_COOLDOWN_MS) return
-  sessionStorage.setItem('cde.lastAutoReload', String(Date.now()))
-  window.location.reload()
+// Earlier versions of this file auto-reloaded the page the moment a new
+// service worker took over or a build-id mismatch was detected, guarded
+// only by a cooldown to stop it looping. In practice it kept looping
+// anyway — reload timing around a fresh deploy is inherently unpredictable
+// (CDN edge propagation, service-worker activation races), and no fixed
+// cooldown number is provably long enough to rule that out. Auto-reloading
+// AT ALL is what makes a loop possible; removing that possibility entirely
+// is more valuable here than the small convenience of not having to click
+// anything. This shows a small dismiss-free banner instead and lets the
+// person actually looking at the screen decide when to refresh — it can
+// never reload on its own, so it can never loop.
+function showUpdateBanner() {
+  if (document.getElementById('cde-update-banner')) return
+  const bar = document.createElement('div')
+  bar.id = 'cde-update-banner'
+  bar.style.cssText =
+    'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:9999;' +
+    'display:flex;align-items:center;gap:12px;padding:10px 16px;border-radius:12px;' +
+    'background:#11161c;border:1px solid rgba(255,255,255,0.1);color:#e5e5e5;' +
+    'font:13px -apple-system,system-ui,sans-serif;box-shadow:0 4px 20px rgba(0,0,0,0.4);'
+  const label = document.createElement('span')
+  label.textContent = 'A new version is available.'
+  const button = document.createElement('button')
+  button.textContent = 'Refresh'
+  button.style.cssText =
+    'background:#38b86a;color:#06210a;border:none;border-radius:8px;padding:6px 14px;' +
+    'font-weight:600;cursor:pointer;font-size:13px;'
+  button.onclick = () => {
+    const url = new URL(window.location.href)
+    url.searchParams.set('_r', Date.now())
+    window.location.assign(url.toString())
+  }
+  bar.append(label, button)
+  document.body.appendChild(bar)
 }
 
 // Data updates (via the upload form) and app updates both ship as a new
-// build. Without this, an already-open tab/installed PWA keeps running the
-// old JS bundle — which requests the old, content-hashed data file — until
-// the user happens to fully reload. This checks for a new service worker
-// periodically and reloads automatically the moment one takes over, so
-// updates always show up without the user needing to force-refresh.
+// build — without this, an already-open tab/installed PWA keeps running
+// the old JS bundle until the person happens to refresh on their own.
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.addEventListener('controllerchange', reloadIfNotCoolingDown)
+  navigator.serviceWorker.addEventListener('controllerchange', showUpdateBanner)
 }
 
 registerSW({
   immediate: true,
   onRegisteredSW(_url, registration) {
     if (!registration) return
-    // Check right away too, not just on the recurring interval below — the
-    // interval alone meant a page load shortly after a fresh deploy could
-    // sit on the old version for up to 60s before the first check fired.
     registration.update()
     setInterval(() => registration.update(), 60 * 1000)
   },
 })
 
-// The service worker's own update check (above) is timing-dependent and
-// only ever as fast as its next check — it isn't what actually stops an
-// already-loaded page from running stale code. The real culprit for
-// "refresh still shows old data" is upstream of the service worker
-// entirely: GitHub Pages' CDN serves index.html with a 10-minute
-// Cache-Control, so a normal refresh within that window never even asks
-// the network — the browser just replays whatever JS bundle it already
-// has cached, which then fetches an old-but-still-existing (see
-// keep_files in deploy.yml) hashed copy of the workbook: a real network
-// fetch that still returns old data, no error, nothing to catch.
-//
-// This checks a tiny, always-fresh build-id file directly, with a
-// per-request cache-busting query string so no cache layer — not the
-// browser's, not GitHub Pages' CDN — can serve back a stale copy
-// regardless of any Cache-Control header. If it doesn't match the ID
-// baked into the JS currently running, a newer deploy exists and this
-// reloads immediately rather than waiting on the service worker cycle.
+// The build-id check exists because a stale page can otherwise sit
+// indefinitely on old data without any error to signal it — GitHub Pages'
+// CDN serves index.html with a 10-minute Cache-Control, so a normal
+// refresh within that window may never even ask the network. This fetches
+// a tiny always-fresh file with a cache-busting query string (bypassing
+// every caching layer, not just the browser's) rather than reloading
+// outright.
 async function checkForNewBuild() {
   try {
     const res = await fetch(`${import.meta.env.BASE_URL}build-id.txt?t=${Date.now()}`, { cache: 'no-store' })
     if (!res.ok) return
     const latest = (await res.text()).trim()
-    if (latest && latest !== __BUILD_ID__) reloadIfNotCoolingDown()
+    if (latest && latest !== __BUILD_ID__) showUpdateBanner()
   } catch {
     // A network hiccup just means this check retries on the next trigger.
   }
