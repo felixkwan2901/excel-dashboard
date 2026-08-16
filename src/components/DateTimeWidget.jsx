@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react'
 
+// shrink-0 + whitespace-nowrap matter here specifically: this sits in a
+// packed flex row (search bar, weather, refresh, notifications) where the
+// row can get tight — without them the text wrapped onto three lines
+// instead of the row just giving this widget the width it needs.
 const WIDGET_CLASS =
-  'flex items-center gap-2 rounded-lg border border-white/[0.06] bg-white/[0.03] px-2.5 py-1.5 text-xs text-neutral-500 sm:px-3'
+  'flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg border border-white/[0.06] bg-white/[0.03] px-2.5 py-1.5 text-xs text-neutral-500 sm:px-3'
 
 const DATE_FORMAT = new Intl.DateTimeFormat('en-NZ', { weekday: 'short', day: 'numeric', month: 'short' })
 const TIME_FORMAT = new Intl.DateTimeFormat('en-NZ', { hour: '2-digit', minute: '2-digit' })
