@@ -5,6 +5,27 @@ import './index.css'
 import App from './App.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 
+// Both auto-reload triggers below (a new service worker taking over, and
+// the build-id check further down) used a plain in-memory flag to reload
+// at most once — which sounds safe, but a full page reload wipes all
+// in-memory state, so that guard doesn't survive the reload it's supposed
+// to be limiting. Right as a deploy is landing, GitHub Pages' CDN can
+// briefly serve inconsistent snapshots across its edge nodes (new
+// build-id.txt, still-old JS, or vice versa) for a few seconds — each
+// reload during that window sees ANOTHER apparent mismatch and reloads
+// again, immediately, forever, which is what "keeps refreshing on its
+// own" actually was. sessionStorage survives a reload (unlike a JS
+// variable), so a timestamp there caps this to at most one auto-reload
+// per 15 seconds, comfortably outlasting that propagation window while
+// still catching genuine staleness on the very next check.
+const RELOAD_COOLDOWN_MS = 15_000
+function reloadIfNotCoolingDown() {
+  const last = Number(sessionStorage.getItem('cde.lastAutoReload') || 0)
+  if (Date.now() - last < RELOAD_COOLDOWN_MS) return
+  sessionStorage.setItem('cde.lastAutoReload', String(Date.now()))
+  window.location.reload()
+}
+
 // Data updates (via the upload form) and app updates both ship as a new
 // build. Without this, an already-open tab/installed PWA keeps running the
 // old JS bundle — which requests the old, content-hashed data file — until
@@ -12,12 +33,7 @@ import ErrorBoundary from './components/ErrorBoundary.jsx'
 // periodically and reloads automatically the moment one takes over, so
 // updates always show up without the user needing to force-refresh.
 if ('serviceWorker' in navigator) {
-  let reloaded = false
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (reloaded) return
-    reloaded = true
-    window.location.reload()
-  })
+  navigator.serviceWorker.addEventListener('controllerchange', reloadIfNotCoolingDown)
 }
 
 registerSW({
@@ -54,7 +70,7 @@ async function checkForNewBuild() {
     const res = await fetch(`${import.meta.env.BASE_URL}build-id.txt?t=${Date.now()}`, { cache: 'no-store' })
     if (!res.ok) return
     const latest = (await res.text()).trim()
-    if (latest && latest !== __BUILD_ID__) window.location.reload()
+    if (latest && latest !== __BUILD_ID__) reloadIfNotCoolingDown()
   } catch {
     // A network hiccup just means this check retries on the next trigger.
   }
