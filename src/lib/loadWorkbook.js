@@ -332,7 +332,19 @@ function parseMainSheet(workbook) {
 }
 
 export async function loadWorkbook() {
-  const buffer = await fetch(workbookUrl).then((res) => res.arrayBuffer())
+  // A hung fetch (e.g. mid-deploy, or a stale service-worker transition)
+  // would otherwise leave the app stuck in its loading state indefinitely
+  // — this bounds it so an error state (with a retry) shows up instead.
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 20_000)
+  let res
+  try {
+    res = await fetch(workbookUrl, { signal: controller.signal })
+  } finally {
+    clearTimeout(timeout)
+  }
+  if (!res.ok) throw new Error(`Could not load the workbook (${res.status})`)
+  const buffer = await res.arrayBuffer()
   const workbook = XLSX.read(buffer, { type: 'array' })
 
   const jobRows = findJobsSheet(workbook)

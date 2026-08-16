@@ -16,6 +16,28 @@ import './App.css'
 
 const initialNav = parseUrlState()
 
+// Every view needs to handle all three load states consistently — several
+// previously just required `state.status === 'ready'` data implicitly (e.g.
+// "project" required a truthy selectedJob) and rendered nothing at all
+// otherwise, indistinguishable from a genuine crash.
+function LoadStatus({ status, error, onRetry }) {
+  if (status === 'loading') return <p className="dashboard__status">Loading workbook…</p>
+  if (status === 'error') {
+    return (
+      <div className="dashboard__status flex flex-col items-start gap-3">
+        <p>Couldn&apos;t load the workbook: {String(error?.message ?? error)}</p>
+        <button
+          onClick={onRetry}
+          className="rounded-lg border border-white/10 px-3.5 py-1.5 text-sm text-neutral-300 transition-colors hover:border-white/20 hover:text-white"
+        >
+          Retry
+        </button>
+      </div>
+    )
+  }
+  return null
+}
+
 export default function App() {
   const [state, setState] = useState({ status: 'loading' })
   const [view, setView] = useState(initialNav.view)
@@ -24,10 +46,24 @@ export default function App() {
   const [dashboardQuery, setDashboardQuery] = useState(initialNav.dashboardQuery)
   const [dashboardFilter, setDashboardFilter] = useState(initialNav.dashboardFilter)
 
-  useEffect(() => {
+  // Shared by the initial mount effect and the Retry button — the effect
+  // relies on state already defaulting to 'loading' rather than setting it
+  // itself (a synchronous setState at the top of an effect body is a
+  // cascading-render footgun); the retry button resets it explicitly since
+  // it's firing from an event handler, not mount.
+  function fetchWorkbook() {
     loadWorkbook()
       .then(({ jobs, monthlyClaims, mainSheet }) => setState({ status: 'ready', jobs, monthlyClaims, mainSheet }))
       .catch((error) => setState({ status: 'error', error }))
+  }
+
+  function retryLoad() {
+    setState({ status: 'loading' })
+    fetchWorkbook()
+  }
+
+  useEffect(() => {
+    fetchWorkbook()
 
     // Establish a well-formed history entry for the initial load (so a
     // later back-navigation to it has a real `.state` to restore from),
@@ -179,12 +215,7 @@ export default function App() {
                   </button>
                 </div>
 
-                {state.status === 'loading' && <p className="dashboard__status">Loading jobs…</p>}
-                {state.status === 'error' && (
-                  <p className="dashboard__status">
-                    Couldn&apos;t load the workbook: {String(state.error?.message ?? state.error)}
-                  </p>
-                )}
+                <LoadStatus status={state.status} error={state.error} onRetry={retryLoad} />
               </div>
             </div>
           </Reveal>
@@ -196,19 +227,29 @@ export default function App() {
         </main>
       )}
 
-      {view === 'project' && selectedJob && (
+      {view === 'project' && (
         <main className="dashboard">
-          <Reveal index={0}>
-            <ProjectDetail job={selectedJob} onBack={goBack} />
-          </Reveal>
+          {state.status !== 'ready' ? (
+            <LoadStatus status={state.status} error={state.error} onRetry={retryLoad} />
+          ) : selectedJob ? (
+            <Reveal index={0}>
+              <ProjectDetail job={selectedJob} onBack={goBack} />
+            </Reveal>
+          ) : (
+            <p className="dashboard__status">That job couldn&apos;t be found.</p>
+          )}
         </main>
       )}
 
       {view === 'review' && (
         <main className="dashboard">
-          <Reveal index={0}>
-            <ReviewReport jobs={flaggedJobs} onBack={goBack} />
-          </Reveal>
+          {state.status !== 'ready' ? (
+            <LoadStatus status={state.status} error={state.error} onRetry={retryLoad} />
+          ) : (
+            <Reveal index={0}>
+              <ReviewReport jobs={flaggedJobs} onBack={goBack} />
+            </Reveal>
+          )}
         </main>
       )}
 
@@ -222,17 +263,25 @@ export default function App() {
 
       {view === 'monthly-claims' && (
         <main className="dashboard">
-          <Reveal index={0}>
-            <MonthlyClaims monthlyClaims={monthlyClaims} onBack={goHome} />
-          </Reveal>
+          {state.status !== 'ready' ? (
+            <LoadStatus status={state.status} error={state.error} onRetry={retryLoad} />
+          ) : (
+            <Reveal index={0}>
+              <MonthlyClaims monthlyClaims={monthlyClaims} onBack={goHome} />
+            </Reveal>
+          )}
         </main>
       )}
 
       {view === 'main-sheet' && (
         <main className="dashboard">
-          <Reveal index={0}>
-            <MainSheetTab mainSheet={mainSheet} onBack={goHome} />
-          </Reveal>
+          {state.status !== 'ready' ? (
+            <LoadStatus status={state.status} error={state.error} onRetry={retryLoad} />
+          ) : (
+            <Reveal index={0}>
+              <MainSheetTab mainSheet={mainSheet} onBack={goHome} />
+            </Reveal>
+          )}
         </main>
       )}
 
@@ -246,12 +295,7 @@ export default function App() {
             <span className="text-text-primary">Job Directory</span>
           </nav>
 
-          {state.status === 'loading' && <p className="dashboard__status">Loading workbook…</p>}
-          {state.status === 'error' && (
-            <p className="dashboard__status">
-              Couldn&apos;t load the workbook: {String(state.error?.message ?? state.error)}
-            </p>
-          )}
+          <LoadStatus status={state.status} error={state.error} onRetry={retryLoad} />
           {state.status === 'ready' && (
             <Reveal as="section" index={0} className="panel">
               <h2>Job directory</h2>
