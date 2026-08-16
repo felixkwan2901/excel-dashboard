@@ -9,6 +9,7 @@ import ProjectDetail from './components/ProjectDetail'
 import ReviewReport from './components/ReviewReport'
 import UpdateData from './components/UpdateData'
 import MonthlyClaims from './components/MonthlyClaims'
+import MonthlyHours from './components/MonthlyHours'
 import MainSheetTab from './components/MainSheetTab'
 import LastSynced from './components/LastSynced'
 import Reveal from './components/Reveal'
@@ -53,7 +54,9 @@ export default function App() {
   // it's firing from an event handler, not mount.
   function fetchWorkbook() {
     loadWorkbook()
-      .then(({ jobs, monthlyClaims, mainSheet }) => setState({ status: 'ready', jobs, monthlyClaims, mainSheet }))
+      .then(({ jobs, monthlyClaims, mainSheet, monthlyHours }) =>
+        setState({ status: 'ready', jobs, monthlyClaims, mainSheet, monthlyHours })
+      )
       .catch((error) => setState({ status: 'error', error }))
   }
 
@@ -83,6 +86,7 @@ export default function App() {
   const jobs = state.status === 'ready' ? state.jobs : []
   const monthlyClaims = state.status === 'ready' ? state.monthlyClaims : { jobs: [], totals: [] }
   const mainSheet = state.status === 'ready' ? state.mainSheet : { jobs: [], columns: [] }
+  const monthlyHours = state.status === 'ready' ? state.monthlyHours : { months: [], totalsByMonth: [], jobs: [] }
   const kpis = state.status === 'ready' ? computeKpis(jobs) : null
   const flaggedJobs = useMemo(() => jobs.filter((j) => j.flagged), [jobs])
 
@@ -137,6 +141,11 @@ export default function App() {
     pushUrlState({ view: 'monthly-claims', selectedJobId, dashboardQuery, dashboardFilter })
   }
 
+  function goMonthlyHours() {
+    setView('monthly-hours')
+    pushUrlState({ view: 'monthly-hours', selectedJobId, dashboardQuery, dashboardFilter })
+  }
+
   function goMainSheet() {
     setView('main-sheet')
     pushUrlState({ view: 'main-sheet', selectedJobId, dashboardQuery, dashboardFilter })
@@ -183,6 +192,7 @@ export default function App() {
         onPrintReport={goReviewReport}
         onGoUpdateData={goUpdateData}
         onGoMonthlyClaims={goMonthlyClaims}
+        onGoMonthlyHours={goMonthlyHours}
         onGoMainSheet={goMainSheet}
       />
 
@@ -268,6 +278,18 @@ export default function App() {
           ) : (
             <Reveal index={0}>
               <MonthlyClaims monthlyClaims={monthlyClaims} onBack={goHome} />
+            </Reveal>
+          )}
+        </main>
+      )}
+
+      {view === 'monthly-hours' && (
+        <main className="dashboard">
+          {state.status !== 'ready' ? (
+            <LoadStatus status={state.status} error={state.error} onRetry={retryLoad} />
+          ) : (
+            <Reveal index={0}>
+              <MonthlyHours monthlyHours={monthlyHours} onBack={goHome} />
             </Reveal>
           )}
         </main>

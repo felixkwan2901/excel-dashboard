@@ -1,6 +1,11 @@
 import * as XLSX from 'xlsx'
 import workbookUrl from '../../Cassidy_Davies_Electrical_BPMN_Data.xlsx?url'
 
+// Lives in public/ rather than an import — Vite doesn't emit a `?url`
+// import of a .json file as a fetchable static asset the way it does for
+// other file types.
+const monthlyHoursLogUrl = `${import.meta.env.BASE_URL}monthly-hours-log.json`
+
 // Columns are located by header text, not position — the real sheet's
 // headers have embedded newlines ("Job\nNumber") and have already drifted
 // once before, so matching by (whitespace-normalized) text is far more
@@ -352,15 +357,55 @@ function parseMainSheet(workbook) {
   return { jobs, columns }
 }
 
+// The log only ever records each job's CUMULATIVE hours-to-date as of the
+// last snapshot taken in a given month (see scripts/log-monthly-hours.mjs
+// for why — the workbook itself has no month-by-month history to read).
+// Hours actually worked in a month is the difference between that month's
+// cumulative figure and the previous month's for the same job. A job's
+// first appearance in the log has no prior figure to diff against, so it's
+// left out of that month's total rather than counted as a false spike of
+// "all hours ever logged, attributed to one month".
+function parseMonthlyHoursLog(log) {
+  const months = Object.keys(log).sort()
+  const jobNumbers = new Set()
+  for (const month of months) for (const jobNumber of Object.keys(log[month])) jobNumbers.add(jobNumber)
+
+  const jobs = [...jobNumbers].map((jobNumber) => {
+    let jobName = ''
+    let previousCumulative = null
+    const hoursByMonth = {}
+    for (const month of months) {
+      const entry = log[month][jobNumber]
+      if (!entry) continue
+      jobName = entry.jobName
+      if (previousCumulative !== null) {
+        hoursByMonth[month] = Math.max(0, entry.cumulativeHours - previousCumulative)
+      }
+      previousCumulative = entry.cumulativeHours
+    }
+    return { jobNumber, jobName, hoursByMonth }
+  })
+
+  const totalsByMonth = months.map((month) => ({
+    month,
+    totalHours: jobs.reduce((sum, j) => sum + (j.hoursByMonth[month] ?? 0), 0),
+  }))
+
+  return { months: months.slice(1), totalsByMonth: totalsByMonth.slice(1), jobs }
+}
+
 export async function loadWorkbook() {
   // A hung fetch (e.g. mid-deploy, or a stale service-worker transition)
   // would otherwise leave the app stuck in its loading state indefinitely
   // — this bounds it so an error state (with a retry) shows up instead.
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 20_000)
-  let res
+  let res, hoursRes
   try {
-    res = await fetch(workbookUrl, { signal: controller.signal })
+    ;[res, hoursRes] = await Promise.all([
+      fetch(workbookUrl, { signal: controller.signal }),
+      fetch(monthlyHoursLogUrl, { signal: controller.signal }),
+    ])
   } finally {
     clearTimeout(timeout)
   }
@@ -372,6 +417,12 @@ export async function loadWorkbook() {
   const jobs = rowsAfterHeader(jobRows).map(withDerivedFields)
   const monthlyClaims = parseMonthlyClaims(workbook)
   const mainSheet = parseMainSheet(workbook)
+  // The hours log is a nice-to-have on top of the core workbook data — if
+  // it's missing or unreadable for any reason, degrade to an empty history
+  // rather than failing the whole page load over it.
+  const monthlyHours = hoursRes?.ok
+    ? parseMonthlyHoursLog(await hoursRes.json())
+    : { months: [], totalsByMonth: [], jobs: [] }
 
-  return { jobs, monthlyClaims, mainSheet }
+  return { jobs, monthlyClaims, mainSheet, monthlyHours }
 }
