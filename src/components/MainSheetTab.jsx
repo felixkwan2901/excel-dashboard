@@ -100,7 +100,7 @@ export default function MainSheetTab({ mainSheet, onBack }) {
       setStatus({ kind: 'idle', message: `Processing "${column.label}" for ${job.jobNumber} ${job.jobName}…` })
       const result = await pollStagedStatus(payload.staged)
       if (result.status === 'done') {
-        setStatus({ kind: 'ok', message: `Saved "${column.label}" for ${job.jobNumber} ${job.jobName}.` })
+        setStatus({ kind: 'ok', message: `Saved "${column.label}" for ${job.jobNumber} ${job.jobName} — the site will redeploy in about a minute before it shows up here.` })
       } else if (result.status === 'failed') {
         revert(`${result.message} — reverted.`)
       } else {
@@ -136,8 +136,9 @@ export default function MainSheetTab({ mainSheet, onBack }) {
         <div>
           <h1 className="text-2xl font-semibold text-white">Job checklist</h1>
           <p className="mt-1 text-sm text-neutral-400">
-            Pick a value from the dropdown to save it — usually takes 30-90 seconds to land. From
-            the workbook&apos;s Main Sheet.
+            Pick a value from the dropdown to save it — merging takes 30-90 seconds, then the
+            site takes another minute or so to redeploy before it shows up here. From the
+            workbook&apos;s Main Sheet.
           </p>
         </div>
         <button

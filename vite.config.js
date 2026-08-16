@@ -35,7 +35,15 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,xlsx}'],
+        // Deliberately excludes the .xlsx workbook — it's live business
+        // data that changes with every update, not a static app-shell
+        // asset. Precaching it meant the dashboard could keep serving a
+        // stale copy until the service worker's own update cycle caught
+        // up, independent of the auto-reload logic below (which only
+        // reloads once a NEW service worker has installed — it doesn't
+        // make that installation happen any sooner). Left out of the
+        // precache, the workbook always goes straight to the network.
+        globPatterns: ['**/*.{js,css,html,svg,png}'],
         // Without these, a new service worker installs but sits stuck in
         // "waiting" behind any already-open tab — it only ever activates
         // once every tab is closed, which for a long-lived open tab (or an

@@ -85,7 +85,7 @@ export default function UpdateData({ onBack }) {
       setReplaceMessage(payload.message)
       const result = await pollStagedStatus(payload.staged)
       if (result.status === 'done') {
-        setReplaceMessage('Replaced the workbook with your edited file. The dashboard will rebuild shortly.')
+        setReplaceMessage('Replaced the workbook with your edited file — the site will redeploy in about a minute before it shows up here.')
         setReplaceStatus('done')
       } else if (result.status === 'failed') {
         setReplaceMessage(result.message)

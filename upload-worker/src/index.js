@@ -295,7 +295,7 @@ async function handleUpload(request, env) {
     return respond(request, 400, { htmlMessage: `<div class="result err">${escapeHtml(msg)}</div>`, data: { error: 'all_duplicates', message: msg, duplicateCount } })
   }
 
-  const msg = `Queued ${staged.length} file(s) for processing${duplicateCount ? ` (skipped ${duplicateCount} duplicate(s))` : ''}. This usually takes 30-90 seconds — check status below, or just check the dashboard shortly.`
+  const msg = `Queued ${staged.length} file(s) for processing${duplicateCount ? ` (skipped ${duplicateCount} duplicate(s))` : ''}. Merging usually takes 30-90 seconds, then the site takes another minute or so to redeploy before the change is actually visible live.`
   return respond(request, 200, {
     htmlMessage: `<div class="result ok">${escapeHtml(msg)}</div>`,
     data: { queued: true, staged, duplicateCount, message: msg },
@@ -338,7 +338,7 @@ async function handleReplace(request, env) {
     return respond(request, 502, { htmlMessage: `<div class="result err">${escapeHtml(msg)}</div>`, data: { error: 'github_write_failed', message: msg } })
   }
 
-  const msg = 'Queued your file for validation and replacement. This usually takes 30-90 seconds — check status below, or just check the dashboard shortly.'
+  const msg = 'Queued your file for validation and replacement. Merging usually takes 30-90 seconds, then the site takes another minute or so to redeploy before the change is actually visible live.'
   return respond(request, 200, {
     htmlMessage: `<div class="result ok">${escapeHtml(msg)}</div>`,
     data: { queued: true, staged: stagedPath, message: msg },
@@ -374,7 +374,7 @@ async function handleMainSheetUpdate(request, env) {
     return respond(request, 502, { htmlMessage: `<div class="result err">${escapeHtml(msg)}</div>`, data: { error: 'github_write_failed', message: msg } })
   }
 
-  const msg = `Queued ${edits.length} change(s). This usually takes 30-90 seconds.`
+  const msg = `Queued ${edits.length} change(s). Merging usually takes 30-90 seconds, then the site takes another minute or so to redeploy before it's visible live.`
   return respond(request, 200, {
     htmlMessage: `<div class="result ok">${escapeHtml(msg)}</div>`,
     data: { queued: true, staged: stagedPath, message: msg },
