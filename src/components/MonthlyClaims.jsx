@@ -93,7 +93,8 @@ function SortableHeading({ label, dir, onToggle }) {
 }
 
 const TABLE_COLUMNS = [
-  { key: 'jobName', label: 'Job' },
+  { key: 'jobNumber', label: 'Job #' },
+  { key: 'jobName', label: 'Job name' },
   { key: 'claim', label: 'Claim', num: true, format: money },
   { key: 'costs', label: 'Costs', num: true, format: money },
   { key: 'profit', label: 'Profit', num: true, format: money },
@@ -227,9 +228,8 @@ export default function MonthlyClaims({ monthlyClaims, onBack }) {
             <tbody>
               {tableRows.map((j) => (
                 <tr key={j.jobNumber}>
-                  <td>
-                    {j.jobNumber} {j.jobName}
-                  </td>
+                  <td className="whitespace-nowrap">{j.jobNumber}</td>
+                  <td>{j.jobName}</td>
                   <td className="num tabular">{money(j.claim)}</td>
                   <td className="num tabular">{money(j.costs)}</td>
                   <td className={`num tabular ${j.profit !== null && j.profit < 0 ? 'text-red-400' : ''}`}>
