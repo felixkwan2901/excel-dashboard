@@ -32,6 +32,39 @@ registerSW({
   },
 })
 
+// The service worker's own update check (above) is timing-dependent and
+// only ever as fast as its next check — it isn't what actually stops an
+// already-loaded page from running stale code. The real culprit for
+// "refresh still shows old data" is upstream of the service worker
+// entirely: GitHub Pages' CDN serves index.html with a 10-minute
+// Cache-Control, so a normal refresh within that window never even asks
+// the network — the browser just replays whatever JS bundle it already
+// has cached, which then fetches an old-but-still-existing (see
+// keep_files in deploy.yml) hashed copy of the workbook: a real network
+// fetch that still returns old data, no error, nothing to catch.
+//
+// This checks a tiny, always-fresh build-id file directly, with a
+// per-request cache-busting query string so no cache layer — not the
+// browser's, not GitHub Pages' CDN — can serve back a stale copy
+// regardless of any Cache-Control header. If it doesn't match the ID
+// baked into the JS currently running, a newer deploy exists and this
+// reloads immediately rather than waiting on the service worker cycle.
+async function checkForNewBuild() {
+  try {
+    const res = await fetch(`${import.meta.env.BASE_URL}build-id.txt?t=${Date.now()}`, { cache: 'no-store' })
+    if (!res.ok) return
+    const latest = (await res.text()).trim()
+    if (latest && latest !== __BUILD_ID__) window.location.reload()
+  } catch {
+    // A network hiccup just means this check retries on the next trigger.
+  }
+}
+checkForNewBuild()
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') checkForNewBuild()
+})
+setInterval(checkForNewBuild, 60 * 1000)
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <ErrorBoundary>

@@ -7,6 +7,13 @@ import tailwindcss from '@tailwindcss/vite'
 // https://vite.dev/config/
 export default defineConfig({
   base: '/excel-dashboard/',
+  // Baked into the JS bundle so a loaded page can tell whether a newer
+  // deploy exists (see src/main.jsx's build-id check) — GITHUB_SHA is set
+  // automatically by GitHub Actions; falls back to 'dev' for local builds,
+  // where staleness isn't a concern.
+  define: {
+    __BUILD_ID__: JSON.stringify(process.env.GITHUB_SHA ?? 'dev'),
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

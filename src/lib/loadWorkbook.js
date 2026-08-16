@@ -155,12 +155,18 @@ function rowsAfterHeader(rows) {
       }
       const dataRow = block.weekRows[dataRowIdx]
 
-      // The previously-filled week before the current one, if any — used
-      // to show a trend (margin improving/worsening) rather than just a
-      // single point-in-time snapshot. A job on its first ever week (or
-      // just rolled into a new month) has nothing to compare against yet.
+      // The previously-filled WEEK before the current one, if any — used to
+      // show a trend (margin improving/worsening) rather than just a
+      // single point-in-time snapshot. Deliberately excludes index 0
+      // ("Start of month", the baseline quote figures) as a comparison
+      // point: that's not "last week", it's the whole job's starting
+      // position, and diffing against it produced wild, meaningless swings
+      // (effectively "change since the quote was made" rather than "change
+      // since last week"). A job on its first ever week (or one that just
+      // rolled into a new month, with only one week logged since) has
+      // nothing genuinely comparable yet.
       let previousRow = null
-      for (let i = dataRowIdx - 1; i >= 0; i--) {
+      for (let i = dataRowIdx - 1; i >= 1; i--) {
         if (weekRowHasData(block.weekRows[i], columnMap)) {
           previousRow = block.weekRows[i]
           break

@@ -29,6 +29,10 @@ jobs:
           cache: npm
 
       - run: npm ci
+
+      - name: Record this deploy's commit as the build ID
+        run: echo "$GITHUB_SHA" > public/build-id.txt
+
       - run: npm run build
 
       - uses: peaceiris/actions-gh-pages@v4

@@ -14,7 +14,10 @@ export default defineConfig([
       reactRefresh.configs.vite,
     ],
     languageOptions: {
-      globals: globals.browser,
+      // __BUILD_ID__ is a compile-time constant injected by vite.config.js's
+      // `define`, not a real runtime global — only main.jsx references it.
+      // node globals cover config files (vite.config.js) evaluated by Node.
+      globals: { ...globals.browser, ...globals.node, __BUILD_ID__: 'readonly' },
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
   },
