@@ -108,7 +108,10 @@ export default function MonthlyClaims({ monthlyClaims, onBack }) {
 
   const [profitDir, setProfitDir] = useState(1) // 1 = highest first, -1 = lowest first
   const [gpDir, setGpDir] = useState(1)
-  const [tableSort, setTableSort] = useState({ key: 'profit', dir: 1 })
+  // Default to margin ascending (worst first) rather than profit descending
+  // (best first) — for a full per-job table, "which jobs are underperforming"
+  // is the more actionable starting question than "which job made the most".
+  const [tableSort, setTableSort] = useState({ key: 'margin', dir: 1 })
 
   const byProfit = useMemo(
     () => [...jobs].filter((j) => j.profit !== null).sort((a, b) => (b.profit - a.profit) * profitDir),
