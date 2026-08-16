@@ -2,6 +2,7 @@ import Logo from './Logo'
 import SearchBar from './SearchBar'
 import NotificationsBell from './NotificationsBell'
 import WeatherWidget from './WeatherWidget'
+import DateTimeWidget from './DateTimeWidget'
 
 export default function Nav({
   view,
@@ -68,6 +69,7 @@ export default function Nav({
 
       <div className="ml-auto flex items-center gap-3">
         <SearchBar value={searchValue} onChange={onSearchChange} onSubmit={onSearchSubmit} />
+        <DateTimeWidget />
         <WeatherWidget />
         <NotificationsBell
           flaggedJobs={flaggedJobs}
