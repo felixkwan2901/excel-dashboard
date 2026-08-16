@@ -1,8 +1,26 @@
+import { RefreshCw } from 'lucide-react'
 import Logo from './Logo'
 import SearchBar from './SearchBar'
 import NotificationsBell from './NotificationsBell'
 import WeatherWidget from './WeatherWidget'
 import DateTimeWidget from './DateTimeWidget'
+
+// A manual escape hatch for staleness the automatic checks (service-worker
+// update polling, the build-id check in main.jsx) haven't caught yet — most
+// often because they haven't had a chance to run at all, e.g. loading the
+// page within seconds of a fresh deploy. Adds a cache-busting query param
+// and does a real navigation (not history.pushState) so the browser AND
+// GitHub Pages' CDN both treat it as a brand new URL neither has a cached
+// response for, guaranteeing a genuinely fresh index.html/JS/data — a
+// plain reload doesn't reliably do that within GitHub Pages' 10-minute
+// cache window. The added param is harmless and self-cleaning: urlState.js
+// only ever reads its own known keys, and the next in-app navigation
+// rewrites the query string from scratch anyway.
+function hardRefresh() {
+  const url = new URL(window.location.href)
+  url.searchParams.set('_r', Date.now())
+  window.location.assign(url.toString())
+}
 
 export default function Nav({
   view,
@@ -71,6 +89,15 @@ export default function Nav({
         <SearchBar value={searchValue} onChange={onSearchChange} onSubmit={onSearchSubmit} />
         <DateTimeWidget />
         <WeatherWidget />
+        <button
+          type="button"
+          onClick={hardRefresh}
+          title="Refresh — fetches the latest version and data"
+          aria-label="Refresh"
+          className="flex items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.03] p-2 text-neutral-500 transition-colors hover:border-white/20 hover:text-white"
+        >
+          <RefreshCw size={14} aria-hidden="true" />
+        </button>
         <NotificationsBell
           flaggedJobs={flaggedJobs}
           onSelectJob={onSelectFlaggedJob}
