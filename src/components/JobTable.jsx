@@ -142,6 +142,7 @@ export default function JobTable({
 }) {
   const [sort, setSort] = useState({ key: 'jobNumber', dir: 1 })
   const [visibleKeys, setVisibleKeys] = useState(() => new Set(DEFAULT_OPTIONAL_KEYS))
+  const [showTrend, setShowTrend] = useState(true)
   const [panelOpen, setPanelOpen] = useState(false)
 
   const columns = useMemo(
@@ -256,7 +257,7 @@ export default function JobTable({
                     {sort.key === col.key && (sort.dir === 1 ? ' ▲' : ' ▼')}
                   </th>
                 ))}
-                <th>Trend</th>
+                {showTrend && <th>Trend</th>}
               </tr>
             </thead>
             <tbody>
@@ -279,14 +280,16 @@ export default function JobTable({
                       {renderCell(job, col)}
                     </td>
                   ))}
-                  <td>
-                    <TrendBadge marginTrend={job.marginTrend} />
-                  </td>
+                  {showTrend && (
+                    <td>
+                      <TrendBadge marginTrend={job.marginTrend} />
+                    </td>
+                  )}
                 </tr>
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={columns.length + 1} className="empty-row">
+                  <td colSpan={columns.length + (showTrend ? 1 : 0)} className="empty-row">
                     No jobs match your filters.
                   </td>
                 </tr>
@@ -301,6 +304,15 @@ export default function JobTable({
               Columns shown
             </h2>
             <div className="flex max-h-[420px] flex-col gap-2 overflow-y-auto">
+              <label className="flex items-start gap-2 text-[13px] text-neutral-300">
+                <input
+                  type="checkbox"
+                  checked={showTrend}
+                  onChange={() => setShowTrend((v) => !v)}
+                  className="mt-0.5"
+                />
+                Trend
+              </label>
               {OPTIONAL_COLUMNS.map((c) => (
                 <label key={c.key} className="flex items-start gap-2 text-[13px] text-neutral-300">
                   <input
