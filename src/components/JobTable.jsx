@@ -31,8 +31,7 @@ const OPTIONAL_COLUMNS = [
   { key: 'labourCostProgress', label: 'Labour cost' },
   { key: 'labourCostRemaining', label: 'Labour cost remaining', num: true, format: money },
   { key: 'labourCostPctRemaining', label: 'Labour cost % remaining', num: true, format: percent },
-  { key: 'quotedLabourHours', label: 'Quoted labour hours', num: true },
-  { key: 'actualLabourHours', label: 'Actual labour hours', num: true },
+  { key: 'labourHoursProgress', label: 'Labour hours' },
   { key: 'labourHoursRemaining', label: 'Labour hours remaining', num: true },
   { key: 'labourHourPctRemaining', label: 'Labour hour % remaining', num: true, format: percent },
   { key: 'estimatedPctJobComplete', label: 'Est. % job complete', num: true, format: percent },
@@ -49,7 +48,7 @@ const OPTIONAL_COLUMNS = [
 // green tiering as the Margin bar, scaled to this bar's own ratio: over
 // 100% of quote spent is red, 85-100% is "getting close" amber, under
 // that is comfortably green.
-function CostBar({ actual, quoted }) {
+function CostBar({ actual, quoted, formatValue = money }) {
   if (!quoted) return <span className="text-neutral-500">—</span>
 
   const ratio = actual === null ? 0 : actual / quoted
@@ -62,7 +61,7 @@ function CostBar({ actual, quoted }) {
         <div className={`absolute top-0 h-full rounded-full ${fillColor}`} style={{ width: `${fillWidth}%` }} />
       </div>
       <span className="text-[12px] tabular-nums text-neutral-400">
-        {money(actual)} of {money(quoted)}
+        {formatValue(actual)} of {formatValue(quoted)}
       </span>
     </div>
   )
@@ -110,6 +109,14 @@ function renderCell(job, col) {
       return <CostBar actual={job.actualLabourCost} quoted={job.quotedLabourCost} />
     case 'materialCostProgress':
       return <CostBar actual={job.actualMaterialCost} quoted={job.quotedMaterialCost} />
+    case 'labourHoursProgress':
+      return (
+        <CostBar
+          actual={job.actualLabourHours}
+          quoted={job.quotedLabourHours}
+          formatValue={(v) => `${v} hrs`}
+        />
+      )
     case 'marginToDate':
       return <MarginBar value={job.marginToDate} />
     case 'gpPerHour':
@@ -139,6 +146,10 @@ function sortValue(job, key) {
   if (key === 'materialCostProgress') {
     if (!job.quotedMaterialCost) return null
     return job.actualMaterialCost === null ? null : job.actualMaterialCost / job.quotedMaterialCost
+  }
+  if (key === 'labourHoursProgress') {
+    if (!job.quotedLabourHours) return null
+    return job.actualLabourHours === null ? null : job.actualLabourHours / job.quotedLabourHours
   }
   return job[key]
 }
