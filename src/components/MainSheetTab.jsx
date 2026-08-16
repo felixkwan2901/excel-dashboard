@@ -52,9 +52,14 @@ export default function MainSheetTab({ mainSheet, onBack }) {
   const [password, setPassword] = useState('')
   const [savingKeys, setSavingKeys] = useState(() => new Set())
   const [status, setStatus] = useState({ kind: 'idle', message: '' }) // idle | ok | error
+  const [sortDir, setSortDir] = useState(1) // 1 = job number ascending, -1 = descending
 
   const visibleColumns = useMemo(() => columns.filter((c) => visibleKeys.has(c.key)), [columns, visibleKeys])
   const columnByKey = useMemo(() => new Map(columns.map((c) => [c.key, c])), [columns])
+  const sortedJobs = useMemo(
+    () => [...jobs].sort((a, b) => (Number(a.jobNumber) - Number(b.jobNumber)) * sortDir),
+    [jobs, sortDir]
+  )
 
   function toggleColumn(key) {
     setVisibleKeys((prev) => {
@@ -180,7 +185,13 @@ export default function MainSheetTab({ mainSheet, onBack }) {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Job</th>
+                  <th
+                    className="sortable"
+                    onClick={() => setSortDir((d) => -d)}
+                    aria-sort={sortDir === 1 ? 'ascending' : 'descending'}
+                  >
+                    Job{sortDir === 1 ? ' ▲' : ' ▼'}
+                  </th>
                   {visibleColumns.map((c) => (
                     <th key={c.key} className="whitespace-normal align-bottom text-[11px] leading-tight">
                       {c.label}
@@ -189,7 +200,7 @@ export default function MainSheetTab({ mainSheet, onBack }) {
                 </tr>
               </thead>
               <tbody>
-                {jobs.map((job) => (
+                {sortedJobs.map((job) => (
                   <tr key={job.jobNumber}>
                     <td className="whitespace-nowrap">
                       {job.jobNumber} {job.jobName}

@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { money, percent } from '../lib/format'
 
 // A thin diverging bar anchored at a center zero line — positive values
@@ -75,20 +75,67 @@ function TotalsCard({ total }) {
   )
 }
 
+// A small header that toggles sort direction on click, with an arrow
+// showing the current direction — the same click-to-sort convention
+// JobTable's column headers already use, applied here to a whole chart
+// instead of a single column.
+function SortableHeading({ label, dir, onToggle }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="mb-1 flex items-center gap-1.5 text-[15px] font-medium text-neutral-100 transition-colors hover:text-white"
+    >
+      {label}
+      <span className="text-[12px] text-neutral-500">{dir === 1 ? '▼ highest first' : '▲ lowest first'}</span>
+    </button>
+  )
+}
+
+const TABLE_COLUMNS = [
+  { key: 'jobName', label: 'Job' },
+  { key: 'claim', label: 'Claim', num: true, format: money },
+  { key: 'costs', label: 'Costs', num: true, format: money },
+  { key: 'profit', label: 'Profit', num: true, format: money },
+  { key: 'margin', label: 'Margin', num: true, format: percent },
+  { key: 'quotedMargin', label: 'Quoted margin', num: true, format: percent },
+  { key: 'estimatedMarginEom', label: 'Est. margin E.O.M', num: true, format: percent },
+  { key: 'gpPerHourThisMonth', label: 'GP $/hr this month', num: true, format: money },
+]
+
 export default function MonthlyClaims({ monthlyClaims, onBack }) {
   const { jobs, totals } = monthlyClaims
 
+  const [profitDir, setProfitDir] = useState(1) // 1 = highest first, -1 = lowest first
+  const [gpDir, setGpDir] = useState(1)
+  const [tableSort, setTableSort] = useState({ key: 'profit', dir: 1 })
+
   const byProfit = useMemo(
-    () => [...jobs].filter((j) => j.profit !== null).sort((a, b) => b.profit - a.profit),
-    [jobs]
+    () => [...jobs].filter((j) => j.profit !== null).sort((a, b) => (b.profit - a.profit) * profitDir),
+    [jobs, profitDir]
   )
   const byGpPerHour = useMemo(
     () =>
       [...jobs]
         .filter((j) => j.gpPerHourThisMonth !== null)
-        .sort((a, b) => b.gpPerHourThisMonth - a.gpPerHourThisMonth),
-    [jobs]
+        .sort((a, b) => (b.gpPerHourThisMonth - a.gpPerHourThisMonth) * gpDir),
+    [jobs, gpDir]
   )
+  const tableRows = useMemo(() => {
+    return [...jobs].sort((a, b) => {
+      const av = a[tableSort.key]
+      const bv = b[tableSort.key]
+      if (av === null && bv === null) return 0
+      if (av === null) return 1
+      if (bv === null) return -1
+      if (typeof av === 'number') return (av - bv) * tableSort.dir
+      return String(av).localeCompare(String(bv)) * tableSort.dir
+    })
+  }, [jobs, tableSort])
+
+  function toggleTableSort(key) {
+    setTableSort((prev) => (prev.key === key ? { key, dir: -prev.dir } : { key, dir: 1 }))
+  }
 
   const maxAbsProfit = Math.max(1, ...byProfit.map((j) => Math.abs(j.profit)))
   const maxAbsGpPerHour = Math.max(1, ...byGpPerHour.map((j) => Math.abs(j.gpPerHourThisMonth)))
@@ -120,9 +167,8 @@ export default function MonthlyClaims({ monthlyClaims, onBack }) {
       </div>
 
       <div className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6">
-        <h2 className="mb-1 text-[15px] font-medium text-neutral-100">Profit this month by job</h2>
-        <p className="mb-4 text-[13px] text-neutral-500">Sorted highest to lowest.</p>
-        <div className="flex flex-col">
+        <SortableHeading label="Profit this month by job" dir={profitDir} onToggle={() => setProfitDir((d) => -d)} />
+        <div className="mt-3 flex flex-col">
           {byProfit.map((j) => (
             <DivergingBar
               key={j.jobNumber}
@@ -136,7 +182,7 @@ export default function MonthlyClaims({ monthlyClaims, onBack }) {
       </div>
 
       <div className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6">
-        <h2 className="mb-1 text-[15px] font-medium text-neutral-100">GP $ per hour this month</h2>
+        <SortableHeading label="GP $ per hour this month" dir={gpDir} onToggle={() => setGpDir((d) => -d)} />
         <p className="mb-4 text-[13px] text-neutral-500">
           Profit generated per labour hour logged this month — a negative value usually means
           hours were logged against the job with little or no claim recorded yet.
@@ -160,18 +206,23 @@ export default function MonthlyClaims({ monthlyClaims, onBack }) {
           <table className="data-table">
             <thead>
               <tr>
-                <th>Job</th>
-                <th className="num">Claim</th>
-                <th className="num">Costs</th>
-                <th className="num">Profit</th>
-                <th className="num">Margin</th>
-                <th className="num">Quoted margin</th>
-                <th className="num">Est. margin E.O.M</th>
-                <th className="num">GP $/hr this month</th>
+                {TABLE_COLUMNS.map((col) => (
+                  <th
+                    key={col.key}
+                    className={`${col.num ? 'num' : ''} sortable`}
+                    onClick={() => toggleTableSort(col.key)}
+                    aria-sort={
+                      tableSort.key === col.key ? (tableSort.dir === 1 ? 'ascending' : 'descending') : 'none'
+                    }
+                  >
+                    {col.label}
+                    {tableSort.key === col.key && (tableSort.dir === 1 ? ' ▲' : ' ▼')}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {jobs.map((j) => (
+              {tableRows.map((j) => (
                 <tr key={j.jobNumber}>
                   <td>
                     {j.jobNumber} {j.jobName}
