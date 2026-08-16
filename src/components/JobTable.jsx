@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Settings2 } from 'lucide-react'
-import StatusBadge from './StatusBadge'
+import TrendBadge from './TrendBadge'
 import { money, percent } from '../lib/format'
 
 // Always shown, not part of the toggle panel.
@@ -256,7 +256,7 @@ export default function JobTable({
                     {sort.key === col.key && (sort.dir === 1 ? ' ▲' : ' ▼')}
                   </th>
                 ))}
-                <th>Status</th>
+                <th>Trend</th>
               </tr>
             </thead>
             <tbody>
@@ -280,7 +280,7 @@ export default function JobTable({
                     </td>
                   ))}
                   <td>
-                    <StatusBadge flagged={job.flagged} />
+                    <TrendBadge marginTrend={job.marginTrend} />
                   </td>
                 </tr>
               ))}

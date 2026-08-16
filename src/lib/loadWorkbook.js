@@ -146,10 +146,23 @@ function rowsAfterHeader(rows) {
   return blocks
     .filter((block) => isValidJobRow(block.startRow))
     .map((block) => {
-      let dataRow = block.weekRows[block.weekRows.length - 1]
+      let dataRowIdx = block.weekRows.length - 1
       for (let i = block.weekRows.length - 1; i >= 0; i--) {
         if (weekRowHasData(block.weekRows[i], columnMap)) {
-          dataRow = block.weekRows[i]
+          dataRowIdx = i
+          break
+        }
+      }
+      const dataRow = block.weekRows[dataRowIdx]
+
+      // The previously-filled week before the current one, if any — used
+      // to show a trend (margin improving/worsening) rather than just a
+      // single point-in-time snapshot. A job on its first ever week (or
+      // just rolled into a new month) has nothing to compare against yet.
+      let previousRow = null
+      for (let i = dataRowIdx - 1; i >= 0; i--) {
+        if (weekRowHasData(block.weekRows[i], columnMap)) {
+          previousRow = block.weekRows[i]
           break
         }
       }
@@ -164,6 +177,8 @@ function rowsAfterHeader(rows) {
         // jobNumber/jobName only ever appear on the block's first row.
         record[field] = field === 'jobNumber' || field === 'jobName' ? block.startRow[col] : dataRow[col]
       }
+      const marginCol = columnMap.marginToDate
+      record.previousMarginToDate = previousRow && marginCol !== undefined ? previousRow[marginCol] : ''
       return record
     })
 }
@@ -195,6 +210,15 @@ function withDerivedFields(job) {
   const quotedGpPerHour = toNumber(job.quotedGpPerHour)
   const marginToDate = toNumber(job.marginToDate)
   const quotedMargin = toNumber(job.quotedMargin)
+  const previousMarginToDate = toNumber(job.previousMarginToDate)
+
+  // How the job's margin moved between its last two logged weeks — a
+  // direction, not just a point-in-time snapshot. Null when there's no
+  // prior week to compare against yet (a job on its very first week, or
+  // one that just rolled into a new month and only has one week logged
+  // since).
+  const marginTrend =
+    marginToDate !== null && previousMarginToDate !== null ? marginToDate - previousMarginToDate : null
 
   // Comparing actual-cost-to-date against the full quote flags almost every
   // ongoing job as "over budget" purely because it's mid-way through
@@ -245,6 +269,8 @@ function withDerivedFields(job) {
     quotedGpPerHour,
     marginToDate,
     quotedMargin,
+    previousMarginToDate,
+    marginTrend,
     projectedTotalCost,
     projectedOverrun,
     overBudget,

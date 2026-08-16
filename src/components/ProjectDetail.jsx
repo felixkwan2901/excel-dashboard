@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { ArrowLeft, AlertTriangle, SlidersHorizontal } from 'lucide-react'
-import StatusBadge from './StatusBadge'
+import TrendBadge from './TrendBadge'
 import { money, percent } from '../lib/format'
 import { statusReasons } from '../lib/statusReasons'
 
@@ -61,7 +61,7 @@ export default function ProjectDetail({ job, onBack }) {
             <p className="text-sm text-neutral-500 tabular-nums">Job {job.jobNumber}</p>
             <h1 className="mt-1 text-3xl font-bold text-white">{job.jobName}</h1>
             <div className="mt-2">
-              <StatusBadge flagged={job.flagged} />
+              <TrendBadge marginTrend={job.marginTrend} />
             </div>
           </div>
           <p className="text-3xl font-bold text-brand-green tabular-nums">
