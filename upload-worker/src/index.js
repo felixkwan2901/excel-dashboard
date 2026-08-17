@@ -12,7 +12,6 @@
 const OWNER = 'felixkwan2901'
 const REPO = 'excel-dashboard'
 const FILE_PATH = 'Cassidy_Davies_Electrical_BPMN_Data.xlsx'
-const SYNC_META_PATH = 'sync-meta.json'
 const BRANCH = 'main'
 const MAX_FILE_BYTES = 8 * 1024 * 1024 // 8MB per file
 const MAX_FILES = 60
@@ -412,7 +411,19 @@ async function handleStatus(request, env) {
     return json({ status: 'failed', message })
   }
 
-  return json({ status: 'done' })
+  // scripts/update-jobs.mjs writes a per-job result alongside the workbook
+  // commit once it's done processing this file — best-effort: an older
+  // upload from before this existed, or the results file racing the
+  // "gone from exports/" check by a beat, just means a plain "done" with
+  // no extra detail rather than an error.
+  const resultPath = `pending-updates/results/${baseName}.json`
+  try {
+    const resultBuf = await getFileBuffer(resultPath, env)
+    const result = JSON.parse(new TextDecoder().decode(resultBuf))
+    return json({ status: 'done', result })
+  } catch {
+    return json({ status: 'done' })
+  }
 }
 
 // ---------------------------------------------------------------------------

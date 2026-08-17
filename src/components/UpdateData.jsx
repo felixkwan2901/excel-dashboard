@@ -5,6 +5,37 @@ import { pollStagedStatus } from '../lib/pollStagedStatus'
 
 const UPLOAD_WORKER_URL = 'https://cde-data-upload.fkw24.workers.dev'
 
+// scripts/update-jobs.mjs writes a specific outcome per file once it's
+// done — falls back to the coarser staged-status label for an older
+// upload from before that existed, or one still mid-flight/timed out.
+const OUTCOME_LABEL = {
+  updated: 'Updated',
+  duplicate: 'Skipped — duplicate',
+  no_room: 'No week slot left',
+  unmatched: 'Job number not found',
+  unreadable: 'Could not be read',
+}
+const OUTCOME_TONE = {
+  updated: 'text-brand-green',
+  duplicate: 'text-text-muted',
+  no_room: 'text-status-critical',
+  unmatched: 'text-status-critical',
+  unreadable: 'text-status-critical',
+}
+
+function resultLabel(r) {
+  if (r.result?.outcome) return OUTCOME_LABEL[r.result.outcome] ?? r.result.outcome
+  if (r.status === 'done') return 'Processed'
+  if (r.status === 'failed') return r.message || 'Failed'
+  if (r.status === 'timeout') return 'Still processing — check back shortly'
+  return r.status
+}
+
+function resultTone(r) {
+  if (r.result?.outcome) return OUTCOME_TONE[r.result.outcome] ?? 'text-text-secondary'
+  return r.status === 'failed' ? 'text-status-critical' : 'text-brand-green'
+}
+
 export default function UpdateData({ onBack }) {
   const [password, setPassword] = useState('')
   const [files, setFiles] = useState(null)
@@ -232,21 +263,16 @@ export default function UpdateData({ onBack }) {
         <Card className="mt-4">
           <CardHeader>
             <CardTitle className="text-sm">Results</CardTitle>
-            <p className="text-xs text-text-muted">
-              For the full per-job breakdown (which weeks filled, margin changes), check the
-              "Process pending data updates" run in GitHub Actions.
-            </p>
           </CardHeader>
           <CardContent>
-            <ul className="flex flex-col gap-2 text-sm">
+            <ul className="flex flex-col gap-3 text-sm">
               {fileResults.map((r) => (
-                <li key={r.name} className="flex items-center justify-between gap-3">
-                  <span className="text-text-secondary">{r.name}</span>
-                  <span className={r.status === 'failed' ? 'text-status-critical' : 'text-brand-green'}>
-                    {r.status === 'done' && 'Processed'}
-                    {r.status === 'failed' && (r.message || 'Failed')}
-                    {r.status === 'timeout' && 'Still processing — check back shortly'}
-                  </span>
+                <li key={r.name} className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-text-secondary">{r.name}</span>
+                    <span className={resultTone(r)}>{resultLabel(r)}</span>
+                  </div>
+                  {r.result?.message && <p className="text-xs text-text-muted">{r.result.message}</p>}
                 </li>
               ))}
             </ul>

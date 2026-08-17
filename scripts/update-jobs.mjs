@@ -40,7 +40,7 @@
 
 import { createHash } from 'node:crypto'
 import { readFileSync, readdirSync, writeFileSync, mkdirSync, renameSync, statSync, existsSync } from 'node:fs'
-import { join, resolve, dirname } from 'node:path'
+import { join, resolve, dirname, basename } from 'node:path'
 import ExcelJS from 'exceljs'
 
 const folder = resolve(process.argv[2] ?? 'imports')
@@ -453,13 +453,18 @@ async function main() {
       continue
     }
     if (looksLikeDuplicate(rec, rows, currentIdx)) {
-      possibleDuplicates.push({ jobNumber: rec.jobNumber, jobName: rec.jobName, matchesWeek: rows[currentIdx][2] || 'Start of month' })
+      possibleDuplicates.push({
+        file: rec.file,
+        jobNumber: rec.jobNumber,
+        jobName: rec.jobName,
+        matchesWeek: rows[currentIdx][2] || 'Start of month',
+      })
       continue
     }
     const weekLabel = rows[targetIdx][2] || 'Start of month'
     const before = { totalActualCost: rows[targetIdx][8], claimToDate: rows[targetIdx][4], marginToDate: rows[targetIdx][25] }
     const after = applyJobUpdate(worksheet, rows, targetIdx, rec)
-    updated.push({ jobNumber: rec.jobNumber, jobName: rec.jobName, weekLabel, before, after })
+    updated.push({ file: rec.file, jobNumber: rec.jobNumber, jobName: rec.jobName, weekLabel, before, after })
   }
 
   const updatedJobNumbers = new Set(updated.map((u) => Number(u.jobNumber)))
@@ -511,6 +516,53 @@ async function main() {
   if (failures.length > 0) {
     console.log(`\n${failures.length} file(s) could not be read:`)
     for (const f of failures) console.log(`  ${f.file}: ${f.error}`)
+  }
+
+  // A per-file result the upload worker's /status endpoint can serve back
+  // to the dashboard once it notices this file is no longer staged — the
+  // basename here has to match exactly what the worker staged it as
+  // (<stagedId>-<safeFileName>.xlsx), since that's the only key the worker
+  // has to look results up by. Written under pending-updates/ so it rides
+  // along with this run's normal "git add -A" commit; nothing separate to
+  // wire up.
+  mkdirSync('pending-updates/results', { recursive: true })
+  function writeResult(filePath, result) {
+    writeFileSync(join('pending-updates/results', `${basename(filePath)}.json`), JSON.stringify(result, null, 2) + '\n')
+  }
+  for (const u of updated) {
+    writeResult(u.file, {
+      outcome: 'updated',
+      jobNumber: u.jobNumber,
+      jobName: u.jobName,
+      message: `Updated ${u.weekLabel} for ${u.jobNumber} ${u.jobName} — margin ${(u.before.marginToDate * 100).toFixed(1)}% → ${(u.after.marginToDate * 100).toFixed(1)}%.`,
+    })
+  }
+  for (const d of possibleDuplicates) {
+    writeResult(d.file, {
+      outcome: 'duplicate',
+      jobNumber: d.jobNumber,
+      jobName: d.jobName,
+      message: `Skipped ${d.jobNumber} ${d.jobName} — matches what's already recorded for ${d.matchesWeek}.`,
+    })
+  }
+  for (const r of noRoomLeft) {
+    writeResult(r.file, {
+      outcome: 'no_room',
+      jobNumber: r.jobNumber,
+      jobName: r.jobName,
+      message: `${r.jobNumber} ${r.jobName} has no empty week slot left — roll the month over first, then re-upload.`,
+    })
+  }
+  for (const u of unmatchedFiles) {
+    writeResult(u.file, {
+      outcome: 'unmatched',
+      jobNumber: u.jobNumber,
+      jobName: u.jobName,
+      message: `Job number ${u.jobNumber} wasn't found in the workbook.`,
+    })
+  }
+  for (const f of failures) {
+    writeResult(f.file, { outcome: 'unreadable', message: f.error })
   }
 
   const archived = archiveProcessedFiles(folder)
