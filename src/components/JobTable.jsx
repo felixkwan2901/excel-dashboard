@@ -15,31 +15,48 @@ const DEFAULT_OPTIONAL_KEYS = ['costProgress', 'gpPerHour', 'marginToDate']
 // carries that the table doesn't show unless turned on, so the table stays
 // uncluttered by default but nothing is permanently hidden.
 const OPTIONAL_COLUMNS = [
-  { key: 'costProgress', label: 'Cost' },
-  { key: 'gpPerHour', label: 'GP $/hr', num: true },
-  { key: 'marginToDate', label: 'Margin', num: true, centerHeader: true },
-  { key: 'quotedPrice', label: 'Quoted price', num: true, format: money },
-  { key: 'claimToDate', label: 'Claim to date', num: true, format: money },
-  { key: 'remainingToClaim', label: 'Remaining to claim', num: true, format: money },
-  { key: 'pctClaimRemaining', label: '% claim remaining', num: true, format: percent },
-  { key: 'totalQuotedCost', label: 'Total quoted cost', num: true, format: money },
-  { key: 'totalActualCost', label: 'Total actual cost', num: true, format: money },
-  { key: 'materialCostProgress', label: 'Material cost' },
-  { key: 'materialCostRemaining', label: 'Material cost remaining', num: true, format: money },
-  { key: 'materialPctRemaining', label: 'Material % remaining', num: true, format: percent },
-  { key: 'estimatedPctMaterialsReceived', label: 'Est. % materials received', num: true, format: percent },
-  { key: 'labourCostProgress', label: 'Labour cost' },
-  { key: 'labourCostRemaining', label: 'Labour cost remaining', num: true, format: money },
-  { key: 'labourCostPctRemaining', label: 'Labour cost % remaining', num: true, format: percent },
-  { key: 'labourHoursProgress', label: 'Labour hours' },
-  { key: 'labourHoursRemaining', label: 'Labour hours remaining', num: true },
-  { key: 'labourHourPctRemaining', label: 'Labour hour % remaining', num: true, format: percent },
-  { key: 'estimatedPctJobComplete', label: 'Est. % job complete', num: true, format: percent },
-  { key: 'quotedGpPerHour', label: 'Quoted GP $/hr', num: true, format: money },
-  { key: 'quotedMargin', label: 'Quoted margin', num: true, format: percent },
-  { key: 'projectedTotalCost', label: 'Projected total cost', num: true, format: money },
-  { key: 'projectedOverrun', label: 'Projected overrun', num: true, format: money },
+  { key: 'costProgress', label: 'Cost', group: 'Cost' },
+  { key: 'totalQuotedCost', label: 'Total quoted cost', num: true, format: money, group: 'Cost' },
+  { key: 'totalActualCost', label: 'Total actual cost', num: true, format: money, group: 'Cost' },
+  { key: 'projectedTotalCost', label: 'Projected total cost', num: true, format: money, group: 'Cost' },
+  { key: 'projectedOverrun', label: 'Projected overrun', num: true, format: money, group: 'Cost' },
+
+  { key: 'quotedPrice', label: 'Quoted price', num: true, format: money, group: 'Claim' },
+  { key: 'claimToDate', label: 'Claim to date', num: true, format: money, group: 'Claim' },
+  { key: 'remainingToClaim', label: 'Remaining to claim', num: true, format: money, group: 'Claim' },
+  { key: 'pctClaimRemaining', label: '% claim remaining', num: true, format: percent, group: 'Claim' },
+
+  { key: 'materialCostProgress', label: 'Material cost', group: 'Material' },
+  { key: 'materialCostRemaining', label: 'Material cost remaining', num: true, format: money, group: 'Material' },
+  { key: 'materialPctRemaining', label: 'Material % remaining', num: true, format: percent, group: 'Material' },
+  {
+    key: 'estimatedPctMaterialsReceived',
+    label: 'Est. % materials received',
+    num: true,
+    format: percent,
+    group: 'Material',
+  },
+
+  { key: 'labourCostProgress', label: 'Labour cost', group: 'Labour' },
+  { key: 'labourCostRemaining', label: 'Labour cost remaining', num: true, format: money, group: 'Labour' },
+  { key: 'labourCostPctRemaining', label: 'Labour cost % remaining', num: true, format: percent, group: 'Labour' },
+  { key: 'labourHoursProgress', label: 'Labour hours', group: 'Labour' },
+  { key: 'labourHoursRemaining', label: 'Labour hours remaining', num: true, group: 'Labour' },
+  { key: 'labourHourPctRemaining', label: 'Labour hour % remaining', num: true, format: percent, group: 'Labour' },
+
+  { key: 'gpPerHour', label: 'GP $/hr', num: true, group: 'Margin' },
+  { key: 'quotedGpPerHour', label: 'Quoted GP $/hr', num: true, format: money, group: 'Margin' },
+  { key: 'marginToDate', label: 'Margin', num: true, centerHeader: true, group: 'Margin' },
+  { key: 'quotedMargin', label: 'Quoted margin', num: true, format: percent, group: 'Margin' },
+
+  { key: 'estimatedPctJobComplete', label: 'Est. % job complete', num: true, format: percent, group: 'Progress' },
 ]
+
+// The order groups appear in the toggle panel — deliberately not
+// alphabetical, roughly matching how a job's figures get discussed in
+// practice (claim first, then what it cost, then the two things that make
+// up cost, then how that nets out, then overall progress).
+const COLUMN_GROUP_ORDER = ['Claim', 'Cost', 'Material', 'Labour', 'Margin', 'Progress']
 
 // Replaces the old separate Quoted Price / Actual Cost / Remaining to
 // Claim columns with one compact element: a bar showing actual cost as a
@@ -329,26 +346,35 @@ export default function JobTable({
             <h2 className="mb-3 text-[13px] font-semibold tracking-wide text-neutral-400 uppercase">
               Columns shown
             </h2>
-            <div className="flex max-h-[420px] flex-col gap-2 overflow-y-auto">
-              <label className="flex items-start gap-2 text-[13px] text-neutral-300">
-                <input
-                  type="checkbox"
-                  checked={showTrend}
-                  onChange={() => setShowTrend((v) => !v)}
-                  className="mt-0.5"
-                />
-                Trend
-              </label>
-              {OPTIONAL_COLUMNS.map((c) => (
-                <label key={c.key} className="flex items-start gap-2 text-[13px] text-neutral-300">
+            <div className="flex max-h-[420px] flex-col gap-4 overflow-y-auto">
+              <div className="flex flex-col gap-2">
+                <label className="flex items-start gap-2 text-[13px] text-neutral-300">
                   <input
                     type="checkbox"
-                    checked={visibleKeys.has(c.key)}
-                    onChange={() => toggleColumn(c.key)}
+                    checked={showTrend}
+                    onChange={() => setShowTrend((v) => !v)}
                     className="mt-0.5"
                   />
-                  {c.label}
+                  Trend
                 </label>
+              </div>
+              {COLUMN_GROUP_ORDER.map((group) => (
+                <div key={group} className="flex flex-col gap-2">
+                  <h3 className="text-[11px] font-semibold tracking-wide text-neutral-500 uppercase">
+                    {group}
+                  </h3>
+                  {OPTIONAL_COLUMNS.filter((c) => c.group === group).map((c) => (
+                    <label key={c.key} className="flex items-start gap-2 text-[13px] text-neutral-300">
+                      <input
+                        type="checkbox"
+                        checked={visibleKeys.has(c.key)}
+                        onChange={() => toggleColumn(c.key)}
+                        className="mt-0.5"
+                      />
+                      {c.label}
+                    </label>
+                  ))}
+                </div>
               ))}
             </div>
           </div>
