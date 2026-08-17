@@ -283,7 +283,41 @@ export default function JobTable({
       </div>
 
       <div className="flex items-start gap-6">
-        <div className="table-scroll min-w-0 flex-1">
+        {/* Mobile: a wide multi-column table just becomes horizontal-scroll
+            soup on a phone. Below sm, swap to one stacked card per job —
+            a fixed, small set of fields (not whatever's toggled on for the
+            desktop table, which could be 20+ columns and make every card
+            enormous) with the full detail still a tap away on the job's
+            own page. */}
+        <div className="flex w-full min-w-0 flex-col gap-3 sm:hidden">
+          {filtered.map((job) => (
+            <div
+              key={job.jobNumber}
+              onClick={() => onSelectJob?.(job.jobNumber)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  onSelectJob?.(job.jobNumber)
+                }
+              }}
+              tabIndex={onSelectJob ? 0 : undefined}
+              role={onSelectJob ? 'button' : undefined}
+              className="flex flex-col gap-3 rounded-[14px] border border-white/[0.06] bg-white/[0.02] p-4"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-[14px] font-medium text-white">
+                  <span className="text-neutral-500">{job.jobNumber}</span> {job.jobName}
+                </p>
+                {showTrend && <TrendBadge marginTrend={job.marginTrend} />}
+              </div>
+              <CostBar actual={job.totalActualCost} quoted={job.quotedPrice} />
+              <MarginBar value={job.marginToDate} />
+            </div>
+          ))}
+          {filtered.length === 0 && <p className="empty-row">No jobs match your filters.</p>}
+        </div>
+
+        <div className="table-scroll hidden min-w-0 flex-1 sm:block">
           <table className="data-table">
             <thead>
               <tr>

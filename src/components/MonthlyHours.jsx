@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 
 function monthLabel(monthKey) {
   const [year, month] = monthKey.split('-').map(Number)
@@ -85,7 +85,40 @@ export default function MonthlyHours({ monthlyHours, onBack }) {
 
           <div className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6">
             <h2 className="mb-4 text-[15px] font-medium text-neutral-100">Hours per job, by month</h2>
-            <div className="table-scroll">
+
+            {/* Mobile: a table with one column per month gets unreadable
+                fast — one card per job, each month's hours listed as a
+                line, is far easier to scan on a phone. */}
+            <div className="flex flex-col gap-3 sm:hidden">
+              {rows.map((j) => (
+                <div
+                  key={j.jobNumber}
+                  className="flex flex-col gap-2 rounded-[14px] border border-white/[0.06] bg-white/[0.02] p-4"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[14px] font-medium text-white">
+                      <span className="text-neutral-500">{j.jobNumber}</span> {j.jobName}
+                    </p>
+                    <span className="text-[13px] font-medium tabular-nums text-neutral-200">
+                      {j.total.toFixed(1)} hrs
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[13px]">
+                    {months.map((m) => (
+                      <Fragment key={m}>
+                        <span className="text-neutral-500">{monthLabel(m)}</span>
+                        <span className="text-right tabular-nums text-neutral-200">
+                          {j.hoursByMonth[m] !== undefined ? `${j.hoursByMonth[m].toFixed(1)} hrs` : '—'}
+                        </span>
+                      </Fragment>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              {rows.length === 0 && <p className="empty-row">No jobs to show.</p>}
+            </div>
+
+            <div className="table-scroll hidden sm:block">
               <table className="data-table">
                 <thead>
                   <tr>

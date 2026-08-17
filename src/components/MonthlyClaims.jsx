@@ -224,7 +224,35 @@ export default function MonthlyClaims({ monthlyClaims, onBack }) {
             </p>
           )}
         </div>
-        <div className="table-scroll">
+        {/* Mobile: one stacked card per job with the headline figures,
+            instead of a wide table that'd need horizontal scrolling. */}
+        <div className="flex flex-col gap-3 sm:hidden">
+          {tableRows.map((j) => (
+            <div
+              key={j.jobNumber}
+              className="flex flex-col gap-2 rounded-[14px] border border-white/[0.06] bg-white/[0.02] p-4"
+            >
+              <p className="text-[14px] font-medium text-white">
+                <span className="text-neutral-500">{j.jobNumber}</span> {j.jobName}
+              </p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[13px]">
+                <span className="text-neutral-500">Claim</span>
+                <span className="text-right tabular-nums text-neutral-200">{money(j.claim)}</span>
+                <span className="text-neutral-500">Costs</span>
+                <span className="text-right tabular-nums text-neutral-200">{money(j.costs)}</span>
+                <span className="text-neutral-500">Profit</span>
+                <span className={`text-right tabular-nums ${j.profit !== null && j.profit < 0 ? 'text-red-400' : 'text-neutral-200'}`}>
+                  {money(j.profit)}
+                </span>
+                <span className="text-neutral-500">Margin</span>
+                <span className="text-right tabular-nums text-neutral-200">{percent(j.margin)}</span>
+              </div>
+            </div>
+          ))}
+          {tableRows.length === 0 && <p className="empty-row">No jobs to show.</p>}
+        </div>
+
+        <div className="table-scroll hidden sm:block">
           <table className="data-table">
             <thead>
               <tr>

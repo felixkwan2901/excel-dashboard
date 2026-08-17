@@ -186,7 +186,38 @@ export default function MainSheetTab({ mainSheet, onBack }) {
 
       <div className="flex items-start gap-6">
         <div className="min-w-0 flex-1 rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6">
-          <div className="table-scroll">
+          {/* Mobile: one card per job with each checklist item as its own
+              labeled dropdown, instead of a table with one narrow column
+              per checklist item that'd be unreadable at phone width. */}
+          <div className="flex flex-col gap-3 sm:hidden">
+            {sortedJobs.map((job) => (
+              <div
+                key={job.jobNumber}
+                className="flex flex-col gap-3 rounded-[14px] border border-white/[0.06] bg-white/[0.02] p-4"
+              >
+                <p className="text-[14px] font-medium text-white">
+                  <span className="text-neutral-500">{job.jobNumber}</span> {job.jobName}
+                </p>
+                <div className="flex flex-col gap-2">
+                  {visibleColumns.map((c) => (
+                    <div key={c.key} className="flex items-center justify-between gap-3">
+                      <span className="text-[12px] text-neutral-400">{c.label}</span>
+                      <div className="w-28 shrink-0">
+                        <ChecklistCell
+                          value={values[job.jobNumber][c.key]}
+                          saving={savingKeys.has(`${job.jobNumber}:${c.key}`)}
+                          onChange={(newValue) => handleChange(job, c.key, newValue)}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+            {sortedJobs.length === 0 && <p className="empty-row">No jobs to show.</p>}
+          </div>
+
+          <div className="table-scroll hidden sm:block">
             <table className="data-table">
               <thead>
                 <tr>
