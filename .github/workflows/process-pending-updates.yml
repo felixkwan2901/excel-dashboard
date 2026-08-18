@@ -55,7 +55,22 @@ jobs:
           git add -A
           if git diff --cached --quiet; then
             echo "Nothing to commit."
-          else
-            git commit -m "Process pending data updates ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
-            git push
+            exit 0
           fi
+          git commit -m "Process pending data updates ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
+
+          # main can move between our checkout and this push (e.g. the
+          # upload-worker staging another export directly), so rebase onto
+          # the latest main and retry instead of failing on a bare
+          # non-fast-forward rejection.
+          for i in 1 2 3 4 5; do
+            if git push; then
+              exit 0
+            fi
+            echo "Push rejected, rebasing onto latest main (attempt $i)..."
+            git fetch origin main
+            git rebase origin/main
+          done
+
+          echo "::error::Failed to push after multiple retries"
+          exit 1
