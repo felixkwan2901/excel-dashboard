@@ -4,13 +4,14 @@ import { pollStagedStatus } from '../lib/pollStagedStatus'
 
 const UPLOAD_WORKER_URL = 'https://cde-data-upload.fkw24.workers.dev'
 
-// Column indices on the "Claim Calculator By Month" sheet that are plain
-// manual entry, not formulas — everything else on that row (Profit,
-// Margin, Total cost to come, Est. margin E.O.M, GP End of month) is
-// calculated and must never be written to from here.
+// Claim and Costs used to be here too, but they're now auto-computed by
+// scripts/update-jobs.mjs on every weekly upload (this month's cumulative
+// minus the Deliverables Sheet's "Start of month" baseline) — genuinely
+// derivable from data already on hand, unlike these four, which are
+// either a business decision (Retention) or a forward-looking estimate
+// (Hours/Costs to come before E.O.M) that nothing in the workbook can
+// derive automatically.
 const EDITABLE_FIELDS = [
-  { key: 'claim', col: 2, label: 'Claim', num: true },
-  { key: 'costs', col: 3, label: 'Costs', num: true },
   { key: 'retention', col: 5, label: 'Retention', num: true },
   { key: 'hoursToCompleteBeforeEom', col: 8, label: 'Hours to complete before E.O.M', num: true },
   { key: 'costsToComeBeforeEom', col: 9, label: 'Costs to come before E.O.M', num: true },
@@ -112,11 +113,12 @@ function SortableHeading({ label, dir, onToggle }) {
 // same free-typed-number convention as the checklist's dropdown, just a
 // plain input instead. Saves on blur (not per-keystroke) since these are
 // numbers someone might pause mid-typing, same reasoning as the Notes tab.
-function EditableCell({ value, saving, numeric, onChange }) {
+function EditableCell({ id, value, saving, numeric, onChange }) {
   const [text, setText] = useState(value)
 
   return (
     <input
+      id={id}
       type={numeric ? 'number' : 'text'}
       value={text}
       disabled={saving}
@@ -129,34 +131,32 @@ function EditableCell({ value, saving, numeric, onChange }) {
   )
 }
 
-function ClaimCalculatorEditor({ jobs }) {
-  const [open, setOpen] = useState(false)
-  const [password, setPassword] = useState('')
+// Opens directly from clicking a job's row/card in the table below — no
+// more scrolling to a separate section and re-finding the same job in a
+// second, duplicate list. Password is lifted to MonthlyClaims so it's
+// entered once and carries over between jobs for the rest of the session.
+function ClaimCalculatorModal({ job, password, onPasswordChange, onClose }) {
   const [values, setValues] = useState(() => {
     const map = {}
-    for (const job of jobs) {
-      map[job.jobNumber] = {}
-      for (const field of EDITABLE_FIELDS) map[job.jobNumber][field.key] = job[field.key] ?? ''
-    }
+    for (const field of EDITABLE_FIELDS) map[field.key] = job[field.key] ?? ''
     return map
   })
   const [savingKeys, setSavingKeys] = useState(() => new Set())
   const [status, setStatus] = useState({ kind: 'idle', message: '' })
 
-  async function handleChange(job, field, newValue) {
-    const cellKey = `${job.jobNumber}:${field.key}`
-    const previousValue = values[job.jobNumber][field.key]
+  async function handleChange(field, newValue) {
+    const previousValue = values[field.key]
     if (!password) {
       setStatus({ kind: 'error', message: 'Enter the upload password above before making changes.' })
       return
     }
 
-    setValues((prev) => ({ ...prev, [job.jobNumber]: { ...prev[job.jobNumber], [field.key]: newValue } }))
-    setSavingKeys((prev) => new Set(prev).add(cellKey))
+    setValues((prev) => ({ ...prev, [field.key]: newValue }))
+    setSavingKeys((prev) => new Set(prev).add(field.key))
     setStatus({ kind: 'idle', message: '' })
 
     function revert(message) {
-      setValues((prev) => ({ ...prev, [job.jobNumber]: { ...prev[job.jobNumber], [field.key]: previousValue } }))
+      setValues((prev) => ({ ...prev, [field.key]: previousValue }))
       setStatus({ kind: 'error', message })
     }
 
@@ -175,12 +175,12 @@ function ClaimCalculatorEditor({ jobs }) {
         return
       }
 
-      setStatus({ kind: 'idle', message: `Saving "${field.label}" for ${job.jobNumber} ${job.jobName}…` })
+      setStatus({ kind: 'idle', message: `Saving "${field.label}"…` })
       const result = await pollStagedStatus(payload.staged)
       if (result.status === 'done') {
         setStatus({
           kind: 'ok',
-          message: `Saved "${field.label}" for ${job.jobNumber} ${job.jobName} — the site will redeploy in about a minute before it shows up here.`,
+          message: `Saved "${field.label}" — the site will redeploy in about a minute before it shows up here.`,
         })
       } else if (result.status === 'failed') {
         revert(`${result.message} — reverted.`)
@@ -195,83 +195,78 @@ function ClaimCalculatorEditor({ jobs }) {
     } finally {
       setSavingKeys((prev) => {
         const next = new Set(prev)
-        next.delete(cellKey)
+        next.delete(field.key)
         return next
       })
     }
   }
 
   return (
-    <div className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-pressed={open}
-        className={`flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors ${
-          open
-            ? 'border-brand-green/50 bg-brand-green/10 text-brand-green'
-            : 'border-white/10 text-neutral-400 hover:border-white/20 hover:text-white'
-        }`}
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={onClose}
+      role="presentation"
+    >
+      <div
+        className="flex w-full max-w-md flex-col gap-4 rounded-[18px] border border-white/10 bg-[#11161c] p-6 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="claim-calc-modal-title"
       >
-        Enter this month&apos;s figures
-      </button>
-
-      {open && (
-        <div className="mt-4 flex flex-col gap-4">
+        <div className="flex items-start justify-between gap-3">
           <div>
-            <label htmlFor="claim-calc-password" className="mb-1.5 block text-xs text-neutral-500">
-              Upload password — required before any change can save
-            </label>
-            <input
-              id="claim-calc-password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full max-w-xs rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-brand-green/50 focus:outline-none"
-            />
+            <p className="text-[12px] text-neutral-500">{job.jobNumber}</p>
+            <h3 id="claim-calc-modal-title" className="text-[15px] font-medium text-neutral-100">
+              {job.jobName}
+            </h3>
           </div>
-
-          {status.message && (
-            <p className={`text-sm ${status.kind === 'error' ? 'text-red-400' : 'text-brand-green'}`}>
-              {status.message}
-            </p>
-          )}
-
-          <div className="table-scroll">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Job</th>
-                  {EDITABLE_FIELDS.map((f) => (
-                    <th key={f.key} className={f.num ? 'num' : undefined}>
-                      {f.label}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {jobs.map((job) => (
-                  <tr key={job.jobNumber}>
-                    <td className="whitespace-nowrap">
-                      {job.jobNumber} {job.jobName}
-                    </td>
-                    {EDITABLE_FIELDS.map((field) => (
-                      <td key={field.key} className="min-w-[110px] p-1">
-                        <EditableCell
-                          value={values[job.jobNumber][field.key]}
-                          saving={savingKeys.has(`${job.jobNumber}:${field.key}`)}
-                          numeric={field.num}
-                          onChange={(newValue) => handleChange(job, field, newValue)}
-                        />
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="shrink-0 rounded-full p-1 text-neutral-500 transition-colors hover:bg-white/[0.06] hover:text-white"
+          >
+            ✕
+          </button>
         </div>
-      )}
+
+        <div>
+          <label htmlFor="claim-calc-password" className="mb-1.5 block text-xs text-neutral-500">
+            Upload password — required before any change can save
+          </label>
+          <input
+            id="claim-calc-password"
+            type="password"
+            value={password}
+            onChange={(e) => onPasswordChange(e.target.value)}
+            className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-brand-green/50 focus:outline-none"
+          />
+        </div>
+
+        {status.message && (
+          <p className={`text-sm ${status.kind === 'error' ? 'text-red-400' : 'text-brand-green'}`}>
+            {status.message}
+          </p>
+        )}
+
+        <div className="flex flex-col gap-3">
+          {EDITABLE_FIELDS.map((field) => (
+            <div key={field.key}>
+              <label htmlFor={`claim-calc-${field.key}`} className="mb-1 block text-[12px] text-neutral-500">
+                {field.label}
+              </label>
+              <EditableCell
+                id={`claim-calc-${field.key}`}
+                value={values[field.key]}
+                saving={savingKeys.has(field.key)}
+                numeric={field.num}
+                onChange={(newValue) => handleChange(field, newValue)}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }
@@ -290,6 +285,12 @@ const TABLE_COLUMNS = [
 
 export default function MonthlyClaims({ monthlyClaims, onBack }) {
   const { jobs, totals } = monthlyClaims
+
+  // Lifted here (rather than living inside the modal) so it's entered once
+  // and carries over between jobs for the rest of the session, instead of
+  // re-typing the password every time a different job is opened.
+  const [password, setPassword] = useState('')
+  const [editingJob, setEditingJob] = useState(null)
 
   const [profitDir, setProfitDir] = useState(1) // 1 = highest first, -1 = lowest first
   const [gpDir, setGpDir] = useState(1)
@@ -401,20 +402,26 @@ export default function MonthlyClaims({ monthlyClaims, onBack }) {
       <div className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6">
         <div className="mb-4">
           <h2 className="text-[15px] font-medium text-neutral-100">Jobs claimed this month — full figures</h2>
-          {inactiveCount > 0 && (
-            <p className="mt-1 text-[12px] text-neutral-500">
-              {inactiveCount} other job{inactiveCount === 1 ? '' : 's'} with no claim this month{' '}
-              {inactiveCount === 1 ? 'is' : 'are'} hidden — see the Job Directory for those.
-            </p>
-          )}
+          <p className="mt-1 text-[12px] text-neutral-500">
+            Click a job to edit its retention, estimates, and notes.
+            {inactiveCount > 0 && (
+              <>
+                {' '}
+                {inactiveCount} other job{inactiveCount === 1 ? '' : 's'} with no claim this month{' '}
+                {inactiveCount === 1 ? 'is' : 'are'} hidden — use the picker below to edit one of those.
+              </>
+            )}
+          </p>
         </div>
         {/* Mobile: one stacked card per job with the headline figures,
             instead of a wide table that'd need horizontal scrolling. */}
         <div className="flex flex-col gap-3 sm:hidden">
           {tableRows.map((j) => (
-            <div
+            <button
               key={j.jobNumber}
-              className="flex flex-col gap-2 rounded-[14px] border border-white/[0.06] bg-white/[0.02] p-4"
+              type="button"
+              onClick={() => setEditingJob(j)}
+              className="flex flex-col gap-2 rounded-[14px] border border-white/[0.06] bg-white/[0.02] p-4 text-left transition-colors hover:border-brand-green/30 hover:bg-white/[0.04]"
             >
               <p className="text-[14px] font-medium text-white">
                 <span className="text-neutral-500">{j.jobNumber}</span> {j.jobName}
@@ -431,7 +438,7 @@ export default function MonthlyClaims({ monthlyClaims, onBack }) {
                 <span className="text-neutral-500">Margin</span>
                 <span className="text-right tabular-nums text-neutral-200">{percent(j.margin)}</span>
               </div>
-            </div>
+            </button>
           ))}
           {tableRows.length === 0 && <p className="empty-row">No jobs to show.</p>}
         </div>
@@ -457,7 +464,11 @@ export default function MonthlyClaims({ monthlyClaims, onBack }) {
             </thead>
             <tbody>
               {tableRows.map((j) => (
-                <tr key={j.jobNumber}>
+                <tr
+                  key={j.jobNumber}
+                  onClick={() => setEditingJob(j)}
+                  className="cursor-pointer transition-colors hover:bg-white/[0.04]"
+                >
                   <td className="whitespace-nowrap">{j.jobNumber}</td>
                   <td>{j.jobName}</td>
                   <td className="num tabular">{money(j.claim)}</td>
@@ -476,7 +487,39 @@ export default function MonthlyClaims({ monthlyClaims, onBack }) {
         </div>
       </div>
 
-      <ClaimCalculatorEditor jobs={jobs} />
+      <div className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6">
+        <h2 className="mb-3 text-[15px] font-medium text-neutral-100">Edit a different job</h2>
+        <p className="mb-3 text-[12px] text-neutral-500">
+          Includes jobs with no claim recorded this month — pick one to set its retention,
+          estimates, or notes.
+        </p>
+        <select
+          value=""
+          onChange={(e) => {
+            const job = jobs.find((j) => j.jobNumber === e.target.value)
+            if (job) setEditingJob(job)
+          }}
+          className="w-full max-w-sm rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-brand-green/50 focus:outline-none"
+        >
+          <option value="" disabled>
+            Select a job…
+          </option>
+          {jobs.map((j) => (
+            <option key={j.jobNumber} value={j.jobNumber}>
+              {j.jobNumber} {j.jobName}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {editingJob && (
+        <ClaimCalculatorModal
+          job={editingJob}
+          password={password}
+          onPasswordChange={setPassword}
+          onClose={() => setEditingJob(null)}
+        />
+      )}
     </div>
   )
 }

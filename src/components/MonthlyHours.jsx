@@ -1,8 +1,14 @@
 import { Fragment, useMemo, useState } from 'react'
 
-// Actual-hours-to-date vs quoted, not just this month vs other months —
-// over 100% used reads as a warning (red) the same way a job's cost bar
-// does elsewhere in the app; comfortably under reads neutral.
+// Deliberately the job's WHOLE-LIFETIME actual hours vs quoted — not the
+// same timeframe as the monthly columns next to it, which only cover
+// however many months this tracking system has existed for (so "Total"
+// there reads much smaller than this for an older job with lots of
+// pre-tracking history). Naming it "all-time" rather than just "to date"
+// is meant to make that difference obvious rather than implying the two
+// numbers should match. Over 100% used reads as a warning (red) the same
+// way a job's cost bar does elsewhere in the app; comfortably under reads
+// neutral.
 function pctUsedLabel(actualHours, quotedHours) {
   if (!quotedHours || actualHours === null) return '—'
   return `${Math.round((actualHours / quotedHours) * 100)}%`
@@ -129,7 +135,7 @@ export default function MonthlyHours({ monthlyHours, jobs: allJobs, onBack }) {
                     </span>
                   </div>
                   <div className="flex items-center justify-between gap-3 text-[12px]">
-                    <span className="text-neutral-500">Actual / quoted (to date)</span>
+                    <span className="text-neutral-500">Actual / quoted (all-time)</span>
                     <span className={pctUsedTone(j.actualHours, j.quotedHours)}>
                       {j.actualHours ?? '—'} / {j.quotedHours ?? '—'} hrs ({pctUsedLabel(j.actualHours, j.quotedHours)})
                     </span>
@@ -173,7 +179,7 @@ export default function MonthlyHours({ monthlyHours, jobs: allJobs, onBack }) {
                       Total{sort.key === 'total' && (sort.dir === 1 ? ' ▲' : ' ▼')}
                     </th>
                     <th className="num">Quoted hrs</th>
-                    <th className="num">% used (to date)</th>
+                    <th className="num">% used (all-time)</th>
                   </tr>
                 </thead>
                 <tbody>

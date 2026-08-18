@@ -516,6 +516,24 @@ async function main() {
   const validBlocks = blocks.filter(isValidJobBlock)
   const existingJobNumbers = new Set(validBlocks.map((b) => Number(b.jobNumber)))
 
+  // Claim Calculator's Claim/Costs columns used to be hand-typed every
+  // month — but "this month's claim/costs" is just the difference between
+  // the job's current cumulative claim/actual-cost and what they were at
+  // the start of THIS calendar month, and that baseline is exactly what
+  // the Deliverables Sheet's own "Start of month" row already holds
+  // (refreshed by the automatic rollover above). No separate log needed —
+  // every job that gets a real update below also gets its Claim
+  // Calculator row auto-corrected to match, right here.
+  const claimCalcWs = wb.getWorksheet('Claim Calculator By Month')
+  const claimCalcRowByNumber = new Map()
+  if (claimCalcWs) {
+    claimCalcWs.eachRow((row, rowNumber) => {
+      const raw = row.getCell(1).value
+      const num = raw && typeof raw === 'object' ? raw.result : raw
+      if (typeof num === 'number' && num > 0) claimCalcRowByNumber.set(num, rowNumber)
+    })
+  }
+
   // Automatic monthly rollover — only fires when sync-meta.json has a
   // PREVIOUSLY recorded month that differs from the current one, never on
   // the first run of this logic (no prior record). Rolling over on a first
@@ -534,6 +552,17 @@ async function main() {
     console.log(`New month detected (${syncMeta.lastProcessedMonth} -> ${currentMonth}) — rolling last month's figures into "Start of month" and clearing week slots.`)
     recordClosingMonthHours(syncMeta.lastProcessedMonth, validBlocks, rows)
     rolloverBlocksForNewMonth(worksheet, rows, validBlocks)
+    // A new month starts with nothing claimed yet — without this, last
+    // month's Claim/Costs would sit there mislabeled as "this month's"
+    // until the first export of the new month happens to arrive and
+    // recompute them fresh.
+    if (claimCalcWs) {
+      for (const rowNumber of claimCalcRowByNumber.values()) {
+        const row = claimCalcWs.getRow(rowNumber)
+        row.getCell(3).value = 0
+        row.getCell(4).value = 0
+      }
+    }
   }
 
   // Weeks are matched to the real calendar week of the month, not "the
@@ -595,6 +624,37 @@ async function main() {
 
   const updatedJobNumbers = new Set(updated.map((u) => Number(u.jobNumber)))
   const notUpdated = [...existingJobNumbers].filter((n) => !updatedJobNumbers.has(n))
+
+  // Recompute EVERY job's Claim/Costs from the Deliverables Sheet's current
+  // data on every run, not just jobs that happened to get a fresh export
+  // this run — the "Start of month" baseline and each job's current
+  // cumulative claim/cost are already sitting in the Deliverables Sheet
+  // regardless of whether this particular run touched that job, so
+  // recomputing unconditionally costs nothing and keeps every job's Claim
+  // Calculator row in sync instead of most of them sitting at 0 until their
+  // own next re-export happens to arrive.
+  if (claimCalcWs) {
+    for (const block of validBlocks) {
+      const claimCalcRowNumber = claimCalcRowByNumber.get(Number(block.jobNumber))
+      if (!claimCalcRowNumber) continue
+      const startIdx = block.weekIdxs[0]
+      const startClaim = Number(rows[startIdx][COL.claimToDate]) || 0
+      const startCost = Number(rows[startIdx][COL.totalActualCost]) || 0
+      let lastFilledPos = 0
+      for (let i = block.weekIdxs.length - 1; i >= 1; i--) {
+        const qp = Number(rows[block.weekIdxs[i]][COL.quotedPrice])
+        if (Number.isFinite(qp) && qp > 0) {
+          lastFilledPos = i
+          break
+        }
+      }
+      const currentClaim = Number(rows[block.weekIdxs[lastFilledPos]][COL.claimToDate]) || 0
+      const currentCost = Number(rows[block.weekIdxs[lastFilledPos]][COL.totalActualCost]) || 0
+      const claimCalcRow = claimCalcWs.getRow(claimCalcRowNumber)
+      claimCalcRow.getCell(3).value = currentClaim - startClaim
+      claimCalcRow.getCell(4).value = currentCost - startCost
+    }
+  }
 
   await wb.xlsx.writeFile(workbookPath)
 

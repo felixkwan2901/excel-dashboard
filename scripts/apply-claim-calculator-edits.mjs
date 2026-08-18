@@ -5,12 +5,15 @@
 //
 // Each staged file is one save action from the dashboard: { edits: [{
 // jobNumber, col, value }] }, where `col` is a 0-indexed column on the
-// "Claim Calculator By Month" sheet. Only ever writes to the sheet's plain
-// manual-entry columns (Claim, Costs, Retention, Hours-to-complete-before-
-// E.O.M, Costs-to-come-before-E.O.M, notes) — every other column on that
-// sheet is a live formula and this script never touches them. Applied in
-// filename (chronological) order, same "later edit wins" rule the
-// checklist's apply script uses.
+// "Claim Calculator By Month" sheet. Only ever writes to Retention,
+// Hours-to-complete-before-E.O.M, Costs-to-come-before-E.O.M, and notes —
+// the columns that are still genuinely manual (a business decision or a
+// forward-looking estimate). Claim and Costs are deliberately NOT in this
+// allowlist anymore: scripts/update-jobs.mjs now auto-computes those on
+// every weekly upload, and an edit here would just get overwritten by the
+// next one anyway. Every other column on this sheet is a live formula and
+// this script never touches them. Applied in filename (chronological)
+// order, same "later edit wins" rule the checklist's apply script uses.
 
 import { readFileSync, writeFileSync, readdirSync, renameSync, mkdirSync, existsSync, rmSync } from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -25,7 +28,7 @@ const SYNC_META_PATH = resolve('sync-meta.json')
 // sheet's job rows is a formula (Profit, Margin, Total cost to come, Est.
 // margin E.O.M, GP End of month, identity). Rejecting anything outside
 // this set is a deliberate safety check, not just documentation.
-const EDITABLE_COLUMNS = new Set([2, 3, 5, 8, 9, 16])
+const EDITABLE_COLUMNS = new Set([5, 8, 9, 16])
 
 async function main() {
   if (!existsSync(STAGING_DIR)) {
