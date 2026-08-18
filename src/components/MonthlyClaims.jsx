@@ -72,7 +72,7 @@ function TotalsCard({ total }) {
           />
         </div>
         <p className="mt-1.5 text-[12px] tabular-nums text-neutral-400">
-          {money(total.costs)} costs of {money(total.claim)} claimed
+          {money(total.costs)} costs of {money(total.claim)} claimed this month
         </p>
       </div>
 
@@ -274,8 +274,8 @@ function ClaimCalculatorModal({ job, password, onPasswordChange, onClose }) {
 const TABLE_COLUMNS = [
   { key: 'jobNumber', label: 'Job #' },
   { key: 'jobName', label: 'Job name' },
-  { key: 'claim', label: 'Claim', num: true, format: money },
-  { key: 'costs', label: 'Costs', num: true, format: money },
+  { key: 'claim', label: 'Claim this month', num: true, format: money },
+  { key: 'costs', label: 'Costs this month', num: true, format: money },
   { key: 'profit', label: 'Profit', num: true, format: money },
   { key: 'margin', label: 'Margin', num: true, format: percent },
   { key: 'quotedMargin', label: 'Quoted margin', num: true, format: percent },
@@ -427,9 +427,9 @@ export default function MonthlyClaims({ monthlyClaims, onBack }) {
                 <span className="text-neutral-500">{j.jobNumber}</span> {j.jobName}
               </p>
               <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[13px]">
-                <span className="text-neutral-500">Claim</span>
+                <span className="text-neutral-500">Claim this month</span>
                 <span className="text-right tabular-nums text-neutral-200">{money(j.claim)}</span>
-                <span className="text-neutral-500">Costs</span>
+                <span className="text-neutral-500">Costs this month</span>
                 <span className="text-right tabular-nums text-neutral-200">{money(j.costs)}</span>
                 <span className="text-neutral-500">Profit</span>
                 <span className={`text-right tabular-nums ${j.profit !== null && j.profit < 0 ? 'text-red-400' : 'text-neutral-200'}`}>
