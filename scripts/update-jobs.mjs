@@ -655,9 +655,82 @@ async function main() {
       const currentClaim = Number(rows[block.weekIdxs[lastFilledPos]][COL.claimToDate]) || 0
       const currentCost = Number(rows[block.weekIdxs[lastFilledPos]][COL.totalActualCost]) || 0
       const claimCalcRow = claimCalcWs.getRow(claimCalcRowNumber)
-      claimCalcRow.getCell(3).value = currentClaim - startClaim
-      claimCalcRow.getCell(4).value = currentCost - startCost
+
+      const claim = currentClaim - startClaim
+      const costs = currentCost - startCost
+      claimCalcRow.getCell(3).value = claim
+      claimCalcRow.getCell(4).value = costs
+
+      // Profit (E), Margin (G), Total cost to come (K), Est. margin EOM
+      // (L), GP EOM (M), and GP $/hr this month (O) are Excel FORMULAS
+      // referencing Claim/Costs, directly or transitively — confirmed by
+      // reading a real row's actual formulas (E=C-D, G=(E+F)/C,
+      // K=(I*40)+J, L=((E-K)+F)/C, M=SUM(E:F)-K, O=SUM(M/(N+I))). ExcelJS
+      // never recalculates a formula cell's cached result just because
+      // another cell's .value changed, so without recomputing these here
+      // too, they'd keep showing whatever was cached from before this
+      // job's Claim/Costs were last overwritten — Profit in particular
+      // reading a stale number with no relation to the Claim/Costs now on
+      // screen. Written as plain values, same as every other computed
+      // field in this pipeline; 0 (not a formula error) when a
+      // division's denominator is genuinely zero, matching how a job
+      // with $0 claim already reads elsewhere in this sheet.
+      const retention = Number(resolveCellValue(claimCalcRow.getCell(6).value)) || 0
+      const hoursToCompleteBeforeEom = Number(resolveCellValue(claimCalcRow.getCell(9).value)) || 0
+      const costsToComeBeforeEom = Number(resolveCellValue(claimCalcRow.getCell(10).value)) || 0
+      const hoursThisMonth = Number(resolveCellValue(claimCalcRow.getCell(14).value)) || 0
+
+      const profit = claim - costs
+      const totalCostToComeBeforeEom = hoursToCompleteBeforeEom * 40 + costsToComeBeforeEom
+      const margin = claim ? (profit + retention) / claim : 0
+      const estimatedMarginEom = claim ? (profit - totalCostToComeBeforeEom + retention) / claim : 0
+      const gpEndOfMonth = profit + retention - totalCostToComeBeforeEom
+      const hoursDenominator = hoursThisMonth + hoursToCompleteBeforeEom
+      const gpPerHourThisMonth = hoursDenominator ? gpEndOfMonth / hoursDenominator : 0
+
+      claimCalcRow.getCell(5).value = profit
+      claimCalcRow.getCell(7).value = margin
+      claimCalcRow.getCell(11).value = totalCostToComeBeforeEom
+      claimCalcRow.getCell(12).value = estimatedMarginEom
+      claimCalcRow.getCell(13).value = gpEndOfMonth
+      claimCalcRow.getCell(15).value = gpPerHourThisMonth
     }
+
+    // The Commercial/Residential Totals rows (identified by "GP%" sitting
+    // in the Retention column, same signal the dashboard's own reader
+    // uses) are ALSO formulas summing the per-job cells just rewritten
+    // above — e.g. "SUM(C4,C6,C8,...)" for Claim, "(E69-(K4+K6+...))/C69"
+    // for E.O.M GP% — so their cached totals are just as stale as the
+    // per-job Profit was. Reads each formula's own cell references
+    // (rather than hardcoding the row list) so this keeps working if a
+    // new job's row ever gets inserted into that range.
+    function sumRefs(formula, columnLetter) {
+      const colIdx = columnLetter.charCodeAt(0) - 64 // 'A' -> 1
+      const re = new RegExp(`\\b${columnLetter}(\\d+)\\b`, 'g')
+      let sum = 0
+      let m
+      while ((m = re.exec(formula))) {
+        sum += Number(resolveCellValue(claimCalcWs.getRow(Number(m[1])).getCell(colIdx).value)) || 0
+      }
+      return sum
+    }
+    claimCalcWs.eachRow((row) => {
+      if (row.getCell(6).value !== 'GP%') return
+      const cFormula = row.getCell(3).value?.formula
+      const dFormula = row.getCell(4).value?.formula
+      const eFormula = row.getCell(5).value?.formula
+      const eomFormula = row.getCell(9).value?.formula
+      if (!cFormula || !dFormula || !eFormula || !eomFormula) return
+      const sumClaim = sumRefs(cFormula, 'C')
+      const sumCosts = sumRefs(dFormula, 'D')
+      const sumProfit = sumRefs(eFormula, 'E')
+      const sumCostToCome = sumRefs(eomFormula, 'K')
+      row.getCell(3).value = sumClaim
+      row.getCell(4).value = sumCosts
+      row.getCell(5).value = sumProfit
+      row.getCell(7).value = sumClaim ? sumProfit / sumClaim : 0
+      row.getCell(9).value = sumClaim ? (sumProfit - sumCostToCome) / sumClaim : 0
+    })
   }
 
   await wb.xlsx.writeFile(workbookPath)
