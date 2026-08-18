@@ -36,40 +36,48 @@ jobs:
 
       - run: npm ci
 
-      - name: Merge staged job exports
-        run: node scripts/update-jobs.mjs pending-updates/exports
-
-      - name: Apply staged workbook replacements
-        run: node scripts/apply-replace.mjs
-
-      - name: Apply staged checklist edits
-        run: node scripts/apply-main-sheet-edits.mjs
-
-      - name: Snapshot this month's cumulative hours per job
-        run: node scripts/log-monthly-hours.mjs
-
-      - name: Commit and push if anything changed
+      - name: Process pending updates and push (retries on conflict)
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A
-          if git diff --cached --quiet; then
-            echo "Nothing to commit."
-            exit 0
-          fi
-          git commit -m "Process pending data updates ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
 
-          # main can move between our checkout and this push (e.g. the
-          # upload-worker staging another export directly), so rebase onto
-          # the latest main and retry instead of failing on a bare
-          # non-fast-forward rejection.
+          # A big batch of uploads (e.g. 30 files) stages one commit per
+          # file, so several runs of this workflow can end up racing each
+          # other. The old approach committed once, then REBASED that
+          # commit onto main if the push was rejected — replaying a stale
+          # diff (which renames/archives files) onto a tree another run had
+          # ALSO just renamed/archived produces a structural git conflict
+          # ("file added inside a directory that was renamed") that isn't
+          # auto-resolvable, and the whole run just failed.
+          #
+          # Instead of replaying an old diff, redo the work from scratch
+          # each retry: reset to the latest main and RE-RUN the merge
+          # scripts against it. There's nothing to conflict with, because
+          # there's no stale diff being replayed — every attempt processes
+          # whatever is genuinely still pending right now. Re-running is
+          # safe/idempotent: update-jobs.mjs's own duplicate detection skips
+          # anything an earlier run already merged, and it takes well under
+          # a second regardless.
           for i in 1 2 3 4 5; do
+            node scripts/update-jobs.mjs pending-updates/exports
+            node scripts/apply-replace.mjs
+            node scripts/apply-main-sheet-edits.mjs
+            node scripts/log-monthly-hours.mjs
+
+            git add -A
+            if git diff --cached --quiet; then
+              echo "Nothing to commit."
+              exit 0
+            fi
+            git commit -m "Process pending data updates ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
+
             if git push; then
               exit 0
             fi
-            echo "Push rejected, rebasing onto latest main (attempt $i)..."
+
+            echo "Push rejected — resetting to latest main and reprocessing fresh (attempt $i)..."
             git fetch origin main
-            git rebase origin/main
+            git reset --hard origin/main
           done
 
           echo "::error::Failed to push after multiple retries"
