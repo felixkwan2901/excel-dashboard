@@ -35,6 +35,7 @@ export default function Nav({
   onGoUpdateData,
   onGoMonthlyClaims,
   onGoMonthlyHours,
+  onGoClaimsByMonth,
   onGoMainSheet,
   onGoNotes,
   onGoUpcomingWork,
@@ -71,6 +72,12 @@ export default function Nav({
             onClick={onGoMonthlyHours}
           >
             Hours by month
+          </button>
+          <button
+            className={`site-nav__link ${view === 'claims-by-month' ? 'is-active' : ''}`}
+            onClick={onGoClaimsByMonth}
+          >
+            Claims by month
           </button>
           <button
             className={`site-nav__link ${view === 'main-sheet' ? 'is-active' : ''}`}

@@ -54,6 +54,13 @@ const syncMetaPath = resolve('sync-meta.json')
 // snapshots to — see recordClosingMonthHours below for why rollover also
 // writes here directly instead of leaving it entirely to that script.
 const monthlyHoursLogPath = resolve('public/monthly-hours-log.json')
+// Real month-by-month claims history — "Claim Calculator By Month" despite
+// its name is a single current-month snapshot that gets wiped at every
+// rollover, not an actual history. Unlike hours (a running cumulative
+// total, needing a diff between two snapshots to get one month's figure),
+// each job's Claim/Costs/Profit on that sheet are ALREADY this month's
+// figures — so logging a month here needs no baseline, just a direct copy.
+const monthlyClaimsLogPath = resolve('public/monthly-claims-log.json')
 
 // ---------------------------------------------------------------------------
 // 1. Dedupe the folder by content hash.
@@ -364,6 +371,29 @@ function recordClosingMonthHours(closingMonth, blocks, rows) {
   console.log(`Recorded exact final hours for ${closingMonth} to ${monthlyHoursLogPath} (${Object.keys(snapshot).length} job(s))`)
 }
 
+// The mirror of recordClosingMonthHours for Claim/Costs/Profit — called at
+// the same rollover moment, BEFORE the reset-to-0 loop below wipes the
+// Claim Calculator sheet's C/D columns for the new month. No diffing
+// needed (see monthlyClaimsLogPath above): whatever's sitting in a job's
+// Claim/Costs/Profit cells right now IS the closing month's final figure.
+function recordClosingMonthClaims(closingMonth, claimCalcWs, claimCalcRowByNumber) {
+  const log = existsSync(monthlyClaimsLogPath) ? JSON.parse(readFileSync(monthlyClaimsLogPath, 'utf8')) : {}
+  const snapshot = {}
+
+  for (const [jobNumber, rowNumber] of claimCalcRowByNumber) {
+    const row = claimCalcWs.getRow(rowNumber)
+    const jobName = resolveCellValue(row.getCell(2).value)
+    const claim = Number(resolveCellValue(row.getCell(3).value)) || 0
+    const costs = Number(resolveCellValue(row.getCell(4).value)) || 0
+    const profit = Number(resolveCellValue(row.getCell(5).value)) || 0
+    snapshot[String(jobNumber)] = { jobName: String(jobName), claim, costs, profit }
+  }
+
+  log[closingMonth] = snapshot
+  writeFileSync(monthlyClaimsLogPath, JSON.stringify(log, null, 2) + '\n')
+  console.log(`Recorded final claim/costs/profit for ${closingMonth} to ${monthlyClaimsLogPath} (${Object.keys(snapshot).length} job(s))`)
+}
+
 // Flags an export whose key "actual" figures are identical to what's
 // already recorded for the target week — could be the same file uploaded
 // twice, or could just be a job with genuinely no movement this week.
@@ -555,6 +585,7 @@ async function main() {
   if (syncMeta.lastProcessedMonth && syncMeta.lastProcessedMonth !== currentMonth) {
     console.log(`New month detected (${syncMeta.lastProcessedMonth} -> ${currentMonth}) — rolling last month's figures into "Start of month" and clearing week slots.`)
     recordClosingMonthHours(syncMeta.lastProcessedMonth, validBlocks, rows)
+    if (claimCalcWs) recordClosingMonthClaims(syncMeta.lastProcessedMonth, claimCalcWs, claimCalcRowByNumber)
     rolloverBlocksForNewMonth(worksheet, rows, validBlocks)
     // A new month starts with nothing claimed yet — without this, last
     // month's Claim/Costs would sit there mislabeled as "this month's"
@@ -731,6 +762,25 @@ async function main() {
       row.getCell(7).value = sumClaim ? sumProfit / sumClaim : 0
       row.getCell(9).value = sumClaim ? (sumProfit - sumCostToCome) / sumClaim : 0
     })
+
+    // Best-effort snapshot of the CURRENT (still in-progress) month, so
+    // it shows up on the dashboard before it closes — overwritten on
+    // every run since the true final figure only exists once rollover
+    // calls recordClosingMonthClaims above, replacing this guess with
+    // the authoritative one.
+    const claimsLog = existsSync(monthlyClaimsLogPath) ? JSON.parse(readFileSync(monthlyClaimsLogPath, 'utf8')) : {}
+    const currentMonthSnapshot = {}
+    for (const [jobNumber, rowNumber] of claimCalcRowByNumber) {
+      const row = claimCalcWs.getRow(rowNumber)
+      currentMonthSnapshot[String(jobNumber)] = {
+        jobName: String(resolveCellValue(row.getCell(2).value)),
+        claim: Number(resolveCellValue(row.getCell(3).value)) || 0,
+        costs: Number(resolveCellValue(row.getCell(4).value)) || 0,
+        profit: Number(resolveCellValue(row.getCell(5).value)) || 0,
+      }
+    }
+    claimsLog[currentMonth] = currentMonthSnapshot
+    writeFileSync(monthlyClaimsLogPath, JSON.stringify(claimsLog, null, 2) + '\n')
   }
 
   await wb.xlsx.writeFile(workbookPath)

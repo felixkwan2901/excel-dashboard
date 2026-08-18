@@ -10,6 +10,7 @@ import ReviewReport from './components/ReviewReport'
 import UpdateData from './components/UpdateData'
 import MonthlyClaims from './components/MonthlyClaims'
 import MonthlyHours from './components/MonthlyHours'
+import ClaimsByMonth from './components/ClaimsByMonth'
 import MainSheetTab from './components/MainSheetTab'
 import TodosTab from './components/TodosTab'
 import ArchivedJobsPanel from './components/ArchivedJobsPanel'
@@ -57,8 +58,18 @@ export default function App() {
   // it's firing from an event handler, not mount.
   function fetchWorkbook() {
     loadWorkbook()
-      .then(({ jobs, monthlyClaims, mainSheet, monthlyHours, todos, upcomingWork, archivedJobs }) =>
-        setState({ status: 'ready', jobs, monthlyClaims, mainSheet, monthlyHours, todos, upcomingWork, archivedJobs })
+      .then(({ jobs, monthlyClaims, mainSheet, monthlyHours, monthlyClaimsHistory, todos, upcomingWork, archivedJobs }) =>
+        setState({
+          status: 'ready',
+          jobs,
+          monthlyClaims,
+          mainSheet,
+          monthlyHours,
+          monthlyClaimsHistory,
+          todos,
+          upcomingWork,
+          archivedJobs,
+        })
       )
       .catch((error) => setState({ status: 'error', error }))
   }
@@ -90,6 +101,8 @@ export default function App() {
   const monthlyClaims = state.status === 'ready' ? state.monthlyClaims : { jobs: [], totals: [] }
   const mainSheet = state.status === 'ready' ? state.mainSheet : { jobs: [], columns: [] }
   const monthlyHours = state.status === 'ready' ? state.monthlyHours : { months: [], totalsByMonth: [], jobs: [] }
+  const monthlyClaimsHistory =
+    state.status === 'ready' ? state.monthlyClaimsHistory : { months: [], totalsByMonth: [], jobs: [] }
   const todos = state.status === 'ready' ? state.todos : []
   const upcomingWork = state.status === 'ready' ? state.upcomingWork : { jobs: [] }
   const archivedJobs = state.status === 'ready' ? state.archivedJobs : []
@@ -152,6 +165,11 @@ export default function App() {
     pushUrlState({ view: 'monthly-hours', selectedJobId, dashboardQuery, dashboardFilter })
   }
 
+  function goClaimsByMonth() {
+    setView('claims-by-month')
+    pushUrlState({ view: 'claims-by-month', selectedJobId, dashboardQuery, dashboardFilter })
+  }
+
   function goMainSheet() {
     setView('main-sheet')
     pushUrlState({ view: 'main-sheet', selectedJobId, dashboardQuery, dashboardFilter })
@@ -209,6 +227,7 @@ export default function App() {
         onGoUpdateData={goUpdateData}
         onGoMonthlyClaims={goMonthlyClaims}
         onGoMonthlyHours={goMonthlyHours}
+        onGoClaimsByMonth={goClaimsByMonth}
         onGoMainSheet={goMainSheet}
         onGoNotes={goNotes}
         onGoUpcomingWork={goUpcomingWork}
@@ -308,6 +327,18 @@ export default function App() {
           ) : (
             <Reveal index={0}>
               <MonthlyHours monthlyHours={monthlyHours} jobs={jobs} onBack={goHome} />
+            </Reveal>
+          )}
+        </main>
+      )}
+
+      {view === 'claims-by-month' && (
+        <main className="dashboard">
+          {state.status !== 'ready' ? (
+            <LoadStatus status={state.status} error={state.error} onRetry={retryLoad} />
+          ) : (
+            <Reveal index={0}>
+              <ClaimsByMonth monthlyClaimsHistory={monthlyClaimsHistory} onBack={goHome} />
             </Reveal>
           )}
         </main>

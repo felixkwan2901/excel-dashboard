@@ -5,6 +5,7 @@ import workbookUrl from '../../Cassidy_Davies_Electrical_BPMN_Data.xlsx?url'
 // import of a .json file as a fetchable static asset the way it does for
 // other file types.
 const monthlyHoursLogUrl = `${import.meta.env.BASE_URL}monthly-hours-log.json`
+const monthlyClaimsLogUrl = `${import.meta.env.BASE_URL}monthly-claims-log.json`
 const archivedJobsUrl = `${import.meta.env.BASE_URL}archived-jobs.json`
 const todosUrl = `${import.meta.env.BASE_URL}todos.json`
 
@@ -515,17 +516,53 @@ function parseMonthlyHoursLog(log) {
   return { months: months.slice(1), totalsByMonth: totalsByMonth.slice(1), jobs }
 }
 
+// Unlike the hours log above, Claim/Costs/Profit are already THIS MONTH's
+// figures at the point scripts/update-jobs.mjs logs them (not a running
+// cumulative total) — so every logged month is directly usable with no
+// diffing and no "first month is only a baseline" exclusion.
+function parseMonthlyClaimsLog(log) {
+  const months = Object.keys(log).sort()
+  const jobNumbers = new Set()
+  for (const month of months) for (const jobNumber of Object.keys(log[month])) jobNumbers.add(jobNumber)
+
+  const jobs = [...jobNumbers].map((jobNumber) => {
+    let jobName = ''
+    const claimByMonth = {}
+    const costsByMonth = {}
+    const profitByMonth = {}
+    for (const month of months) {
+      const entry = log[month][jobNumber]
+      if (!entry) continue
+      jobName = entry.jobName
+      claimByMonth[month] = entry.claim
+      costsByMonth[month] = entry.costs
+      profitByMonth[month] = entry.profit
+    }
+    return { jobNumber, jobName, claimByMonth, costsByMonth, profitByMonth }
+  })
+
+  const totalsByMonth = months.map((month) => ({
+    month,
+    totalClaim: jobs.reduce((sum, j) => sum + (j.claimByMonth[month] ?? 0), 0),
+    totalCosts: jobs.reduce((sum, j) => sum + (j.costsByMonth[month] ?? 0), 0),
+    totalProfit: jobs.reduce((sum, j) => sum + (j.profitByMonth[month] ?? 0), 0),
+  }))
+
+  return { months, totalsByMonth, jobs }
+}
+
 export async function loadWorkbook() {
   // A hung fetch (e.g. mid-deploy, or a stale service-worker transition)
   // would otherwise leave the app stuck in its loading state indefinitely
   // — this bounds it so an error state (with a retry) shows up instead.
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 20_000)
-  let res, hoursRes, archivedRes, todosRes
+  let res, hoursRes, claimsLogRes, archivedRes, todosRes
   try {
-    ;[res, hoursRes, archivedRes, todosRes] = await Promise.all([
+    ;[res, hoursRes, claimsLogRes, archivedRes, todosRes] = await Promise.all([
       fetch(workbookUrl, { signal: controller.signal }),
       fetch(monthlyHoursLogUrl, { signal: controller.signal }),
+      fetch(monthlyClaimsLogUrl, { signal: controller.signal }),
       fetch(archivedJobsUrl, { signal: controller.signal }),
       fetch(todosUrl, { signal: controller.signal }),
     ])
@@ -551,6 +588,9 @@ export async function loadWorkbook() {
   const monthlyHours = hoursRes?.ok
     ? parseMonthlyHoursLog(await hoursRes.json())
     : { months: [], totalsByMonth: [], jobs: [] }
+  const monthlyClaimsHistory = claimsLogRes?.ok
+    ? parseMonthlyClaimsLog(await claimsLogRes.json())
+    : { months: [], totalsByMonth: [], jobs: [] }
 
   // Archiving a completed job doesn't touch the workbook at all — it just
   // adds the job number to this list, which every job-bearing view filters
@@ -571,6 +611,7 @@ export async function loadWorkbook() {
     monthlyClaims: { ...monthlyClaims, jobs: monthlyClaims.jobs.filter(notArchived) },
     mainSheet: { ...mainSheet, jobs: mainSheet.jobs.filter(notArchived) },
     monthlyHours,
+    monthlyClaimsHistory: { ...monthlyClaimsHistory, jobs: monthlyClaimsHistory.jobs.filter(notArchived) },
     todos,
     upcomingWork: { ...upcomingWork, jobs: upcomingWork.jobs.filter(notArchived) },
     archivedJobs,
