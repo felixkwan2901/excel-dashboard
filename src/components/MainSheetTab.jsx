@@ -258,7 +258,7 @@ export default function MainSheetTab({ mainSheet, onBack }) {
         </div>
 
         {panelOpen && (
-          <div className="w-full rounded-[18px] border border-white/[0.06] bg-[#11161c] p-5 sm:w-64 sm:shrink-0">
+          <div className="order-first w-full rounded-[18px] border border-white/[0.06] bg-[#11161c] p-5 sm:order-none sm:w-64 sm:shrink-0">
             <h2 className="mb-3 text-[13px] font-semibold tracking-wide text-neutral-400 uppercase">
               Columns shown
             </h2>
