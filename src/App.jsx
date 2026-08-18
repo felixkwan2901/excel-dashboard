@@ -12,6 +12,7 @@ import MonthlyClaims from './components/MonthlyClaims'
 import MonthlyHours from './components/MonthlyHours'
 import MainSheetTab from './components/MainSheetTab'
 import NotesTab from './components/NotesTab'
+import UpcomingWorkTab from './components/UpcomingWorkTab'
 import LastSynced from './components/LastSynced'
 import Reveal from './components/Reveal'
 import './App.css'
@@ -55,8 +56,8 @@ export default function App() {
   // it's firing from an event handler, not mount.
   function fetchWorkbook() {
     loadWorkbook()
-      .then(({ jobs, monthlyClaims, mainSheet, monthlyHours, notes }) =>
-        setState({ status: 'ready', jobs, monthlyClaims, mainSheet, monthlyHours, notes })
+      .then(({ jobs, monthlyClaims, mainSheet, monthlyHours, notes, upcomingWork }) =>
+        setState({ status: 'ready', jobs, monthlyClaims, mainSheet, monthlyHours, notes, upcomingWork })
       )
       .catch((error) => setState({ status: 'error', error }))
   }
@@ -89,6 +90,7 @@ export default function App() {
   const mainSheet = state.status === 'ready' ? state.mainSheet : { jobs: [], columns: [] }
   const monthlyHours = state.status === 'ready' ? state.monthlyHours : { months: [], totalsByMonth: [], jobs: [] }
   const notes = state.status === 'ready' ? state.notes : { cam: '', tom: '' }
+  const upcomingWork = state.status === 'ready' ? state.upcomingWork : { jobs: [] }
   const kpis = state.status === 'ready' ? computeKpis(jobs) : null
   const flaggedJobs = useMemo(() => jobs.filter((j) => j.flagged), [jobs])
 
@@ -158,6 +160,11 @@ export default function App() {
     pushUrlState({ view: 'notes', selectedJobId, dashboardQuery, dashboardFilter })
   }
 
+  function goUpcomingWork() {
+    setView('upcoming-work')
+    pushUrlState({ view: 'upcoming-work', selectedJobId, dashboardQuery, dashboardFilter })
+  }
+
   function submitSearch(e) {
     e.preventDefault()
     setDashboardQuery(searchQuery)
@@ -202,6 +209,7 @@ export default function App() {
         onGoMonthlyHours={goMonthlyHours}
         onGoMainSheet={goMainSheet}
         onGoNotes={goNotes}
+        onGoUpcomingWork={goUpcomingWork}
       />
 
       {view === 'home' && (
@@ -322,6 +330,18 @@ export default function App() {
           ) : (
             <Reveal index={0}>
               <NotesTab notes={notes} onBack={goHome} />
+            </Reveal>
+          )}
+        </main>
+      )}
+
+      {view === 'upcoming-work' && (
+        <main className="dashboard">
+          {state.status !== 'ready' ? (
+            <LoadStatus status={state.status} error={state.error} onRetry={retryLoad} />
+          ) : (
+            <Reveal index={0}>
+              <UpcomingWorkTab upcomingWork={upcomingWork} onBack={goHome} />
             </Reveal>
           )}
         </main>

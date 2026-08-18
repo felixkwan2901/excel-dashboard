@@ -63,6 +63,7 @@ jobs:
             node scripts/apply-replace.mjs
             node scripts/apply-main-sheet-edits.mjs
             node scripts/apply-claim-calculator-edits.mjs
+            node scripts/apply-upcoming-work-edits.mjs
             node scripts/apply-notes-edits.mjs
             node scripts/log-monthly-hours.mjs
 

@@ -37,6 +37,7 @@ export default function Nav({
   onGoMonthlyHours,
   onGoMainSheet,
   onGoNotes,
+  onGoUpcomingWork,
 }) {
   return (
     <header className="site-nav">
@@ -76,6 +77,12 @@ export default function Nav({
             onClick={onGoMainSheet}
           >
             Job checklist
+          </button>
+          <button
+            className={`site-nav__link ${view === 'upcoming-work' ? 'is-active' : ''}`}
+            onClick={onGoUpcomingWork}
+          >
+            Upcoming work
           </button>
           <button
             className={`site-nav__link ${view === 'notes' ? 'is-active' : ''}`}

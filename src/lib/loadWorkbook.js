@@ -349,6 +349,49 @@ function parseMonthlyClaims(workbook) {
   return { jobs, totals }
 }
 
+// Jan-Dec hours-allocation columns (F-Q) on "Upcoming Work Calculator".
+const UPCOMING_WORK_MONTH_COLUMNS = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+const UPCOMING_WORK_MONTH_LABELS = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+]
+
+// "Upcoming Work Calculator" — one row per job. Job number/name and
+// Quoted/Used/Remaining hours (cols C/D/E) are formulas (identity pulls
+// from Main Sheet; hours are a LOOKUP into that job's own Deliverables
+// Sheet week range) — read here as plain derived values, same as every
+// other formula-backed field elsewhere in this file. The Jan-Dec columns
+// and the notes column (S) are the sheet's only manual entry.
+function parseUpcomingWork(workbook) {
+  const sheet = workbook.Sheets['Upcoming Work Calculator']
+  if (!sheet) return { jobs: [] }
+
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false, defval: '' })
+  const jobs = []
+
+  for (const row of rows) {
+    if (typeof row[0] !== 'number' || row[0] <= 0) continue
+    const jobName = String(row[1] ?? '').trim()
+    if (!jobName || jobName === '0') continue
+
+    const months = {}
+    UPCOMING_WORK_MONTH_COLUMNS.forEach((col, i) => {
+      months[UPCOMING_WORK_MONTH_LABELS[i]] = toNumber(row[col])
+    })
+
+    jobs.push({
+      jobNumber: String(row[0]),
+      jobName,
+      quotedHours: toNumber(row[2]),
+      usedHours: toNumber(row[3]),
+      remainingHours: toNumber(row[4]),
+      months,
+      notes: String(row[18] ?? '').trim(),
+    })
+  }
+
+  return { jobs }
+}
+
 // "Main Sheet" is the project-handover checklist — one row per job (each
 // followed by a blank separator row, same pattern as the other sheets),
 // columns 3-22 each a Yes/No/N/A milestone ("Contract Signed & Returned",
@@ -490,6 +533,7 @@ export async function loadWorkbook() {
   const monthlyClaims = parseMonthlyClaims(workbook)
   const mainSheet = parseMainSheet(workbook)
   const notes = parseNotes(workbook)
+  const upcomingWork = parseUpcomingWork(workbook)
   // The hours log is a nice-to-have on top of the core workbook data — if
   // it's missing or unreadable for any reason, degrade to an empty history
   // rather than failing the whole page load over it.
@@ -497,5 +541,5 @@ export async function loadWorkbook() {
     ? parseMonthlyHoursLog(await hoursRes.json())
     : { months: [], totalsByMonth: [], jobs: [] }
 
-  return { jobs, monthlyClaims, mainSheet, monthlyHours, notes }
+  return { jobs, monthlyClaims, mainSheet, monthlyHours, notes, upcomingWork }
 }
