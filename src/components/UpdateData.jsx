@@ -10,7 +10,7 @@ const UPLOAD_WORKER_URL = 'https://cde-data-upload.fkw24.workers.dev'
 // upload from before that existed, or one still mid-flight/timed out.
 const OUTCOME_LABEL = {
   updated: 'Updated',
-  duplicate: 'Skipped — duplicate',
+  unchanged: 'Recorded — unchanged',
   no_room: 'Malformed job block',
   unmatched: 'Job number not found',
   unreadable: 'Could not be read',
@@ -18,7 +18,7 @@ const OUTCOME_LABEL = {
 }
 const OUTCOME_TONE = {
   updated: 'text-brand-green',
-  duplicate: 'text-text-muted',
+  unchanged: 'text-text-muted',
   no_room: 'text-status-critical',
   unmatched: 'text-status-critical',
   unreadable: 'text-status-critical',

@@ -15,6 +15,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 # If the worker stages two requests in quick succession, each push
 # triggers its own run — serialize so the second always starts from the
@@ -37,6 +38,7 @@ jobs:
       - run: npm ci
 
       - name: Process pending updates and push (retries on conflict)
+        id: process
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -85,11 +87,13 @@ jobs:
             git add -A
             if git diff --cached --quiet; then
               echo "Nothing to commit."
+              echo "pushed=false" >> "$GITHUB_OUTPUT"
               exit 0
             fi
             git commit -m "Process pending data updates ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
 
             if git push; then
+              echo "pushed=true" >> "$GITHUB_OUTPUT"
               exit 0
             fi
 
@@ -102,3 +106,18 @@ jobs:
 
           echo "::error::Failed to push after multiple retries"
           exit 1
+
+      # A push made with the default GITHUB_TOKEN (as the commit above is)
+      # deliberately does NOT cascade into triggering other workflows —
+      # GitHub's built-in loop guard — so deploy.yml's own `on: push`
+      # trigger never fires for this commit. Without this step, the actual
+      # merged data only ever reaches the live site when some UNRELATED
+      # human push happens to land on main around the same time and
+      # incidentally triggers a rebuild; on a quiet day, the site can sit
+      # showing stale data indefinitely despite main having the real
+      # numbers. Dispatching it explicitly closes that gap.
+      - name: Trigger a site rebuild
+        if: steps.process.outputs.pushed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run deploy.yml --ref main

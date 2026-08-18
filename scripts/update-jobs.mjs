@@ -21,10 +21,10 @@
 //      — every job's "Week 2" means the same real week, regardless of how
 //      often that particular job happens to get re-exported. If a job's
 //      new figures exactly match what's already recorded for that week,
-//      it's skipped as a likely duplicate upload (the same file re-run by
-//      mistake) rather than silently overwriting a real update.
-//   5. Reports which jobs were updated, which were skipped as likely
-//      duplicates, which jobs have a non-standard block layout, which
+//      it's still written (this week is genuinely caught up either way)
+//      but flagged as unchanged rather than reported as a fresh update.
+//   5. Reports which jobs were updated, which were written with unchanged
+//      figures, which jobs have a non-standard block layout, which
 //      export files couldn't be matched to a job, and which existing jobs
 //      got no new data.
 //   6. Records the current month in sync-meta.json, so the next run this
@@ -364,11 +364,15 @@ function recordClosingMonthHours(closingMonth, blocks, rows) {
   console.log(`Recorded exact final hours for ${closingMonth} to ${monthlyHoursLogPath} (${Object.keys(snapshot).length} job(s))`)
 }
 
-// A new export whose key "actual" figures are identical to what's already
-// recorded in the current week is almost certainly the same file uploaded
-// twice rather than genuinely unchanged progress — real jobs' claims,
-// costs, and hours move even slightly most weeks. Comparing raw amounts
-// (not the derived percentages) keeps this robust to rounding noise.
+// Flags an export whose key "actual" figures are identical to what's
+// already recorded for the target week — could be the same file uploaded
+// twice, or could just be a job with genuinely no movement this week.
+// Either way this no longer skips the write (see the call site): with
+// weeks matched to real calendar weeks, writing the same values into the
+// same target row twice is a harmless no-op, not the double-advancement
+// risk this once guarded against back when weeks meant "the next empty
+// slot". Comparing raw amounts (not the derived percentages) keeps this
+// robust to rounding noise.
 function looksLikeDuplicate(rec, rows, currentIdx) {
   const checks = [
     [COL.quotedPrice, rec.quotedPrice],
@@ -607,22 +611,22 @@ async function main() {
       noRoomLeft.push(rec)
       continue
     }
-    if (looksLikeDuplicate(rec, rows, targetIdx)) {
-      possibleDuplicates.push({
-        file: rec.file,
-        jobNumber: rec.jobNumber,
-        jobName: rec.jobName,
-        matchesWeek: rows[targetIdx][2] || `Week ${weekOfMonth}`,
-      })
-      continue
-    }
+    const unchanged = looksLikeDuplicate(rec, rows, targetIdx)
     const weekLabel = rows[targetIdx][2] || `Week ${weekOfMonth}`
     const before = { totalActualCost: rows[targetIdx][8], claimToDate: rows[targetIdx][4], marginToDate: rows[targetIdx][25] }
     const after = applyJobUpdate(worksheet, rows, targetIdx, rec)
-    updated.push({ file: rec.file, jobNumber: rec.jobNumber, jobName: rec.jobName, weekLabel, before, after })
+    const entry = { file: rec.file, jobNumber: rec.jobNumber, jobName: rec.jobName, weekLabel, before, after }
+    if (unchanged) {
+      possibleDuplicates.push(entry)
+    } else {
+      updated.push(entry)
+    }
   }
 
-  const updatedJobNumbers = new Set(updated.map((u) => Number(u.jobNumber)))
+  // Both count as "this job got this week's data" — an unchanged export
+  // still means the current week is genuinely caught up, just with flat
+  // figures, not that nothing was uploaded for it.
+  const updatedJobNumbers = new Set([...updated, ...possibleDuplicates].map((u) => Number(u.jobNumber)))
   const notUpdated = [...existingJobNumbers].filter((n) => !updatedJobNumbers.has(n))
 
   // Recompute EVERY job's Claim/Costs from the Deliverables Sheet's current
@@ -681,8 +685,8 @@ async function main() {
   }
 
   if (possibleDuplicates.length > 0) {
-    console.log(`\n${possibleDuplicates.length} job(s) skipped as likely duplicate uploads (figures exactly match what's already recorded):`)
-    for (const d of possibleDuplicates) console.log(`  ${d.jobNumber}  ${d.jobName}  (matches ${d.matchesWeek})`)
+    console.log(`\n${possibleDuplicates.length} job(s) written with unchanged figures (matches what was already recorded for that week — either no real movement this week, or the same file uploaded twice):`)
+    for (const d of possibleDuplicates) console.log(`  ${d.jobNumber}  ${d.jobName.padEnd(45)} -> ${d.weekLabel}`)
   }
 
   if (noRoomLeft.length > 0) {
@@ -734,10 +738,10 @@ async function main() {
   }
   for (const d of possibleDuplicates) {
     writeResult(d.file, {
-      outcome: 'duplicate',
+      outcome: 'unchanged',
       jobNumber: d.jobNumber,
       jobName: d.jobName,
-      message: `Skipped ${d.jobNumber} ${d.jobName} — matches what's already recorded for ${d.matchesWeek}.`,
+      message: `Recorded ${d.weekLabel} for ${d.jobNumber} ${d.jobName} — figures are unchanged from what was already there (no movement this week, or the same file uploaded twice).`,
     })
   }
   for (const r of noRoomLeft) {
