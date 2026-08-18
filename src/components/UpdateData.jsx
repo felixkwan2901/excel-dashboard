@@ -38,7 +38,48 @@ function resultTone(r) {
   return r.status === 'failed' ? 'text-status-critical' : 'text-brand-green'
 }
 
-export default function UpdateData({ onBack }) {
+// Surfaced right here, not just as a badge on the Job Directory — this is
+// the page someone actually visits to upload exports, so it's the most
+// useful place to see, before or after uploading, which jobs still don't
+// have this week's figures. Sorted worst-first (most weeks behind) so the
+// jobs needing the most urgent chasing show up at the top.
+function StaleJobsPanel({ jobs }) {
+  const stale = (jobs ?? [])
+    .filter((j) => j.isStale)
+    .sort((a, b) => b.weeksBehind - a.weeksBehind)
+
+  if (stale.length === 0) return null
+
+  return (
+    <Card className="mb-4 border-amber-400/30 bg-amber-400/[0.04]">
+      <CardHeader>
+        <CardTitle className="text-sm text-amber-400">
+          {stale.length} job{stale.length === 1 ? '' : 's'} missing this week&apos;s update
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="mb-3 text-xs text-text-muted">
+          No export has been uploaded for these since the week shown — upload a fresh Profit
+          &amp; Loss export for each to bring them current.
+        </p>
+        <ul className="flex flex-col gap-1.5">
+          {stale.map((j) => (
+            <li key={j.jobNumber} className="flex items-center justify-between gap-3 text-sm">
+              <span className="text-text-primary">
+                <span className="text-text-muted">{j.jobNumber}</span> {j.jobName}
+              </span>
+              <span className="shrink-0 text-xs text-amber-400">
+                last: {j.lastUpdatedLabel} ({j.weeksBehind} week{j.weeksBehind === 1 ? '' : 's'} behind)
+              </span>
+            </li>
+          ))}
+        </ul>
+      </CardContent>
+    </Card>
+  )
+}
+
+export default function UpdateData({ onBack, jobs }) {
   const [password, setPassword] = useState('')
   const [files, setFiles] = useState(null)
   const [status, setStatus] = useState('idle') // idle | staging | processing | done | error
@@ -188,6 +229,8 @@ export default function UpdateData({ onBack }) {
         <span aria-hidden="true">/</span>
         <span className="text-text-primary">Update data</span>
       </nav>
+
+      <StaleJobsPanel jobs={jobs} />
 
       <Card className="mb-4">
         <CardHeader>

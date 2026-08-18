@@ -148,10 +148,19 @@ function rowsAfterHeader(rows) {
   return blocks
     .filter((block) => isValidJobRow(block.startRow))
     .map((block) => {
+      // dataRowIdx defaults to the LAST week row when nothing has data at
+      // all — reasonable for the figures below (every row is blank anyway,
+      // so it doesn't matter which blank row gets shown). lastFilledWeekIdx
+      // tracks the real answer separately: it only advances when a row
+      // actually has data, so a job with nothing filled in since "Start of
+      // month" (not even that baseline) reads as week 0 — behind, not
+      // "caught up to Week 5" — for staleness purposes below.
       let dataRowIdx = block.weekRows.length - 1
+      let lastFilledWeekIdx = 0
       for (let i = block.weekRows.length - 1; i >= 0; i--) {
         if (weekRowHasData(block.weekRows[i], columnMap)) {
           dataRowIdx = i
+          lastFilledWeekIdx = i
           break
         }
       }
@@ -190,8 +199,22 @@ function rowsAfterHeader(rows) {
       // undefined as null (Number(undefined) is NaN), and "no previous week"
       // has to come out as null here, not a false previous margin of 0%.
       record.previousMarginToDate = previousRow && marginCol !== undefined ? previousRow[marginCol] : undefined
+      // dataRowIdx is 0 for "Start of month" (nothing uploaded yet this
+      // month) or 1-5 for "Week N" — kept as a plain number here so
+      // withDerivedFields can compare it against today's real calendar
+      // week without re-parsing the label string.
+      record.lastUpdatedWeekIndex = lastFilledWeekIdx
+      record.lastUpdatedLabel = block.weekRows[lastFilledWeekIdx][2] || 'Start of month'
       return record
     })
+}
+
+// Same rule scripts/update-jobs.mjs uses server-side to decide which week
+// slot a fresh export lands in — mirrored here so the dashboard can tell
+// whether a job's last update has actually caught up to the real current
+// week, not just whether it has *any* data.
+function calendarWeekOfMonth(date) {
+  return Math.min(5, Math.ceil(date.getDate() / 7))
 }
 
 function withDerivedFields(job) {
@@ -253,6 +276,16 @@ function withDerivedFields(job) {
     : totalActualCost !== null && totalQuotedCost !== null && totalActualCost > totalQuotedCost
   const losingMargin = marginToDate !== null && marginToDate < 0
 
+  // Whether this job's last recorded week has actually caught up to
+  // today's real calendar week — a job sitting on Week 1 while the month
+  // is already in Week 3 means no export has been uploaded for it in two
+  // weeks, not that it has no data at all. weeksBehind stays 0 once a job
+  // is current (never negative — there's no such thing as "ahead").
+  const currentCalendarWeek = calendarWeekOfMonth(new Date())
+  const lastUpdatedWeekIndex = job.lastUpdatedWeekIndex ?? 0
+  const weeksBehind = Math.max(0, currentCalendarWeek - lastUpdatedWeekIndex)
+  const isStale = weeksBehind > 0
+
   return {
     jobNumber,
     jobName,
@@ -287,6 +320,9 @@ function withDerivedFields(job) {
     overBudget,
     losingMargin,
     flagged: overBudget || losingMargin,
+    lastUpdatedLabel: job.lastUpdatedLabel ?? 'Start of month',
+    weeksBehind,
+    isStale,
   }
 }
 

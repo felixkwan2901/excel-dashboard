@@ -284,7 +284,7 @@ export default function App() {
       {view === 'update' && (
         <main className="dashboard">
           <Reveal index={0}>
-            <UpdateData onBack={goHome} />
+            <UpdateData onBack={goHome} jobs={jobs} />
           </Reveal>
         </main>
       )}

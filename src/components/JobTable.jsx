@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Settings2 } from 'lucide-react'
+import { Settings2, AlertTriangle } from 'lucide-react'
 import TrendBadge from './TrendBadge'
 import { money, percent } from '../lib/format'
 import { useLocalStorageState } from '../lib/useLocalStorageState'
@@ -156,7 +156,24 @@ function renderCell(job, col) {
 const STATUS_FILTERS = [
   { key: 'all', label: 'All' },
   { key: 'needsReview', label: 'Needs review' },
+  { key: 'stale', label: "Missing this week's update" },
 ]
+
+// Small inline warning, separate from the Trend column so it still shows
+// even when Trend is toggled off — this is about data being missing, not
+// about how the job's margin is moving.
+function StaleBadge({ job }) {
+  if (!job.isStale) return null
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[11px] font-medium text-amber-400"
+      title={`Last recorded update: ${job.lastUpdatedLabel} — no export uploaded for ${job.weeksBehind} week${job.weeksBehind === 1 ? '' : 's'}.`}
+    >
+      <AlertTriangle size={11} aria-hidden="true" />
+      {job.lastUpdatedLabel}
+    </span>
+  )
+}
 
 // costProgress isn't a direct job field (it renders two fields as one
 // merged bar) — sort it by its underlying spend ratio instead.
@@ -215,6 +232,7 @@ export default function JobTable({
     const q = query.trim().toLowerCase()
     return jobs
       .filter((job) => (statusFilter === 'needsReview' ? job.flagged : true))
+      .filter((job) => (statusFilter === 'stale' ? job.isStale : true))
       .filter(
         (job) =>
           !q ||
@@ -236,6 +254,7 @@ export default function JobTable({
     () => ({
       all: jobs.length,
       needsReview: jobs.filter((job) => job.flagged).length,
+      stale: jobs.filter((job) => job.isStale).length,
     }),
     [jobs]
   )
@@ -345,7 +364,10 @@ export default function JobTable({
                   <p className="text-[14px] font-medium text-white">
                     <span className="text-neutral-500">{job.jobNumber}</span> {job.jobName}
                   </p>
-                  {showTrend && <TrendBadge marginTrend={job.marginTrend} />}
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <StaleBadge job={job} />
+                    {showTrend && <TrendBadge marginTrend={job.marginTrend} />}
+                  </div>
                 </div>
                 {wideCols.map((c) => (
                   <div key={c.key} className="flex flex-col gap-1">
@@ -386,6 +408,7 @@ export default function JobTable({
                     {sort.key === col.key && (sort.dir === 1 ? ' ▲' : ' ▼')}
                   </th>
                 ))}
+                <th>Data</th>
                 {showTrend && <th>Trend</th>}
               </tr>
             </thead>
@@ -409,6 +432,9 @@ export default function JobTable({
                       {renderCell(job, col)}
                     </td>
                   ))}
+                  <td>
+                    <StaleBadge job={job} />
+                  </td>
                   {showTrend && (
                     <td>
                       <TrendBadge marginTrend={job.marginTrend} />
@@ -418,7 +444,7 @@ export default function JobTable({
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={columns.length + (showTrend ? 1 : 0)} className="empty-row">
+                  <td colSpan={columns.length + 1 + (showTrend ? 1 : 0)} className="empty-row">
                     No jobs match your filters.
                   </td>
                 </tr>
