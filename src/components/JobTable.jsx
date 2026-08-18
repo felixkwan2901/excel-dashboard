@@ -284,11 +284,10 @@ export default function JobTable({
 
       <div className="flex flex-col items-stretch gap-6 sm:flex-row sm:items-start">
         {/* Mobile: a wide multi-column table just becomes horizontal-scroll
-            soup on a phone. Below sm, swap to one stacked card per job —
-            a fixed, small set of fields (not whatever's toggled on for the
-            desktop table, which could be 20+ columns and make every card
-            enormous) with the full detail still a tap away on the job's
-            own page. */}
+            soup on a phone. Below sm, swap to one stacked card per job,
+            listing exactly the columns toggled on in "Columns shown" —
+            same choice as the desktop table, just laid out as label/value
+            lines instead of table columns. */}
         <div className="flex w-full min-w-0 flex-col gap-3 sm:hidden">
           {filtered.map((job) => (
             <div
@@ -310,8 +309,14 @@ export default function JobTable({
                 </p>
                 {showTrend && <TrendBadge marginTrend={job.marginTrend} />}
               </div>
-              <CostBar actual={job.totalActualCost} quoted={job.quotedPrice} />
-              <MarginBar value={job.marginToDate} />
+              {columns
+                .filter((c) => c.key !== 'jobNumber' && c.key !== 'jobName')
+                .map((c) => (
+                  <div key={c.key} className="flex flex-col gap-1">
+                    <span className="text-[11px] text-neutral-500">{c.label}</span>
+                    {renderCell(job, c)}
+                  </div>
+                ))}
             </div>
           ))}
           {filtered.length === 0 && <p className="empty-row">No jobs match your filters.</p>}
