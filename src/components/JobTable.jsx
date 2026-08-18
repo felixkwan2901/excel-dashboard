@@ -7,6 +7,15 @@ import { useLocalStorageState } from '../lib/useLocalStorageState'
 // Always shown, not part of the toggle panel.
 const FIXED_COLUMNS = [{ key: 'jobNumber', label: 'Job Number' }, { key: 'jobName', label: 'Job Name' }]
 
+// On the mobile card, the *Bar columns render a full-width progress bar
+// (CostBar has its own min-width) and read badly squeezed into a half-width
+// grid cell — those get their own full-width row. Everything else (plain
+// numbers/percentages, and the compact pill-shaped MarginBar) is short
+// enough to pair two-per-row, which is what actually fixes "too much
+// crammed into one card": same information, roughly half the vertical
+// space.
+const WIDE_MOBILE_KEYS = new Set(['costProgress', 'materialCostProgress', 'labourCostProgress', 'labourHoursProgress'])
+
 // Shown by default but still toggleable — the compact "at a glance" set
 // this table originally shipped with.
 const DEFAULT_OPTIONAL_KEYS = ['costProgress', 'gpPerHour', 'marginToDate']
@@ -70,7 +79,7 @@ function CostBar({ actual, quoted, formatValue = money }) {
 
   const ratio = actual === null ? 0 : actual / quoted
   const fillWidth = Math.min(Math.max(ratio, 0), 1) * 100
-  const fillColor = ratio > 1 ? 'bg-red-500' : ratio >= 0.85 ? 'bg-amber-400' : 'bg-brand-green'
+  const fillColor = ratio > 1 ? 'bg-red-500/75' : ratio >= 0.85 ? 'bg-amber-400/75' : 'bg-brand-green/75'
 
   return (
     <div className="flex min-w-[140px] flex-col gap-1.5">
@@ -101,7 +110,7 @@ function MarginBar({ value }) {
   // Color thresholds mirror how a job already gets flagged for losing
   // margin (marginToDate < 0 ⇒ red here too) — under 15% is a thin/at-risk
   // margin (amber), 15%+ is a healthy one (green).
-  const pillColor = negative ? 'bg-red-500' : warning ? 'bg-amber-400' : 'bg-brand-green'
+  const pillColor = negative ? 'bg-red-500/75' : warning ? 'bg-amber-400/75' : 'bg-brand-green/75'
   const textColor = negative ? 'text-red-400' : warning ? 'text-amber-400' : 'text-neutral-200'
   const pillPos = negative ? 50 - offset : 50 + offset
 
@@ -289,36 +298,74 @@ export default function JobTable({
             same choice as the desktop table, just laid out as label/value
             lines instead of table columns. */}
         <div className="flex w-full min-w-0 flex-col gap-3 sm:hidden">
-          {filtered.map((job) => (
-            <div
-              key={job.jobNumber}
-              onClick={() => onSelectJob?.(job.jobNumber)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault()
-                  onSelectJob?.(job.jobNumber)
-                }
-              }}
-              tabIndex={onSelectJob ? 0 : undefined}
-              role={onSelectJob ? 'button' : undefined}
-              className="flex flex-col gap-3 rounded-[14px] border border-white/[0.06] bg-white/[0.02] p-4"
+          {/* No column headers to click on mobile, so sorting needs its own
+              control — a select for the field plus a direction toggle,
+              driving the exact same sort state the desktop headers do. */}
+          <div className="flex items-center gap-2">
+            <select
+              value={sort.key}
+              onChange={(e) => setSort((prev) => ({ key: e.target.value, dir: prev.dir }))}
+              className="min-w-0 flex-1 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-[13px] text-neutral-200 focus:border-brand-green/50 focus:outline-none"
             >
-              <div className="flex items-start justify-between gap-3">
-                <p className="text-[14px] font-medium text-white">
-                  <span className="text-neutral-500">{job.jobNumber}</span> {job.jobName}
-                </p>
-                {showTrend && <TrendBadge marginTrend={job.marginTrend} />}
-              </div>
-              {columns
-                .filter((c) => c.key !== 'jobNumber' && c.key !== 'jobName')
-                .map((c) => (
+              {[...FIXED_COLUMNS, ...columns.filter((c) => c.key !== 'jobNumber' && c.key !== 'jobName')].map((c) => (
+                <option key={c.key} value={c.key} className="bg-[#11161c]">
+                  Sort: {c.label}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => setSort((prev) => ({ ...prev, dir: -prev.dir }))}
+              aria-label={sort.dir === 1 ? 'Ascending' : 'Descending'}
+              className="shrink-0 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-[13px] text-neutral-300"
+            >
+              {sort.dir === 1 ? '▲' : '▼'}
+            </button>
+          </div>
+
+          {filtered.map((job) => {
+            const mobileCols = columns.filter((c) => c.key !== 'jobNumber' && c.key !== 'jobName')
+            const wideCols = mobileCols.filter((c) => WIDE_MOBILE_KEYS.has(c.key))
+            const compactCols = mobileCols.filter((c) => !WIDE_MOBILE_KEYS.has(c.key))
+            return (
+              <div
+                key={job.jobNumber}
+                onClick={() => onSelectJob?.(job.jobNumber)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    onSelectJob?.(job.jobNumber)
+                  }
+                }}
+                tabIndex={onSelectJob ? 0 : undefined}
+                role={onSelectJob ? 'button' : undefined}
+                className="flex flex-col gap-3 rounded-[14px] border border-white/[0.06] bg-white/[0.02] p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-[14px] font-medium text-white">
+                    <span className="text-neutral-500">{job.jobNumber}</span> {job.jobName}
+                  </p>
+                  {showTrend && <TrendBadge marginTrend={job.marginTrend} />}
+                </div>
+                {wideCols.map((c) => (
                   <div key={c.key} className="flex flex-col gap-1">
                     <span className="text-[11px] text-neutral-500">{c.label}</span>
                     {renderCell(job, c)}
                   </div>
                 ))}
-            </div>
-          ))}
+                {compactCols.length > 0 && (
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-2.5">
+                    {compactCols.map((c) => (
+                      <div key={c.key} className="flex flex-col gap-1">
+                        <span className="text-[11px] text-neutral-500">{c.label}</span>
+                        {renderCell(job, c)}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
           {filtered.length === 0 && <p className="empty-row">No jobs match your filters.</p>}
         </div>
 
