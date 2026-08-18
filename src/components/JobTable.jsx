@@ -282,7 +282,7 @@ export default function JobTable({
         </span>
       </div>
 
-      <div className="flex items-start gap-6">
+      <div className="flex flex-col items-stretch gap-6 sm:flex-row sm:items-start">
         {/* Mobile: a wide multi-column table just becomes horizontal-scroll
             soup on a phone. Below sm, swap to one stacked card per job —
             a fixed, small set of fields (not whatever's toggled on for the
@@ -376,7 +376,7 @@ export default function JobTable({
         </div>
 
         {panelOpen && (
-          <div className="w-64 shrink-0 rounded-[18px] border border-white/[0.06] bg-[#11161c] p-5">
+          <div className="w-full rounded-[18px] border border-white/[0.06] bg-[#11161c] p-5 sm:w-64 sm:shrink-0">
             <h2 className="mb-3 text-[13px] font-semibold tracking-wide text-neutral-400 uppercase">
               Columns shown
             </h2>

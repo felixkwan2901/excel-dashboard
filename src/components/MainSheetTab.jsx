@@ -184,7 +184,7 @@ export default function MainSheetTab({ mainSheet, onBack }) {
         )}
       </div>
 
-      <div className="flex items-start gap-6">
+      <div className="flex flex-col items-stretch gap-6 sm:flex-row sm:items-start">
         <div className="min-w-0 flex-1 rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6">
           {/* Mobile: one card per job with each checklist item as its own
               labeled dropdown, instead of a table with one narrow column
@@ -258,7 +258,7 @@ export default function MainSheetTab({ mainSheet, onBack }) {
         </div>
 
         {panelOpen && (
-          <div className="w-64 shrink-0 rounded-[18px] border border-white/[0.06] bg-[#11161c] p-5">
+          <div className="w-full rounded-[18px] border border-white/[0.06] bg-[#11161c] p-5 sm:w-64 sm:shrink-0">
             <h2 className="mb-3 text-[13px] font-semibold tracking-wide text-neutral-400 uppercase">
               Columns shown
             </h2>
