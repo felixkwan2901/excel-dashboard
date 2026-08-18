@@ -1,5 +1,21 @@
 import { useMemo, useState } from 'react'
 import { money, percent } from '../lib/format'
+import { pollStagedStatus } from '../lib/pollStagedStatus'
+
+const UPLOAD_WORKER_URL = 'https://cde-data-upload.fkw24.workers.dev'
+
+// Column indices on the "Claim Calculator By Month" sheet that are plain
+// manual entry, not formulas — everything else on that row (Profit,
+// Margin, Total cost to come, Est. margin E.O.M, GP End of month) is
+// calculated and must never be written to from here.
+const EDITABLE_FIELDS = [
+  { key: 'claim', col: 2, label: 'Claim', num: true },
+  { key: 'costs', col: 3, label: 'Costs', num: true },
+  { key: 'retention', col: 5, label: 'Retention', num: true },
+  { key: 'hoursToCompleteBeforeEom', col: 8, label: 'Hours to complete before E.O.M', num: true },
+  { key: 'costsToComeBeforeEom', col: 9, label: 'Costs to come before E.O.M', num: true },
+  { key: 'notes', col: 16, label: 'Notes', num: false },
+]
 
 // A thin diverging bar anchored at a center zero line — positive values
 // grow right in brand green, negative grow left in red, mirroring the
@@ -89,6 +105,174 @@ function SortableHeading({ label, dir, onToggle }) {
       {label}
       <span className="text-[12px] text-neutral-500">{dir === 1 ? '▼ highest first' : '▲ lowest first'}</span>
     </button>
+  )
+}
+
+// Retention/Costs-to-come are dollar values but not always whole/round —
+// same free-typed-number convention as the checklist's dropdown, just a
+// plain input instead. Saves on blur (not per-keystroke) since these are
+// numbers someone might pause mid-typing, same reasoning as the Notes tab.
+function EditableCell({ value, saving, numeric, onChange }) {
+  const [text, setText] = useState(value)
+
+  return (
+    <input
+      type={numeric ? 'number' : 'text'}
+      value={text}
+      disabled={saving}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={() => {
+        if (text !== value) onChange(text)
+      }}
+      className="w-full min-w-0 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[13px] text-neutral-200 focus:border-brand-green/50 focus:outline-none disabled:opacity-50"
+    />
+  )
+}
+
+function ClaimCalculatorEditor({ jobs }) {
+  const [open, setOpen] = useState(false)
+  const [password, setPassword] = useState('')
+  const [values, setValues] = useState(() => {
+    const map = {}
+    for (const job of jobs) {
+      map[job.jobNumber] = {}
+      for (const field of EDITABLE_FIELDS) map[job.jobNumber][field.key] = job[field.key] ?? ''
+    }
+    return map
+  })
+  const [savingKeys, setSavingKeys] = useState(() => new Set())
+  const [status, setStatus] = useState({ kind: 'idle', message: '' })
+
+  async function handleChange(job, field, newValue) {
+    const cellKey = `${job.jobNumber}:${field.key}`
+    const previousValue = values[job.jobNumber][field.key]
+    if (!password) {
+      setStatus({ kind: 'error', message: 'Enter the upload password above before making changes.' })
+      return
+    }
+
+    setValues((prev) => ({ ...prev, [job.jobNumber]: { ...prev[job.jobNumber], [field.key]: newValue } }))
+    setSavingKeys((prev) => new Set(prev).add(cellKey))
+    setStatus({ kind: 'idle', message: '' })
+
+    function revert(message) {
+      setValues((prev) => ({ ...prev, [job.jobNumber]: { ...prev[job.jobNumber], [field.key]: previousValue } }))
+      setStatus({ kind: 'error', message })
+    }
+
+    try {
+      const res = await fetch(`${UPLOAD_WORKER_URL}/claim-calculator`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({
+          password,
+          edits: [{ jobNumber: job.jobNumber, col: field.col, value: newValue }],
+        }),
+      })
+      const payload = await res.json()
+      if (!res.ok) {
+        revert(payload.message ?? `Save failed (${res.status}) — reverted.`)
+        return
+      }
+
+      setStatus({ kind: 'idle', message: `Saving "${field.label}" for ${job.jobNumber} ${job.jobName}…` })
+      const result = await pollStagedStatus(payload.staged)
+      if (result.status === 'done') {
+        setStatus({
+          kind: 'ok',
+          message: `Saved "${field.label}" for ${job.jobNumber} ${job.jobName} — the site will redeploy in about a minute before it shows up here.`,
+        })
+      } else if (result.status === 'failed') {
+        revert(`${result.message} — reverted.`)
+      } else {
+        setStatus({
+          kind: 'error',
+          message: `Still processing "${field.label}" after 3 minutes — check back shortly; the change may still land.`,
+        })
+      }
+    } catch (err) {
+      revert(`Could not reach the upload service: ${String(err.message ?? err)} — reverted.`)
+    } finally {
+      setSavingKeys((prev) => {
+        const next = new Set(prev)
+        next.delete(cellKey)
+        return next
+      })
+    }
+  }
+
+  return (
+    <div className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-pressed={open}
+        className={`flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors ${
+          open
+            ? 'border-brand-green/50 bg-brand-green/10 text-brand-green'
+            : 'border-white/10 text-neutral-400 hover:border-white/20 hover:text-white'
+        }`}
+      >
+        Enter this month&apos;s figures
+      </button>
+
+      {open && (
+        <div className="mt-4 flex flex-col gap-4">
+          <div>
+            <label htmlFor="claim-calc-password" className="mb-1.5 block text-xs text-neutral-500">
+              Upload password — required before any change can save
+            </label>
+            <input
+              id="claim-calc-password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full max-w-xs rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-brand-green/50 focus:outline-none"
+            />
+          </div>
+
+          {status.message && (
+            <p className={`text-sm ${status.kind === 'error' ? 'text-red-400' : 'text-brand-green'}`}>
+              {status.message}
+            </p>
+          )}
+
+          <div className="table-scroll">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Job</th>
+                  {EDITABLE_FIELDS.map((f) => (
+                    <th key={f.key} className={f.num ? 'num' : undefined}>
+                      {f.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {jobs.map((job) => (
+                  <tr key={job.jobNumber}>
+                    <td className="whitespace-nowrap">
+                      {job.jobNumber} {job.jobName}
+                    </td>
+                    {EDITABLE_FIELDS.map((field) => (
+                      <td key={field.key} className="min-w-[110px] p-1">
+                        <EditableCell
+                          value={values[job.jobNumber][field.key]}
+                          saving={savingKeys.has(`${job.jobNumber}:${field.key}`)}
+                          numeric={field.num}
+                          onChange={(newValue) => handleChange(job, field, newValue)}
+                        />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -291,6 +475,8 @@ export default function MonthlyClaims({ monthlyClaims, onBack }) {
           </table>
         </div>
       </div>
+
+      <ClaimCalculatorEditor jobs={jobs} />
     </div>
   )
 }

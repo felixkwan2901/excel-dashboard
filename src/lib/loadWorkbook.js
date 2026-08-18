@@ -329,6 +329,9 @@ function parseMonthlyClaims(workbook) {
       claim: toNumber(row[2]),
       costs: toNumber(row[3]),
       profit: toNumber(row[4]),
+      // Retention (col F) doubles as the totals-row detector above — for a
+      // real job row it's also a genuine, manually-entered figure.
+      retention: toNumber(row[5]),
       margin: toNumber(row[6]),
       quotedMargin: toNumber(row[7]),
       hoursToCompleteBeforeEom: toNumber(row[8]),
@@ -338,6 +341,8 @@ function parseMonthlyClaims(workbook) {
       gpEndOfMonth: toNumber(row[12]),
       hoursThisMonth: toNumber(row[13]),
       gpPerHourThisMonth: toNumber(row[14]),
+      // Free-text note (col Q) — plain manual entry, no formula.
+      notes: String(row[16] ?? '').trim(),
     })
   }
 

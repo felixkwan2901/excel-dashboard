@@ -381,6 +381,43 @@ async function handleMainSheetUpdate(request, env) {
 }
 
 // ---------------------------------------------------------------------------
+// /claim-calculator — stage Claim Calculator edits under
+// pending-updates/claim-calculator/
+// ---------------------------------------------------------------------------
+
+async function handleClaimCalculatorUpdate(request, env) {
+  const body = await request.json().catch(() => null)
+  if (!body) {
+    return respond(request, 400, { htmlMessage: `<div class="result err">Invalid request body.</div>`, data: { error: 'bad_request', message: 'Invalid request body.' } })
+  }
+  const { password, edits } = body
+
+  if (!env.UPLOAD_PASSWORD || password !== env.UPLOAD_PASSWORD) {
+    return respond(request, 401, { htmlMessage: `<div class="result err">Wrong password. Please try again.</div>`, data: { error: 'wrong_password', message: 'Wrong password.' } })
+  }
+  if (!Array.isArray(edits) || edits.length === 0) {
+    return respond(request, 400, { htmlMessage: `<div class="result err">No changes to save.</div>`, data: { error: 'no_edits', message: 'No changes to save.' } })
+  }
+
+  const stagedPath = `pending-updates/claim-calculator/${stagedId()}.json`
+  const putRes = await putFileWithRetry(stagedPath, env, {
+    contentBase64: textToBase64(JSON.stringify({ edits, stagedAt: new Date().toISOString() }, null, 2)),
+    message: `Stage Claim Calculator edit(s) (${edits.length})`,
+  })
+  if (!putRes.ok) {
+    const body2 = await putRes.text()
+    const msg = `GitHub rejected the save (${putRes.status}). ${body2.slice(0, 200)}`
+    return respond(request, 502, { htmlMessage: `<div class="result err">${escapeHtml(msg)}</div>`, data: { error: 'github_write_failed', message: msg } })
+  }
+
+  const msg = `Queued ${edits.length} change(s). Merging usually takes 30-90 seconds, then the site takes another minute or so to redeploy before it's visible live.`
+  return respond(request, 200, {
+    htmlMessage: `<div class="result ok">${escapeHtml(msg)}</div>`,
+    data: { queued: true, staged: stagedPath, message: msg },
+  })
+}
+
+// ---------------------------------------------------------------------------
 // /notes — stage a free-text note edit under pending-updates/notes/
 // ---------------------------------------------------------------------------
 
@@ -502,6 +539,15 @@ export default {
     if (request.method === 'POST' && url.pathname === '/main-sheet') {
       try {
         return await handleMainSheetUpdate(request, env)
+      } catch (err) {
+        const msg = `Unexpected error: ${String(err.message ?? err)}`
+        return respond(request, 500, { htmlMessage: `<div class="result err">${escapeHtml(msg)}</div>`, data: { error: 'unexpected', message: msg } })
+      }
+    }
+
+    if (request.method === 'POST' && url.pathname === '/claim-calculator') {
+      try {
+        return await handleClaimCalculatorUpdate(request, env)
       } catch (err) {
         const msg = `Unexpected error: ${String(err.message ?? err)}`
         return respond(request, 500, { htmlMessage: `<div class="result err">${escapeHtml(msg)}</div>`, data: { error: 'unexpected', message: msg } })
