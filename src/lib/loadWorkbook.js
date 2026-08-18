@@ -6,6 +6,7 @@ import workbookUrl from '../../Cassidy_Davies_Electrical_BPMN_Data.xlsx?url'
 // other file types.
 const monthlyHoursLogUrl = `${import.meta.env.BASE_URL}monthly-hours-log.json`
 const archivedJobsUrl = `${import.meta.env.BASE_URL}archived-jobs.json`
+const todosUrl = `${import.meta.env.BASE_URL}todos.json`
 
 // Columns are located by header text, not position — the real sheet's
 // headers have embedded newlines ("Job\nNumber") and have already drifted
@@ -441,38 +442,6 @@ function parseMainSheet(workbook) {
   return { jobs, columns }
 }
 
-// A couple of sheet names in this workbook don't match exactly what you'd
-// expect — "Note Tom (To Do) " carries a trailing space in the actual file.
-// Looking sheets up by trimmed, case-insensitive name avoids that kind of
-// thing silently breaking a read.
-function findSheetByName(workbook, name) {
-  const target = name.trim().toLowerCase()
-  const match = workbook.SheetNames.find((n) => n.trim().toLowerCase() === target)
-  return match ? workbook.Sheets[match] : null
-}
-
-// "Note Cam (To Do)" / "Note Tom (To Do)" are free-text running notes —
-// one line of text per row (each merged across the full sheet width in the
-// source file), not structured job data. Read as a single block of text
-// per person; blank rows are preserved as blank lines since they're used
-// as intentional spacing between sections (e.g. between different jobs'
-// notes).
-function parseNotes(workbook) {
-  function readNotesSheet(name) {
-    const sheet = findSheetByName(workbook, name)
-    if (!sheet) return ''
-    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', blankrows: true })
-    return rows
-      .map((row) => String(row[0] ?? ''))
-      .join('\n')
-      .replace(/\n+$/, '')
-  }
-  return {
-    cam: readNotesSheet('Note Cam (To Do)'),
-    tom: readNotesSheet('Note Tom (To Do)'),
-  }
-}
-
 // The log only ever records each job's CUMULATIVE hours-to-date as of the
 // last snapshot taken in a given month (see scripts/log-monthly-hours.mjs
 // for why — the workbook itself has no month-by-month history to read).
@@ -516,12 +485,13 @@ export async function loadWorkbook() {
   // — this bounds it so an error state (with a retry) shows up instead.
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 20_000)
-  let res, hoursRes, archivedRes
+  let res, hoursRes, archivedRes, todosRes
   try {
-    ;[res, hoursRes, archivedRes] = await Promise.all([
+    ;[res, hoursRes, archivedRes, todosRes] = await Promise.all([
       fetch(workbookUrl, { signal: controller.signal }),
       fetch(monthlyHoursLogUrl, { signal: controller.signal }),
       fetch(archivedJobsUrl, { signal: controller.signal }),
+      fetch(todosUrl, { signal: controller.signal }),
     ])
   } finally {
     clearTimeout(timeout)
@@ -534,8 +504,11 @@ export async function loadWorkbook() {
   const jobs = rowsAfterHeader(jobRows).map(withDerivedFields)
   const monthlyClaims = parseMonthlyClaims(workbook)
   const mainSheet = parseMainSheet(workbook)
-  const notes = parseNotes(workbook)
   const upcomingWork = parseUpcomingWork(workbook)
+  // To-dos live entirely outside the workbook (see apply-todos-edits.mjs) —
+  // an arbitrary, growing set of people's tasks doesn't map onto a fixed
+  // number of Excel sheets.
+  const todos = todosRes?.ok ? await todosRes.json() : []
   // The hours log is a nice-to-have on top of the core workbook data — if
   // it's missing or unreadable for any reason, degrade to an empty history
   // rather than failing the whole page load over it.
@@ -562,7 +535,7 @@ export async function loadWorkbook() {
     monthlyClaims: { ...monthlyClaims, jobs: monthlyClaims.jobs.filter(notArchived) },
     mainSheet: { ...mainSheet, jobs: mainSheet.jobs.filter(notArchived) },
     monthlyHours,
-    notes,
+    todos,
     upcomingWork: { ...upcomingWork, jobs: upcomingWork.jobs.filter(notArchived) },
     archivedJobs,
   }

@@ -11,7 +11,7 @@ import UpdateData from './components/UpdateData'
 import MonthlyClaims from './components/MonthlyClaims'
 import MonthlyHours from './components/MonthlyHours'
 import MainSheetTab from './components/MainSheetTab'
-import NotesTab from './components/NotesTab'
+import TodosTab from './components/TodosTab'
 import ArchivedJobsPanel from './components/ArchivedJobsPanel'
 import UpcomingWorkTab from './components/UpcomingWorkTab'
 import LastSynced from './components/LastSynced'
@@ -57,8 +57,8 @@ export default function App() {
   // it's firing from an event handler, not mount.
   function fetchWorkbook() {
     loadWorkbook()
-      .then(({ jobs, monthlyClaims, mainSheet, monthlyHours, notes, upcomingWork, archivedJobs }) =>
-        setState({ status: 'ready', jobs, monthlyClaims, mainSheet, monthlyHours, notes, upcomingWork, archivedJobs })
+      .then(({ jobs, monthlyClaims, mainSheet, monthlyHours, todos, upcomingWork, archivedJobs }) =>
+        setState({ status: 'ready', jobs, monthlyClaims, mainSheet, monthlyHours, todos, upcomingWork, archivedJobs })
       )
       .catch((error) => setState({ status: 'error', error }))
   }
@@ -90,7 +90,7 @@ export default function App() {
   const monthlyClaims = state.status === 'ready' ? state.monthlyClaims : { jobs: [], totals: [] }
   const mainSheet = state.status === 'ready' ? state.mainSheet : { jobs: [], columns: [] }
   const monthlyHours = state.status === 'ready' ? state.monthlyHours : { months: [], totalsByMonth: [], jobs: [] }
-  const notes = state.status === 'ready' ? state.notes : { cam: '', tom: '' }
+  const todos = state.status === 'ready' ? state.todos : []
   const upcomingWork = state.status === 'ready' ? state.upcomingWork : { jobs: [] }
   const archivedJobs = state.status === 'ready' ? state.archivedJobs : []
   const kpis = state.status === 'ready' ? computeKpis(jobs) : null
@@ -331,7 +331,7 @@ export default function App() {
             <LoadStatus status={state.status} error={state.error} onRetry={retryLoad} />
           ) : (
             <Reveal index={0}>
-              <NotesTab notes={notes} onBack={goHome} />
+              <TodosTab todos={todos} onBack={goHome} />
             </Reveal>
           )}
         </main>

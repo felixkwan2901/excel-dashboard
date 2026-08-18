@@ -540,30 +540,27 @@ async function handleUpcomingWorkUpdate(request, env) {
 }
 
 // ---------------------------------------------------------------------------
-// /notes — stage a free-text note edit under pending-updates/notes/
+// /todos — stage a to-do list edit under pending-updates/todos/
 // ---------------------------------------------------------------------------
 
-async function handleNotesUpdate(request, env) {
+async function handleTodosUpdate(request, env) {
   const body = await request.json().catch(() => null)
   if (!body) {
     return respond(request, 400, { htmlMessage: `<div class="result err">Invalid request body.</div>`, data: { error: 'bad_request', message: 'Invalid request body.' } })
   }
-  const { password, person, text } = body
+  const { password, todos } = body
 
   if (!env.UPLOAD_PASSWORD || password !== env.UPLOAD_PASSWORD) {
     return respond(request, 401, { htmlMessage: `<div class="result err">Wrong password. Please try again.</div>`, data: { error: 'wrong_password', message: 'Wrong password.' } })
   }
-  if (person !== 'cam' && person !== 'tom') {
-    return respond(request, 400, { htmlMessage: `<div class="result err">Invalid person.</div>`, data: { error: 'bad_request', message: 'Invalid person.' } })
-  }
-  if (typeof text !== 'string') {
-    return respond(request, 400, { htmlMessage: `<div class="result err">No text to save.</div>`, data: { error: 'no_text', message: 'No text to save.' } })
+  if (!Array.isArray(todos)) {
+    return respond(request, 400, { htmlMessage: `<div class="result err">Invalid to-do list.</div>`, data: { error: 'bad_request', message: 'Invalid to-do list.' } })
   }
 
-  const stagedPath = `pending-updates/notes/${stagedId()}.json`
+  const stagedPath = `pending-updates/todos/${stagedId()}.json`
   const putRes = await putFileWithRetry(stagedPath, env, {
-    contentBase64: textToBase64(JSON.stringify({ person, text, stagedAt: new Date().toISOString() }, null, 2)),
-    message: `Stage note edit (${person})`,
+    contentBase64: textToBase64(JSON.stringify({ todos, stagedAt: new Date().toISOString() }, null, 2)),
+    message: `Stage to-do list edit`,
   })
   if (!putRes.ok) {
     const body2 = await putRes.text()
@@ -703,9 +700,9 @@ export default {
       }
     }
 
-    if (request.method === 'POST' && url.pathname === '/notes') {
+    if (request.method === 'POST' && url.pathname === '/todos') {
       try {
-        return await handleNotesUpdate(request, env)
+        return await handleTodosUpdate(request, env)
       } catch (err) {
         const msg = `Unexpected error: ${String(err.message ?? err)}`
         return respond(request, 500, { htmlMessage: `<div class="result err">${escapeHtml(msg)}</div>`, data: { error: 'unexpected', message: msg } })
