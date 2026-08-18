@@ -343,9 +343,12 @@ function parseMonthlyClaims(workbook) {
   const totals = []
 
   for (const row of rows) {
-    // Only the Commercial row repeats "Totals" in column 0 — the
-    // Residential row leaves it blank, so the reliable signal both totals
-    // rows share is the "GP%" label sitting in the Retention column.
+    // One combined total across every job now (used to be a separate
+    // Commercial/Residential split, but that was just two hardcoded row
+    // ranges from however the sheet was originally laid out — any job
+    // added later fell outside both and was silently never counted; see
+    // scripts/update-jobs.mjs). The old second totals row still exists in
+    // the sheet but has its "GP%" marker cleared, so only this one match.
     if (row[5] === 'GP%') {
       totals.push({
         category: String(row[1] ?? '').trim(),

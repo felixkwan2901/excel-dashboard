@@ -339,8 +339,12 @@ export default function MonthlyClaims({ monthlyClaims, onBack }) {
   const maxAbsProfit = Math.max(1, ...byProfit.map((j) => Math.abs(j.profit)))
   const maxAbsGpPerHour = Math.max(1, ...byGpPerHour.map((j) => Math.abs(j.gpPerHourThisMonth)))
 
-  const commercial = totals.find((t) => t.category === 'Commercial')
-  const residential = totals.find((t) => t.category === 'Residential')
+  // One combined total across every job — used to be a Commercial/
+  // Residential split, but that was just two hardcoded row ranges from
+  // however the sheet was originally laid out, and any job added later
+  // fell outside both, silently never counted in either (see
+  // scripts/update-jobs.mjs for the full story).
+  const overallTotal = totals[0]
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
@@ -360,10 +364,7 @@ export default function MonthlyClaims({ monthlyClaims, onBack }) {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <TotalsCard total={commercial} />
-        <TotalsCard total={residential} />
-      </div>
+      <TotalsCard total={overallTotal} />
 
       <div className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6">
         <SortableHeading label="Profit this month by job" dir={profitDir} onToggle={() => setProfitDir((d) => -d)} />

@@ -763,40 +763,45 @@ async function main() {
       setPlainValue(claimCalcRow.getCell(15), gpPerHourThisMonth)
     }
 
-    // The Commercial/Residential Totals rows (identified by "GP%" sitting
-    // in the Retention column, same signal the dashboard's own reader
-    // uses) are ALSO formulas summing the per-job cells just rewritten
-    // above — e.g. "SUM(C4,C6,C8,...)" for Claim, "(E69-(K4+K6+...))/C69"
-    // for E.O.M GP% — so their cached totals are just as stale as the
-    // per-job Profit was. Reads each formula's own cell references
-    // (rather than hardcoding the row list) so this keeps working if a
-    // new job's row ever gets inserted into that range.
-    function sumRefs(formula, columnLetter) {
-      const colIdx = columnLetter.charCodeAt(0) - 64 // 'A' -> 1
-      const re = new RegExp(`\\b${columnLetter}(\\d+)\\b`, 'g')
-      let sum = 0
-      let m
-      while ((m = re.exec(formula))) {
-        sum += Number(resolveCellValue(claimCalcWs.getRow(Number(m[1])).getCell(colIdx).value)) || 0
-      }
-      return sum
+    // Used to be two separate Commercial/Residential totals, each just a
+    // hardcoded row range from however the sheet happened to be laid out
+    // originally (rows 4-24, 26-46) — any job added after that range (8 of
+    // the current 30, including Waimak Dairys, Harewood Golf Club, and
+    // Taggart House) was silently never counted in EITHER total, even
+    // before this script ever touched the sheet. Worse, once this script
+    // started writing a plain SUM instead of leaving the formula in place,
+    // that stale range was frozen forever — no formula left to
+    // ever recompute from on a later run. Replaced with one combined total
+    // across every valid job row (summed directly here, not derived from
+    // a row-range formula), so a newly added job is automatically included
+    // with no range to maintain and no formula to go stale.
+    let totalClaim = 0, totalCosts = 0, totalProfit = 0, totalCostToCome = 0
+    for (const rowNumber of claimCalcRowByNumber.values()) {
+      const row = claimCalcWs.getRow(rowNumber)
+      totalClaim += Number(resolveCellValue(row.getCell(3).value)) || 0
+      totalCosts += Number(resolveCellValue(row.getCell(4).value)) || 0
+      totalProfit += Number(resolveCellValue(row.getCell(5).value)) || 0
+      totalCostToCome += Number(resolveCellValue(row.getCell(11).value)) || 0
     }
+    let combinedTotalWritten = false
     claimCalcWs.eachRow((row) => {
       if (row.getCell(6).value !== 'GP%') return
-      const cFormula = row.getCell(3).value?.formula
-      const dFormula = row.getCell(4).value?.formula
-      const eFormula = row.getCell(5).value?.formula
-      const eomFormula = row.getCell(9).value?.formula
-      if (!cFormula || !dFormula || !eFormula || !eomFormula) return
-      const sumClaim = sumRefs(cFormula, 'C')
-      const sumCosts = sumRefs(dFormula, 'D')
-      const sumProfit = sumRefs(eFormula, 'E')
-      const sumCostToCome = sumRefs(eomFormula, 'K')
-      setPlainValue(row.getCell(3), sumClaim)
-      setPlainValue(row.getCell(4), sumCosts)
-      setPlainValue(row.getCell(5), sumProfit)
-      setPlainValue(row.getCell(7), sumClaim ? sumProfit / sumClaim : 0)
-      setPlainValue(row.getCell(9), sumClaim ? (sumProfit - sumCostToCome) / sumClaim : 0)
+      if (!combinedTotalWritten) {
+        combinedTotalWritten = true
+        setPlainValue(row.getCell(2), 'Total')
+        setPlainValue(row.getCell(3), totalClaim)
+        setPlainValue(row.getCell(4), totalCosts)
+        setPlainValue(row.getCell(5), totalProfit)
+        setPlainValue(row.getCell(7), totalClaim ? totalProfit / totalClaim : 0)
+        setPlainValue(row.getCell(9), totalClaim ? (totalProfit - totalCostToCome) / totalClaim : 0)
+        return
+      }
+      // The old second (Residential) totals row — neutralized rather than
+      // deleted, to avoid reshuffling every row below it. Clearing its
+      // "GP%" marker means the dashboard's reader (which finds totals rows
+      // by that exact signal) only ever picks up the one combined row
+      // above, on this run and every run after.
+      setPlainValue(row.getCell(6), null)
     })
 
     // Best-effort snapshot of the CURRENT (still in-progress) month, so
