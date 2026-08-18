@@ -66,6 +66,7 @@ jobs:
             node scripts/apply-claim-calculator-edits.mjs
             node scripts/apply-upcoming-work-edits.mjs
             node scripts/apply-notes-edits.mjs
+            node scripts/apply-archived-jobs-edits.mjs
             node scripts/log-monthly-hours.mjs
 
             git add -A

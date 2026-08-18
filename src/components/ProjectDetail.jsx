@@ -1,8 +1,110 @@
 import { useState } from 'react'
-import { ArrowLeft, AlertTriangle, SlidersHorizontal } from 'lucide-react'
+import { ArrowLeft, AlertTriangle, Archive, SlidersHorizontal } from 'lucide-react'
 import TrendBadge from './TrendBadge'
 import { money, percent } from '../lib/format'
 import { statusReasons } from '../lib/statusReasons'
+import { pollStagedStatus } from '../lib/pollStagedStatus'
+
+const UPLOAD_WORKER_URL = 'https://cde-data-upload.fkw24.workers.dev'
+
+// Archiving hides a job everywhere on the dashboard without touching any
+// of its data in the workbook — reversible from the Job Directory's
+// "Archived jobs" panel. A password + explicit confirm step, same
+// friction as every other write action, since it's a real change even
+// though it's a safe one.
+function ArchiveJobControl({ job, onBack }) {
+  const [open, setOpen] = useState(false)
+  const [password, setPassword] = useState('')
+  const [status, setStatus] = useState({ kind: 'idle', message: '' })
+  const [busy, setBusy] = useState(false)
+
+  async function handleArchive() {
+    if (!password) {
+      setStatus({ kind: 'error', message: 'Enter the upload password.' })
+      return
+    }
+    setBusy(true)
+    setStatus({ kind: 'idle', message: '' })
+    try {
+      const res = await fetch(`${UPLOAD_WORKER_URL}/archive-job`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ password, jobNumber: job.jobNumber, action: 'archive' }),
+      })
+      const payload = await res.json()
+      if (!res.ok) {
+        setStatus({ kind: 'error', message: payload.message ?? `Request failed (${res.status}).` })
+        setBusy(false)
+        return
+      }
+      setStatus({ kind: 'idle', message: 'Archiving…' })
+      const result = await pollStagedStatus(payload.staged)
+      if (result.status === 'done') {
+        setStatus({ kind: 'ok', message: 'Archived — taking you back to the job list.' })
+        setTimeout(onBack, 1500)
+      } else if (result.status === 'failed') {
+        setStatus({ kind: 'error', message: result.message })
+        setBusy(false)
+      } else {
+        setStatus({ kind: 'error', message: 'Still processing after 3 minutes — check back shortly.' })
+        setBusy(false)
+      }
+    } catch (err) {
+      setStatus({ kind: 'error', message: `Could not reach the upload service: ${String(err.message ?? err)}` })
+      setBusy(false)
+    }
+  }
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="flex w-fit items-center gap-1.5 rounded-full border border-white/10 px-3.5 py-1.5 text-sm text-neutral-400 transition-colors hover:border-red-400/40 hover:text-red-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green"
+      >
+        <Archive size={14} aria-hidden="true" />
+        Archive job
+      </button>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+      <p className="text-[13px] text-neutral-300">
+        Archive {job.jobNumber} {job.jobName}? It&apos;ll disappear from every page, but nothing
+        in the workbook is touched — reversible from the Job Directory&apos;s Archived jobs panel.
+      </p>
+      <div className="flex items-center gap-2">
+        <input
+          type="password"
+          placeholder="Upload password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          disabled={busy}
+          className="min-w-0 flex-1 rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-sm text-white focus:border-brand-green/50 focus:outline-none disabled:opacity-50"
+        />
+        <button
+          onClick={handleArchive}
+          disabled={busy}
+          className="shrink-0 rounded-lg border border-red-400/40 bg-red-400/10 px-3 py-1.5 text-sm font-medium text-red-400 transition-colors hover:bg-red-400/20 disabled:opacity-50"
+        >
+          {busy ? 'Archiving…' : 'Confirm archive'}
+        </button>
+        <button
+          onClick={() => setOpen(false)}
+          disabled={busy}
+          className="shrink-0 rounded-lg border border-white/10 px-3 py-1.5 text-sm text-neutral-400 hover:text-white disabled:opacity-50"
+        >
+          Cancel
+        </button>
+      </div>
+      {status.message && (
+        <p className={`text-[13px] ${status.kind === 'error' ? 'text-red-400' : 'text-brand-green'}`}>
+          {status.message}
+        </p>
+      )}
+    </div>
+  )
+}
 
 function Field({ label, children, warn }) {
   return (
@@ -155,6 +257,10 @@ export default function ProjectDetail({ job, onBack }) {
           <Field label="GP $/hour">{money(job.gpPerHour)}</Field>
           <Field label="Quoted GP $/hour">{money(job.quotedGpPerHour)}</Field>
         </Section>
+
+        <div className="mt-6 border-t border-white/10 pt-6">
+          <ArchiveJobControl job={job} onBack={onBack} />
+        </div>
       </div>
     </div>
   )

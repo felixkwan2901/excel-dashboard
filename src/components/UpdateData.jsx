@@ -14,6 +14,7 @@ const OUTCOME_LABEL = {
   no_room: 'Malformed job block',
   unmatched: 'Job number not found',
   unreadable: 'Could not be read',
+  archived: 'Skipped — job archived',
 }
 const OUTCOME_TONE = {
   updated: 'text-brand-green',
@@ -21,6 +22,7 @@ const OUTCOME_TONE = {
   no_room: 'text-status-critical',
   unmatched: 'text-status-critical',
   unreadable: 'text-status-critical',
+  archived: 'text-text-muted',
 }
 
 function resultLabel(r) {

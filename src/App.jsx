@@ -12,6 +12,7 @@ import MonthlyClaims from './components/MonthlyClaims'
 import MonthlyHours from './components/MonthlyHours'
 import MainSheetTab from './components/MainSheetTab'
 import NotesTab from './components/NotesTab'
+import ArchivedJobsPanel from './components/ArchivedJobsPanel'
 import UpcomingWorkTab from './components/UpcomingWorkTab'
 import LastSynced from './components/LastSynced'
 import Reveal from './components/Reveal'
@@ -56,8 +57,8 @@ export default function App() {
   // it's firing from an event handler, not mount.
   function fetchWorkbook() {
     loadWorkbook()
-      .then(({ jobs, monthlyClaims, mainSheet, monthlyHours, notes, upcomingWork }) =>
-        setState({ status: 'ready', jobs, monthlyClaims, mainSheet, monthlyHours, notes, upcomingWork })
+      .then(({ jobs, monthlyClaims, mainSheet, monthlyHours, notes, upcomingWork, archivedJobs }) =>
+        setState({ status: 'ready', jobs, monthlyClaims, mainSheet, monthlyHours, notes, upcomingWork, archivedJobs })
       )
       .catch((error) => setState({ status: 'error', error }))
   }
@@ -91,6 +92,7 @@ export default function App() {
   const monthlyHours = state.status === 'ready' ? state.monthlyHours : { months: [], totalsByMonth: [], jobs: [] }
   const notes = state.status === 'ready' ? state.notes : { cam: '', tom: '' }
   const upcomingWork = state.status === 'ready' ? state.upcomingWork : { jobs: [] }
+  const archivedJobs = state.status === 'ready' ? state.archivedJobs : []
   const kpis = state.status === 'ready' ? computeKpis(jobs) : null
   const flaggedJobs = useMemo(() => jobs.filter((j) => j.flagged), [jobs])
 
@@ -373,6 +375,11 @@ export default function App() {
                 }}
               />
             </Reveal>
+          )}
+          {state.status === 'ready' && (
+            <div className="mt-4">
+              <ArchivedJobsPanel archivedJobs={archivedJobs} />
+            </div>
           )}
         </main>
       )}

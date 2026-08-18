@@ -5,6 +5,7 @@ import workbookUrl from '../../Cassidy_Davies_Electrical_BPMN_Data.xlsx?url'
 // import of a .json file as a fetchable static asset the way it does for
 // other file types.
 const monthlyHoursLogUrl = `${import.meta.env.BASE_URL}monthly-hours-log.json`
+const archivedJobsUrl = `${import.meta.env.BASE_URL}archived-jobs.json`
 
 // Columns are located by header text, not position — the real sheet's
 // headers have embedded newlines ("Job\nNumber") and have already drifted
@@ -515,11 +516,12 @@ export async function loadWorkbook() {
   // — this bounds it so an error state (with a retry) shows up instead.
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 20_000)
-  let res, hoursRes
+  let res, hoursRes, archivedRes
   try {
-    ;[res, hoursRes] = await Promise.all([
+    ;[res, hoursRes, archivedRes] = await Promise.all([
       fetch(workbookUrl, { signal: controller.signal }),
       fetch(monthlyHoursLogUrl, { signal: controller.signal }),
+      fetch(archivedJobsUrl, { signal: controller.signal }),
     ])
   } finally {
     clearTimeout(timeout)
@@ -541,5 +543,27 @@ export async function loadWorkbook() {
     ? parseMonthlyHoursLog(await hoursRes.json())
     : { months: [], totalsByMonth: [], jobs: [] }
 
-  return { jobs, monthlyClaims, mainSheet, monthlyHours, notes, upcomingWork }
+  // Archiving a completed job doesn't touch the workbook at all — it just
+  // adds the job number to this list, which every job-bearing view filters
+  // against here, in one place, rather than each sheet's own workbook data
+  // ever being modified/deleted. Degrades to "nothing archived" if this is
+  // missing/unreadable, same reasoning as the hours log above.
+  const archivedJobNumbers = new Set(archivedRes?.ok ? await archivedRes.json() : [])
+  const notArchived = (job) => !archivedJobNumbers.has(job.jobNumber)
+  // Captured from the full, unfiltered list before archived jobs get
+  // removed below — an "un-archive" control needs each archived job's
+  // name to show, not just its number.
+  const archivedJobs = jobs
+    .filter((job) => archivedJobNumbers.has(job.jobNumber))
+    .map((job) => ({ jobNumber: job.jobNumber, jobName: job.jobName }))
+
+  return {
+    jobs: jobs.filter(notArchived),
+    monthlyClaims: { ...monthlyClaims, jobs: monthlyClaims.jobs.filter(notArchived) },
+    mainSheet: { ...mainSheet, jobs: mainSheet.jobs.filter(notArchived) },
+    monthlyHours,
+    notes,
+    upcomingWork: { ...upcomingWork, jobs: upcomingWork.jobs.filter(notArchived) },
+    archivedJobs,
+  }
 }

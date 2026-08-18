@@ -543,13 +543,28 @@ async function main() {
   const weekOfMonth = calendarWeekOfMonth(now)
   console.log(`Today (${now.toISOString().slice(0, 10)}) is calendar Week ${weekOfMonth} of the month — new figures write there.`)
 
+  // Archived jobs (see scripts/apply-archived-jobs-edits.mjs) never get
+  // touched by the normal weekly upload — otherwise an accidentally
+  // re-uploaded export for a job someone already marked complete would
+  // silently write new figures into a sheet the dashboard no longer shows
+  // at all, which would be confusing to ever notice.
+  const archivedJobsPath = resolve('public/archived-jobs.json')
+  const archivedNumbers = new Set(
+    existsSync(archivedJobsPath) ? JSON.parse(readFileSync(archivedJobsPath, 'utf8')) : [],
+  )
+
   const updated = []
   const unmatchedFiles = []
   const noRoomLeft = []
   const possibleDuplicates = []
+  const archivedRejected = []
 
   for (const rec of extracted) {
     const jobNum = Number(rec.jobNumber)
+    if (archivedNumbers.has(String(jobNum))) {
+      archivedRejected.push(rec)
+      continue
+    }
     const block = blocks.find((b) => Number(b.jobNumber) === jobNum)
     if (!block) {
       unmatchedFiles.push(rec)
@@ -615,6 +630,11 @@ async function main() {
     for (const r of noRoomLeft) console.log(`  ${r.jobNumber}  ${r.jobName}`)
   }
 
+  if (archivedRejected.length > 0) {
+    console.log(`\n${archivedRejected.length} export file(s) were for an archived job — skipped, not merged:`)
+    for (const r of archivedRejected) console.log(`  ${r.jobNumber}  ${r.jobName}`)
+  }
+
   if (notUpdated.length > 0) {
     console.log(`\n${notUpdated.length} existing job(s) got no new data (no matching export found):`)
     for (const n of notUpdated) {
@@ -666,6 +686,14 @@ async function main() {
       jobNumber: r.jobNumber,
       jobName: r.jobName,
       message: `${r.jobNumber} ${r.jobName}'s Deliverables Sheet block isn't in the normal 5-week layout — needs manual attention.`,
+    })
+  }
+  for (const r of archivedRejected) {
+    writeResult(r.file, {
+      outcome: 'archived',
+      jobNumber: r.jobNumber,
+      jobName: r.jobName,
+      message: `${r.jobNumber} ${r.jobName} is archived — un-archive it first if this export should still merge.`,
     })
   }
   for (const u of unmatchedFiles) {

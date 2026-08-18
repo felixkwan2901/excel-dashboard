@@ -381,6 +381,43 @@ async function handleMainSheetUpdate(request, env) {
 }
 
 // ---------------------------------------------------------------------------
+// /archive-job — stage an archive/un-archive request under
+// pending-updates/archived-jobs/
+// ---------------------------------------------------------------------------
+
+async function handleArchiveJob(request, env) {
+  const body = await request.json().catch(() => null)
+  if (!body) {
+    return respond(request, 400, { htmlMessage: `<div class="result err">Invalid request body.</div>`, data: { error: 'bad_request', message: 'Invalid request body.' } })
+  }
+  const { password, jobNumber, action } = body
+
+  if (!env.UPLOAD_PASSWORD || password !== env.UPLOAD_PASSWORD) {
+    return respond(request, 401, { htmlMessage: `<div class="result err">Wrong password. Please try again.</div>`, data: { error: 'wrong_password', message: 'Wrong password.' } })
+  }
+  if (!jobNumber || (action !== 'archive' && action !== 'unarchive')) {
+    return respond(request, 400, { htmlMessage: `<div class="result err">Invalid request.</div>`, data: { error: 'bad_request', message: 'Invalid request.' } })
+  }
+
+  const stagedPath = `pending-updates/archived-jobs/${stagedId()}.json`
+  const putRes = await putFileWithRetry(stagedPath, env, {
+    contentBase64: textToBase64(JSON.stringify({ jobNumber: String(jobNumber), action, stagedAt: new Date().toISOString() }, null, 2)),
+    message: `Stage ${action}: ${jobNumber}`,
+  })
+  if (!putRes.ok) {
+    const body2 = await putRes.text()
+    const msg = `GitHub rejected the save (${putRes.status}). ${body2.slice(0, 200)}`
+    return respond(request, 502, { htmlMessage: `<div class="result err">${escapeHtml(msg)}</div>`, data: { error: 'github_write_failed', message: msg } })
+  }
+
+  const msg = `Queued. Takes 30-90 seconds, then the site takes another minute or so to redeploy before it's visible live.`
+  return respond(request, 200, {
+    htmlMessage: `<div class="result ok">${escapeHtml(msg)}</div>`,
+    data: { queued: true, staged: stagedPath, message: msg },
+  })
+}
+
+// ---------------------------------------------------------------------------
 // /new-job — stage a new-job request under pending-updates/new-job/
 // ---------------------------------------------------------------------------
 
@@ -624,6 +661,15 @@ export default {
     if (request.method === 'POST' && url.pathname === '/main-sheet') {
       try {
         return await handleMainSheetUpdate(request, env)
+      } catch (err) {
+        const msg = `Unexpected error: ${String(err.message ?? err)}`
+        return respond(request, 500, { htmlMessage: `<div class="result err">${escapeHtml(msg)}</div>`, data: { error: 'unexpected', message: msg } })
+      }
+    }
+
+    if (request.method === 'POST' && url.pathname === '/archive-job') {
+      try {
+        return await handleArchiveJob(request, env)
       } catch (err) {
         const msg = `Unexpected error: ${String(err.message ?? err)}`
         return respond(request, 500, { htmlMessage: `<div class="result err">${escapeHtml(msg)}</div>`, data: { error: 'unexpected', message: msg } })
