@@ -9,6 +9,7 @@ export default function TodosTab({ todos, onBack }) {
   const [selectedPerson, setSelectedPerson] = useState(null)
   const [addingPerson, setAddingPerson] = useState(false)
   const [newPersonName, setNewPersonName] = useState('')
+  const [newPersonTaskText, setNewPersonTaskText] = useState('')
   const [newItemText, setNewItemText] = useState('')
   const [password, setPassword] = useState('')
   const [saving, setSaving] = useState(false)
@@ -80,13 +81,20 @@ export default function TodosTab({ todos, onBack }) {
     setNewItemText('')
   }
 
+  // A person only exists in the saved data once they have a task — so
+  // adding a person and adding their first task happen as one save here,
+  // rather than a "New person" step that saves nothing on its own (which
+  // silently lost the new name if nobody added a task afterwards).
   function handleAddPerson(e) {
     e.preventDefault()
     const name = newPersonName.trim()
-    if (!name) return
+    const text = newPersonTaskText.trim()
+    if (!name || !text) return
+    addItemFor(name, text)
     setSelectedPerson(name)
     setAddingPerson(false)
     setNewPersonName('')
+    setNewPersonTaskText('')
   }
 
   const passwordField = (
@@ -141,7 +149,7 @@ export default function TodosTab({ todos, onBack }) {
             </button>
           ))}
 
-          {!addingPerson ? (
+          {!addingPerson && (
             <button
               onClick={() => setAddingPerson(true)}
               className="flex items-center gap-1 rounded-full border border-dashed border-white/15 px-4 py-2 text-sm text-neutral-400 transition-colors hover:border-brand-green/40 hover:text-brand-green"
@@ -149,25 +157,56 @@ export default function TodosTab({ todos, onBack }) {
               <Plus size={14} aria-hidden="true" />
               New person
             </button>
-          ) : (
-            <form onSubmit={handleAddPerson} className="flex items-center gap-2">
-              <input
-                type="text"
-                autoFocus
-                value={newPersonName}
-                onChange={(e) => setNewPersonName(e.target.value)}
-                placeholder="Name"
-                className="w-32 rounded-full border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-sm text-white focus:border-brand-green/50 focus:outline-none"
-              />
-              <button
-                type="submit"
-                className="rounded-full border border-white/10 px-3 py-1.5 text-sm text-neutral-300 hover:border-brand-green/40 hover:text-brand-green"
-              >
-                Go
-              </button>
-            </form>
           )}
         </div>
+
+        {addingPerson && (
+          <form
+            onSubmit={handleAddPerson}
+            className="flex flex-col gap-3 rounded-[18px] border border-white/[0.06] bg-[#11161c] p-5"
+          >
+            <p className="text-[12px] text-neutral-500">
+              A person is only saved once they have a first task — add both together.
+            </p>
+            <input
+              type="text"
+              autoFocus
+              value={newPersonName}
+              onChange={(e) => setNewPersonName(e.target.value)}
+              placeholder="Name"
+              disabled={saving}
+              className="rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-brand-green/50 focus:outline-none disabled:opacity-50"
+            />
+            <input
+              type="text"
+              value={newPersonTaskText}
+              onChange={(e) => setNewPersonTaskText(e.target.value)}
+              placeholder="Their first task…"
+              disabled={saving}
+              className="rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-brand-green/50 focus:outline-none disabled:opacity-50"
+            />
+            <div className="flex items-center gap-2">
+              <button
+                type="submit"
+                disabled={saving || !newPersonName.trim() || !newPersonTaskText.trim()}
+                className="rounded-full border border-white/10 px-4 py-1.5 text-sm text-neutral-300 transition-colors hover:border-brand-green/40 hover:text-brand-green disabled:opacity-50"
+              >
+                Add person
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAddingPerson(false)
+                  setNewPersonName('')
+                  setNewPersonTaskText('')
+                }}
+                className="rounded-full px-4 py-1.5 text-sm text-neutral-500 transition-colors hover:text-white"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     )
   }
