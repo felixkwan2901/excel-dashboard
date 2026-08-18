@@ -381,6 +381,45 @@ async function handleMainSheetUpdate(request, env) {
 }
 
 // ---------------------------------------------------------------------------
+// /notes — stage a free-text note edit under pending-updates/notes/
+// ---------------------------------------------------------------------------
+
+async function handleNotesUpdate(request, env) {
+  const body = await request.json().catch(() => null)
+  if (!body) {
+    return respond(request, 400, { htmlMessage: `<div class="result err">Invalid request body.</div>`, data: { error: 'bad_request', message: 'Invalid request body.' } })
+  }
+  const { password, person, text } = body
+
+  if (!env.UPLOAD_PASSWORD || password !== env.UPLOAD_PASSWORD) {
+    return respond(request, 401, { htmlMessage: `<div class="result err">Wrong password. Please try again.</div>`, data: { error: 'wrong_password', message: 'Wrong password.' } })
+  }
+  if (person !== 'cam' && person !== 'tom') {
+    return respond(request, 400, { htmlMessage: `<div class="result err">Invalid person.</div>`, data: { error: 'bad_request', message: 'Invalid person.' } })
+  }
+  if (typeof text !== 'string') {
+    return respond(request, 400, { htmlMessage: `<div class="result err">No text to save.</div>`, data: { error: 'no_text', message: 'No text to save.' } })
+  }
+
+  const stagedPath = `pending-updates/notes/${stagedId()}.json`
+  const putRes = await putFileWithRetry(stagedPath, env, {
+    contentBase64: textToBase64(JSON.stringify({ person, text, stagedAt: new Date().toISOString() }, null, 2)),
+    message: `Stage note edit (${person})`,
+  })
+  if (!putRes.ok) {
+    const body2 = await putRes.text()
+    const msg = `GitHub rejected the save (${putRes.status}). ${body2.slice(0, 200)}`
+    return respond(request, 502, { htmlMessage: `<div class="result err">${escapeHtml(msg)}</div>`, data: { error: 'github_write_failed', message: msg } })
+  }
+
+  const msg = `Queued. Merging usually takes 30-90 seconds, then the site takes another minute or so to redeploy before it's visible live.`
+  return respond(request, 200, {
+    htmlMessage: `<div class="result ok">${escapeHtml(msg)}</div>`,
+    data: { queued: true, staged: stagedPath, message: msg },
+  })
+}
+
+// ---------------------------------------------------------------------------
 // /status — poll whether a staged request has been processed yet
 // ---------------------------------------------------------------------------
 
@@ -463,6 +502,15 @@ export default {
     if (request.method === 'POST' && url.pathname === '/main-sheet') {
       try {
         return await handleMainSheetUpdate(request, env)
+      } catch (err) {
+        const msg = `Unexpected error: ${String(err.message ?? err)}`
+        return respond(request, 500, { htmlMessage: `<div class="result err">${escapeHtml(msg)}</div>`, data: { error: 'unexpected', message: msg } })
+      }
+    }
+
+    if (request.method === 'POST' && url.pathname === '/notes') {
+      try {
+        return await handleNotesUpdate(request, env)
       } catch (err) {
         const msg = `Unexpected error: ${String(err.message ?? err)}`
         return respond(request, 500, { htmlMessage: `<div class="result err">${escapeHtml(msg)}</div>`, data: { error: 'unexpected', message: msg } })
