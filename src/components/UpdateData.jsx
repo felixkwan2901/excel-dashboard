@@ -11,7 +11,7 @@ const UPLOAD_WORKER_URL = 'https://cde-data-upload.fkw24.workers.dev'
 const OUTCOME_LABEL = {
   updated: 'Updated',
   duplicate: 'Skipped — duplicate',
-  no_room: 'No week slot left',
+  no_room: 'Malformed job block',
   unmatched: 'Job number not found',
   unreadable: 'Could not be read',
 }

@@ -10,22 +10,26 @@
 //      moving duplicates into <folder>/_duplicates/.
 //   2. Reads each unique export's "Quotes" sheet (for job number/name) and
 //      "Summary" sheet (for cost/margin figures).
-//   3. Finds each job's block in the workbook's Deliverables Sheet and
-//      fills the NEXT EMPTY week row after the block's current data (Week 1,
-//      then Week 2, ...) — preserving prior weeks' snapshots rather than
-//      overwriting them. If every week row (1-5) already has data, that job
-//      is reported as needing a manual monthly rollover first: move the
-//      current Week 5 figures up into "Start of month", clear Weeks 1-5,
-//      then re-run. If a job's new figures exactly match what's already
-//      recorded in its current week, it's skipped as a likely duplicate
-//      upload (the same file re-run by mistake) rather than silently
-//      consuming the next week slot.
-//   4. Reports which jobs were updated, which were skipped as likely
-//      duplicates, which jobs have no empty week slot left, which export
-//      files couldn't be matched to a job, and which existing jobs got no
-//      new data.
-//   5. Bumps sync-meta.json's timestamp.
-//   6. Archives everything that was in the folder (processed files,
+//   3. If sync-meta.json's last-recorded month differs from the current
+//      real month, automatically rolls every job's most recent filled
+//      week up into "Start of month" and clears Weeks 1-5 first — this is
+//      what makes it safe for weeks to mean real calendar weeks (see next
+//      point) rather than "the next slot after whatever's already there".
+//   4. Finds each job's block in the workbook's Deliverables Sheet and
+//      writes into the week row matching TODAY'S real calendar week of
+//      the month (days 1-7 = Week 1, 8-14 = Week 2, ..., capped at Week 5)
+//      — every job's "Week 2" means the same real week, regardless of how
+//      often that particular job happens to get re-exported. If a job's
+//      new figures exactly match what's already recorded for that week,
+//      it's skipped as a likely duplicate upload (the same file re-run by
+//      mistake) rather than silently overwriting a real update.
+//   5. Reports which jobs were updated, which were skipped as likely
+//      duplicates, which jobs have a non-standard block layout, which
+//      export files couldn't be matched to a job, and which existing jobs
+//      got no new data.
+//   6. Records the current month in sync-meta.json, so the next run this
+//      same month won't roll over again.
+//   7. Archives everything that was in the folder (processed files,
 //      duplicates, unreadable files) into imports-archive/<YYYY-MM-DD>/,
 //      leaving the folder empty and ready for next week's drop.
 //
@@ -263,24 +267,57 @@ function buildJobBlocks(rows, headerIdx) {
   return blocks
 }
 
-// Finds the current row (last week with data) and the next EMPTY slot after
-// it — this advances week to week (Week 1, then Week 2, ...) so each week's
-// snapshot is preserved instead of being overwritten by the next update.
-// targetIdx is null if every week slot in the block already has data (the
-// block needs a manual monthly rollover — see README note below).
-function pickCurrentAndTargetRowIdx(block, rows) {
-  let lastFilledPos = 0 // "Start of month" (position 0) always carries the baseline figures
-  for (let i = block.weekIdxs.length - 1; i >= 0; i--) {
-    const qp = Number(rows[block.weekIdxs[i]][3])
-    if (Number.isFinite(qp) && qp > 0) {
-      lastFilledPos = i
-      break
+function monthKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+}
+
+// Real calendar week of the month: days 1-7 -> Week 1, 8-14 -> Week 2, ...,
+// capped at 5 (the sheet only has 5 week slots, and no month needs a 6th).
+function calendarWeekOfMonth(date) {
+  return Math.min(5, Math.ceil(date.getDate() / 7))
+}
+
+// Crossing into a new month, whatever was most recently filled in Weeks
+// 1-5 becomes the new "Start of month" baseline, and the week slots clear
+// out for the new month's uploads — done automatically here, once per
+// month, so a job's Week 1 always means "this month's first calendar
+// week" rather than silently overwriting last month's Week 1 with this
+// month's figures. Only rolls a block over if it actually has something
+// filled in past Start of month; a block nobody's uploaded anything for
+// yet has nothing to roll forward.
+function rolloverBlocksForNewMonth(worksheet, rows, blocks) {
+  const fields = Object.keys(COL)
+  for (const block of blocks) {
+    if (block.weekIdxs.length < 2) continue
+
+    let lastFilledPos = null
+    for (let i = block.weekIdxs.length - 1; i >= 1; i--) {
+      const qp = Number(rows[block.weekIdxs[i]][COL.quotedPrice])
+      if (Number.isFinite(qp) && qp > 0) {
+        lastFilledPos = i
+        break
+      }
     }
-  }
-  const targetPos = lastFilledPos + 1
-  return {
-    currentIdx: block.weekIdxs[lastFilledPos],
-    targetIdx: targetPos >= block.weekIdxs.length ? null : block.weekIdxs[targetPos],
+    if (lastFilledPos === null) continue
+
+    const startIdx = block.weekIdxs[0]
+    const lastIdx = block.weekIdxs[lastFilledPos]
+    const startRow = worksheet.getRow(startIdx + 1)
+    for (const field of fields) {
+      const col = COL[field]
+      const value = rows[lastIdx][col]
+      startRow.getCell(col + 1).value = value
+      rows[startIdx][col] = value
+    }
+
+    for (let i = 1; i < block.weekIdxs.length; i++) {
+      const weekRow = worksheet.getRow(block.weekIdxs[i] + 1)
+      for (const field of fields) {
+        const col = COL[field]
+        weekRow.getCell(col + 1).value = null
+        rows[block.weekIdxs[i]][col] = ''
+      }
+    }
   }
 }
 
@@ -433,7 +470,34 @@ async function main() {
   // exist in the sheet and aren't real jobs, same filter the dashboard's
   // own loader applies.
   const isValidJobBlock = (b) => Number(b.jobNumber) > 0 && String(b.jobName ?? '').trim() !== '' && String(b.jobName).trim() !== '0'
-  const existingJobNumbers = new Set(blocks.filter(isValidJobBlock).map((b) => Number(b.jobNumber)))
+  const validBlocks = blocks.filter(isValidJobBlock)
+  const existingJobNumbers = new Set(validBlocks.map((b) => Number(b.jobNumber)))
+
+  // Automatic monthly rollover — only fires when sync-meta.json has a
+  // PREVIOUSLY recorded month that differs from the current one, never on
+  // the first run of this logic (no prior record). Rolling over on a first
+  // run — with no positive evidence a month boundary was actually crossed
+  // — would treat "we've never tracked this before" the same as "a month
+  // just changed" and wipe out whatever's already been uploaded this month.
+  const now = new Date()
+  const currentMonth = monthKey(now)
+  let syncMeta = {}
+  try {
+    syncMeta = JSON.parse(readFileSync(syncMetaPath, 'utf8'))
+  } catch {
+    // No sync-meta.json yet, or unreadable — treated the same as "first run".
+  }
+  if (syncMeta.lastProcessedMonth && syncMeta.lastProcessedMonth !== currentMonth) {
+    console.log(`New month detected (${syncMeta.lastProcessedMonth} -> ${currentMonth}) — rolling last month's figures into "Start of month" and clearing week slots.`)
+    rolloverBlocksForNewMonth(worksheet, rows, validBlocks)
+  }
+
+  // Weeks are matched to the real calendar week of the month, not "the
+  // next empty slot" — Week 1 always means the month's first 7 days for
+  // every job, Week 2 the next 7, and so on, regardless of how often any
+  // individual job happens to get re-exported.
+  const weekOfMonth = calendarWeekOfMonth(now)
+  console.log(`Today (${now.toISOString().slice(0, 10)}) is calendar Week ${weekOfMonth} of the month — new figures write there.`)
 
   const updated = []
   const unmatchedFiles = []
@@ -447,21 +511,24 @@ async function main() {
       unmatchedFiles.push(rec)
       continue
     }
-    const { currentIdx, targetIdx } = pickCurrentAndTargetRowIdx(block, rows)
-    if (targetIdx === null) {
+    const targetIdx = block.weekIdxs[weekOfMonth]
+    if (targetIdx === undefined) {
+      // Only happens if this block doesn't actually have 5 week rows
+      // (a malformed/nonstandard block) — everything else always resolves
+      // to a real slot now that weeks are calendar-matched.
       noRoomLeft.push(rec)
       continue
     }
-    if (looksLikeDuplicate(rec, rows, currentIdx)) {
+    if (looksLikeDuplicate(rec, rows, targetIdx)) {
       possibleDuplicates.push({
         file: rec.file,
         jobNumber: rec.jobNumber,
         jobName: rec.jobName,
-        matchesWeek: rows[currentIdx][2] || 'Start of month',
+        matchesWeek: rows[targetIdx][2] || `Week ${weekOfMonth}`,
       })
       continue
     }
-    const weekLabel = rows[targetIdx][2] || 'Start of month'
+    const weekLabel = rows[targetIdx][2] || `Week ${weekOfMonth}`
     const before = { totalActualCost: rows[targetIdx][8], claimToDate: rows[targetIdx][4], marginToDate: rows[targetIdx][25] }
     const after = applyJobUpdate(worksheet, rows, targetIdx, rec)
     updated.push({ file: rec.file, jobNumber: rec.jobNumber, jobName: rec.jobName, weekLabel, before, after })
@@ -472,12 +539,17 @@ async function main() {
 
   await wb.xlsx.writeFile(workbookPath)
 
+  // Written AFTER the workbook write succeeds, and unconditionally (not
+  // best-effort) — this is what stops the NEXT run this same month from
+  // rolling over again and wiping the week data just written above. If
+  // this can't be persisted, that's worth a loud warning, not silence.
   try {
-    const meta = JSON.parse(readFileSync(syncMetaPath, 'utf8'))
-    meta.updatedAt = new Date().toISOString()
-    writeFileSync(syncMetaPath, JSON.stringify(meta, null, 2) + '\n')
-  } catch {
-    // sync-meta.json is optional; skip silently if it's not there.
+    writeFileSync(
+      syncMetaPath,
+      JSON.stringify({ ...syncMeta, updatedAt: new Date().toISOString(), lastProcessedMonth: currentMonth }, null, 2) + '\n',
+    )
+  } catch (err) {
+    console.log(`::warning::Could not persist lastProcessedMonth to ${syncMetaPath}: ${err.message}`)
   }
 
   console.log('\n=== Summary ===')
@@ -495,8 +567,7 @@ async function main() {
   }
 
   if (noRoomLeft.length > 0) {
-    console.log(`\n${noRoomLeft.length} job(s) have no empty week slot left (Weeks 1-5 are all already filled in) — roll the month over first:`)
-    console.log('  Move the current Week 5 figures up into that job\'s "Start of month" row, clear Weeks 1-5, then re-run.')
+    console.log(`\n${noRoomLeft.length} job(s) have a Deliverables Sheet block that doesn't have a normal 5-week layout — needs manual attention:`)
     for (const r of noRoomLeft) console.log(`  ${r.jobNumber}  ${r.jobName}`)
   }
 
@@ -550,7 +621,7 @@ async function main() {
       outcome: 'no_room',
       jobNumber: r.jobNumber,
       jobName: r.jobName,
-      message: `${r.jobNumber} ${r.jobName} has no empty week slot left — roll the month over first, then re-upload.`,
+      message: `${r.jobNumber} ${r.jobName}'s Deliverables Sheet block isn't in the normal 5-week layout — needs manual attention.`,
     })
   }
   for (const u of unmatchedFiles) {
