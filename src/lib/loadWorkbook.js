@@ -184,7 +184,10 @@ function rowsAfterHeader(rows) {
         record[field] = field === 'jobNumber' || field === 'jobName' ? block.startRow[col] : dataRow[col]
       }
       const marginCol = columnMap.marginToDate
-      record.previousMarginToDate = previousRow && marginCol !== undefined ? previousRow[marginCol] : ''
+      // undefined, not '' — toNumber() treats '' as 0 (Number('') === 0) but
+      // undefined as null (Number(undefined) is NaN), and "no previous week"
+      // has to come out as null here, not a false previous margin of 0%.
+      record.previousMarginToDate = previousRow && marginCol !== undefined ? previousRow[marginCol] : undefined
       return record
     })
 }
