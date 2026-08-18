@@ -58,7 +58,20 @@ jobs:
           # safe/idempotent: update-jobs.mjs's own duplicate detection skips
           # anything an earlier run already merged, and it takes well under
           # a second regardless.
-          for i in 1 2 3 4 5; do
+          # A large batch (e.g. ~40 files dropped at once) stages that many
+          # individual commits in quick succession, each landing on main
+          # independently of this workflow's own concurrency group (that
+          # group only serializes RUNS of this workflow against each other
+          # — it does nothing to slow down the worker's own per-file
+          # staging pushes racing against this loop's push). 5 attempts
+          # with no delay between them wasn't enough headroom for that: a
+          # run could lose the race 5 times in a row purely because another
+          # staging commit kept landing in the same few hundred ms window,
+          # and every attempt from then on just reprocesses nothing new.
+          # 20 attempts with a short randomized backoff gives collisions
+          # room to space out without meaningfully slowing the common case
+          # (which still succeeds on attempt 1 the vast majority of the time).
+          for i in $(seq 1 20); do
             node scripts/add-new-job.mjs
             node scripts/update-jobs.mjs pending-updates/exports
             node scripts/apply-replace.mjs
@@ -80,7 +93,9 @@ jobs:
               exit 0
             fi
 
-            echo "Push rejected — resetting to latest main and reprocessing fresh (attempt $i)..."
+            sleep_seconds=$(( (RANDOM % 4) + 1 ))
+            echo "Push rejected — resetting to latest main and reprocessing fresh in ${sleep_seconds}s (attempt $i)..."
+            sleep "$sleep_seconds"
             git fetch origin main
             git reset --hard origin/main
           done
