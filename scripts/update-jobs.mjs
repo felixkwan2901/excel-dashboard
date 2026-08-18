@@ -50,6 +50,10 @@ import ExcelJS from 'exceljs'
 const folder = resolve(process.argv[2] ?? 'imports')
 const workbookPath = resolve('Cassidy_Davies_Electrical_BPMN_Data.xlsx')
 const syncMetaPath = resolve('sync-meta.json')
+// Same file scripts/log-monthly-hours.mjs writes its own periodic
+// snapshots to — see recordClosingMonthHours below for why rollover also
+// writes here directly instead of leaving it entirely to that script.
+const monthlyHoursLogPath = resolve('public/monthly-hours-log.json')
 
 // ---------------------------------------------------------------------------
 // 1. Dedupe the folder by content hash.
@@ -321,6 +325,45 @@ function rolloverBlocksForNewMonth(worksheet, rows, blocks) {
   }
 }
 
+// scripts/log-monthly-hours.mjs independently snapshots "cumulative hours
+// as of whenever it happens to run", tagged with today's real month —
+// fine for an in-progress month's "so far" figure, but only ever a
+// best-effort guess at a month's FINAL number, since nothing guarantees
+// the last run before month-end actually caught it. Rollover is the one
+// moment this script knows a month's true final hours with certainty —
+// it's the same value about to get copied into "Start of month" — so it
+// records that here directly, overwriting whatever the last periodic
+// snapshot had for the closing month with the authoritative figure.
+// Called BEFORE rolloverBlocksForNewMonth clears the week rows, since it
+// needs to read the still-intact data.
+function recordClosingMonthHours(closingMonth, blocks, rows) {
+  const log = existsSync(monthlyHoursLogPath) ? JSON.parse(readFileSync(monthlyHoursLogPath, 'utf8')) : {}
+  const snapshot = {}
+
+  for (const block of blocks) {
+    // Same "last filled week, falling back to Start of month" rule
+    // log-monthly-hours.mjs's own reader uses — a job with zero uploads
+    // this whole month correctly carries forward last month's figure
+    // (Start of month still holds whatever rolled in last time), rather
+    // than this month's snapshot silently omitting it.
+    let lastFilledPos = 0
+    for (let i = block.weekIdxs.length - 1; i >= 0; i--) {
+      const qp = Number(rows[block.weekIdxs[i]][COL.quotedPrice])
+      if (Number.isFinite(qp) && qp > 0) {
+        lastFilledPos = i
+        break
+      }
+    }
+    const cumulativeHours = Number(rows[block.weekIdxs[lastFilledPos]][COL.actualLabourHours])
+    if (!Number.isFinite(cumulativeHours)) continue
+    snapshot[String(block.jobNumber)] = { jobName: String(block.jobName), cumulativeHours }
+  }
+
+  log[closingMonth] = snapshot
+  writeFileSync(monthlyHoursLogPath, JSON.stringify(log, null, 2) + '\n')
+  console.log(`Recorded exact final hours for ${closingMonth} to ${monthlyHoursLogPath} (${Object.keys(snapshot).length} job(s))`)
+}
+
 // A new export whose key "actual" figures are identical to what's already
 // recorded in the current week is almost certainly the same file uploaded
 // twice rather than genuinely unchanged progress — real jobs' claims,
@@ -489,6 +532,7 @@ async function main() {
   }
   if (syncMeta.lastProcessedMonth && syncMeta.lastProcessedMonth !== currentMonth) {
     console.log(`New month detected (${syncMeta.lastProcessedMonth} -> ${currentMonth}) — rolling last month's figures into "Start of month" and clearing week slots.`)
+    recordClosingMonthHours(syncMeta.lastProcessedMonth, validBlocks, rows)
     rolloverBlocksForNewMonth(worksheet, rows, validBlocks)
   }
 

@@ -4,13 +4,22 @@
 // this script happens to run in — not anything read from the workbook.
 //
 // The workbook only ever holds each job's cumulative hours-to-date; there's
-// no month-by-month history anywhere in it (a monthly rollover clears the
-// week slots but doesn't record what the prior month's total was). Hours
-// worked in a given month has to be derived from the DIFFERENCE between two
-// cumulative snapshots — so this log just records "cumulative hours as of
-// the last time this script ran in month X", overwriting that same month's
-// entry on every run within it. The frontend computes each month's actual
-// hours worked as (this month's cumulative − previous month's cumulative).
+// no month-by-month history anywhere in it. Hours worked in a given month
+// has to be derived from the DIFFERENCE between two cumulative snapshots —
+// so this log just records "cumulative hours as of the last time this
+// script ran in month X", overwriting that same month's entry on every run
+// within it. The frontend computes each month's actual hours worked as
+// (this month's cumulative − previous month's cumulative).
+//
+// This script only ever produces a best-effort "as of the last time this
+// ran" figure — fine for an in-progress month's running "so far" total,
+// but not a guarantee of a month's true FINAL number (nothing ensures the
+// last run before month-end actually caught it). The exact final figure
+// gets written separately: the first run after a month changes,
+// update-jobs.mjs's automatic rollover records that month's true final
+// hours directly (see recordClosingMonthHours there) at the one moment
+// the number is known with certainty, overwriting whatever this script's
+// own last best-effort snapshot for that month had.
 //
 // Run this after update-jobs.mjs / apply-replace.mjs, whenever the workbook
 // has just been refreshed with new figures — see
