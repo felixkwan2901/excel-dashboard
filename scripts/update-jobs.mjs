@@ -568,6 +568,20 @@ async function main() {
     })
   }
 
+  // Same job-row lookup for Upcoming Work Calculator — its Quoted/Used/
+  // Remaining Hours columns (C/D/E) are LOOKUP formulas reading straight
+  // off the Deliverables Sheet, recomputed unconditionally below for the
+  // same reason Claim Calculator's formula columns are (see that block).
+  const upcomingWorkWs = wb.getWorksheet('Upcoming Work Calculator')
+  const upcomingWorkRowByNumber = new Map()
+  if (upcomingWorkWs) {
+    upcomingWorkWs.eachRow((row, rowNumber) => {
+      const raw = row.getCell(1).value
+      const num = raw && typeof raw === 'object' ? raw.result : raw
+      if (typeof num === 'number' && num > 0) upcomingWorkRowByNumber.set(num, rowNumber)
+    })
+  }
+
   // Automatic monthly rollover — only fires when sync-meta.json has a
   // PREVIOUSLY recorded month that differs from the current one, never on
   // the first run of this logic (no prior record). Rolling over on a first
@@ -781,6 +795,36 @@ async function main() {
     }
     claimsLog[currentMonth] = currentMonthSnapshot
     writeFileSync(monthlyClaimsLogPath, JSON.stringify(claimsLog, null, 2) + '\n')
+  }
+
+  // Upcoming Work Calculator's Quoted/Used/Remaining Hours (C/D/E) are
+  // LOOKUP formulas — e.g. LOOKUP(2,1/('Deliverables Sheet'!S186:S191<>0),
+  // 'Deliverables Sheet'!S186:S191) — that find the last non-zero value in
+  // that job's Start-of-month-through-Week-5 range on the Deliverables
+  // Sheet. Confirmed by reading a real row: after this week's export
+  // updated 7429's actual hours to 34.75, the cached formula result still
+  // read 32.25 — the "Start of month" figure from before this month's
+  // upload, not the current one. Same root cause and same fix as Claim
+  // Calculator's stale formulas: ExcelJS never recalculates a formula just
+  // because the cells it references changed, so it's recomputed here from
+  // the exact same range the formula itself reads, written as a plain
+  // value.
+  if (upcomingWorkWs) {
+    function lastNonZeroInRange(weekIdxs, col) {
+      for (let i = weekIdxs.length - 1; i >= 0; i--) {
+        const v = Number(rows[weekIdxs[i]][col])
+        if (Number.isFinite(v) && v !== 0) return v
+      }
+      return 0
+    }
+    for (const block of validBlocks) {
+      const rowNumber = upcomingWorkRowByNumber.get(Number(block.jobNumber))
+      if (!rowNumber) continue
+      const row = upcomingWorkWs.getRow(rowNumber)
+      row.getCell(3).value = lastNonZeroInRange(block.weekIdxs, COL.quotedLabourHours)
+      row.getCell(4).value = lastNonZeroInRange(block.weekIdxs, COL.actualLabourHours)
+      row.getCell(5).value = lastNonZeroInRange(block.weekIdxs, COL.labourHoursRemaining)
+    }
   }
 
   await wb.xlsx.writeFile(workbookPath)
