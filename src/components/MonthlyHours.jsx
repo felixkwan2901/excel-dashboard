@@ -1,5 +1,17 @@
 import { Fragment, useMemo, useState } from 'react'
 
+// Actual-hours-to-date vs quoted, not just this month vs other months —
+// over 100% used reads as a warning (red) the same way a job's cost bar
+// does elsewhere in the app; comfortably under reads neutral.
+function pctUsedLabel(actualHours, quotedHours) {
+  if (!quotedHours || actualHours === null) return '—'
+  return `${Math.round((actualHours / quotedHours) * 100)}%`
+}
+function pctUsedTone(actualHours, quotedHours) {
+  if (!quotedHours || actualHours === null) return 'text-neutral-500'
+  return actualHours / quotedHours > 1 ? 'text-red-400 font-medium' : 'text-neutral-300'
+}
+
 function monthLabel(monthKey) {
   const [year, month] = monthKey.split('-').map(Number)
   return new Date(year, month - 1, 1).toLocaleDateString('en-NZ', { month: 'short', year: 'numeric' })
@@ -25,15 +37,26 @@ function HoursBar({ label, hours, maxHours }) {
   )
 }
 
-export default function MonthlyHours({ monthlyHours, onBack }) {
+export default function MonthlyHours({ monthlyHours, jobs: allJobs, onBack }) {
   const { months, totalsByMonth, jobs } = monthlyHours
   const [sort, setSort] = useState({ key: 'total', dir: -1 }) // total hours, highest first by default
+
+  // Quoted/actual-to-date hours live on the main job record (Deliverables
+  // Sheet), not in this monthly-hours log — cross-referenced by job number
+  // so each job's monthly breakdown can be read against its actual budget,
+  // not just compared month-to-month with nothing to check it against.
+  const budgetByJobNumber = useMemo(() => {
+    const map = new Map()
+    for (const j of allJobs) map.set(j.jobNumber, { quotedHours: j.quotedLabourHours, actualHours: j.actualLabourHours })
+    return map
+  }, [allJobs])
 
   const rows = useMemo(() => {
     return jobs
       .map((j) => ({
         ...j,
         total: months.reduce((sum, m) => sum + (j.hoursByMonth[m] ?? 0), 0),
+        ...budgetByJobNumber.get(j.jobNumber),
       }))
       .filter((j) => j.total > 0)
       .sort((a, b) => {
@@ -41,7 +64,7 @@ export default function MonthlyHours({ monthlyHours, onBack }) {
         const bv = sort.key === 'total' ? b.total : (b.hoursByMonth[sort.key] ?? 0)
         return (av - bv) * -sort.dir
       })
-  }, [jobs, months, sort])
+  }, [jobs, months, sort, budgetByJobNumber])
 
   function toggleSort(key) {
     setSort((prev) => (prev.key === key ? { key, dir: -prev.dir } : { key, dir: -1 }))
@@ -63,7 +86,9 @@ export default function MonthlyHours({ monthlyHours, onBack }) {
         <h1 className="text-2xl font-semibold text-white">Hours by month</h1>
         <p className="mt-1 text-sm text-neutral-400">
           Labour hours actually worked each month, derived from the change in each job&apos;s
-          cumulative hours between one update and the next.
+          cumulative hours between one update and the next — set against each job&apos;s total
+          quoted hours in the table below, so a busy month reads against its actual budget, not
+          just against other months.
         </p>
       </div>
 
@@ -101,6 +126,12 @@ export default function MonthlyHours({ monthlyHours, onBack }) {
                     </p>
                     <span className="text-[13px] font-medium tabular-nums text-neutral-200">
                       {j.total.toFixed(1)} hrs
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 text-[12px]">
+                    <span className="text-neutral-500">Actual / quoted (to date)</span>
+                    <span className={pctUsedTone(j.actualHours, j.quotedHours)}>
+                      {j.actualHours ?? '—'} / {j.quotedHours ?? '—'} hrs ({pctUsedLabel(j.actualHours, j.quotedHours)})
                     </span>
                   </div>
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[13px]">
@@ -141,6 +172,8 @@ export default function MonthlyHours({ monthlyHours, onBack }) {
                     >
                       Total{sort.key === 'total' && (sort.dir === 1 ? ' ▲' : ' ▼')}
                     </th>
+                    <th className="num">Quoted hrs</th>
+                    <th className="num">% used (to date)</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -155,6 +188,10 @@ export default function MonthlyHours({ monthlyHours, onBack }) {
                         </td>
                       ))}
                       <td className="num tabular font-medium">{j.total.toFixed(1)}</td>
+                      <td className="num tabular">{j.quotedHours ?? '—'}</td>
+                      <td className={`num tabular ${pctUsedTone(j.actualHours, j.quotedHours)}`}>
+                        {pctUsedLabel(j.actualHours, j.quotedHours)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
