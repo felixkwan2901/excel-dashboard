@@ -1,11 +1,5 @@
 [
   {
-    "id": "cam-0",
-    "person": "Cam",
-    "text": "Cams Notes",
-    "done": false
-  },
-  {
     "id": "cam-1",
     "person": "Cam",
     "text": "Koawa:",
@@ -249,12 +243,6 @@
     "id": "tom-2",
     "person": "Tom",
     "text": "Comes up with hours tracking solution",
-    "done": false
-  },
-  {
-    "id": "Ranjith-1787025719787-kfqc",
-    "person": "Ranjith",
-    "text": "test",
     "done": false
   }
 ]
