@@ -241,6 +241,28 @@ function findDeliverablesSheet(workbook) {
   return chosen
 }
 
+// Bypasses ExcelJS's Cell.value setter entirely. Confirmed by direct
+// isolation testing (writing a plain July-data backfill across ~30 rows
+// spanning several sheets): assigning through .value= on a cell that was
+// ever a formula — even AFTER flattening it via .value= — can still
+// corrupt ExcelJS's internal formula-tracking bookkeeping badly enough to
+// crash on write with "Shared Formula master must exist..." for a
+// completely unrelated cell on a DIFFERENT sheet that was never touched.
+// Building a fresh minimal cell model (preserving the existing style) and
+// assigning to .model directly sidesteps whatever the value setter
+// corrupts. Cheap enough to use everywhere this script writes a cell, not
+// just where a crash was actually observed.
+function setPlainValue(cell, val) {
+  const style = cell.style
+  if (val === '' || val === null || val === undefined) {
+    cell.model = { address: cell.address, type: ExcelJS.ValueType.Null, style }
+  } else if (typeof val === 'number') {
+    cell.model = { address: cell.address, type: ExcelJS.ValueType.Number, value: val, style }
+  } else {
+    cell.model = { address: cell.address, type: ExcelJS.ValueType.String, value: String(val), style }
+  }
+}
+
 // Excel stores this sheet's formula columns as "shared formula" groups
 // spanning long row ranges (one master formula, many cells cloning it) —
 // ExcelJS's writer crashes ("Shared Formula master must exist...") if any
@@ -249,14 +271,14 @@ function findDeliverablesSheet(workbook) {
 // that entirely; nothing in this pipeline ever relies on live formula
 // recalculation anyway (values are recomputed to match, see
 // applyJobUpdate). Cell styling (fill/border/font/numFmt) is untouched —
-// only .value changes.
+// only the value changes.
 function flattenFormulaCells(worksheet) {
   worksheet.eachRow((row) => {
     row.eachCell((cell) => {
       const v = cell.value
       if (v && typeof v === 'object' && ('formula' in v || 'sharedFormula' in v)) {
         const r = v.result
-        cell.value = r && typeof r === 'object' && 'error' in r ? null : (r ?? null)
+        setPlainValue(cell, r && typeof r === 'object' && 'error' in r ? null : (r ?? null))
       }
     })
   })
@@ -317,7 +339,7 @@ function rolloverBlocksForNewMonth(worksheet, rows, blocks) {
     for (const field of fields) {
       const col = COL[field]
       const value = rows[lastIdx][col]
-      startRow.getCell(col + 1).value = value
+      setPlainValue(startRow.getCell(col + 1), value)
       rows[startIdx][col] = value
     }
 
@@ -325,7 +347,7 @@ function rolloverBlocksForNewMonth(worksheet, rows, blocks) {
       const weekRow = worksheet.getRow(block.weekIdxs[i] + 1)
       for (const field of fields) {
         const col = COL[field]
-        weekRow.getCell(col + 1).value = null
+        setPlainValue(weekRow.getCell(col + 1), null)
         rows[block.weekIdxs[i]][col] = ''
       }
     }
@@ -472,7 +494,7 @@ function applyJobUpdate(worksheet, rows, dataIdx, rec) {
   const excelRow = worksheet.getRow(dataIdx + 1)
   for (const [field, value] of Object.entries(values)) {
     const col = COL[field]
-    excelRow.getCell(col + 1).value = value // only .value changes — existing style/format untouched
+    setPlainValue(excelRow.getCell(col + 1), value) // style untouched — see setPlainValue
     rows[dataIdx][col] = value
   }
 
@@ -608,8 +630,8 @@ async function main() {
     if (claimCalcWs) {
       for (const rowNumber of claimCalcRowByNumber.values()) {
         const row = claimCalcWs.getRow(rowNumber)
-        row.getCell(3).value = 0
-        row.getCell(4).value = 0
+        setPlainValue(row.getCell(3), 0)
+        setPlainValue(row.getCell(4), 0)
       }
     }
   }
@@ -703,8 +725,8 @@ async function main() {
 
       const claim = currentClaim - startClaim
       const costs = currentCost - startCost
-      claimCalcRow.getCell(3).value = claim
-      claimCalcRow.getCell(4).value = costs
+      setPlainValue(claimCalcRow.getCell(3), claim)
+      setPlainValue(claimCalcRow.getCell(4), costs)
 
       // Profit (E), Margin (G), Total cost to come (K), Est. margin EOM
       // (L), GP EOM (M), and GP $/hr this month (O) are Excel FORMULAS
@@ -733,12 +755,12 @@ async function main() {
       const hoursDenominator = hoursThisMonth + hoursToCompleteBeforeEom
       const gpPerHourThisMonth = hoursDenominator ? gpEndOfMonth / hoursDenominator : 0
 
-      claimCalcRow.getCell(5).value = profit
-      claimCalcRow.getCell(7).value = margin
-      claimCalcRow.getCell(11).value = totalCostToComeBeforeEom
-      claimCalcRow.getCell(12).value = estimatedMarginEom
-      claimCalcRow.getCell(13).value = gpEndOfMonth
-      claimCalcRow.getCell(15).value = gpPerHourThisMonth
+      setPlainValue(claimCalcRow.getCell(5), profit)
+      setPlainValue(claimCalcRow.getCell(7), margin)
+      setPlainValue(claimCalcRow.getCell(11), totalCostToComeBeforeEom)
+      setPlainValue(claimCalcRow.getCell(12), estimatedMarginEom)
+      setPlainValue(claimCalcRow.getCell(13), gpEndOfMonth)
+      setPlainValue(claimCalcRow.getCell(15), gpPerHourThisMonth)
     }
 
     // The Commercial/Residential Totals rows (identified by "GP%" sitting
@@ -770,11 +792,11 @@ async function main() {
       const sumCosts = sumRefs(dFormula, 'D')
       const sumProfit = sumRefs(eFormula, 'E')
       const sumCostToCome = sumRefs(eomFormula, 'K')
-      row.getCell(3).value = sumClaim
-      row.getCell(4).value = sumCosts
-      row.getCell(5).value = sumProfit
-      row.getCell(7).value = sumClaim ? sumProfit / sumClaim : 0
-      row.getCell(9).value = sumClaim ? (sumProfit - sumCostToCome) / sumClaim : 0
+      setPlainValue(row.getCell(3), sumClaim)
+      setPlainValue(row.getCell(4), sumCosts)
+      setPlainValue(row.getCell(5), sumProfit)
+      setPlainValue(row.getCell(7), sumClaim ? sumProfit / sumClaim : 0)
+      setPlainValue(row.getCell(9), sumClaim ? (sumProfit - sumCostToCome) / sumClaim : 0)
     })
 
     // Best-effort snapshot of the CURRENT (still in-progress) month, so
@@ -821,9 +843,9 @@ async function main() {
       const rowNumber = upcomingWorkRowByNumber.get(Number(block.jobNumber))
       if (!rowNumber) continue
       const row = upcomingWorkWs.getRow(rowNumber)
-      row.getCell(3).value = lastNonZeroInRange(block.weekIdxs, COL.quotedLabourHours)
-      row.getCell(4).value = lastNonZeroInRange(block.weekIdxs, COL.actualLabourHours)
-      row.getCell(5).value = lastNonZeroInRange(block.weekIdxs, COL.labourHoursRemaining)
+      setPlainValue(row.getCell(3), lastNonZeroInRange(block.weekIdxs, COL.quotedLabourHours))
+      setPlainValue(row.getCell(4), lastNonZeroInRange(block.weekIdxs, COL.actualLabourHours))
+      setPlainValue(row.getCell(5), lastNonZeroInRange(block.weekIdxs, COL.labourHoursRemaining))
     }
   }
 
