@@ -302,6 +302,70 @@ async function handleUpload(request, env) {
 }
 
 // ---------------------------------------------------------------------------
+// /upload-from-url — for automation (e.g. Zapier) rather than a browser
+// form: the caller can't attach a file to a JSON webhook body, but Katipult
+// exports (via Zapier) hand out a temporary download URL for the report
+// instead — the worker fetches that URL itself server-side and stages the
+// result exactly like a normal /upload, so it merges through the same
+// pipeline (scripts/update-jobs.mjs) with no special-casing downstream.
+// ---------------------------------------------------------------------------
+
+async function handleUploadFromUrl(request, env) {
+  let body
+  try {
+    body = await request.json()
+  } catch {
+    return json({ error: 'bad_json', message: 'Request body must be JSON.' }, 400)
+  }
+
+  const { password, url: fileUrl, filename } = body ?? {}
+
+  if (!env.UPLOAD_PASSWORD || password !== env.UPLOAD_PASSWORD) {
+    return json({ error: 'wrong_password', message: 'Wrong password.' }, 401)
+  }
+
+  if (typeof fileUrl !== 'string' || !/^https?:\/\//i.test(fileUrl)) {
+    return json({ error: 'bad_url', message: '"url" must be an http(s) URL to the report file.' }, 400)
+  }
+
+  const resolvedName = safeFileName(filename || new URL(fileUrl).pathname.split('/').pop() || 'export.xlsx')
+  if (!resolvedName.toLowerCase().endsWith('.xlsx')) {
+    return json({ error: 'bad_file_type', message: `"${resolvedName}" isn't a .xlsx file — pass a "filename" ending in .xlsx if the URL itself doesn't have one.` }, 400)
+  }
+
+  let fileRes
+  try {
+    fileRes = await fetch(fileUrl)
+  } catch (err) {
+    return json({ error: 'fetch_failed', message: `Could not fetch the file URL: ${String(err.message ?? err)}` }, 502)
+  }
+  if (!fileRes.ok) {
+    return json({ error: 'fetch_failed', message: `Fetching the file URL returned ${fileRes.status}.` }, 502)
+  }
+
+  const buffer = await fileRes.arrayBuffer()
+  if (buffer.byteLength === 0) {
+    return json({ error: 'empty_file', message: 'The fetched file was empty.' }, 400)
+  }
+  if (buffer.byteLength > MAX_FILE_BYTES) {
+    return json({ error: 'file_too_large', message: `Fetched file is too large (max 8MB).` }, 400)
+  }
+
+  const stagedPath = `pending-updates/exports/${stagedId()}-${resolvedName}`
+  const putRes = await putFileWithRetry(stagedPath, env, {
+    contentBase64: arrayBufferToBase64(buffer),
+    message: `Stage job export (via automation): ${resolvedName}`,
+  })
+  if (!putRes.ok) {
+    const errBody = await putRes.text()
+    return json({ error: 'github_write_failed', message: `GitHub rejected staging "${resolvedName}" (${putRes.status}). ${errBody.slice(0, 200)}` }, 502)
+  }
+
+  const msg = `Queued "${resolvedName}" for processing. Merging usually takes 30-90 seconds, then the site takes another minute or so to redeploy.`
+  return json({ queued: true, staged: [stagedPath], message: msg })
+}
+
+// ---------------------------------------------------------------------------
 // /replace — stage the uploaded workbook under pending-updates/replace/
 // ---------------------------------------------------------------------------
 
@@ -643,6 +707,14 @@ export default {
       } catch (err) {
         const msg = `Unexpected error: ${String(err.message ?? err)}`
         return respond(request, 500, { htmlMessage: `<div class="result err">${escapeHtml(msg)}</div>`, data: { error: 'unexpected', message: msg } })
+      }
+    }
+
+    if (request.method === 'POST' && url.pathname === '/upload-from-url') {
+      try {
+        return await handleUploadFromUrl(request, env)
+      } catch (err) {
+        return json({ error: 'unexpected', message: `Unexpected error: ${String(err.message ?? err)}` }, 500)
       }
     }
 
