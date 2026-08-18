@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { pollStagedStatus } from '../lib/pollStagedStatus'
 
 const UPLOAD_WORKER_URL = 'https://cde-data-upload.fkw24.workers.dev'
@@ -8,12 +8,17 @@ const UPLOAD_WORKER_URL = 'https://cde-data-upload.fkw24.workers.dev'
 // Job identity and Quoted/Used/Remaining hours are formulas and are never
 // written to from here.
 const MONTH_FIELDS = [
-  { key: 'Jan', col: 5 }, { key: 'Feb', col: 6 }, { key: 'Mar', col: 7 },
-  { key: 'Apr', col: 8 }, { key: 'May', col: 9 }, { key: 'Jun', col: 10 },
-  { key: 'Jul', col: 11 }, { key: 'Aug', col: 12 }, { key: 'Sep', col: 13 },
-  { key: 'Oct', col: 14 }, { key: 'Nov', col: 15 }, { key: 'Dec', col: 16 },
+  { key: 'Jan', num: 1, col: 5 }, { key: 'Feb', num: 2, col: 6 }, { key: 'Mar', num: 3, col: 7 },
+  { key: 'Apr', num: 4, col: 8 }, { key: 'May', num: 5, col: 9 }, { key: 'Jun', num: 6, col: 10 },
+  { key: 'Jul', num: 7, col: 11 }, { key: 'Aug', num: 8, col: 12 }, { key: 'Sep', num: 9, col: 13 },
+  { key: 'Oct', num: 10, col: 14 }, { key: 'Nov', num: 11, col: 15 }, { key: 'Dec', num: 12, col: 16 },
 ]
 const NOTES_COL = 18
+
+function currentMonthKey() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
 
 function EditableCell({ value, saving, numeric, onChange }) {
   const [text, setText] = useState(value)
@@ -31,9 +36,30 @@ function EditableCell({ value, saving, numeric, onChange }) {
   )
 }
 
-export default function UpcomingWorkTab({ upcomingWork, onBack }) {
+export default function UpcomingWorkTab({ upcomingWork, monthlyHours, onBack }) {
   const { jobs } = upcomingWork
   const [password, setPassword] = useState('')
+
+  // "Upcoming work" is a forward-looking PLAN, but a month that's already
+  // over has a real, known answer instead — the same one "Hours by month"
+  // already computed from actual uploads. Once a month closes, its cell
+  // here auto-fills with that real figure and stops being editable
+  // (there's nothing left to plan for a month that's already happened);
+  // the current and future months stay a manual plan, since actuals for
+  // those genuinely aren't known yet.
+  const thisMonthKey = currentMonthKey()
+  const actualHoursByJob = useMemo(() => {
+    const map = new Map()
+    for (const j of monthlyHours.jobs) map.set(j.jobNumber, j.hoursByMonth)
+    return map
+  }, [monthlyHours])
+
+  function closedMonthActual(jobNumber, monthNum) {
+    const year = Number(thisMonthKey.slice(0, 4))
+    const key = `${year}-${String(monthNum).padStart(2, '0')}`
+    if (key >= thisMonthKey) return null // current or future — still a manual plan
+    return actualHoursByJob.get(jobNumber)?.[key] ?? null
+  }
   const [values, setValues] = useState(() => {
     const map = {}
     for (const job of jobs) {
@@ -111,7 +137,9 @@ export default function UpcomingWorkTab({ upcomingWork, onBack }) {
         <h1 className="text-2xl font-semibold text-white">Upcoming work</h1>
         <p className="mt-1 text-sm text-neutral-400">
           Planned hours per month per job, from the workbook&apos;s Upcoming Work Calculator sheet.
-          Quoted/Used/Remaining hours are calculated — only the monthly plan and notes are editable.
+          Quoted/Used/Remaining hours are calculated. A month that&apos;s already over auto-fills
+          with its real hours (from Hours by month) and stops being editable — only the current
+          and future months are a manual plan.
         </p>
       </div>
 
@@ -159,16 +187,28 @@ export default function UpcomingWorkTab({ upcomingWork, onBack }) {
                   <td className="num tabular">{job.quotedHours ?? '—'}</td>
                   <td className="num tabular">{job.usedHours ?? '—'}</td>
                   <td className="num tabular">{job.remainingHours ?? '—'}</td>
-                  {MONTH_FIELDS.map((field) => (
-                    <td key={field.key} className="min-w-[80px] p-1">
-                      <EditableCell
-                        value={values[job.jobNumber][field.key]}
-                        saving={savingKeys.has(`${job.jobNumber}:${field.key}`)}
-                        numeric
-                        onChange={(newValue) => handleChange(job, field.key, field.col, newValue)}
-                      />
-                    </td>
-                  ))}
+                  {MONTH_FIELDS.map((field) => {
+                    const actual = closedMonthActual(job.jobNumber, field.num)
+                    return (
+                      <td key={field.key} className="min-w-[80px] p-1">
+                        {actual !== null ? (
+                          <span
+                            title="This month is over — showing actual hours worked, from Hours by month."
+                            className="block px-2 py-1 text-right text-[13px] tabular-nums text-neutral-400"
+                          >
+                            {actual.toFixed(1)}
+                          </span>
+                        ) : (
+                          <EditableCell
+                            value={values[job.jobNumber][field.key]}
+                            saving={savingKeys.has(`${job.jobNumber}:${field.key}`)}
+                            numeric
+                            onChange={(newValue) => handleChange(job, field.key, field.col, newValue)}
+                          />
+                        )}
+                      </td>
+                    )
+                  })}
                   <td className="min-w-[160px] p-1">
                     <EditableCell
                       value={values[job.jobNumber].notes}
