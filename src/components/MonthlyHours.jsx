@@ -4,11 +4,12 @@ import { Fragment, useMemo, useState } from 'react'
 // same timeframe as the monthly columns next to it, which only cover
 // however many months this tracking system has existed for (so "Total"
 // there reads much smaller than this for an older job with lots of
-// pre-tracking history). Naming it "all-time" rather than just "to date"
-// is meant to make that difference obvious rather than implying the two
-// numbers should match. Over 100% used reads as a warning (red) the same
-// way a job's cost bar does elsewhere in the app; comfortably under reads
-// neutral.
+// pre-tracking history). Shown as "actual / quoted (pct%)" — the raw
+// hours ground the percentage in real numbers instead of leaving it as an
+// abstract ratio, and the caption above the table spells out the same
+// distinction with a live example. Over 100% used reads as a warning
+// (red) the same way a job's cost bar does elsewhere in the app;
+// comfortably under reads neutral.
 function pctUsedLabel(actualHours, quotedHours) {
   if (!quotedHours || actualHours === null) return '—'
   return `${Math.round((actualHours / quotedHours) * 100)}%`
@@ -76,6 +77,16 @@ export default function MonthlyHours({ monthlyHours, jobs: allJobs, onBack }) {
     setSort((prev) => (prev.key === key ? { key, dir: -prev.dir } : { key, dir: -1 }))
   }
 
+  // The job where "Total" (tracked months only) and "Used of full quote"'s
+  // actual-hours figure diverge the most — the single clearest illustration
+  // of why those two numbers aren't meant to match, grounded in this job's
+  // real numbers rather than an abstract rule.
+  const exampleJob = useMemo(() => {
+    return rows
+      .filter((j) => j.actualHours !== null && j.actualHours !== undefined && j.actualHours > j.total)
+      .sort((a, b) => (b.actualHours - b.total) - (a.actualHours - a.total))[0]
+  }, [rows])
+
   const maxTotalHours = Math.max(1, ...totalsByMonth.map((t) => t.totalHours))
 
   return (
@@ -123,7 +134,25 @@ export default function MonthlyHours({ monthlyHours, jobs: allJobs, onBack }) {
           </div>
 
           <div className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6">
-            <h2 className="mb-4 text-[15px] font-medium text-neutral-100">Hours per job, by month</h2>
+            <h2 className="text-[15px] font-medium text-neutral-100">Hours per job, by month</h2>
+            <p className="mt-1 mb-4 text-[13px] text-neutral-500">
+              &quot;Total&quot; only adds up the month columns shown here — it starts from zero
+              the month this tracking began, not from when the job itself started.
+              &quot;Used of full quote&quot; is different on purpose: it's the job's actual hours
+              since day one, against its full quoted hours.
+              {exampleJob && (
+                <>
+                  {' '}
+                  For example, <span className="text-neutral-300">{exampleJob.jobName}</span> shows{' '}
+                  <span className="text-neutral-300">{exampleJob.total.toFixed(1)} hrs</span> total here
+                  (this month's data), but has actually used{' '}
+                  <span className="text-neutral-300">
+                    {exampleJob.actualHours} of its {exampleJob.quotedHours} quoted hours
+                  </span>{' '}
+                  over the job's whole life — most of that was worked before this page existed.
+                </>
+              )}
+            </p>
 
             {/* Mobile: a table with one column per month gets unreadable
                 fast — one card per job, each month's hours listed as a
@@ -143,7 +172,7 @@ export default function MonthlyHours({ monthlyHours, jobs: allJobs, onBack }) {
                     </span>
                   </div>
                   <div className="flex items-center justify-between gap-3 text-[12px]">
-                    <span className="text-neutral-500">Actual / quoted (all-time)</span>
+                    <span className="text-neutral-500">Used of full quote</span>
                     <span className={pctUsedTone(j.actualHours, j.quotedHours)}>
                       {j.actualHours ?? '—'} / {j.quotedHours ?? '—'} hrs ({pctUsedLabel(j.actualHours, j.quotedHours)})
                     </span>
@@ -186,8 +215,12 @@ export default function MonthlyHours({ monthlyHours, jobs: allJobs, onBack }) {
                     >
                       Total{sort.key === 'total' && (sort.dir === 1 ? ' ▲' : ' ▼')}
                     </th>
-                    <th className="num">Quoted hrs</th>
-                    <th className="num">% used (all-time)</th>
+                    <th
+                      className="num"
+                      title="The job's whole history, not just the months tracked above — e.g. 556 of 950 quoted hours used since the job started, even if tracking here only goes back a couple of months."
+                    >
+                      Used of full quote
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -202,9 +235,8 @@ export default function MonthlyHours({ monthlyHours, jobs: allJobs, onBack }) {
                         </td>
                       ))}
                       <td className="num tabular font-medium">{j.total.toFixed(1)}</td>
-                      <td className="num tabular">{j.quotedHours ?? '—'}</td>
                       <td className={`num tabular ${pctUsedTone(j.actualHours, j.quotedHours)}`}>
-                        {pctUsedLabel(j.actualHours, j.quotedHours)}
+                        {j.actualHours ?? '—'} / {j.quotedHours ?? '—'} hrs ({pctUsedLabel(j.actualHours, j.quotedHours)})
                       </td>
                     </tr>
                   ))}
