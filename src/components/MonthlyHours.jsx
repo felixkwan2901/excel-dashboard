@@ -105,6 +105,14 @@ export default function MonthlyHours({ monthlyHours, jobs: allJobs, onBack }) {
         </div>
       ) : (
         <>
+          {months.length === 1 && (
+            <p className="rounded-[14px] border border-white/[0.06] bg-white/[0.02] px-4 py-3 text-[13px] text-neutral-400">
+              {monthLabel(months[0])} is measured against an estimated starting point taken from
+              each job&apos;s current workbook figures, not a previously logged month — real
+              month-over-month tracking only began this month. Every month from here on is a real
+              recorded change.
+            </p>
+          )}
           <div className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6">
             <h2 className="mb-4 text-[15px] font-medium text-neutral-100">Total hours worked, by month</h2>
             <div className="flex flex-col">
