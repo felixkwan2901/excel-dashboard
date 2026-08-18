@@ -59,6 +59,7 @@ jobs:
           # anything an earlier run already merged, and it takes well under
           # a second regardless.
           for i in 1 2 3 4 5; do
+            node scripts/add-new-job.mjs
             node scripts/update-jobs.mjs pending-updates/exports
             node scripts/apply-replace.mjs
             node scripts/apply-main-sheet-edits.mjs

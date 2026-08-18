@@ -49,6 +49,14 @@ export default function UpdateData({ onBack }) {
   const [replaceStatus, setReplaceStatus] = useState('idle') // idle | staging | processing | done | error
   const [replaceMessage, setReplaceMessage] = useState('')
 
+  const [newJobPassword, setNewJobPassword] = useState('')
+  const [newJob, setNewJob] = useState({
+    jobNumber: '', jobName: '', jobOwner: '',
+    quotedPrice: '', quotedMaterialCost: '', quotedLabourCost: '', quotedLabourHours: '',
+  })
+  const [newJobStatus, setNewJobStatus] = useState('idle') // idle | staging | processing | done | error
+  const [newJobMessage, setNewJobMessage] = useState('')
+
   async function handleSubmit(e) {
     e.preventDefault()
     if (!files || files.length === 0) return
@@ -128,6 +136,44 @@ export default function UpdateData({ onBack }) {
     } catch (err) {
       setReplaceMessage(`Could not reach the upload service: ${String(err.message ?? err)}`)
       setReplaceStatus('error')
+    }
+  }
+
+  async function handleNewJobSubmit(e) {
+    e.preventDefault()
+    setNewJobStatus('staging')
+    setNewJobMessage('')
+
+    try {
+      const res = await fetch(`${UPLOAD_WORKER_URL}/new-job`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ password: newJobPassword, ...newJob }),
+      })
+      const payload = await res.json()
+      if (!res.ok) {
+        setNewJobMessage(payload.message ?? `Request failed (${res.status}).`)
+        setNewJobStatus('error')
+        return
+      }
+
+      setNewJobStatus('processing')
+      setNewJobMessage(payload.message)
+      const result = await pollStagedStatus(payload.staged)
+      if (result.status === 'done') {
+        setNewJobMessage(`Added ${newJob.jobNumber} ${newJob.jobName} to every linked sheet — the site will redeploy in about a minute before it shows up here.`)
+        setNewJobStatus('done')
+        setNewJob({ jobNumber: '', jobName: '', jobOwner: '', quotedPrice: '', quotedMaterialCost: '', quotedLabourCost: '', quotedLabourHours: '' })
+      } else if (result.status === 'failed') {
+        setNewJobMessage(result.message)
+        setNewJobStatus('error')
+      } else {
+        setNewJobMessage('Still processing after 3 minutes — check back shortly; it may still land.')
+        setNewJobStatus('error')
+      }
+    } catch (err) {
+      setNewJobMessage(`Could not reach the upload service: ${String(err.message ?? err)}`)
+      setNewJobStatus('error')
     }
   }
 
@@ -246,6 +292,144 @@ export default function UpdateData({ onBack }) {
               {status === 'staging' ? 'Uploading…' : status === 'processing' ? 'Processing…' : 'Upload & merge'}
             </Button>
           </form>
+        </CardContent>
+      </Card>
+
+      <Card className="mt-4">
+        <CardHeader>
+          <CardTitle className="text-sm">Add a new job</CardTitle>
+          <p className="text-xs text-text-muted">
+            Adds this job to the Deliverables Sheet, Job checklist, Monthly Claims, and Upcoming
+            Work — all four at once, so weekly uploads and the checklist work for it right away.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleNewJobSubmit} className="flex flex-col gap-4">
+            <div>
+              <label htmlFor="new-job-password" className="mb-1.5 block text-xs text-text-muted">
+                Upload password
+              </label>
+              <input
+                id="new-job-password"
+                type="password"
+                value={newJobPassword}
+                onChange={(e) => setNewJobPassword(e.target.value)}
+                required
+                className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-brand-green/50 focus:outline-none"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="new-job-number" className="mb-1.5 block text-xs text-text-muted">
+                  Job number
+                </label>
+                <input
+                  id="new-job-number"
+                  type="number"
+                  value={newJob.jobNumber}
+                  onChange={(e) => setNewJob((j) => ({ ...j, jobNumber: e.target.value }))}
+                  required
+                  className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-brand-green/50 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label htmlFor="new-job-owner" className="mb-1.5 block text-xs text-text-muted">
+                  Job owner
+                </label>
+                <input
+                  id="new-job-owner"
+                  type="text"
+                  value={newJob.jobOwner}
+                  onChange={(e) => setNewJob((j) => ({ ...j, jobOwner: e.target.value }))}
+                  className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-brand-green/50 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="new-job-name" className="mb-1.5 block text-xs text-text-muted">
+                Job name
+              </label>
+              <input
+                id="new-job-name"
+                type="text"
+                value={newJob.jobName}
+                onChange={(e) => setNewJob((j) => ({ ...j, jobName: e.target.value }))}
+                required
+                className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-brand-green/50 focus:outline-none"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="new-job-quoted-price" className="mb-1.5 block text-xs text-text-muted">
+                  Quoted price
+                </label>
+                <input
+                  id="new-job-quoted-price"
+                  type="number"
+                  value={newJob.quotedPrice}
+                  onChange={(e) => setNewJob((j) => ({ ...j, quotedPrice: e.target.value }))}
+                  required
+                  className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-brand-green/50 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label htmlFor="new-job-quoted-material" className="mb-1.5 block text-xs text-text-muted">
+                  Quoted material cost
+                </label>
+                <input
+                  id="new-job-quoted-material"
+                  type="number"
+                  value={newJob.quotedMaterialCost}
+                  onChange={(e) => setNewJob((j) => ({ ...j, quotedMaterialCost: e.target.value }))}
+                  required
+                  className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-brand-green/50 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label htmlFor="new-job-quoted-labour-cost" className="mb-1.5 block text-xs text-text-muted">
+                  Quoted labour cost
+                </label>
+                <input
+                  id="new-job-quoted-labour-cost"
+                  type="number"
+                  value={newJob.quotedLabourCost}
+                  onChange={(e) => setNewJob((j) => ({ ...j, quotedLabourCost: e.target.value }))}
+                  required
+                  className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-brand-green/50 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label htmlFor="new-job-quoted-labour-hours" className="mb-1.5 block text-xs text-text-muted">
+                  Quoted labour hours
+                </label>
+                <input
+                  id="new-job-quoted-labour-hours"
+                  type="number"
+                  value={newJob.quotedLabourHours}
+                  onChange={(e) => setNewJob((j) => ({ ...j, quotedLabourHours: e.target.value }))}
+                  required
+                  className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-brand-green/50 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <Button
+              type="submit"
+              variant="outline"
+              disabled={newJobStatus === 'staging' || newJobStatus === 'processing'}
+            >
+              {newJobStatus === 'staging' ? 'Uploading…' : newJobStatus === 'processing' ? 'Processing…' : 'Add job'}
+            </Button>
+          </form>
+
+          {newJobMessage && (
+            <p className={`mt-4 text-sm ${newJobStatus === 'error' ? 'text-status-critical' : 'text-text-primary'}`}>
+              {newJobMessage}
+            </p>
+          )}
         </CardContent>
       </Card>
 
