@@ -27,8 +27,8 @@
     "7864": {
       "jobName": "Ryans House",
       "claim": 3554.300000000003,
-      "costs": 584.890000000003,
-      "profit": 2969.41
+      "costs": 659.8600000000006,
+      "profit": 2894.4400000000023
     },
     "7901": {
       "jobName": "St Albans Street",
@@ -69,8 +69,8 @@
     "8234": {
       "jobName": "Melhuish House",
       "claim": 0,
-      "costs": 4476.1500000000015,
-      "profit": -4476.1500000000015
+      "costs": 4635.710000000003,
+      "profit": -4635.710000000003
     },
     "8308": {
       "jobName": "Roydvale",
@@ -99,8 +99,8 @@
     "8670": {
       "jobName": "Studio DB - tautara fit out",
       "claim": 0,
-      "costs": 10982.64,
-      "profit": -10982.64
+      "costs": 11321.679999999993,
+      "profit": -11321.679999999993
     },
     "8769": {
       "jobName": "Percival Bach",
@@ -117,26 +117,26 @@
     "8840": {
       "jobName": "Inline Architecture",
       "claim": -35454.43,
-      "costs": 16334.04,
-      "profit": -51788.47
+      "costs": 17919.549999999996,
+      "profit": -53373.979999999996
     },
     "8886": {
       "jobName": "Monkey Toe - Fisher fit out",
       "claim": 0,
-      "costs": 2138.1600000000035,
-      "profit": -2138.1600000000035
+      "costs": 2297.520000000004,
+      "profit": -2297.520000000004
     },
     "8887": {
       "jobName": "Tenancy 2 - Fisher Fit out",
       "claim": 0,
-      "costs": 5565.0300000000025,
-      "profit": -5565.0300000000025
+      "costs": 5644.710000000003,
+      "profit": -5644.710000000003
     },
     "8907": {
       "jobName": "35 Mania",
       "claim": 0,
-      "costs": 1407.8799999999992,
-      "profit": -1407.8799999999992
+      "costs": 1448.83,
+      "profit": -1448.83
     },
     "8923": {
       "jobName": "4 Perry St",
@@ -165,8 +165,8 @@
     "9259": {
       "jobName": "Andrew Reeve Stage 2",
       "claim": 0,
-      "costs": 22353.17,
-      "profit": -22353.17
+      "costs": 25724.04,
+      "profit": -25724.04
     },
     "9351": {
       "jobName": "Harewood Golf Club",
