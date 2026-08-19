@@ -534,6 +534,158 @@ function archiveProcessedFiles(sourceDir) {
 }
 
 // ---------------------------------------------------------------------------
+// 6. Automated cross-tab consistency check — re-reads everything just
+//    written FRESH from disk and independently re-derives each figure a
+//    second way, rather than trusting the in-memory values this run
+//    already computed (which wouldn't catch a bug in the computation
+//    itself, or in how ExcelJS actually serialized it — exactly the class
+//    of bug that caused the Claim Calculator and Upcoming Work Calculator
+//    staleness this pipeline hit twice before). Runs on every single
+//    upload from here on, so a regression fails the GitHub Actions run
+//    loudly (a red X, plus ::error:: annotations) instead of quietly
+//    shipping wrong numbers until someone happens to notice and ask.
+// ---------------------------------------------------------------------------
+
+async function runConsistencyChecks(currentMonth) {
+  const problems = []
+
+  const checkWb = new ExcelJS.Workbook()
+  await checkWb.xlsx.readFile(workbookPath)
+  const { rows: checkRows, headerIdx: checkHeaderIdx } = findDeliverablesSheet(checkWb)
+  const checkBlocks = buildJobBlocks(checkRows, checkHeaderIdx).filter(
+    (b) => Number(b.jobNumber) > 0 && String(b.jobName ?? '').trim() !== '' && String(b.jobName).trim() !== '0',
+  )
+  function lastFilledPos(weekIdxs) {
+    for (let i = weekIdxs.length - 1; i >= 1; i--) {
+      const qp = Number(checkRows[weekIdxs[i]][COL.quotedPrice])
+      if (Number.isFinite(qp) && qp > 0) return i
+    }
+    return 0
+  }
+
+  const claimCalcCheckWs = checkWb.getWorksheet('Claim Calculator By Month')
+  const claimCalcCheckByNumber = new Map()
+  let combinedClaim = 0
+  let combinedCosts = 0
+  let combinedProfit = 0
+  let totalsRowFound = null
+  if (claimCalcCheckWs) {
+    claimCalcCheckWs.eachRow((row, rowNumber) => {
+      const raw = row.getCell(1).value
+      const num = raw && typeof raw === 'object' ? raw.result : raw
+      if (typeof num === 'number' && num > 0) {
+        claimCalcCheckByNumber.set(num, rowNumber)
+        combinedClaim += Number(resolveCellValue(row.getCell(3).value)) || 0
+        combinedCosts += Number(resolveCellValue(row.getCell(4).value)) || 0
+        combinedProfit += Number(resolveCellValue(row.getCell(5).value)) || 0
+      }
+      if (row.getCell(6).value === 'GP%' && totalsRowFound === null) {
+        totalsRowFound = {
+          claim: Number(resolveCellValue(row.getCell(3).value)) || 0,
+          costs: Number(resolveCellValue(row.getCell(4).value)) || 0,
+          profit: Number(resolveCellValue(row.getCell(5).value)) || 0,
+        }
+      }
+    })
+
+    // Profit must equal Claim - Costs for every job — this exact check
+    // would have caught the original Claim Calculator staleness bug
+    // immediately (Roydvale showed +$11,482 profit with $0 claim).
+    for (const [num, rowNumber] of claimCalcCheckByNumber) {
+      const row = claimCalcCheckWs.getRow(rowNumber)
+      const claim = Number(resolveCellValue(row.getCell(3).value)) || 0
+      const costs = Number(resolveCellValue(row.getCell(4).value)) || 0
+      const profit = Number(resolveCellValue(row.getCell(5).value)) || 0
+      if (Math.abs(claim - costs - profit) > 0.02) {
+        problems.push(`Job ${num}: Claim Calculator Profit (${profit}) does not equal Claim (${claim}) - Costs (${costs})`)
+      }
+    }
+
+    // The combined Totals row must equal an independent sum across every
+    // job row — catches the totals row silently excluding jobs (the
+    // Commercial/Residential range bug) or going stale.
+    if (totalsRowFound) {
+      if (Math.abs(totalsRowFound.claim - combinedClaim) > 0.5) {
+        problems.push(`Totals row claim (${totalsRowFound.claim}) does not match the sum of all job rows (${combinedClaim})`)
+      }
+      if (Math.abs(totalsRowFound.costs - combinedCosts) > 0.5) {
+        problems.push(`Totals row costs (${totalsRowFound.costs}) does not match the sum of all job rows (${combinedCosts})`)
+      }
+      if (Math.abs(totalsRowFound.profit - combinedProfit) > 0.5) {
+        problems.push(`Totals row profit (${totalsRowFound.profit}) does not match the sum of all job rows (${combinedProfit})`)
+      }
+    } else {
+      problems.push('Could not find the combined Totals row (no "GP%" marker) on Claim Calculator By Month')
+    }
+  }
+
+  // Upcoming Work Calculator's "Used" hours must match the Deliverables
+  // Sheet's own current actual hours for that job — this exact check
+  // would have caught the Upcoming Work staleness bug immediately.
+  const upcomingCheckWs = checkWb.getWorksheet('Upcoming Work Calculator')
+  if (upcomingCheckWs) {
+    const upcomingCheckByNumber = new Map()
+    upcomingCheckWs.eachRow((row, rowNumber) => {
+      const raw = row.getCell(1).value
+      const num = raw && typeof raw === 'object' ? raw.result : raw
+      if (typeof num === 'number' && num > 0) upcomingCheckByNumber.set(num, rowNumber)
+    })
+    for (const block of checkBlocks) {
+      const rowNumber = upcomingCheckByNumber.get(Number(block.jobNumber))
+      if (!rowNumber) continue
+      const pos = lastFilledPos(block.weekIdxs)
+      const expectedHours = Number(checkRows[block.weekIdxs[pos]][COL.actualLabourHours]) || 0
+      const row = upcomingCheckWs.getRow(rowNumber)
+      const actualUsed = Number(resolveCellValue(row.getCell(4).value)) || 0
+      if (Math.abs(expectedHours - actualUsed) > 0.02) {
+        problems.push(`Job ${block.jobNumber}: Upcoming Work "Used" hours (${actualUsed}) does not match the Deliverables Sheet's current hours (${expectedHours})`)
+      }
+    }
+  }
+
+  // The current month's entry in each log must match what's actually on
+  // the sheet right now — catches the log falling behind the workbook.
+  if (existsSync(monthlyHoursLogPath)) {
+    const hoursLog = JSON.parse(readFileSync(monthlyHoursLogPath, 'utf8'))
+    const entry = hoursLog[currentMonth]
+    if (entry) {
+      for (const block of checkBlocks) {
+        const logged = entry[String(block.jobNumber)]
+        if (!logged) continue
+        const pos = lastFilledPos(block.weekIdxs)
+        const expectedHours = Number(checkRows[block.weekIdxs[pos]][COL.actualLabourHours]) || 0
+        if (Math.abs(expectedHours - logged.cumulativeHours) > 0.02) {
+          problems.push(`Job ${block.jobNumber}: monthly-hours-log.json (${logged.cumulativeHours}) does not match the Deliverables Sheet's current hours (${expectedHours})`)
+        }
+      }
+    }
+  }
+  if (existsSync(monthlyClaimsLogPath) && claimCalcCheckWs) {
+    const claimsLog = JSON.parse(readFileSync(monthlyClaimsLogPath, 'utf8'))
+    const entry = claimsLog[currentMonth]
+    if (entry) {
+      for (const [num, rowNumber] of claimCalcCheckByNumber) {
+        const logged = entry[String(num)]
+        if (!logged) continue
+        const row = claimCalcCheckWs.getRow(rowNumber)
+        const claim = Number(resolveCellValue(row.getCell(3).value)) || 0
+        if (Math.abs(claim - logged.claim) > 0.02) {
+          problems.push(`Job ${num}: monthly-claims-log.json claim (${logged.claim}) does not match Claim Calculator (${claim})`)
+        }
+      }
+    }
+  }
+
+  if (problems.length > 0) {
+    console.log(`\n${problems.length} consistency check(s) FAILED — data across tabs may be out of sync:`)
+    for (const p of problems) console.log(`::error::${p}`)
+    process.exitCode = 1
+  } else {
+    console.log('\nAll consistency checks passed — every tab\'s data is confirmed in sync.')
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -976,6 +1128,8 @@ async function main() {
   console.log('  git add Cassidy_Davies_Electrical_BPMN_Data.xlsx sync-meta.json')
   console.log('  git commit -m "Update job data"')
   console.log('  git push')
+
+  await runConsistencyChecks(currentMonth)
 }
 
 main()
