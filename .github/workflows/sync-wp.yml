@@ -14,13 +14,17 @@ jobs:
 
       - name: Update WordPress Page
         run: |
-          # Replace 123 with your actual Page ID from Step 1
           PAGE_ID="2179"
           
-          # Pass HTML/Content from your repo (e.g., from index.html or build output)
-          HTML_CONTENT=$(cat index.html | jq -a -R -s '.')
+          # Clean domain URL to remove trailing slashes
+          BASE_URL=$(echo "${{ secrets.WP_URL }}" | sed 's/*$//')
+          
+          # Wrap index.html inside a Gutenberg HTML block and escape for JSON
+          RAW_HTML=$(cat index.html)
+          BLOCK_CONTENT="<!-- wp:html -->${RAW_HTML}<!-- /wp:html -->"
+          JSON_PAYLOAD=$(jq -n --arg content "$BLOCK_CONTENT" '{content: $content}')
 
-          curl -X POST "${{ secrets.WP_URL }}/wp-json/wp/v2/pages/${PAGE_ID}" \
+          curl -X POST "${BASE_URL}/wp-json/wp/v2/pages/${PAGE_ID}" \
             -u "${{ secrets.WP_USER }}:${{ secrets.WP_PASSWORD }}" \
             -H "Content-Type: application/json" \
-            -d "{\"content\": ${HTML_CONTENT}}"
+            -d "$JSON_PAYLOAD"
