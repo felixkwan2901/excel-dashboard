@@ -633,7 +633,12 @@ const COMMAND_RESPONSE_SCHEMA = {
     fieldLabel: { type: 'STRING' },
     humanSummary: { type: 'STRING' },
   },
-  required: ['ambiguous'],
+  // Gemini's structured-output mode only enforces plain "required", no
+  // conditional schema — so every field is required unconditionally, and
+  // the prompt below tells the model to fill target/jobNumber/col/value
+  // with harmless placeholders on the ambiguous path (server-side code
+  // only ever reads them when ambiguous is false).
+  required: ['ambiguous', 'target', 'jobNumber', 'col', 'value', 'humanSummary'],
 }
 
 function buildCommandPrompt({ text, jobs, mainSheetColumns, claimCalcFields, upcomingWorkFields }) {
@@ -657,9 +662,10 @@ Rules:
 1. Resolve the job by number or name (allow minor typos) against the JOBS list only. If more than one job could plausibly match, or none do, return ambiguous.
 2. Resolve the field against whichever field list matches the instruction's intent, using the exact "col" number listed. Never fabricate a jobNumber or col not present in the lists above.
 3. For a main-sheet field, normalize the value to exactly 'Yes' (done/complete/tick it/mark it), 'N/A' (not applicable/doesn't apply), or '' (undo/unset/not done/clear it). Anything else for a main-sheet field (e.g. "no") is ambiguous — that value doesn't exist here.
-4. If the instruction implies more than one job or more than one field at once (e.g. "for all jobs", "every job", "both X and Y"), return ambiguous — never pick just one target for a bulk instruction.
-5. If genuinely unclear, return {"ambiguous": true, "reason": "...", "candidates": ["...", "..."]} with short human-readable candidate descriptions, not job numbers.
-6. Otherwise return {"ambiguous": false, "target": "...", "jobNumber": "...", "col": <int>, "value": "...", "fieldLabel": "...", "humanSummary": "short plain-English summary of the change, e.g. \\"Job 8142 Fisher Developments — Retention %: 5\\""}.`
+4. For a claim-calculator or upcoming-work field, "value" must be ONLY the bare number as a string — digits, and at most one leading "-" and one ".", nothing else. Never include "%", "$", units, words, or any other character. "5% retention" -> "5". "40 hours" -> "40". The one exception is a field literally called "Notes", which is free text.
+5. If the instruction implies more than one job or more than one field at once (e.g. "for all jobs", "every job", "both X and Y"), return ambiguous — never pick just one target for a bulk instruction.
+6. If genuinely unclear, set "ambiguous" to true, fill "reason" and "candidates" (short human-readable descriptions, not job numbers), and set target/jobNumber/col/value/humanSummary to "" (or col to 0) as placeholders — every field below is required by the schema even on this path, but those placeholders are ignored whenever ambiguous is true.
+7. Otherwise set "ambiguous" to false and fill: target (one of "main-sheet"/"claim-calculator"/"upcoming-work"), jobNumber (string), col (the exact integer from the matching list above), value (per rules 3/4 above), fieldLabel (the field's label from the list), and humanSummary (a short plain-English summary, e.g. "Job 8142 Fisher Developments — Retention %: 5"). Return ONLY the JSON object — no commentary, no markdown, no explanation before or after it.`
 }
 
 async function handleCommand(request, env) {
@@ -691,21 +697,34 @@ async function handleCommand(request, env) {
     upcomingWorkFields: Array.isArray(upcomingWorkFields) ? upcomingWorkFields : [],
   })
 
+  const geminiBody = JSON.stringify({
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    generationConfig: {
+      responseMimeType: 'application/json',
+      responseSchema: COMMAND_RESPONSE_SCHEMA,
+      thinkingConfig: { thinkingLevel: 'low' },
+    },
+  })
+  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${env.GEMINI_API_KEY}`
+
   let geminiRes
-  try {
-    geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${env.GEMINI_API_KEY}`,
-      {
+  // gemini-flash-latest returns a transient 503 ("high demand") often
+  // enough in practice to be worth one retry before surfacing an error —
+  // this is Google's model queue, not anything wrong with the request.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      geminiRes = await fetch(geminiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          generationConfig: { responseMimeType: 'application/json', responseSchema: COMMAND_RESPONSE_SCHEMA },
-        }),
+        body: geminiBody,
+      })
+    } catch (err) {
+      if (attempt === 1) {
+        return json({ ok: false, error: 'gemini_unreachable', message: `Could not reach the AI service: ${String(err.message ?? err)}` }, 502)
       }
-    )
-  } catch (err) {
-    return json({ ok: false, error: 'gemini_unreachable', message: `Could not reach the AI service: ${String(err.message ?? err)}` }, 502)
+      continue
+    }
+    if (geminiRes.ok || geminiRes.status !== 503 || attempt === 1) break
   }
 
   if (!geminiRes.ok) {
@@ -735,10 +754,19 @@ async function handleCommand(request, env) {
     : target === 'upcoming-work' ? upcomingWorkFields
     : null
   const jobValid = jobs.some((j) => String(j.jobNumber) === String(jobNumber))
-  const colValid = Array.isArray(fieldList) && fieldList.some((f) => Number(f.col) === Number(col))
-  if (!jobValid || !colValid) {
+  const matchedField = Array.isArray(fieldList) ? fieldList.find((f) => Number(f.col) === Number(col)) : null
+  if (!jobValid || !matchedField) {
     return json({ ok: true, ambiguous: true, reason: "Couldn't confidently match that to a real job and field.", candidates: [] })
   }
+
+  // Belt-and-braces beyond the prompt's own instructions: a numeric field
+  // (anything but main-sheet, and not literally labelled "notes") gets its
+  // value stripped down to digits/./- , in case the model added a stray
+  // "%", "$", or explanatory text around the number.
+  const isNumericField = target !== 'main-sheet' && !/notes/i.test(matchedField.label ?? '')
+  const cleanValue = isNumericField
+    ? String(value ?? '').replace(/[^0-9.-]/g, '')
+    : String(value ?? '')
 
   return json({
     ok: true,
@@ -747,8 +775,8 @@ async function handleCommand(request, env) {
       target,
       jobNumber: String(jobNumber),
       col: Number(col),
-      value: String(value ?? ''),
-      fieldLabel: fieldLabel ?? '',
+      value: cleanValue,
+      fieldLabel: fieldLabel ?? matchedField.label ?? '',
       humanSummary: humanSummary ?? '',
     },
   })

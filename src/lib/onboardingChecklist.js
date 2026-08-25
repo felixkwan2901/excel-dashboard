@@ -52,3 +52,36 @@ export function isLinkedChecklistComplete(link, jobNumber) {
     return false
   }
 }
+
+const JOB_CREATED_KEY_PREFIX = 'jobCreatedAt'
+const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000
+
+// Stamped once, right when a brand-new job is successfully added via
+// UpdateData.jsx's "Add a new job" form — there's no "date created" column
+// anywhere in the workbook, so this is the only record of when a job first
+// showed up on the site, and it's what the 2-week items (1, 11, 15, 16) use
+// to decide they're overdue. Existing/legacy jobs never get this stamped,
+// so they're deliberately exempt — there's no meaningful "2 weeks from"
+// date for a job that already existed before this feature did.
+export function recordJobCreated(jobNumber) {
+  try {
+    localStorage.setItem(`${JOB_CREATED_KEY_PREFIX}:${jobNumber}`, new Date().toISOString())
+  } catch {
+    // Private browsing / storage full — the alert just won't fire for
+    // this job, not worth failing job creation over.
+  }
+}
+
+// True once 14+ days have passed since a job was stamped as created —
+// false (never flashing) for any job that was never stamped, i.e. every
+// job that existed before this feature, or before add-new-job started
+// recording it.
+export function isTwoWeeksOverdue(jobNumber) {
+  try {
+    const stamp = localStorage.getItem(`${JOB_CREATED_KEY_PREFIX}:${jobNumber}`)
+    if (!stamp) return false
+    return Date.now() - new Date(stamp).getTime() >= TWO_WEEKS_MS
+  } catch {
+    return false
+  }
+}

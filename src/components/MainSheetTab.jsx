@@ -1,7 +1,12 @@
 import { useState } from 'react'
 import { pollStagedStatus } from '../lib/pollStagedStatus'
 import { saveEdit } from '../lib/saveEdit'
-import { ONBOARDING_ITEMS, LINK_ITEM_COUNTS, isLinkedChecklistComplete } from '../lib/onboardingChecklist'
+import {
+  ONBOARDING_ITEMS,
+  LINK_ITEM_COUNTS,
+  isLinkedChecklistComplete,
+  isTwoWeeksOverdue,
+} from '../lib/onboardingChecklist'
 
 const UPLOAD_WORKER_URL = 'https://cde-data-upload.fkw24.workers.dev'
 
@@ -284,10 +289,13 @@ export default function MainSheetTab({
               {columns.map((c, i) => {
                 const item = ONBOARDING_ITEMS[i]
                 const label = item?.label ?? c.label
+                const itemValue = values[selectedJob.jobNumber][c.key]
+                const pending = itemValue !== 'Yes' && itemValue !== 'N/A'
                 const overdue =
-                  item?.link === 'weekly' &&
-                  isThursdayMorning() &&
-                  !isLinkedChecklistComplete('weekly', selectedJob.jobNumber)
+                  (item?.link === 'weekly' &&
+                    isThursdayMorning() &&
+                    !isLinkedChecklistComplete('weekly', selectedJob.jobNumber)) ||
+                  (item?.twoWeek && pending && isTwoWeeksOverdue(selectedJob.jobNumber))
                 return (
                   <div
                     key={c.key}
@@ -313,8 +321,14 @@ export default function MainSheetTab({
                         <span className="mr-2 text-neutral-500">{i + 1}.</span>
                         {label}
                         {item?.twoWeek && (
-                          <span className="ml-2 rounded-full border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-400">
-                            2 wks
+                          <span
+                            className={`ml-2 rounded-full border px-1.5 py-0.5 text-[10px] font-medium ${
+                              overdue
+                                ? 'border-red-400/40 bg-red-400/10 text-red-400'
+                                : 'border-amber-400/30 bg-amber-400/10 text-amber-400'
+                            }`}
+                          >
+                            {overdue ? 'Overdue' : '2 wks'}
                           </span>
                         )}
                       </span>

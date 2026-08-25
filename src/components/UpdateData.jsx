@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Button } from './ui/button'
 import { pollStagedStatus } from '../lib/pollStagedStatus'
+import { recordJobCreated } from '../lib/onboardingChecklist'
 
 const UPLOAD_WORKER_URL = 'https://cde-data-upload.fkw24.workers.dev'
 
@@ -201,6 +202,10 @@ export default function UpdateData({ onBack, jobs }) {
       if (result.status === 'done') {
         setNewJobMessage(`Added ${newJob.jobNumber} ${newJob.jobName} to every linked sheet — the site will redeploy in about a minute before it shows up here.`)
         setNewJobStatus('done')
+        // Nothing in the workbook records when a job first showed up on
+        // the site — this is the only place that moment is knowable, and
+        // it's what the checklist's 2-week items (1, 11, 15, 16) key off.
+        recordJobCreated(newJob.jobNumber)
         setNewJob({ jobNumber: '', jobName: '', jobOwner: '', quotedPrice: '', quotedMaterialCost: '', quotedLabourCost: '', quotedLabourHours: '' })
       } else if (result.status === 'failed') {
         setNewJobMessage(result.message)
