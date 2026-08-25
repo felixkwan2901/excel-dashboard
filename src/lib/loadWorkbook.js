@@ -1,9 +1,13 @@
 import * as XLSX from 'xlsx'
-import workbookUrl from '../../Cassidy_Davies_Electrical_BPMN_Data.xlsx?url'
 
-// Lives in public/ rather than an import — Vite doesn't emit a `?url`
-// import of a .json file as a fetchable static asset the way it does for
-// other file types.
+// Lives in public/ as a stable, unhashed path (not a Vite `?url` import) so
+// a data-only change (ticking a checklist box, editing a claim figure) can
+// be synced straight into the deployed site without a full rebuild — see
+// process-pending-updates.yml's "sync data files" step. Content-hash
+// cache-busting doesn't apply to a stable path, so the fetch below uses
+// `cache: 'no-store'` instead to guarantee this is never served stale.
+const workbookUrl = `${import.meta.env.BASE_URL}Cassidy_Davies_Electrical_BPMN_Data.xlsx`
+
 const monthlyHoursLogUrl = `${import.meta.env.BASE_URL}monthly-hours-log.json`
 const monthlyClaimsLogUrl = `${import.meta.env.BASE_URL}monthly-claims-log.json`
 const archivedJobsUrl = `${import.meta.env.BASE_URL}archived-jobs.json`
@@ -562,10 +566,10 @@ export async function loadWorkbook() {
   let res, hoursRes, claimsLogRes, archivedRes
   try {
     ;[res, hoursRes, claimsLogRes, archivedRes] = await Promise.all([
-      fetch(workbookUrl, { signal: controller.signal }),
-      fetch(monthlyHoursLogUrl, { signal: controller.signal }),
-      fetch(monthlyClaimsLogUrl, { signal: controller.signal }),
-      fetch(archivedJobsUrl, { signal: controller.signal }),
+      fetch(workbookUrl, { signal: controller.signal, cache: 'no-store' }),
+      fetch(monthlyHoursLogUrl, { signal: controller.signal, cache: 'no-store' }),
+      fetch(monthlyClaimsLogUrl, { signal: controller.signal, cache: 'no-store' }),
+      fetch(archivedJobsUrl, { signal: controller.signal, cache: 'no-store' }),
     ])
   } finally {
     clearTimeout(timeout)

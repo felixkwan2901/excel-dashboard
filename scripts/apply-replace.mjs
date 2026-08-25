@@ -20,7 +20,7 @@ import ExcelJS from 'exceljs'
 
 const STAGING_DIR = resolve('pending-updates/replace')
 const FAILED_DIR = resolve('pending-updates/failed')
-const WORKBOOK_PATH = resolve('Cassidy_Davies_Electrical_BPMN_Data.xlsx')
+const WORKBOOK_PATH = resolve('public/Cassidy_Davies_Electrical_BPMN_Data.xlsx')
 const SYNC_META_PATH = resolve('sync-meta.json')
 
 function normalizeHeader(text) {

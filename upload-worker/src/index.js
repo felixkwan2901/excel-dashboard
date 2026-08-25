@@ -11,7 +11,10 @@
 
 const OWNER = 'felixkwan2901'
 const REPO = 'excel-dashboard'
-const FILE_PATH = 'Cassidy_Davies_Electrical_BPMN_Data.xlsx'
+// Lives in public/ (not the repo root) so it's a stable, unhashed static
+// asset the site fetches directly — see loadWorkbook.js for why.
+const FILE_NAME = 'Cassidy_Davies_Electrical_BPMN_Data.xlsx'
+const FILE_PATH = `public/${FILE_NAME}`
 const BRANCH = 'main'
 const MAX_FILE_BYTES = 8 * 1024 * 1024 // 8MB per file
 const MAX_FILES = 60
@@ -711,7 +714,7 @@ export default {
           status: 200,
           headers: {
             'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'Content-Disposition': `attachment; filename="${FILE_PATH}"`,
+            'Content-Disposition': `attachment; filename="${FILE_NAME}"`,
             ...CORS_HEADERS,
           },
         })

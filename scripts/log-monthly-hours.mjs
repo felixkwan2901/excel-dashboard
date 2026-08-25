@@ -29,7 +29,7 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import ExcelJS from 'exceljs'
 
-const workbookPath = resolve('Cassidy_Davies_Electrical_BPMN_Data.xlsx')
+const workbookPath = resolve('public/Cassidy_Davies_Electrical_BPMN_Data.xlsx')
 // Lives in public/ (not bundled via a JS import) — Vite's JSON handling
 // doesn't emit a `?url` import of a .json file as a fetchable static asset
 // the way it does for other file types, so this rides the same

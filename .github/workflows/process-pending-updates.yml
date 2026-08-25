@@ -106,17 +106,56 @@ jobs:
           echo "::error::Failed to push after multiple retries"
           exit 1
 
-      # A push made with the default GITHUB_TOKEN (as the commit above is)
-      # deliberately does NOT cascade into triggering other workflows —
-      # GitHub's built-in loop guard — so deploy.yml's own `on: push`
-      # trigger never fires for this commit. Without this step, the actual
-      # merged data only ever reaches the live site when some UNRELATED
-      # human push happens to land on main around the same time and
-      # incidentally triggers a rebuild; on a quiet day, the site can sit
-      # showing stale data indefinitely despite main having the real
-      # numbers. Dispatching it explicitly closes that gap.
-      - name: Trigger a site rebuild
-        if: steps.process.outputs.pushed == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh workflow run deploy.yml --ref main
+    outputs:
+      pushed: ${{ steps.process.outputs.pushed }}
+
+  # A push made with the default GITHUB_TOKEN (as the commit above is)
+  # deliberately does NOT cascade into triggering other workflows — GitHub's
+  # built-in loop guard — so deploy.yml's own `on: push` trigger never fires
+  # for this commit. Every edit here is one of four plain data files
+  # (public/Cassidy_Davies_Electrical_BPMN_Data.xlsx, monthly-hours-log.json,
+  # monthly-claims-log.json, archived-jobs.json), all fetched by the site at
+  # a stable, unhashed URL (no Vite-generated content hash to update) — so
+  # getting the change live only needs those four files copied onto the
+  # gh-pages branch, not a full `npm ci` + `vite build` + Pages redeploy.
+  # That full pipeline (deploy.yml) still exists and still runs for real
+  # frontend code changes (those come from a human push, which triggers it
+  # normally) — this job only replaces it for the data-only case, cutting
+  # what used to be a ~1-2 minute second workflow down to a few seconds.
+  sync-pages:
+    needs: process
+    if: needs.process.outputs.pushed == 'true'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: pages-deploy
+      cancel-in-progress: false
+    steps:
+      # `process` may have retried and pushed a commit past this run's
+      # original trigger SHA (it resets to latest main and re-commits on
+      # conflict) — checking out `main` itself, not `github.sha`, ensures
+      # the data files copied below are always the freshest ones.
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Copy the updated data files onto gh-pages and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git fetch origin gh-pages
+          git worktree add /tmp/gh-pages origin/gh-pages
+
+          cp public/Cassidy_Davies_Electrical_BPMN_Data.xlsx /tmp/gh-pages/Cassidy_Davies_Electrical_BPMN_Data.xlsx
+          cp public/monthly-hours-log.json /tmp/gh-pages/monthly-hours-log.json
+          cp public/monthly-claims-log.json /tmp/gh-pages/monthly-claims-log.json
+          cp public/archived-jobs.json /tmp/gh-pages/archived-jobs.json
+
+          cd /tmp/gh-pages
+          git add Cassidy_Davies_Electrical_BPMN_Data.xlsx monthly-hours-log.json monthly-claims-log.json archived-jobs.json
+          if git diff --cached --quiet; then
+            echo "Data files unchanged on gh-pages — nothing to sync."
+            exit 0
+          fi
+          git commit -m "Sync data files ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
+          git push origin HEAD:gh-pages
