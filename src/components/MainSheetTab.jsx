@@ -64,6 +64,30 @@ function isLinkedChecklistComplete(link, jobNumber) {
   }
 }
 
+// A local `text` state separate from the committed `value` prop — needed
+// so onBlur can actually tell whether anything changed. A flat controlled
+// input whose onChange writes straight into the same state used for the
+// "did it change" comparison always finds them equal by the time blur
+// fires (onChange already moved that state to match), silently skipping
+// every save. Same reasoning as MonthlyClaims/UpcomingWorkTab's EditableCell.
+function RetentionInput({ value, saving, onChange }) {
+  const [text, setText] = useState(value)
+  return (
+    <input
+      type="number"
+      value={text}
+      disabled={saving}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={() => {
+        if (text !== value) onChange(text)
+      }}
+      placeholder="Ret %"
+      title="Retention % — syncs to Monthly claims"
+      className="w-16 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-right text-[12px] text-neutral-200 focus:border-brand-green/50 focus:outline-none disabled:opacity-50"
+    />
+  )
+}
+
 // A checkbox (done) plus an N/A pill — matches the paper form's checkbox +
 // N/A circle exactly, instead of a 4-option dropdown nobody needs (there's
 // no "No" on the paper checklist, just done or not-yet). Still saves as
@@ -386,17 +410,11 @@ export default function MainSheetTab({
                     )}
                     {item?.retentionInput && (
                       <div className="flex shrink-0 items-center gap-1">
-                        <input
-                          type="number"
+                        <RetentionInput
+                          key={selectedJob.jobNumber}
                           value={retentionValues[selectedJob.jobNumber]}
-                          disabled={retentionSaving.has(selectedJob.jobNumber)}
-                          onChange={(e) =>
-                            setRetentionValues((prev) => ({ ...prev, [selectedJob.jobNumber]: e.target.value }))
-                          }
-                          onBlur={(e) => handleRetentionChange(selectedJob, e.target.value)}
-                          placeholder="Ret %"
-                          title="Retention % — syncs to Monthly claims"
-                          className="w-16 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-right text-[12px] text-neutral-200 focus:border-brand-green/50 focus:outline-none disabled:opacity-50"
+                          saving={retentionSaving.has(selectedJob.jobNumber)}
+                          onChange={(newValue) => handleRetentionChange(selectedJob, newValue)}
                         />
                         <span className="text-[12px] text-neutral-500">%</span>
                       </div>
