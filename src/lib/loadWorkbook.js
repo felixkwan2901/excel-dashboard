@@ -7,7 +7,6 @@ import workbookUrl from '../../Cassidy_Davies_Electrical_BPMN_Data.xlsx?url'
 const monthlyHoursLogUrl = `${import.meta.env.BASE_URL}monthly-hours-log.json`
 const monthlyClaimsLogUrl = `${import.meta.env.BASE_URL}monthly-claims-log.json`
 const archivedJobsUrl = `${import.meta.env.BASE_URL}archived-jobs.json`
-const todosUrl = `${import.meta.env.BASE_URL}todos.json`
 
 // Columns are located by header text, not position — the real sheet's
 // headers have embedded newlines ("Job\nNumber") and have already drifted
@@ -560,14 +559,13 @@ export async function loadWorkbook() {
   // — this bounds it so an error state (with a retry) shows up instead.
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 20_000)
-  let res, hoursRes, claimsLogRes, archivedRes, todosRes
+  let res, hoursRes, claimsLogRes, archivedRes
   try {
-    ;[res, hoursRes, claimsLogRes, archivedRes, todosRes] = await Promise.all([
+    ;[res, hoursRes, claimsLogRes, archivedRes] = await Promise.all([
       fetch(workbookUrl, { signal: controller.signal }),
       fetch(monthlyHoursLogUrl, { signal: controller.signal }),
       fetch(monthlyClaimsLogUrl, { signal: controller.signal }),
       fetch(archivedJobsUrl, { signal: controller.signal }),
-      fetch(todosUrl, { signal: controller.signal }),
     ])
   } finally {
     clearTimeout(timeout)
@@ -581,10 +579,6 @@ export async function loadWorkbook() {
   const monthlyClaims = parseMonthlyClaims(workbook)
   const mainSheet = parseMainSheet(workbook)
   const upcomingWork = parseUpcomingWork(workbook)
-  // To-dos live entirely outside the workbook (see apply-todos-edits.mjs) —
-  // an arbitrary, growing set of people's tasks doesn't map onto a fixed
-  // number of Excel sheets.
-  const todos = todosRes?.ok ? await todosRes.json() : []
   // The hours log is a nice-to-have on top of the core workbook data — if
   // it's missing or unreadable for any reason, degrade to an empty history
   // rather than failing the whole page load over it.
@@ -615,7 +609,6 @@ export async function loadWorkbook() {
     mainSheet: { ...mainSheet, jobs: mainSheet.jobs.filter(notArchived) },
     monthlyHours,
     monthlyClaimsHistory: { ...monthlyClaimsHistory, jobs: monthlyClaimsHistory.jobs.filter(notArchived) },
-    todos,
     upcomingWork: { ...upcomingWork, jobs: upcomingWork.jobs.filter(notArchived) },
     archivedJobs,
   }

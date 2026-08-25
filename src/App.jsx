@@ -10,11 +10,11 @@ import ReviewReport from './components/ReviewReport'
 import UpdateData from './components/UpdateData'
 import MonthlyClaims from './components/MonthlyClaims'
 import MonthlyHours from './components/MonthlyHours'
-import ClaimsByMonth from './components/ClaimsByMonth'
 import MainSheetTab from './components/MainSheetTab'
-import TodosTab from './components/TodosTab'
 import ArchivedJobsPanel from './components/ArchivedJobsPanel'
 import UpcomingWorkTab from './components/UpcomingWorkTab'
+import WeeklyCheckSheetTab from './components/WeeklyCheckSheetTab'
+import JobCompletionChecklistTab from './components/JobCompletionChecklistTab'
 import LastSynced from './components/LastSynced'
 import Reveal from './components/Reveal'
 import './App.css'
@@ -58,7 +58,7 @@ export default function App() {
   // it's firing from an event handler, not mount.
   function fetchWorkbook() {
     loadWorkbook()
-      .then(({ jobs, monthlyClaims, mainSheet, monthlyHours, monthlyClaimsHistory, todos, upcomingWork, archivedJobs }) =>
+      .then(({ jobs, monthlyClaims, mainSheet, monthlyHours, monthlyClaimsHistory, upcomingWork, archivedJobs }) =>
         setState({
           status: 'ready',
           jobs,
@@ -66,7 +66,6 @@ export default function App() {
           mainSheet,
           monthlyHours,
           monthlyClaimsHistory,
-          todos,
           upcomingWork,
           archivedJobs,
         })
@@ -101,9 +100,6 @@ export default function App() {
   const monthlyClaims = state.status === 'ready' ? state.monthlyClaims : { jobs: [], totals: [] }
   const mainSheet = state.status === 'ready' ? state.mainSheet : { jobs: [], columns: [] }
   const monthlyHours = state.status === 'ready' ? state.monthlyHours : { months: [], totalsByMonth: [], jobs: [] }
-  const monthlyClaimsHistory =
-    state.status === 'ready' ? state.monthlyClaimsHistory : { months: [], totalsByMonth: [], jobs: [] }
-  const todos = state.status === 'ready' ? state.todos : []
   const upcomingWork = state.status === 'ready' ? state.upcomingWork : { jobs: [] }
   const archivedJobs = state.status === 'ready' ? state.archivedJobs : []
   const kpis = state.status === 'ready' ? computeKpis(jobs) : null
@@ -114,9 +110,11 @@ export default function App() {
     [jobs, selectedJobId]
   )
 
+  // The separate hero/KPI "home" page was removed — its stats now live at
+  // the top of the Job Directory itself, so anything that used to send
+  // someone "back home" now lands there instead.
   function goHome() {
-    setView('home')
-    pushUrlState({ view: 'home', selectedJobId: null, dashboardQuery, dashboardFilter })
+    goDashboard()
   }
 
   function goDashboard(filterKey = 'all') {
@@ -165,24 +163,26 @@ export default function App() {
     pushUrlState({ view: 'monthly-hours', selectedJobId, dashboardQuery, dashboardFilter })
   }
 
-  function goClaimsByMonth() {
-    setView('claims-by-month')
-    pushUrlState({ view: 'claims-by-month', selectedJobId, dashboardQuery, dashboardFilter })
-  }
-
   function goMainSheet() {
     setView('main-sheet')
     pushUrlState({ view: 'main-sheet', selectedJobId, dashboardQuery, dashboardFilter })
   }
 
-  function goNotes() {
-    setView('notes')
-    pushUrlState({ view: 'notes', selectedJobId, dashboardQuery, dashboardFilter })
-  }
-
   function goUpcomingWork() {
     setView('upcoming-work')
     pushUrlState({ view: 'upcoming-work', selectedJobId, dashboardQuery, dashboardFilter })
+  }
+
+  function goWeeklyCheckSheet(job) {
+    setSelectedJobId(job.jobNumber)
+    setView('weekly-check-sheet')
+    pushUrlState({ view: 'weekly-check-sheet', selectedJobId: job.jobNumber, dashboardQuery, dashboardFilter })
+  }
+
+  function goJobCompletionChecklist(job) {
+    setSelectedJobId(job.jobNumber)
+    setView('job-completion-checklist')
+    pushUrlState({ view: 'job-completion-checklist', selectedJobId: job.jobNumber, dashboardQuery, dashboardFilter })
   }
 
   function submitSearch(e) {
@@ -227,52 +227,9 @@ export default function App() {
         onGoUpdateData={goUpdateData}
         onGoMonthlyClaims={goMonthlyClaims}
         onGoMonthlyHours={goMonthlyHours}
-        onGoClaimsByMonth={goClaimsByMonth}
         onGoMainSheet={goMainSheet}
-        onGoNotes={goNotes}
         onGoUpcomingWork={goUpcomingWork}
       />
-
-      {view === 'home' && (
-        <main>
-          <Reveal as="section" index={0} className="hero-photo">
-            <div className="hero-photo__content">
-              <div className="mx-auto w-full max-w-6xl">
-                <div className="mb-10">
-                  <h1 className="text-4xl leading-tight font-medium tracking-tight text-white">
-                    Operations overview
-                  </h1>
-                  <p className="mt-3 max-w-md text-[15px] text-neutral-400">
-                    Monitor job costs, margins, and claim progress in real time.
-                  </p>
-                  <div className="mt-2">
-                    <LastSynced />
-                  </div>
-                </div>
-
-                {kpis && (
-                  <div className="mb-10">
-                    <StatsRow kpis={kpis} onSelectFilter={goDashboard} onPrintReport={goReviewReport} />
-                  </div>
-                )}
-
-                <div className="mb-6 flex items-center justify-end gap-3">
-                  <button className="hero-photo__cta" onClick={() => goDashboard()}>
-                    View jobs →
-                  </button>
-                </div>
-
-                <LoadStatus status={state.status} error={state.error} onRetry={retryLoad} />
-              </div>
-            </div>
-          </Reveal>
-
-          <Reveal as="footer" index={1} className="site-footer">
-            Cassidy-Davies Electrical — Christchurch, New Zealand · Registered Master
-            Electricians
-          </Reveal>
-        </main>
-      )}
 
       {view === 'project' && (
         <main className="dashboard">
@@ -314,7 +271,7 @@ export default function App() {
             <LoadStatus status={state.status} error={state.error} onRetry={retryLoad} />
           ) : (
             <Reveal index={0}>
-              <MonthlyClaims monthlyClaims={monthlyClaims} onBack={goHome} />
+              <MonthlyClaims monthlyClaims={monthlyClaims} jobs={jobs} monthlyHours={monthlyHours} onBack={goHome} />
             </Reveal>
           )}
         </main>
@@ -332,37 +289,19 @@ export default function App() {
         </main>
       )}
 
-      {view === 'claims-by-month' && (
-        <main className="dashboard">
-          {state.status !== 'ready' ? (
-            <LoadStatus status={state.status} error={state.error} onRetry={retryLoad} />
-          ) : (
-            <Reveal index={0}>
-              <ClaimsByMonth monthlyClaimsHistory={monthlyClaimsHistory} onBack={goHome} />
-            </Reveal>
-          )}
-        </main>
-      )}
-
       {view === 'main-sheet' && (
         <main className="dashboard">
           {state.status !== 'ready' ? (
             <LoadStatus status={state.status} error={state.error} onRetry={retryLoad} />
           ) : (
             <Reveal index={0}>
-              <MainSheetTab mainSheet={mainSheet} onBack={goHome} />
-            </Reveal>
-          )}
-        </main>
-      )}
-
-      {view === 'notes' && (
-        <main className="dashboard">
-          {state.status !== 'ready' ? (
-            <LoadStatus status={state.status} error={state.error} onRetry={retryLoad} />
-          ) : (
-            <Reveal index={0}>
-              <TodosTab todos={todos} onBack={goHome} />
+              <MainSheetTab
+                mainSheet={mainSheet}
+                monthlyClaims={monthlyClaims}
+                onBack={goHome}
+                onOpenWeeklyCheckSheet={goWeeklyCheckSheet}
+                onOpenJobCompletionChecklist={goJobCompletionChecklist}
+              />
             </Reveal>
           )}
         </main>
@@ -374,21 +313,54 @@ export default function App() {
             <LoadStatus status={state.status} error={state.error} onRetry={retryLoad} />
           ) : (
             <Reveal index={0}>
-              <UpcomingWorkTab upcomingWork={upcomingWork} monthlyHours={monthlyHours} onBack={goHome} />
+              <UpcomingWorkTab upcomingWork={upcomingWork} onBack={goHome} />
             </Reveal>
+          )}
+        </main>
+      )}
+
+      {view === 'weekly-check-sheet' && (
+        <main className="dashboard">
+          {state.status !== 'ready' ? (
+            <LoadStatus status={state.status} error={state.error} onRetry={retryLoad} />
+          ) : selectedJob ? (
+            <Reveal index={0}>
+              <WeeklyCheckSheetTab job={selectedJob} onBack={goMainSheet} />
+            </Reveal>
+          ) : (
+            <p className="dashboard__status">That job couldn&apos;t be found.</p>
+          )}
+        </main>
+      )}
+
+      {view === 'job-completion-checklist' && (
+        <main className="dashboard">
+          {state.status !== 'ready' ? (
+            <LoadStatus status={state.status} error={state.error} onRetry={retryLoad} />
+          ) : selectedJob ? (
+            <Reveal index={0}>
+              <JobCompletionChecklistTab job={selectedJob} onBack={goMainSheet} />
+            </Reveal>
+          ) : (
+            <p className="dashboard__status">That job couldn&apos;t be found.</p>
           )}
         </main>
       )}
 
       {view === 'dashboard' && (
         <main className="dashboard">
-          <nav className="flex items-center gap-1.5 text-sm text-text-muted">
-            <button className="transition-colors hover:text-text-primary" onClick={goHome}>
-              Operations overview
-            </button>
-            <span aria-hidden="true">/</span>
-            <span className="text-text-primary">Job Directory</span>
-          </nav>
+          <div className="mb-2">
+            <h1 className="text-2xl font-semibold text-white">Operations overview</h1>
+            <div className="mt-1">
+              <LastSynced />
+            </div>
+          </div>
+
+          {kpis && (
+            <div className="mb-2">
+              <StatsRow kpis={kpis} onSelectFilter={goDashboard} onPrintReport={goReviewReport} />
+            </div>
+          )}
 
           <LoadStatus status={state.status} error={state.error} onRetry={retryLoad} />
           {state.status === 'ready' && (

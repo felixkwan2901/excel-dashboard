@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { money, percent } from '../lib/format'
 import { pollStagedStatus } from '../lib/pollStagedStatus'
+import { useLocalStorageState } from '../lib/useLocalStorageState'
 
 const UPLOAD_WORKER_URL = 'https://cde-data-upload.fkw24.workers.dev'
 
@@ -10,109 +11,18 @@ const UPLOAD_WORKER_URL = 'https://cde-data-upload.fkw24.workers.dev'
 // derivable from data already on hand, unlike these four, which are
 // either a business decision (Retention) or a forward-looking estimate
 // (Hours/Costs to come before E.O.M) that nothing in the workbook can
-// derive automatically.
+// derive automatically. Edited directly in the table now — a box to type
+// into, not a click-to-open-modal step in between.
 const EDITABLE_FIELDS = [
-  { key: 'retention', col: 5, label: 'Retention', num: true },
+  { key: 'retention', col: 5, label: 'Retention %', num: true },
   { key: 'hoursToCompleteBeforeEom', col: 8, label: 'Hours to complete before E.O.M', num: true },
   { key: 'costsToComeBeforeEom', col: 9, label: 'Costs to come before E.O.M', num: true },
   { key: 'notes', col: 16, label: 'Notes', num: false },
 ]
 
-// A thin diverging bar anchored at a center zero line — positive values
-// grow right in brand green, negative grow left in red, mirroring the
-// polarity encoding already used by JobTable's MarginBar/CostBar elsewhere
-// in this app. Value is always shown directly (not hover-gated) since with
-// ~30 rows visible at once, always-on labels read faster than a tooltip.
-function DivergingBar({ label, value, maxAbs, formatValue }) {
-  if (value === null) return null
-  const widthPct = maxAbs ? (Math.abs(value) / maxAbs) * 50 : 0
-  const positive = value >= 0
-
-  return (
-    <div className="flex items-center gap-3 py-1">
-      <span className="w-44 shrink-0 truncate text-[13px] text-neutral-400" title={label}>
-        {label}
-      </span>
-      <div className="relative h-5 flex-1">
-        <div className="absolute top-1/2 left-1/2 h-full w-px -translate-x-1/2 -translate-y-1/2 bg-white/10" />
-        <div
-          className={`absolute top-1/2 h-2.5 -translate-y-1/2 rounded-full ${positive ? 'bg-brand-green' : 'bg-red-500'}`}
-          style={positive ? { left: '50%', width: `${widthPct}%` } : { right: '50%', width: `${widthPct}%` }}
-        />
-      </div>
-      <span
-        className={`w-28 shrink-0 text-right text-[12px] tabular-nums ${positive ? 'text-neutral-300' : 'text-red-400'}`}
-      >
-        {formatValue(value)}
-      </span>
-    </div>
-  )
-}
-
-function TotalsCard({ total }) {
-  if (!total) return null
-  const costRatio = total.claim ? Math.min(Math.max(total.costs / total.claim, 0), 1) * 100 : 0
-
-  return (
-    <div className="flex flex-col gap-4 rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-[15px] font-medium text-neutral-100">{total.category}</h3>
-        <span
-          className={`text-[13px] font-medium tabular-nums ${total.gpPct !== null && total.gpPct < 0 ? 'text-red-400' : 'text-brand-green'}`}
-        >
-          {percent(total.gpPct)} GP
-        </span>
-      </div>
-
-      <div>
-        <div className="relative h-1.5 w-full rounded-full bg-white/[0.08]">
-          <div
-            className="absolute top-0 h-full rounded-full bg-brand-green"
-            style={{ width: `${costRatio}%` }}
-          />
-        </div>
-        <p className="mt-1.5 text-[12px] tabular-nums text-neutral-400">
-          {money(total.costs)} costs of {money(total.claim)} claimed this month
-        </p>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4 border-t border-white/10 pt-4">
-        <div>
-          <p className="text-[12px] text-neutral-500">Profit this month</p>
-          <p className={`text-lg font-semibold tabular-nums ${total.profit < 0 ? 'text-red-400' : 'text-neutral-100'}`}>
-            {money(total.profit)}
-          </p>
-        </div>
-        <div>
-          <p className="text-[12px] text-neutral-500">Est. margin E.O.M</p>
-          <p className="text-lg font-semibold tabular-nums text-neutral-100">{percent(total.eomGpPct)}</p>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// A small header that toggles sort direction on click, with an arrow
-// showing the current direction — the same click-to-sort convention
-// JobTable's column headers already use, applied here to a whole chart
-// instead of a single column.
-function SortableHeading({ label, dir, onToggle }) {
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      className="mb-1 flex items-center gap-1.5 text-[15px] font-medium text-neutral-100 transition-colors hover:text-white"
-    >
-      {label}
-      <span className="text-[12px] text-neutral-500">{dir === 1 ? '▼ highest first' : '▲ lowest first'}</span>
-    </button>
-  )
-}
-
-// Retention/Costs-to-come are dollar values but not always whole/round —
-// same free-typed-number convention as the checklist's dropdown, just a
-// plain input instead. Saves on blur (not per-keystroke) since these are
-// numbers someone might pause mid-typing, same reasoning as the Notes tab.
+// Saves on blur (not per-keystroke) since these are numbers/notes someone
+// might pause mid-typing — matches the same convention used everywhere else
+// on this dashboard (checklist dropdowns, Upcoming work's hour cells).
 function EditableCell({ id, value, saving, numeric, onChange }) {
   const [text, setText] = useState(value)
 
@@ -131,32 +41,72 @@ function EditableCell({ id, value, saving, numeric, onChange }) {
   )
 }
 
-// Opens directly from clicking a job's row/card in the table below — no
-// more scrolling to a separate section and re-finding the same job in a
-// second, duplicate list. Password is lifted to MonthlyClaims so it's
-// entered once and carries over between jobs for the rest of the session.
-function ClaimCalculatorModal({ job, password, onPasswordChange, onClose }) {
-  const [values, setValues] = useState(() => {
-    const map = {}
-    for (const field of EDITABLE_FIELDS) map[field.key] = job[field.key] ?? ''
+// Job/Job name are frozen (see .sticky-col in App.css) so they stay in
+// view while the rest of the row scrolls sideways — same pattern as
+// Upcoming work's frozen leading columns.
+const STICKY_WIDTHS = [80, 200]
+const STICKY_LEFTS = [0, STICKY_WIDTHS[0]]
+
+function hours(v) {
+  return v === null ? '—' : v.toFixed(1)
+}
+
+const READONLY_COLUMNS = [
+  { key: 'costs', label: 'Cost of month', num: true, format: money },
+  { key: 'hoursThisMonth', label: 'Hours', num: true, format: hours },
+  { key: 'quotedGpPerHour', label: 'Quoted GP $/hr', num: true, format: money },
+  { key: 'hoursToComeCost', label: 'Hours to come cost', num: true, format: money },
+  { key: 'quotedHoursValue', label: 'Quoted hours value', num: true, format: money },
+  { key: 'total', label: 'Total cost', num: true, format: money },
+]
+
+function currentMonthKey() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
+export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHours, onBack }) {
+  const { jobs } = monthlyClaims
+
+  // The Claim Calculator sheet's own "Hours this month" cell is hand-typed
+  // and drifts out of date/goes negative when it isn't kept in sync — the
+  // hours log (same source "Hours by month" uses) derives this month's
+  // hours from each week's real cumulative-hours upload instead, so it's
+  // never manually stale.
+  const hoursThisMonthByJob = useMemo(() => {
+    const map = new Map()
+    const monthKey = currentMonthKey()
+    for (const j of monthlyHours.jobs) map.set(j.jobNumber, j.hoursByMonth[monthKey] ?? null)
     return map
-  })
+  }, [monthlyHours])
+
+  // Default to margin ascending (worst first) rather than profit descending
+  // (best first) — for a full per-job table, "which jobs are underperforming"
+  // is the more actionable starting question than "which job made the most".
+  const [tableSort, setTableSort] = useState({ key: 'margin', dir: 1 })
+
+  // Optimistic edits to the four manual fields, applied straight in the
+  // table — the real save below still takes 30-90s plus a redeploy before
+  // a fresh workbook fetch would show it, so without this the number just
+  // typed would look like it silently reverted. Keyed by job number.
+  const [fieldOverrides, setFieldOverrides] = useState({})
   const [savingKeys, setSavingKeys] = useState(() => new Set())
   const [status, setStatus] = useState({ kind: 'idle', message: '' })
 
-  async function handleChange(field, newValue) {
-    const previousValue = values[field.key]
-    if (!password) {
-      setStatus({ kind: 'error', message: 'Enter the upload password above before making changes.' })
-      return
-    }
+  async function saveField(job, field, newValue) {
+    const cellKey = `${job.jobNumber}:${field.key}`
+    const previousValue = fieldOverrides[job.jobNumber]?.[field.key] ?? job[field.key] ?? ''
+    if (newValue === previousValue) return
 
-    setValues((prev) => ({ ...prev, [field.key]: newValue }))
-    setSavingKeys((prev) => new Set(prev).add(field.key))
+    setFieldOverrides((prev) => ({ ...prev, [job.jobNumber]: { ...prev[job.jobNumber], [field.key]: newValue } }))
+    setSavingKeys((prev) => new Set(prev).add(cellKey))
     setStatus({ kind: 'idle', message: '' })
 
     function revert(message) {
-      setValues((prev) => ({ ...prev, [field.key]: previousValue }))
+      setFieldOverrides((prev) => ({
+        ...prev,
+        [job.jobNumber]: { ...prev[job.jobNumber], [field.key]: previousValue },
+      }))
       setStatus({ kind: 'error', message })
     }
 
@@ -165,7 +115,6 @@ function ClaimCalculatorModal({ job, password, onPasswordChange, onClose }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({
-          password,
           edits: [{ jobNumber: job.jobNumber, col: field.col, value: newValue }],
         }),
       })
@@ -175,12 +124,12 @@ function ClaimCalculatorModal({ job, password, onPasswordChange, onClose }) {
         return
       }
 
-      setStatus({ kind: 'idle', message: `Saving "${field.label}"…` })
+      setStatus({ kind: 'idle', message: `Saving "${field.label}" for ${job.jobNumber} ${job.jobName}…` })
       const result = await pollStagedStatus(payload.staged)
       if (result.status === 'done') {
         setStatus({
           kind: 'ok',
-          message: `Saved "${field.label}" — the site will redeploy in about a minute before it shows up here.`,
+          message: `Saved "${field.label}" for ${job.jobNumber} ${job.jobName} — the site will redeploy in about a minute before it shows up here.`,
         })
       } else if (result.status === 'failed') {
         revert(`${result.message} — reverted.`)
@@ -195,109 +144,26 @@ function ClaimCalculatorModal({ job, password, onPasswordChange, onClose }) {
     } finally {
       setSavingKeys((prev) => {
         const next = new Set(prev)
-        next.delete(field.key)
+        next.delete(cellKey)
         return next
       })
     }
   }
 
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      onClick={onClose}
-      role="presentation"
-    >
-      <div
-        className="flex w-full max-w-md flex-col gap-4 rounded-[18px] border border-white/10 bg-[#11161c] p-6 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="claim-calc-modal-title"
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-[12px] text-neutral-500">{job.jobNumber}</p>
-            <h3 id="claim-calc-modal-title" className="text-[15px] font-medium text-neutral-100">
-              {job.jobName}
-            </h3>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="shrink-0 rounded-full p-1 text-neutral-500 transition-colors hover:bg-white/[0.06] hover:text-white"
-          >
-            ✕
-          </button>
-        </div>
+  // Quoted GP $/hr is a per-job quote figure (from the Deliverables Sheet),
+  // not something the Claim Calculator By Month sheet itself tracks — pull
+  // it in from the Job Directory's own data, matched by job number.
+  const quotedGpPerHourByJob = useMemo(() => {
+    const map = new Map()
+    for (const j of allJobs) map.set(j.jobNumber, j.quotedGpPerHour ?? null)
+    return map
+  }, [allJobs])
 
-        <div>
-          <label htmlFor="claim-calc-password" className="mb-1.5 block text-xs text-neutral-500">
-            Upload password — required before any change can save
-          </label>
-          <input
-            id="claim-calc-password"
-            type="password"
-            value={password}
-            onChange={(e) => onPasswordChange(e.target.value)}
-            className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-brand-green/50 focus:outline-none"
-          />
-        </div>
-
-        {status.message && (
-          <p className={`text-sm ${status.kind === 'error' ? 'text-red-400' : 'text-brand-green'}`}>
-            {status.message}
-          </p>
-        )}
-
-        <div className="flex flex-col gap-3">
-          {EDITABLE_FIELDS.map((field) => (
-            <div key={field.key}>
-              <label htmlFor={`claim-calc-${field.key}`} className="mb-1 block text-[12px] text-neutral-500">
-                {field.label}
-              </label>
-              <EditableCell
-                id={`claim-calc-${field.key}`}
-                value={values[field.key]}
-                saving={savingKeys.has(field.key)}
-                numeric={field.num}
-                onChange={(newValue) => handleChange(field, newValue)}
-              />
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-const TABLE_COLUMNS = [
-  { key: 'jobNumber', label: 'Job #' },
-  { key: 'jobName', label: 'Job name' },
-  { key: 'claim', label: 'Claim this month', num: true, format: money },
-  { key: 'costs', label: 'Costs this month', num: true, format: money },
-  { key: 'profit', label: 'Profit', num: true, format: money },
-  { key: 'margin', label: 'Margin', num: true, format: percent },
-  { key: 'quotedMargin', label: 'Quoted margin', num: true, format: percent },
-  { key: 'estimatedMarginEom', label: 'Est. margin E.O.M', num: true, format: percent },
-  { key: 'gpPerHourThisMonth', label: 'GP $/hr this month', num: true, format: money },
-]
-
-export default function MonthlyClaims({ monthlyClaims, onBack }) {
-  const { jobs, totals } = monthlyClaims
-
-  // Lifted here (rather than living inside the modal) so it's entered once
-  // and carries over between jobs for the rest of the session, instead of
-  // re-typing the password every time a different job is opened.
-  const [password, setPassword] = useState('')
-  const [editingJob, setEditingJob] = useState(null)
-
-  const [profitDir, setProfitDir] = useState(1) // 1 = highest first, -1 = lowest first
-  const [gpDir, setGpDir] = useState(1)
-  // Default to margin ascending (worst first) rather than profit descending
-  // (best first) — for a full per-job table, "which jobs are underperforming"
-  // is the more actionable starting question than "which job made the most".
-  const [tableSort, setTableSort] = useState({ key: 'margin', dir: 1 })
+  // A single company-wide $/hr rate, set by hand every ~6 months (not
+  // per-job, not derived from the workbook) — used below to turn "hours to
+  // come" into a projected dollar cost.
+  const [avgHourlyRate, setAvgHourlyRate] = useLocalStorageState('monthlyClaims.avgHourlyRate', '')
+  const rate = Number(avgHourlyRate) || 0
 
   // Every job in the workbook gets a row on the "Claim Calculator By Month"
   // sheet whether or not it was claimed against this month — most fields
@@ -306,20 +172,57 @@ export default function MonthlyClaims({ monthlyClaims, onBack }) {
   // most of it zeroed out, duplicates the Job Directory without adding
   // anything a claim-focused view needs. Jobs actually claimed against
   // this month are the ones worth showing.
-  const activeJobs = useMemo(() => jobs.filter((j) => j.claim !== 0 || j.costs !== 0), [jobs])
+  //
+  // Total cost = cost of month
+  //            + (hours to come × the rate above)
+  //            + cost to come
+  //            + ((hours actual + hours to come) × quoted GP $/hr)
+  //            + (retention % × cost of month), if a retention % is set
+  const activeJobs = useMemo(
+    () =>
+      jobs
+        .filter((j) => j.claim !== 0 || j.costs !== 0)
+        .map((j) => {
+          const override = fieldOverrides[j.jobNumber]
+          const retention = override?.retention !== undefined ? Number(override.retention) || 0 : j.retention
+          const hoursToCompleteBeforeEom =
+            override?.hoursToCompleteBeforeEom !== undefined
+              ? Number(override.hoursToCompleteBeforeEom) || 0
+              : j.hoursToCompleteBeforeEom
+          const costsToComeBeforeEom =
+            override?.costsToComeBeforeEom !== undefined
+              ? Number(override.costsToComeBeforeEom) || 0
+              : j.costsToComeBeforeEom
+          const notes = override?.notes !== undefined ? override.notes : j.notes
+          const hoursThisMonth = hoursThisMonthByJob.get(j.jobNumber) ?? j.hoursThisMonth
+
+          const quotedGpPerHour = quotedGpPerHourByJob.get(j.jobNumber) ?? null
+          const hoursToCome = hoursToCompleteBeforeEom ?? 0
+          const hoursActual = hoursThisMonth ?? 0
+          const costsToCome = costsToComeBeforeEom ?? 0
+          const costOfMonth = j.costs ?? 0
+          const hoursToComeCost = hoursToCome * rate
+          const quotedHoursValue = (hoursActual + hoursToCome) * (quotedGpPerHour ?? 0)
+          const retentionAddOn = retention ? (retention / 100) * costOfMonth : 0
+          const total = costOfMonth + hoursToComeCost + costsToCome + quotedHoursValue + retentionAddOn
+          return {
+            ...j,
+            retention,
+            hoursToCompleteBeforeEom,
+            costsToComeBeforeEom,
+            notes,
+            hoursThisMonth,
+            quotedGpPerHour,
+            hoursToComeCost,
+            quotedHoursValue,
+            retentionAddOn,
+            total,
+          }
+        }),
+    [jobs, quotedGpPerHourByJob, hoursThisMonthByJob, rate, fieldOverrides]
+  )
   const inactiveCount = jobs.length - activeJobs.length
 
-  const byProfit = useMemo(
-    () => [...activeJobs].filter((j) => j.profit !== null).sort((a, b) => (b.profit - a.profit) * profitDir),
-    [activeJobs, profitDir]
-  )
-  const byGpPerHour = useMemo(
-    () =>
-      [...activeJobs]
-        .filter((j) => j.gpPerHourThisMonth !== null)
-        .sort((a, b) => (b.gpPerHourThisMonth - a.gpPerHourThisMonth) * gpDir),
-    [activeJobs, gpDir]
-  )
   const tableRows = useMemo(() => {
     return [...activeJobs].sort((a, b) => {
       const av = a[tableSort.key]
@@ -335,16 +238,6 @@ export default function MonthlyClaims({ monthlyClaims, onBack }) {
   function toggleTableSort(key) {
     setTableSort((prev) => (prev.key === key ? { key, dir: -prev.dir } : { key, dir: 1 }))
   }
-
-  const maxAbsProfit = Math.max(1, ...byProfit.map((j) => Math.abs(j.profit)))
-  const maxAbsGpPerHour = Math.max(1, ...byGpPerHour.map((j) => Math.abs(j.gpPerHourThisMonth)))
-
-  // One combined total across every job — used to be a Commercial/
-  // Residential split, but that was just two hardcoded row ranges from
-  // however the sheet was originally laid out, and any job added later
-  // fell outside both, silently never counted in either (see
-  // scripts/update-jobs.mjs for the full story).
-  const overallTotal = totals[0]
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
@@ -364,65 +257,48 @@ export default function MonthlyClaims({ monthlyClaims, onBack }) {
         </p>
       </div>
 
-      <TotalsCard total={overallTotal} />
-
-      <div className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6">
-        <SortableHeading label="Profit this month by job" dir={profitDir} onToggle={() => setProfitDir((d) => -d)} />
-        <div className="mt-3 flex flex-col">
-          {byProfit.map((j) => (
-            <DivergingBar
-              key={j.jobNumber}
-              label={j.jobName}
-              value={j.profit}
-              maxAbs={maxAbsProfit}
-              formatValue={money}
-            />
-          ))}
-        </div>
-      </div>
-
-      <div className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6">
-        <SortableHeading label="GP $ per hour this month" dir={gpDir} onToggle={() => setGpDir((d) => -d)} />
-        <p className="mb-4 text-[13px] text-neutral-500">
-          Profit generated per labour hour logged this month — a negative value usually means
-          hours were logged against the job with little or no claim recorded yet.
+      {status.message && (
+        <p className={`text-sm ${status.kind === 'error' ? 'text-red-400' : 'text-brand-green'}`}>
+          {status.message}
         </p>
-        <div className="flex flex-col">
-          {byGpPerHour.map((j) => (
-            <DivergingBar
-              key={j.jobNumber}
-              label={j.jobName}
-              value={j.gpPerHourThisMonth}
-              maxAbs={maxAbsGpPerHour}
-              formatValue={money}
-            />
-          ))}
-        </div>
-      </div>
+      )}
 
       <div className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6">
-        <div className="mb-4">
-          <h2 className="text-[15px] font-medium text-neutral-100">Jobs claimed this month — full figures</h2>
-          <p className="mt-1 text-[12px] text-neutral-500">
-            Click a job to edit its retention, estimates, and notes.
-            {inactiveCount > 0 && (
-              <>
-                {' '}
-                {inactiveCount} other job{inactiveCount === 1 ? '' : 's'} with no claim this month{' '}
-                {inactiveCount === 1 ? 'is' : 'are'} hidden — use the picker below to edit one of those.
-              </>
-            )}
-          </p>
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h2 className="text-[15px] font-medium text-neutral-100">Jobs claimed this month — full figures</h2>
+            <p className="mt-1 text-[12px] text-neutral-500">
+              Type into Ret%, Hours to come, Cost to come, or Notes to save — no need to open
+              anything first. Total cost = cost of month + (hours to come × the rate here) + cost
+              to come + ((hours actual + hours to come) × quoted GP $/hr), plus retention % of
+              cost of month if set.
+              {inactiveCount > 0 && (
+                <> {inactiveCount} other job{inactiveCount === 1 ? '' : 's'} with no claim this month {inactiveCount === 1 ? 'is' : 'are'} hidden.</>
+              )}
+            </p>
+          </div>
+          <div>
+            <label htmlFor="avg-hourly-rate" className="mb-1 block text-[12px] text-neutral-500">
+              Average $/hr rate (reviewed every 6 months)
+            </label>
+            <input
+              id="avg-hourly-rate"
+              type="number"
+              value={avgHourlyRate}
+              onChange={(e) => setAvgHourlyRate(e.target.value)}
+              placeholder="e.g. 65"
+              className="w-36 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1.5 text-sm text-neutral-200 focus:border-brand-green/50 focus:outline-none"
+            />
+          </div>
         </div>
-        {/* Mobile: one stacked card per job with the headline figures,
-            instead of a wide table that'd need horizontal scrolling. */}
+
+        {/* Mobile: one stacked card per job with the headline figures plus
+            the same inline editable fields as the desktop table. */}
         <div className="flex flex-col gap-3 sm:hidden">
           {tableRows.map((j) => (
-            <button
+            <div
               key={j.jobNumber}
-              type="button"
-              onClick={() => setEditingJob(j)}
-              className="flex flex-col gap-2 rounded-[14px] border border-white/[0.06] bg-white/[0.02] p-4 text-left transition-colors hover:border-brand-green/30 hover:bg-white/[0.04]"
+              className="flex flex-col gap-3 rounded-[14px] border border-white/[0.06] bg-white/[0.02] p-4"
             >
               <p className="text-[14px] font-medium text-white">
                 <span className="text-neutral-500">{j.jobNumber}</span> {j.jobName}
@@ -438,8 +314,29 @@ export default function MonthlyClaims({ monthlyClaims, onBack }) {
                 </span>
                 <span className="text-neutral-500">Margin</span>
                 <span className="text-right tabular-nums text-neutral-200">{percent(j.margin)}</span>
+                <span className="text-neutral-500">Total cost</span>
+                <span className="text-right tabular-nums font-medium text-white">{money(j.total)}</span>
               </div>
-            </button>
+              <div className="flex flex-col gap-2 border-t border-white/10 pt-3">
+                {EDITABLE_FIELDS.map((field) => (
+                  <div key={field.key} className="flex items-center justify-between gap-3">
+                    <span className="text-[12px] text-neutral-400">
+                      {field.label}
+                      {field.key === 'retention' && j.retentionAddOn ? ` (${money(j.retentionAddOn)})` : ''}
+                    </span>
+                    <div className="w-28 shrink-0">
+                      <EditableCell
+                        id={`claim-calc-mobile-${j.jobNumber}-${field.key}`}
+                        value={j[field.key] ?? ''}
+                        saving={savingKeys.has(`${j.jobNumber}:${field.key}`)}
+                        numeric={field.num}
+                        onChange={(newValue) => saveField(j, field, newValue)}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           ))}
           {tableRows.length === 0 && <p className="empty-row">No jobs to show.</p>}
         </div>
@@ -448,79 +345,123 @@ export default function MonthlyClaims({ monthlyClaims, onBack }) {
           <table className="data-table">
             <thead>
               <tr>
-                {TABLE_COLUMNS.map((col) => (
+                <th
+                  className="sortable sticky-col"
+                  style={{ left: STICKY_LEFTS[0], minWidth: STICKY_WIDTHS[0] }}
+                  onClick={() => toggleTableSort('jobNumber')}
+                  aria-sort={tableSort.key === 'jobNumber' ? (tableSort.dir === 1 ? 'ascending' : 'descending') : 'none'}
+                >
+                  Job #{tableSort.key === 'jobNumber' && (tableSort.dir === 1 ? ' ▲' : ' ▼')}
+                </th>
+                <th
+                  className="sortable sticky-col sticky-col-end"
+                  style={{ left: STICKY_LEFTS[1], minWidth: STICKY_WIDTHS[1] }}
+                  onClick={() => toggleTableSort('jobName')}
+                  aria-sort={tableSort.key === 'jobName' ? (tableSort.dir === 1 ? 'ascending' : 'descending') : 'none'}
+                >
+                  Job name{tableSort.key === 'jobName' && (tableSort.dir === 1 ? ' ▲' : ' ▼')}
+                </th>
+                <th className="num">Ret%</th>
+                {READONLY_COLUMNS.slice(0, 2).map((col) => (
                   <th
                     key={col.key}
-                    className={`${col.num ? 'num' : ''} sortable`}
+                    className="num sortable"
                     onClick={() => toggleTableSort(col.key)}
-                    aria-sort={
-                      tableSort.key === col.key ? (tableSort.dir === 1 ? 'ascending' : 'descending') : 'none'
-                    }
+                    aria-sort={tableSort.key === col.key ? (tableSort.dir === 1 ? 'ascending' : 'descending') : 'none'}
                   >
                     {col.label}
                     {tableSort.key === col.key && (tableSort.dir === 1 ? ' ▲' : ' ▼')}
                   </th>
                 ))}
+                <th className="num">Hours to come</th>
+                <th className="num">Cost to come</th>
+                {READONLY_COLUMNS.slice(2).map((col) => (
+                  <th
+                    key={col.key}
+                    className="num sortable"
+                    onClick={() => toggleTableSort(col.key)}
+                    aria-sort={tableSort.key === col.key ? (tableSort.dir === 1 ? 'ascending' : 'descending') : 'none'}
+                  >
+                    {col.label}
+                    {tableSort.key === col.key && (tableSort.dir === 1 ? ' ▲' : ' ▼')}
+                  </th>
+                ))}
+                <th>Notes</th>
               </tr>
             </thead>
             <tbody>
               {tableRows.map((j) => (
-                <tr
-                  key={j.jobNumber}
-                  onClick={() => setEditingJob(j)}
-                  className="cursor-pointer transition-colors hover:bg-white/[0.04]"
-                >
-                  <td className="whitespace-nowrap">{j.jobNumber}</td>
-                  <td>{j.jobName}</td>
-                  <td className="num tabular">{money(j.claim)}</td>
-                  <td className="num tabular">{money(j.costs)}</td>
-                  <td className={`num tabular ${j.profit !== null && j.profit < 0 ? 'text-red-400' : ''}`}>
-                    {money(j.profit)}
+                <tr key={j.jobNumber}>
+                  <td className="sticky-col whitespace-nowrap" style={{ left: STICKY_LEFTS[0], minWidth: STICKY_WIDTHS[0] }}>
+                    {j.jobNumber}
                   </td>
-                  <td className="num tabular">{percent(j.margin)}</td>
-                  <td className="num tabular">{percent(j.quotedMargin)}</td>
-                  <td className="num tabular">{percent(j.estimatedMarginEom)}</td>
-                  <td className="num tabular">{money(j.gpPerHourThisMonth)}</td>
+                  <td className="sticky-col sticky-col-end" style={{ left: STICKY_LEFTS[1], minWidth: STICKY_WIDTHS[1] }}>
+                    {j.jobName}
+                  </td>
+                  <td className="min-w-[90px] p-1">
+                    <EditableCell
+                      id={`claim-calc-table-${j.jobNumber}-retention`}
+                      value={j.retention ?? ''}
+                      saving={savingKeys.has(`${j.jobNumber}:retention`)}
+                      numeric
+                      onChange={(newValue) => saveField(j, EDITABLE_FIELDS[0], newValue)}
+                    />
+                    {j.retentionAddOn ? (
+                      <p className="mt-0.5 text-right text-[11px] tabular-nums text-neutral-500">
+                        {money(j.retentionAddOn)}
+                      </p>
+                    ) : null}
+                  </td>
+                  {READONLY_COLUMNS.slice(0, 2).map((col) => (
+                    <td key={col.key} className="num tabular">
+                      {col.format(j[col.key])}
+                    </td>
+                  ))}
+                  <td className="min-w-[90px] p-1">
+                    <EditableCell
+                      id={`claim-calc-table-${j.jobNumber}-hoursToCompleteBeforeEom`}
+                      value={j.hoursToCompleteBeforeEom ?? ''}
+                      saving={savingKeys.has(`${j.jobNumber}:hoursToCompleteBeforeEom`)}
+                      numeric
+                      onChange={(newValue) => saveField(j, EDITABLE_FIELDS[1], newValue)}
+                    />
+                  </td>
+                  <td className="min-w-[90px] p-1">
+                    <EditableCell
+                      id={`claim-calc-table-${j.jobNumber}-costsToComeBeforeEom`}
+                      value={j.costsToComeBeforeEom ?? ''}
+                      saving={savingKeys.has(`${j.jobNumber}:costsToComeBeforeEom`)}
+                      numeric
+                      onChange={(newValue) => saveField(j, EDITABLE_FIELDS[2], newValue)}
+                    />
+                  </td>
+                  {READONLY_COLUMNS.slice(2).map((col) => (
+                    <td key={col.key} className="num tabular">
+                      {col.format(j[col.key])}
+                    </td>
+                  ))}
+                  <td className="min-w-[160px] p-1">
+                    <EditableCell
+                      id={`claim-calc-table-${j.jobNumber}-notes`}
+                      value={j.notes ?? ''}
+                      saving={savingKeys.has(`${j.jobNumber}:notes`)}
+                      numeric={false}
+                      onChange={(newValue) => saveField(j, EDITABLE_FIELDS[3], newValue)}
+                    />
+                  </td>
                 </tr>
               ))}
+              {tableRows.length === 0 && (
+                <tr>
+                  <td colSpan={12} className="empty-row">
+                    No jobs to show.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
       </div>
-
-      <div className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6">
-        <h2 className="mb-3 text-[15px] font-medium text-neutral-100">Edit a different job</h2>
-        <p className="mb-3 text-[12px] text-neutral-500">
-          Includes jobs with no claim recorded this month — pick one to set its retention,
-          estimates, or notes.
-        </p>
-        <select
-          value=""
-          onChange={(e) => {
-            const job = jobs.find((j) => j.jobNumber === e.target.value)
-            if (job) setEditingJob(job)
-          }}
-          className="w-full max-w-sm rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-brand-green/50 focus:outline-none"
-        >
-          <option value="" disabled>
-            Select a job…
-          </option>
-          {jobs.map((j) => (
-            <option key={j.jobNumber} value={j.jobNumber}>
-              {j.jobNumber} {j.jobName}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {editingJob && (
-        <ClaimCalculatorModal
-          job={editingJob}
-          password={password}
-          onPasswordChange={setPassword}
-          onClose={() => setEditingJob(null)}
-        />
-      )}
     </div>
   )
 }

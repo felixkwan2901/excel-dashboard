@@ -5,7 +5,7 @@
 // lands on the current-view entry with its latest filter state intact
 // rather than stepping through every tab click.
 const DEFAULTS = {
-  view: 'home',
+  view: 'dashboard',
   selectedJobId: null,
   dashboardQuery: '',
   dashboardFilter: 'all',

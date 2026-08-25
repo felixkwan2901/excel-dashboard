@@ -80,19 +80,16 @@ function StaleJobsPanel({ jobs }) {
 }
 
 export default function UpdateData({ onBack, jobs }) {
-  const [password, setPassword] = useState('')
   const [files, setFiles] = useState(null)
   const [status, setStatus] = useState('idle') // idle | staging | processing | done | error
   const [message, setMessage] = useState('')
   const [fileResults, setFileResults] = useState(null) // [{ name, status, message }]
 
-  const [replacePassword, setReplacePassword] = useState('')
   const [replaceFile, setReplaceFile] = useState(null)
   const [replaceConfirmed, setReplaceConfirmed] = useState(false)
   const [replaceStatus, setReplaceStatus] = useState('idle') // idle | staging | processing | done | error
   const [replaceMessage, setReplaceMessage] = useState('')
 
-  const [newJobPassword, setNewJobPassword] = useState('')
   const [newJob, setNewJob] = useState({
     jobNumber: '', jobName: '', jobOwner: '',
     quotedPrice: '', quotedMaterialCost: '', quotedLabourCost: '', quotedLabourHours: '',
@@ -109,7 +106,6 @@ export default function UpdateData({ onBack, jobs }) {
     setFileResults(null)
 
     const form = new FormData()
-    form.set('password', password)
     for (const file of files) form.append('files', file)
 
     try {
@@ -147,7 +143,6 @@ export default function UpdateData({ onBack, jobs }) {
     setReplaceMessage('')
 
     const form = new FormData()
-    form.set('password', replacePassword)
     form.set('file', replaceFile)
 
     try {
@@ -191,7 +186,7 @@ export default function UpdateData({ onBack, jobs }) {
       const res = await fetch(`${UPLOAD_WORKER_URL}/new-job`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ password: newJobPassword, ...newJob }),
+        body: JSON.stringify(newJob),
       })
       const payload = await res.json()
       if (!res.ok) {
@@ -238,20 +233,6 @@ export default function UpdateData({ onBack, jobs }) {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleReplaceSubmit} className="flex flex-col gap-4">
-            <div>
-              <label htmlFor="replace-password" className="mb-1.5 block text-xs text-text-muted">
-                Upload password
-              </label>
-              <input
-                id="replace-password"
-                type="password"
-                value={replacePassword}
-                onChange={(e) => setReplacePassword(e.target.value)}
-                required
-                className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-brand-green/50 focus:outline-none"
-              />
-            </div>
-
             <div>
               <label htmlFor="replace-file" className="mb-1.5 block text-xs text-text-muted">
                 Edited workbook (.xlsx)
@@ -305,20 +286,6 @@ export default function UpdateData({ onBack, jobs }) {
         <CardContent>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div>
-              <label htmlFor="update-password" className="mb-1.5 block text-xs text-text-muted">
-                Upload password
-              </label>
-              <input
-                id="update-password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-brand-green/50 focus:outline-none"
-              />
-            </div>
-
-            <div>
               <label htmlFor="update-files" className="mb-1.5 block text-xs text-text-muted">
                 Job exports (.xlsx, select multiple)
               </label>
@@ -346,24 +313,13 @@ export default function UpdateData({ onBack, jobs }) {
           <p className="text-xs text-text-muted">
             Adds this job to the Deliverables Sheet, Job checklist, Monthly Claims, and Upcoming
             Work — all four at once, so weekly uploads and the checklist work for it right away.
+            Only the job number and name are required — the quoted figures below default to $0/0
+            hrs if left blank and can be filled in later (they don&apos;t come from weekly
+            exports, which only carry that week&apos;s actual hours/costs, not the original quote).
           </p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleNewJobSubmit} className="flex flex-col gap-4">
-            <div>
-              <label htmlFor="new-job-password" className="mb-1.5 block text-xs text-text-muted">
-                Upload password
-              </label>
-              <input
-                id="new-job-password"
-                type="password"
-                value={newJobPassword}
-                onChange={(e) => setNewJobPassword(e.target.value)}
-                required
-                className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-brand-green/50 focus:outline-none"
-              />
-            </div>
-
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label htmlFor="new-job-number" className="mb-1.5 block text-xs text-text-muted">
@@ -416,7 +372,7 @@ export default function UpdateData({ onBack, jobs }) {
                   type="number"
                   value={newJob.quotedPrice}
                   onChange={(e) => setNewJob((j) => ({ ...j, quotedPrice: e.target.value }))}
-                  required
+                  placeholder="Optional — defaults to $0"
                   className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-brand-green/50 focus:outline-none"
                 />
               </div>
@@ -429,7 +385,7 @@ export default function UpdateData({ onBack, jobs }) {
                   type="number"
                   value={newJob.quotedMaterialCost}
                   onChange={(e) => setNewJob((j) => ({ ...j, quotedMaterialCost: e.target.value }))}
-                  required
+                  placeholder="Optional — defaults to $0"
                   className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-brand-green/50 focus:outline-none"
                 />
               </div>
@@ -442,7 +398,7 @@ export default function UpdateData({ onBack, jobs }) {
                   type="number"
                   value={newJob.quotedLabourCost}
                   onChange={(e) => setNewJob((j) => ({ ...j, quotedLabourCost: e.target.value }))}
-                  required
+                  placeholder="Optional — defaults to $0"
                   className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-brand-green/50 focus:outline-none"
                 />
               </div>
@@ -455,7 +411,7 @@ export default function UpdateData({ onBack, jobs }) {
                   type="number"
                   value={newJob.quotedLabourHours}
                   onChange={(e) => setNewJob((j) => ({ ...j, quotedLabourHours: e.target.value }))}
-                  required
+                  placeholder="Optional — defaults to 0"
                   className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-brand-green/50 focus:outline-none"
                 />
               </div>

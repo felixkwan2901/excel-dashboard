@@ -327,6 +327,52 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Frozen leading columns (job identity + quoted/used/remaining hours) on
+   wide, many-month tables like Upcoming work — so those stay in view while
+   scrolling sideways through the month columns instead of scrolling out of
+   frame along with everything else. */
+.data-table .sticky-col {
+  position: sticky;
+  background: #11161c;
+}
+
+.data-table thead .sticky-col {
+  z-index: 3;
+}
+
+.data-table tbody .sticky-col {
+  z-index: 2;
+}
+
+.data-table tbody tr:nth-child(even) .sticky-col {
+  background: #141a21;
+}
+
+.data-table .sticky-col-end {
+  box-shadow: 2px 0 6px rgba(0, 0, 0, 0.35);
+}
+
+/* Thursday-morning overdue alert for an unfinished Weekly job check sheet —
+   a steady red tint would be too easy to miss on a busy checklist page, so
+   it pulses instead. Respects reduced-motion by falling back to a flat
+   warning tint (still red, just not moving). */
+@keyframes overdue-flash {
+  0%, 100% { background-color: rgba(239, 68, 68, 0.08); border-color: rgba(239, 68, 68, 0.25); }
+  50% { background-color: rgba(239, 68, 68, 0.22); border-color: rgba(239, 68, 68, 0.55); }
+}
+
+.overdue-flash {
+  animation: overdue-flash 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overdue-flash {
+    animation: none;
+    background-color: rgba(239, 68, 68, 0.14);
+    border-color: rgba(239, 68, 68, 0.4);
+  }
+}
+
 .empty-row {
   text-align: center;
   color: var(--text-muted);

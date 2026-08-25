@@ -108,7 +108,7 @@ const PAGE_STYLE = `
   h1 { font-size: 18px; margin: 0 0 6px; }
   p.sub { color: #a8a8a4; font-size: 13px; margin: 0 0 24px; }
   label { display: block; font-size: 13px; color: #a8a8a4; margin: 16px 0 6px; }
-  input[type="file"], input[type="password"] {
+  input[type="file"] {
     width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 8px;
     border: 1px solid rgba(242,242,240,0.12); background: #191919; color: #f2f2f0; font: inherit; font-size: 13px;
   }
@@ -147,9 +147,6 @@ function renderForm(message) {
     <div class="card">
       <h1>Replace with an edited file</h1>
       <form method="POST" action="/replace" enctype="multipart/form-data">
-        <label for="replace-password">Upload password</label>
-        <input type="password" id="replace-password" name="password" required />
-
         <label for="replace-file">Edited workbook (.xlsx)</label>
         <input type="file" id="replace-file" name="file" accept=".xlsx" required />
 
@@ -165,9 +162,6 @@ function renderForm(message) {
     <div class="card">
       <h1>Update job data</h1>
       <form method="POST" action="/upload" enctype="multipart/form-data">
-        <label for="password">Upload password</label>
-        <input type="password" id="password" name="password" required />
-
         <label for="files">Job exports (.xlsx, select multiple)</label>
         <input type="file" id="files" name="files" accept=".xlsx" multiple required />
 
@@ -226,11 +220,6 @@ function escapeHtml(s) {
 
 async function handleUpload(request, env) {
   const form = await request.formData()
-  const password = form.get('password')
-
-  if (!env.UPLOAD_PASSWORD || password !== env.UPLOAD_PASSWORD) {
-    return respond(request, 401, { htmlMessage: `<div class="result err">Wrong password. Please try again.</div>`, data: { error: 'wrong_password', message: 'Wrong password.' } })
-  }
 
   const files = form.getAll('files').filter((f) => f && typeof f !== 'string')
 
@@ -318,11 +307,7 @@ async function handleUploadFromUrl(request, env) {
     return json({ error: 'bad_json', message: 'Request body must be JSON.' }, 400)
   }
 
-  const { password, url: fileUrl, filename } = body ?? {}
-
-  if (!env.UPLOAD_PASSWORD || password !== env.UPLOAD_PASSWORD) {
-    return json({ error: 'wrong_password', message: 'Wrong password.' }, 401)
-  }
+  const { url: fileUrl, filename } = body ?? {}
 
   if (typeof fileUrl !== 'string' || !/^https?:\/\//i.test(fileUrl)) {
     return json({ error: 'bad_url', message: '"url" must be an http(s) URL to the report file.' }, 400)
@@ -371,11 +356,6 @@ async function handleUploadFromUrl(request, env) {
 
 async function handleReplace(request, env) {
   const form = await request.formData()
-  const password = form.get('password')
-
-  if (!env.UPLOAD_PASSWORD || password !== env.UPLOAD_PASSWORD) {
-    return respond(request, 401, { htmlMessage: `<div class="result err">Wrong password. Please try again.</div>`, data: { error: 'wrong_password', message: 'Wrong password.' } })
-  }
 
   const file = form.get('file')
   if (!file || typeof file === 'string') {
@@ -417,11 +397,7 @@ async function handleMainSheetUpdate(request, env) {
   if (!body) {
     return respond(request, 400, { htmlMessage: `<div class="result err">Invalid request body.</div>`, data: { error: 'bad_request', message: 'Invalid request body.' } })
   }
-  const { password, edits } = body
-
-  if (!env.UPLOAD_PASSWORD || password !== env.UPLOAD_PASSWORD) {
-    return respond(request, 401, { htmlMessage: `<div class="result err">Wrong password. Please try again.</div>`, data: { error: 'wrong_password', message: 'Wrong password.' } })
-  }
+  const { edits } = body
   if (!Array.isArray(edits) || edits.length === 0) {
     return respond(request, 400, { htmlMessage: `<div class="result err">No changes to save.</div>`, data: { error: 'no_edits', message: 'No changes to save.' } })
   }
@@ -454,11 +430,7 @@ async function handleArchiveJob(request, env) {
   if (!body) {
     return respond(request, 400, { htmlMessage: `<div class="result err">Invalid request body.</div>`, data: { error: 'bad_request', message: 'Invalid request body.' } })
   }
-  const { password, jobNumber, action } = body
-
-  if (!env.UPLOAD_PASSWORD || password !== env.UPLOAD_PASSWORD) {
-    return respond(request, 401, { htmlMessage: `<div class="result err">Wrong password. Please try again.</div>`, data: { error: 'wrong_password', message: 'Wrong password.' } })
-  }
+  const { jobNumber, action } = body
   if (!jobNumber || (action !== 'archive' && action !== 'unarchive')) {
     return respond(request, 400, { htmlMessage: `<div class="result err">Invalid request.</div>`, data: { error: 'bad_request', message: 'Invalid request.' } })
   }
@@ -490,11 +462,7 @@ async function handleNewJob(request, env) {
   if (!body) {
     return respond(request, 400, { htmlMessage: `<div class="result err">Invalid request body.</div>`, data: { error: 'bad_request', message: 'Invalid request body.' } })
   }
-  const { password, jobNumber, jobName, jobOwner, quotedPrice, quotedMaterialCost, quotedLabourCost, quotedLabourHours } = body
-
-  if (!env.UPLOAD_PASSWORD || password !== env.UPLOAD_PASSWORD) {
-    return respond(request, 401, { htmlMessage: `<div class="result err">Wrong password. Please try again.</div>`, data: { error: 'wrong_password', message: 'Wrong password.' } })
-  }
+  const { jobNumber, jobName, jobOwner, quotedPrice, quotedMaterialCost, quotedLabourCost, quotedLabourHours } = body
   if (!jobNumber || !Number.isFinite(Number(jobNumber)) || Number(jobNumber) <= 0) {
     return respond(request, 400, { htmlMessage: `<div class="result err">Job number must be a positive number.</div>`, data: { error: 'bad_request', message: 'Job number must be a positive number.' } })
   }
@@ -539,11 +507,7 @@ async function handleClaimCalculatorUpdate(request, env) {
   if (!body) {
     return respond(request, 400, { htmlMessage: `<div class="result err">Invalid request body.</div>`, data: { error: 'bad_request', message: 'Invalid request body.' } })
   }
-  const { password, edits } = body
-
-  if (!env.UPLOAD_PASSWORD || password !== env.UPLOAD_PASSWORD) {
-    return respond(request, 401, { htmlMessage: `<div class="result err">Wrong password. Please try again.</div>`, data: { error: 'wrong_password', message: 'Wrong password.' } })
-  }
+  const { edits } = body
   if (!Array.isArray(edits) || edits.length === 0) {
     return respond(request, 400, { htmlMessage: `<div class="result err">No changes to save.</div>`, data: { error: 'no_edits', message: 'No changes to save.' } })
   }
@@ -576,11 +540,7 @@ async function handleUpcomingWorkUpdate(request, env) {
   if (!body) {
     return respond(request, 400, { htmlMessage: `<div class="result err">Invalid request body.</div>`, data: { error: 'bad_request', message: 'Invalid request body.' } })
   }
-  const { password, edits } = body
-
-  if (!env.UPLOAD_PASSWORD || password !== env.UPLOAD_PASSWORD) {
-    return respond(request, 401, { htmlMessage: `<div class="result err">Wrong password. Please try again.</div>`, data: { error: 'wrong_password', message: 'Wrong password.' } })
-  }
+  const { edits } = body
   if (!Array.isArray(edits) || edits.length === 0) {
     return respond(request, 400, { htmlMessage: `<div class="result err">No changes to save.</div>`, data: { error: 'no_edits', message: 'No changes to save.' } })
   }
@@ -597,42 +557,6 @@ async function handleUpcomingWorkUpdate(request, env) {
   }
 
   const msg = `Queued ${edits.length} change(s). Merging usually takes 30-90 seconds, then the site takes another minute or so to redeploy before it's visible live.`
-  return respond(request, 200, {
-    htmlMessage: `<div class="result ok">${escapeHtml(msg)}</div>`,
-    data: { queued: true, staged: stagedPath, message: msg },
-  })
-}
-
-// ---------------------------------------------------------------------------
-// /todos — stage a to-do list edit under pending-updates/todos/
-// ---------------------------------------------------------------------------
-
-async function handleTodosUpdate(request, env) {
-  const body = await request.json().catch(() => null)
-  if (!body) {
-    return respond(request, 400, { htmlMessage: `<div class="result err">Invalid request body.</div>`, data: { error: 'bad_request', message: 'Invalid request body.' } })
-  }
-  const { password, todos } = body
-
-  if (!env.UPLOAD_PASSWORD || password !== env.UPLOAD_PASSWORD) {
-    return respond(request, 401, { htmlMessage: `<div class="result err">Wrong password. Please try again.</div>`, data: { error: 'wrong_password', message: 'Wrong password.' } })
-  }
-  if (!Array.isArray(todos)) {
-    return respond(request, 400, { htmlMessage: `<div class="result err">Invalid to-do list.</div>`, data: { error: 'bad_request', message: 'Invalid to-do list.' } })
-  }
-
-  const stagedPath = `pending-updates/todos/${stagedId()}.json`
-  const putRes = await putFileWithRetry(stagedPath, env, {
-    contentBase64: textToBase64(JSON.stringify({ todos, stagedAt: new Date().toISOString() }, null, 2)),
-    message: `Stage to-do list edit`,
-  })
-  if (!putRes.ok) {
-    const body2 = await putRes.text()
-    const msg = `GitHub rejected the save (${putRes.status}). ${body2.slice(0, 200)}`
-    return respond(request, 502, { htmlMessage: `<div class="result err">${escapeHtml(msg)}</div>`, data: { error: 'github_write_failed', message: msg } })
-  }
-
-  const msg = `Queued. Merging usually takes 30-90 seconds, then the site takes another minute or so to redeploy before it's visible live.`
   return respond(request, 200, {
     htmlMessage: `<div class="result ok">${escapeHtml(msg)}</div>`,
     data: { queued: true, staged: stagedPath, message: msg },
@@ -766,15 +690,6 @@ export default {
     if (request.method === 'POST' && url.pathname === '/upcoming-work') {
       try {
         return await handleUpcomingWorkUpdate(request, env)
-      } catch (err) {
-        const msg = `Unexpected error: ${String(err.message ?? err)}`
-        return respond(request, 500, { htmlMessage: `<div class="result err">${escapeHtml(msg)}</div>`, data: { error: 'unexpected', message: msg } })
-      }
-    }
-
-    if (request.method === 'POST' && url.pathname === '/todos') {
-      try {
-        return await handleTodosUpdate(request, env)
       } catch (err) {
         const msg = `Unexpected error: ${String(err.message ?? err)}`
         return respond(request, 500, { htmlMessage: `<div class="result err">${escapeHtml(msg)}</div>`, data: { error: 'unexpected', message: msg } })

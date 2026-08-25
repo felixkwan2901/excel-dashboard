@@ -9,27 +9,21 @@ const UPLOAD_WORKER_URL = 'https://cde-data-upload.fkw24.workers.dev'
 
 // Archiving hides a job everywhere on the dashboard without touching any
 // of its data in the workbook — reversible from the Job Directory's
-// "Archived jobs" panel. A password + explicit confirm step, same
-// friction as every other write action, since it's a real change even
-// though it's a safe one.
+// "Archived jobs" panel. An explicit confirm step, since it's a real
+// change even though it's a safe one.
 function ArchiveJobControl({ job, onBack }) {
   const [open, setOpen] = useState(false)
-  const [password, setPassword] = useState('')
   const [status, setStatus] = useState({ kind: 'idle', message: '' })
   const [busy, setBusy] = useState(false)
 
   async function handleArchive() {
-    if (!password) {
-      setStatus({ kind: 'error', message: 'Enter the upload password.' })
-      return
-    }
     setBusy(true)
     setStatus({ kind: 'idle', message: '' })
     try {
       const res = await fetch(`${UPLOAD_WORKER_URL}/archive-job`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ password, jobNumber: job.jobNumber, action: 'archive' }),
+        body: JSON.stringify({ jobNumber: job.jobNumber, action: 'archive' }),
       })
       const payload = await res.json()
       if (!res.ok) {
@@ -74,14 +68,6 @@ function ArchiveJobControl({ job, onBack }) {
         in the workbook is touched — reversible from the Job Directory&apos;s Archived jobs panel.
       </p>
       <div className="flex items-center gap-2">
-        <input
-          type="password"
-          placeholder="Upload password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          disabled={busy}
-          className="min-w-0 flex-1 rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-sm text-white focus:border-brand-green/50 focus:outline-none disabled:opacity-50"
-        />
         <button
           onClick={handleArchive}
           disabled={busy}

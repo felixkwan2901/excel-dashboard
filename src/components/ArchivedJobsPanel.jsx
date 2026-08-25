@@ -9,24 +9,19 @@ const UPLOAD_WORKER_URL = 'https://cde-data-upload.fkw24.workers.dev'
 // list every time someone opens the directory.
 export default function ArchivedJobsPanel({ archivedJobs }) {
   const [open, setOpen] = useState(false)
-  const [password, setPassword] = useState('')
   const [busyJob, setBusyJob] = useState(null)
   const [status, setStatus] = useState({ kind: 'idle', message: '' })
 
   if (archivedJobs.length === 0) return null
 
   async function handleUnarchive(job) {
-    if (!password) {
-      setStatus({ kind: 'error', message: 'Enter the upload password.' })
-      return
-    }
     setBusyJob(job.jobNumber)
     setStatus({ kind: 'idle', message: '' })
     try {
       const res = await fetch(`${UPLOAD_WORKER_URL}/archive-job`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ password, jobNumber: job.jobNumber, action: 'unarchive' }),
+        body: JSON.stringify({ jobNumber: job.jobNumber, action: 'unarchive' }),
       })
       const payload = await res.json()
       if (!res.ok) {
@@ -71,13 +66,6 @@ export default function ArchivedJobsPanel({ archivedJobs }) {
 
       {open && (
         <div className="mt-4 flex flex-col gap-3">
-          <input
-            type="password"
-            placeholder="Upload password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full max-w-xs rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-brand-green/50 focus:outline-none"
-          />
           {status.message && (
             <p className={`text-[13px] ${status.kind === 'error' ? 'text-red-400' : 'text-brand-green'}`}>
               {status.message}

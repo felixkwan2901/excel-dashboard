@@ -1,87 +1,189 @@
-import { useMemo, useState } from 'react'
-import { Settings2 } from 'lucide-react'
+import { useState } from 'react'
 import { pollStagedStatus } from '../lib/pollStagedStatus'
-import { useLocalStorageState } from '../lib/useLocalStorageState'
+import { currentWeekStart } from '../lib/weekStart'
 
 const UPLOAD_WORKER_URL = 'https://cde-data-upload.fkw24.workers.dev'
 
-const OPTIONS = [
-  { value: '', label: 'Not set' },
-  { value: 'Yes', label: 'Yes' },
-  { value: 'No', label: 'No' },
-  { value: 'N/A', label: 'N/A' },
+// Thursday morning is when the Weekly job check sheet is supposed to be
+// done for the week (see its "Notes for the meeting" field) — if it isn't
+// finished by then, item 18 should be hard to miss rather than just another
+// unchecked row.
+function isThursdayMorning() {
+  const now = new Date()
+  return now.getDay() === 4 && now.getHours() < 12
+}
+
+// The exact 19 items from the paper "Job Onboarding Checklist" — in order,
+// replacing whatever the workbook's own Main Sheet column headers happen to
+// say. Each item still saves to the Nth Main Sheet column positionally
+// (columns[i]), so no workbook/pipeline change was needed for the wording
+// swap. `twoWeek` marks the items the paper form annotates with a 2-week
+// target from job start (1, 11, 15, 16).
+const ONBOARDING_ITEMS = [
+  { label: 'Get job handover from Estimating / Design', twoWeek: true },
+  { label: 'Do we require any PS1 or PS3 work' },
+  { label: 'Accept job in Katipult' },
+  { label: 'Load retentions (if required)', retentionInput: true },
+  { label: 'Load purchase order number' },
+  { label: 'Load job contact details correctly' },
+  { label: "Add job to Procore (or project's tracking platform)" },
+  { label: 'Create WhatsApp group' },
+  { label: 'Load contract and programme to job files' },
+  { label: 'Check drawings are the current revision, not a superseded set' },
+  { label: 'Confirm supply authority / ICP application lodged', twoWeek: true },
+  { label: 'SSSP paperwork done and ready for the job' },
+  { label: 'Organise handover meeting with tradesman, print and load paperwork (plans, spec sheets etc.)' },
+  { label: "Confirm with builder's PM whether progress claims apply" },
+  { label: 'Order long lead time materials', twoWeek: true },
+  { label: 'Send away subcontractor PO', twoWeek: true },
+  { label: 'O&M Manual started — completed as far as possible' },
+  { label: 'Weekly Job Checklist completed', link: 'weekly' },
+  { label: 'Job completion checklist completed', link: 'completion' },
 ]
 
-const SELECT_STYLES = {
-  Yes: 'border-brand-green/40 bg-brand-green/10 text-brand-green',
-  No: 'border-red-500/30 bg-red-500/10 text-red-400',
-  'N/A': 'border-white/10 bg-white/[0.04] text-neutral-500',
-  '': 'border-white/10 bg-white/[0.02] text-neutral-600',
+const LINK_ITEM_COUNTS = { weekly: 9, completion: 11 }
+const LINK_STORAGE_KEYS = { weekly: 'weeklyCheckSheet', completion: 'jobCompletionChecklist' }
+
+// Items 18/19 can't be marked Yes until every sub-item on their linked
+// checklist (Weekly Job Check Sheet / Job Completion Checklist) is either
+// done or N/A — that linked checklist is stored client-side (see
+// WeeklyCheckSheetTab/JobCompletionChecklistTab), so read it straight out
+// of localStorage rather than threading its state through props.
+function isLinkedChecklistComplete(link, jobNumber) {
+  try {
+    const raw = localStorage.getItem(`${LINK_STORAGE_KEYS[link]}:${jobNumber}`)
+    if (!raw) return false
+    const stored = JSON.parse(raw)
+    // The weekly sheet resets every Saturday morning — a completion saved
+    // for an earlier week no longer counts as this week's item 18 being done.
+    if (link === 'weekly' && (!stored.weekOf || stored.weekOf < currentWeekStart())) return false
+    const items = stored.items ?? []
+    return items.length >= LINK_ITEM_COUNTS[link] && items.every((i) => i.done || i.na)
+  } catch {
+    return false
+  }
 }
 
-// A real <select> instead of a click-to-cycle button — opens as a native
-// dropdown you scroll/pick from (works the same with a trackpad, a touch
-// screen, or a keyboard), rather than requiring repeated taps to reach the
-// value you want.
+// A checkbox (done) plus an N/A pill — matches the paper form's checkbox +
+// N/A circle exactly, instead of a 4-option dropdown nobody needs (there's
+// no "No" on the paper checklist, just done or not-yet). Still saves as
+// 'Yes' / 'N/A' / '' under the hood, so the workbook's Main Sheet columns
+// are untouched.
 function ChecklistCell({ value, saving, onChange }) {
+  const done = value === 'Yes'
+  const na = value === 'N/A'
   return (
-    <select
-      value={value}
-      disabled={saving}
-      onChange={(e) => onChange(e.target.value)}
-      className={`w-full rounded-md border px-2 py-1 text-center text-[12px] font-medium transition-colors focus:border-brand-green/50 focus:outline-none disabled:opacity-50 ${SELECT_STYLES[value] ?? SELECT_STYLES['']}`}
-    >
-      {OPTIONS.map((o) => (
-        <option key={o.value} value={o.value} className="bg-[#11161c] text-neutral-200">
-          {o.label}
-        </option>
-      ))}
-    </select>
+    <div className="flex items-center gap-1.5">
+      <button
+        type="button"
+        disabled={saving}
+        onClick={() => onChange(done ? '' : 'Yes')}
+        aria-pressed={done}
+        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md border text-[12px] font-medium transition-colors disabled:opacity-50 ${
+          done
+            ? 'border-brand-green/40 bg-brand-green/10 text-brand-green'
+            : 'border-white/10 bg-white/[0.02] text-transparent hover:border-white/20'
+        }`}
+        title="Done"
+      >
+        ✓
+      </button>
+      <button
+        type="button"
+        disabled={saving}
+        onClick={() => onChange(na ? '' : 'N/A')}
+        aria-pressed={na}
+        className={`shrink-0 rounded-full border px-2 py-1 text-[11px] font-medium transition-colors disabled:opacity-50 ${
+          na
+            ? 'border-white/30 bg-white/[0.08] text-neutral-200'
+            : 'border-white/10 bg-white/[0.02] text-neutral-500 hover:text-neutral-300'
+        }`}
+      >
+        N/A
+      </button>
+    </div>
   )
 }
 
-export default function MainSheetTab({ mainSheet, onBack }) {
+export default function MainSheetTab({
+  mainSheet,
+  monthlyClaims,
+  onBack,
+  onOpenWeeklyCheckSheet,
+  onOpenJobCompletionChecklist,
+}) {
   const { jobs, columns } = mainSheet
 
-  const [visibleKeys, setVisibleKeys] = useLocalStorageState(
-    'mainSheetTab.visibleColumns',
-    new Set(columns.map((c) => c.key)),
-    { serialize: (s) => JSON.stringify([...s]), deserialize: (s) => new Set(JSON.parse(s)) }
-  )
-  const [panelOpen, setPanelOpen] = useState(false)
+  const sortedJobs = [...jobs].sort((a, b) => Number(a.jobNumber) - Number(b.jobNumber))
+  const [selectedJobNumber, setSelectedJobNumber] = useState('')
   const [values, setValues] = useState(() => {
     const map = {}
     for (const job of jobs) map[job.jobNumber] = { ...job.checklist }
     return map
   })
-  const [password, setPassword] = useState('')
   const [savingKeys, setSavingKeys] = useState(() => new Set())
   const [status, setStatus] = useState({ kind: 'idle', message: '' }) // idle | ok | error
-  const [sortDir, setSortDir] = useState(1) // 1 = job number ascending, -1 = descending
+  const [archiving, setArchiving] = useState(false)
 
-  const visibleColumns = useMemo(() => columns.filter((c) => visibleKeys.has(c.key)), [columns, visibleKeys])
-  const columnByKey = useMemo(() => new Map(columns.map((c) => [c.key, c])), [columns])
-  const sortedJobs = useMemo(
-    () => [...jobs].sort((a, b) => (Number(a.jobNumber) - Number(b.jobNumber)) * sortDir),
-    [jobs, sortDir]
-  )
+  // Retention % lives on the Claim Calculator By Month sheet (col F), not
+  // the Main Sheet — "Load retentions" just needs a place to type it in
+  // once, so this syncs straight to that sheet via the same endpoint the
+  // Monthly claims page's Claim Calculator modal already uses.
+  const retentionByJob = new Map((monthlyClaims?.jobs ?? []).map((j) => [j.jobNumber, j.retention]))
+  const [retentionValues, setRetentionValues] = useState(() => {
+    const map = {}
+    for (const job of jobs) map[job.jobNumber] = retentionByJob.get(job.jobNumber) ?? ''
+    return map
+  })
+  const [retentionSaving, setRetentionSaving] = useState(() => new Set())
 
-  function toggleColumn(key) {
-    setVisibleKeys((prev) => {
-      const next = new Set(prev)
-      if (next.has(key)) next.delete(key)
-      else next.add(key)
-      return next
-    })
+  const columnByKey = new Map(columns.map((c) => [c.key, c]))
+  const selectedJob = sortedJobs.find((j) => j.jobNumber === selectedJobNumber) ?? sortedJobs[0] ?? null
+  const selectedJobDone = selectedJob
+    ? columns.filter((c) => values[selectedJob.jobNumber][c.key] === 'Yes').length
+    : 0
+
+  async function archiveJob(job) {
+    setArchiving(true)
+    setStatus({ kind: 'idle', message: `Job completion checklist marked complete — archiving ${job.jobNumber}…` })
+    try {
+      const res = await fetch(`${UPLOAD_WORKER_URL}/archive-job`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ jobNumber: job.jobNumber, action: 'archive' }),
+      })
+      const payload = await res.json()
+      if (!res.ok) {
+        setStatus({ kind: 'error', message: payload.message ?? `Auto-archive failed (${res.status}).` })
+        return
+      }
+      const result = await pollStagedStatus(payload.staged)
+      if (result.status === 'done') {
+        setStatus({ kind: 'ok', message: `${job.jobNumber} ${job.jobName} archived automatically.` })
+      } else if (result.status === 'failed') {
+        setStatus({ kind: 'error', message: `Auto-archive failed: ${result.message}` })
+      } else {
+        setStatus({ kind: 'error', message: 'Auto-archive still processing after 3 minutes — check back shortly.' })
+      }
+    } catch (err) {
+      setStatus({ kind: 'error', message: `Could not reach the upload service to auto-archive: ${String(err.message ?? err)}` })
+    } finally {
+      setArchiving(false)
+    }
   }
 
-  async function handleChange(job, colKey, newValue) {
+  async function handleChange(job, colKey, newValue, item) {
     const cellKey = `${job.jobNumber}:${colKey}`
     const previousValue = values[job.jobNumber][colKey]
     if (newValue === previousValue) return
 
-    if (!password) {
-      setStatus({ kind: 'error', message: 'Enter the upload password above before making changes.' })
+    if (item?.link && newValue === 'Yes' && !isLinkedChecklistComplete(item.link, job.jobNumber)) {
+      const sheetName = item.link === 'weekly' ? 'Weekly Job Check Sheet' : 'Job Completion Checklist'
+      const count = LINK_ITEM_COUNTS[item.link]
+      setStatus({
+        kind: 'error',
+        message: `Finish all ${count} items on the ${sheetName} first — click "${item.label}" to open it.`,
+      })
       return
     }
 
@@ -99,7 +201,7 @@ export default function MainSheetTab({ mainSheet, onBack }) {
       const res = await fetch(`${UPLOAD_WORKER_URL}/main-sheet`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ password, edits: [{ jobNumber: job.jobNumber, col: column.col, value: newValue }] }),
+        body: JSON.stringify({ edits: [{ jobNumber: job.jobNumber, col: column.col, value: newValue }] }),
       })
       const payload = await res.json()
       if (!res.ok) {
@@ -111,6 +213,9 @@ export default function MainSheetTab({ mainSheet, onBack }) {
       const result = await pollStagedStatus(payload.staged)
       if (result.status === 'done') {
         setStatus({ kind: 'ok', message: `Saved "${column.label}" for ${job.jobNumber} ${job.jobName} — the site will redeploy in about a minute before it shows up here.` })
+        // Item 19 ("Job completion checklist completed") archives the job
+        // the moment it's marked Yes — that's the whole point of the item.
+        if (item?.link === 'completion' && newValue === 'Yes') archiveJob(job)
       } else if (result.status === 'failed') {
         revert(`${result.message} — reverted.`)
       } else {
@@ -132,6 +237,57 @@ export default function MainSheetTab({ mainSheet, onBack }) {
     }
   }
 
+  async function handleRetentionChange(job, newValue) {
+    const previousValue = retentionValues[job.jobNumber]
+    if (newValue === previousValue) return
+
+    setRetentionValues((prev) => ({ ...prev, [job.jobNumber]: newValue }))
+    setRetentionSaving((prev) => new Set(prev).add(job.jobNumber))
+    setStatus({ kind: 'idle', message: '' })
+
+    function revert(message) {
+      setRetentionValues((prev) => ({ ...prev, [job.jobNumber]: previousValue }))
+      setStatus({ kind: 'error', message })
+    }
+
+    try {
+      const res = await fetch(`${UPLOAD_WORKER_URL}/claim-calculator`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ edits: [{ jobNumber: job.jobNumber, col: 5, value: newValue }] }),
+      })
+      const payload = await res.json()
+      if (!res.ok) {
+        revert(payload.message ?? `Save failed (${res.status}) — reverted.`)
+        return
+      }
+
+      setStatus({ kind: 'idle', message: `Saving retention % for ${job.jobNumber} ${job.jobName}…` })
+      const result = await pollStagedStatus(payload.staged)
+      if (result.status === 'done') {
+        setStatus({
+          kind: 'ok',
+          message: `Saved retention % for ${job.jobNumber} ${job.jobName} — synced to Monthly claims too.`,
+        })
+      } else if (result.status === 'failed') {
+        revert(`${result.message} — reverted.`)
+      } else {
+        setStatus({
+          kind: 'error',
+          message: 'Still processing retention % after 3 minutes — check back shortly; the change may still land.',
+        })
+      }
+    } catch (err) {
+      revert(`Could not reach the upload service: ${String(err.message ?? err)} — reverted.`)
+    } finally {
+      setRetentionSaving((prev) => {
+        const next = new Set(prev)
+        next.delete(job.jobNumber)
+        return next
+      })
+    }
+  }
+
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
       <nav className="flex items-center gap-1.5 text-sm text-text-muted">
@@ -142,140 +298,121 @@ export default function MainSheetTab({ mainSheet, onBack }) {
         <span className="text-text-primary">Job checklist</span>
       </nav>
 
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-white">Job checklist</h1>
-          <p className="mt-1 text-sm text-neutral-400">
-            Pick a value from the dropdown to save it — merging takes 30-90 seconds, then the
-            site takes another minute or so to redeploy before it shows up here. From the
-            workbook&apos;s Main Sheet.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setPanelOpen((v) => !v)}
-          aria-pressed={panelOpen}
-          className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors ${
-            panelOpen
-              ? 'border-brand-green/50 bg-brand-green/10 text-brand-green'
-              : 'border-white/10 text-neutral-400 hover:border-white/20 hover:text-white'
-          }`}
-        >
-          <Settings2 size={14} aria-hidden="true" />
-          Columns shown
-        </button>
+      <div>
+        <h1 className="text-2xl font-semibold text-white">Job checklist</h1>
+        <p className="mt-1 text-sm text-neutral-400">
+          Tick a task done or mark it N/A to save it — merging takes 30-90 seconds, then the
+          site takes another minute or so to redeploy before it shows up here. From the
+          workbook&apos;s Main Sheet.
+        </p>
       </div>
 
-      <div className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-5">
-        <label htmlFor="main-sheet-password" className="mb-1.5 block text-xs text-neutral-500">
-          Upload password — required before any change can save
-        </label>
-        <input
-          id="main-sheet-password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="w-full max-w-xs rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-brand-green/50 focus:outline-none"
-        />
-        {status.message && (
-          <p className={`mt-3 text-sm ${status.kind === 'error' ? 'text-red-400' : 'text-brand-green'}`}>
-            {status.message}
-          </p>
-        )}
-      </div>
+      {(status.message || archiving) && (
+        <p className={`text-sm ${status.kind === 'error' ? 'text-red-400' : 'text-brand-green'}`}>
+          {status.message}
+        </p>
+      )}
 
-      <div className="flex flex-col items-stretch gap-6 sm:flex-row sm:items-start">
-        <div className="min-w-0 flex-1 rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6">
-          {/* Mobile: one card per job with each checklist item as its own
-              labeled dropdown, instead of a table with one narrow column
-              per checklist item that'd be unreadable at phone width. */}
-          <div className="flex flex-col gap-3 sm:hidden">
+      <div className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 className="text-[15px] font-semibold text-white">Job onboarding checklist</h2>
+            {selectedJob && (
+              <p className="mt-1 text-[13px] text-neutral-400">
+                {selectedJobDone} of {columns.length} items complete
+              </p>
+            )}
+          </div>
+          <select
+            value={selectedJob?.jobNumber ?? ''}
+            onChange={(e) => setSelectedJobNumber(e.target.value)}
+            className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm text-neutral-200 focus:border-brand-green/50 focus:outline-none"
+          >
             {sortedJobs.map((job) => (
-              <div
-                key={job.jobNumber}
-                className="flex flex-col gap-3 rounded-[14px] border border-white/[0.06] bg-white/[0.02] p-4"
-              >
-                <p className="text-[14px] font-medium text-white">
-                  <span className="text-neutral-500">{job.jobNumber}</span> {job.jobName}
-                </p>
-                <div className="flex flex-col gap-2">
-                  {visibleColumns.map((c) => (
-                    <div key={c.key} className="flex items-center justify-between gap-3">
-                      <span className="text-[12px] text-neutral-400">{c.label}</span>
-                      <div className="w-28 shrink-0">
-                        <ChecklistCell
-                          value={values[job.jobNumber][c.key]}
-                          saving={savingKeys.has(`${job.jobNumber}:${c.key}`)}
-                          onChange={(newValue) => handleChange(job, c.key, newValue)}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <option key={job.jobNumber} value={job.jobNumber} className="bg-[#11161c] text-neutral-200">
+                {job.jobNumber} — {job.jobName}
+              </option>
             ))}
-            {sortedJobs.length === 0 && <p className="empty-row">No jobs to show.</p>}
-          </div>
-
-          <div className="table-scroll hidden sm:block">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th
-                    className="sortable"
-                    onClick={() => setSortDir((d) => -d)}
-                    aria-sort={sortDir === 1 ? 'ascending' : 'descending'}
-                  >
-                    Job{sortDir === 1 ? ' ▲' : ' ▼'}
-                  </th>
-                  {visibleColumns.map((c) => (
-                    <th key={c.key} className="whitespace-normal align-bottom text-[11px] leading-tight">
-                      {c.label}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {sortedJobs.map((job) => (
-                  <tr key={job.jobNumber}>
-                    <td className="whitespace-nowrap">
-                      {job.jobNumber} {job.jobName}
-                    </td>
-                    {visibleColumns.map((c) => (
-                      <td key={c.key} className="min-w-[84px] p-1">
-                        <ChecklistCell
-                          value={values[job.jobNumber][c.key]}
-                          saving={savingKeys.has(`${job.jobNumber}:${c.key}`)}
-                          onChange={(newValue) => handleChange(job, c.key, newValue)}
-                        />
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          </select>
         </div>
 
-        {panelOpen && (
-          <div className="order-first w-full rounded-[18px] border border-white/[0.06] bg-[#11161c] p-5 sm:order-none sm:w-64 sm:shrink-0">
-            <h2 className="mb-3 text-[13px] font-semibold tracking-wide text-neutral-400 uppercase">
-              Columns shown
-            </h2>
-            <div className="flex flex-col gap-2">
-              {columns.map((c) => (
-                <label key={c.key} className="flex items-start gap-2 text-[13px] text-neutral-300">
-                  <input
-                    type="checkbox"
-                    checked={visibleKeys.has(c.key)}
-                    onChange={() => toggleColumn(c.key)}
-                    className="mt-0.5"
-                  />
-                  {c.label}
-                </label>
-              ))}
+        {selectedJob && (
+          <>
+            <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
+              <div
+                className="h-full rounded-full bg-brand-green transition-all"
+                style={{ width: `${columns.length ? (selectedJobDone / columns.length) * 100 : 0}%` }}
+              />
             </div>
-          </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {columns.map((c, i) => {
+                const item = ONBOARDING_ITEMS[i]
+                const label = item?.label ?? c.label
+                const overdue =
+                  item?.link === 'weekly' &&
+                  isThursdayMorning() &&
+                  !isLinkedChecklistComplete('weekly', selectedJob.jobNumber)
+                return (
+                  <div
+                    key={c.key}
+                    className={`flex items-center justify-between gap-3 rounded-[10px] border p-3 ${
+                      overdue ? 'overdue-flash' : 'border-white/[0.06] bg-white/[0.02]'
+                    }`}
+                  >
+                    {item?.link ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          item.link === 'weekly'
+                            ? onOpenWeeklyCheckSheet(selectedJob)
+                            : onOpenJobCompletionChecklist(selectedJob)
+                        }
+                        className="flex-1 text-left text-[13px] text-brand-green underline decoration-brand-green/40 underline-offset-2 hover:text-white"
+                      >
+                        <span className="mr-2 text-neutral-500">{i + 1}.</span>
+                        {label}
+                      </button>
+                    ) : (
+                      <span className="text-[13px] text-neutral-300">
+                        <span className="mr-2 text-neutral-500">{i + 1}.</span>
+                        {label}
+                        {item?.twoWeek && (
+                          <span className="ml-2 rounded-full border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-400">
+                            2 wks
+                          </span>
+                        )}
+                      </span>
+                    )}
+                    {item?.retentionInput && (
+                      <div className="flex shrink-0 items-center gap-1">
+                        <input
+                          type="number"
+                          value={retentionValues[selectedJob.jobNumber]}
+                          disabled={retentionSaving.has(selectedJob.jobNumber)}
+                          onChange={(e) =>
+                            setRetentionValues((prev) => ({ ...prev, [selectedJob.jobNumber]: e.target.value }))
+                          }
+                          onBlur={(e) => handleRetentionChange(selectedJob, e.target.value)}
+                          placeholder="Ret %"
+                          title="Retention % — syncs to Monthly claims"
+                          className="w-16 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-right text-[12px] text-neutral-200 focus:border-brand-green/50 focus:outline-none disabled:opacity-50"
+                        />
+                        <span className="text-[12px] text-neutral-500">%</span>
+                      </div>
+                    )}
+                    <div className="w-28 shrink-0">
+                      <ChecklistCell
+                        value={values[selectedJob.jobNumber][c.key]}
+                        saving={savingKeys.has(`${selectedJob.jobNumber}:${c.key}`)}
+                        onChange={(newValue) => handleChange(selectedJob, c.key, newValue, item)}
+                      />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </>
         )}
       </div>
     </div>

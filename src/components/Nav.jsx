@@ -35,9 +35,7 @@ export default function Nav({
   onGoUpdateData,
   onGoMonthlyClaims,
   onGoMonthlyHours,
-  onGoClaimsByMonth,
   onGoMainSheet,
-  onGoNotes,
   onGoUpcomingWork,
 }) {
   return (
@@ -50,10 +48,10 @@ export default function Nav({
 
         <nav className="flex items-center gap-1" aria-label="Primary">
           <button
-            className={`site-nav__link ${view === 'home' ? 'is-active' : ''}`}
-            onClick={onGoHome}
+            className={`site-nav__link ${view === 'main-sheet' ? 'is-active' : ''}`}
+            onClick={onGoMainSheet}
           >
-            Dashboard
+            Job checklist
           </button>
           <button
             className={`site-nav__link ${view === 'dashboard' ? 'is-active' : ''}`}
@@ -74,28 +72,10 @@ export default function Nav({
             Hours by month
           </button>
           <button
-            className={`site-nav__link ${view === 'claims-by-month' ? 'is-active' : ''}`}
-            onClick={onGoClaimsByMonth}
-          >
-            Claims by month
-          </button>
-          <button
-            className={`site-nav__link ${view === 'main-sheet' ? 'is-active' : ''}`}
-            onClick={onGoMainSheet}
-          >
-            Job checklist
-          </button>
-          <button
             className={`site-nav__link ${view === 'upcoming-work' ? 'is-active' : ''}`}
             onClick={onGoUpcomingWork}
           >
             Upcoming work
-          </button>
-          <button
-            className={`site-nav__link ${view === 'notes' ? 'is-active' : ''}`}
-            onClick={onGoNotes}
-          >
-            Notes
           </button>
           <button
             className={`site-nav__link ${view === 'update' ? 'is-active' : ''}`}
