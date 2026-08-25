@@ -1,0 +1,26 @@
+name: Sync to WordPress Dashboard Page
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Update WordPress Page
+        run: |
+          # Replace 123 with your actual Page ID from Step 1
+          PAGE_ID="2179"
+          
+          # Pass HTML/Content from your repo (e.g., from index.html or build output)
+          HTML_CONTENT=$(cat index.html | jq -a -R -s '.')
+
+          curl -X POST "${{ secrets.WP_URL }}/wp-json/wp/v2/pages/${PAGE_ID}" \
+            -u "${{ secrets.WP_USER }}:${{ secrets.WP_PASSWORD }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"content\": ${HTML_CONTENT}}"
