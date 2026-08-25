@@ -1,7 +1,5 @@
 import { useState } from 'react'
-import { pollStagedStatus } from '../lib/pollStagedStatus'
-
-const UPLOAD_WORKER_URL = 'https://cde-data-upload.fkw24.workers.dev'
+import { saveEdit } from '../lib/saveEdit'
 
 // Jan-Dec hours-allocation columns (cols F-Q, 0-indexed 5-16) plus the
 // notes column (S, 0-indexed 18) — the only manual entry on this sheet.
@@ -59,46 +57,29 @@ export default function UpcomingWorkTab({ upcomingWork, onBack }) {
     const previousValue = values[job.jobNumber][key]
     setValues((prev) => ({ ...prev, [job.jobNumber]: { ...prev[job.jobNumber], [key]: newValue } }))
     setSavingKeys((prev) => new Set(prev).add(cellKey))
-    setStatus({ kind: 'idle', message: '' })
+    setStatus({ kind: 'idle', message: `Saving "${key}" for ${job.jobNumber} ${job.jobName}…` })
 
     function revert(message) {
       setValues((prev) => ({ ...prev, [job.jobNumber]: { ...prev[job.jobNumber], [key]: previousValue } }))
       setStatus({ kind: 'error', message })
     }
 
-    try {
-      const res = await fetch(`${UPLOAD_WORKER_URL}/upcoming-work`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ edits: [{ jobNumber: job.jobNumber, col, value: newValue }] }),
+    const result = await saveEdit('upcoming-work', job.jobNumber, col, newValue)
+    if (result.status === 'done') {
+      setStatus({
+        kind: 'ok',
+        message: `Saved "${key}" for ${job.jobNumber} ${job.jobName} — the site will redeploy in about a minute before it shows up here.`,
       })
-      const payload = await res.json()
-      if (!res.ok) {
-        revert(payload.message ?? `Save failed (${res.status}) — reverted.`)
-        return
-      }
-
-      setStatus({ kind: 'idle', message: `Saving "${key}" for ${job.jobNumber} ${job.jobName}…` })
-      const result = await pollStagedStatus(payload.staged)
-      if (result.status === 'done') {
-        setStatus({
-          kind: 'ok',
-          message: `Saved "${key}" for ${job.jobNumber} ${job.jobName} — the site will redeploy in about a minute before it shows up here.`,
-        })
-      } else if (result.status === 'failed') {
-        revert(`${result.message} — reverted.`)
-      } else {
-        setStatus({ kind: 'error', message: `Still processing "${key}" after 3 minutes — check back shortly; the change may still land.` })
-      }
-    } catch (err) {
-      revert(`Could not reach the upload service: ${String(err.message ?? err)} — reverted.`)
-    } finally {
-      setSavingKeys((prev) => {
-        const next = new Set(prev)
-        next.delete(cellKey)
-        return next
-      })
+    } else if (result.status === 'failed' || result.status === 'error') {
+      revert(`${result.message} — reverted.`)
+    } else {
+      setStatus({ kind: 'error', message: result.message })
     }
+    setSavingKeys((prev) => {
+      const next = new Set(prev)
+      next.delete(cellKey)
+      return next
+    })
   }
 
   return (

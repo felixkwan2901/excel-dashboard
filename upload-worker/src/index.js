@@ -613,6 +613,148 @@ async function handleStatus(request, env) {
 }
 
 // ---------------------------------------------------------------------------
+// /command — natural-language edit parsing (Gemini), never writes anything
+// itself. Turns a typed instruction into the exact {jobNumber, col, value}
+// shape the three save routes above already accept, so there is exactly
+// one code path that ever stages a write — this route only ever proposes
+// one for the frontend to show and confirm.
+// ---------------------------------------------------------------------------
+
+const COMMAND_RESPONSE_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    ambiguous: { type: 'BOOLEAN' },
+    reason: { type: 'STRING' },
+    candidates: { type: 'ARRAY', items: { type: 'STRING' } },
+    target: { type: 'STRING', enum: ['main-sheet', 'claim-calculator', 'upcoming-work'] },
+    jobNumber: { type: 'STRING' },
+    col: { type: 'INTEGER' },
+    value: { type: 'STRING' },
+    fieldLabel: { type: 'STRING' },
+    humanSummary: { type: 'STRING' },
+  },
+  required: ['ambiguous'],
+}
+
+function buildCommandPrompt({ text, jobs, mainSheetColumns, claimCalcFields, upcomingWorkFields }) {
+  return `You turn one plain-English instruction into a single structured edit for a job-tracking spreadsheet. You never invent data — only match against the lists given below.
+
+INSTRUCTION: "${text}"
+
+JOBS (jobNumber, jobName):
+${jobs.map((j) => `${j.jobNumber}: ${j.jobName}`).join('\n')}
+
+MAIN SHEET CHECKLIST FIELDS (target "main-sheet", col, label — values are ONLY 'Yes', 'N/A', or '' — there is no 'No'):
+${mainSheetColumns.map((c) => `${c.col}: ${c.label}`).join('\n')}
+
+CLAIM CALCULATOR FIELDS (target "claim-calculator", col, label — numeric or free-text per label):
+${claimCalcFields.map((f) => `${f.col}: ${f.label}`).join('\n')}
+
+UPCOMING WORK FIELDS (target "upcoming-work", col, label — numeric hours or free-text notes):
+${upcomingWorkFields.map((f) => `${f.col}: ${f.label}`).join('\n')}
+
+Rules:
+1. Resolve the job by number or name (allow minor typos) against the JOBS list only. If more than one job could plausibly match, or none do, return ambiguous.
+2. Resolve the field against whichever field list matches the instruction's intent, using the exact "col" number listed. Never fabricate a jobNumber or col not present in the lists above.
+3. For a main-sheet field, normalize the value to exactly 'Yes' (done/complete/tick it/mark it), 'N/A' (not applicable/doesn't apply), or '' (undo/unset/not done/clear it). Anything else for a main-sheet field (e.g. "no") is ambiguous — that value doesn't exist here.
+4. If the instruction implies more than one job or more than one field at once (e.g. "for all jobs", "every job", "both X and Y"), return ambiguous — never pick just one target for a bulk instruction.
+5. If genuinely unclear, return {"ambiguous": true, "reason": "...", "candidates": ["...", "..."]} with short human-readable candidate descriptions, not job numbers.
+6. Otherwise return {"ambiguous": false, "target": "...", "jobNumber": "...", "col": <int>, "value": "...", "fieldLabel": "...", "humanSummary": "short plain-English summary of the change, e.g. \\"Job 8142 Fisher Developments — Retention %: 5\\""}.`
+}
+
+async function handleCommand(request, env) {
+  const body = await request.json().catch(() => null)
+  if (!body) {
+    return json({ ok: false, error: 'bad_request', message: 'Invalid request body.' }, 400)
+  }
+
+  const { text, jobs, mainSheetColumns, claimCalcFields, upcomingWorkFields } = body
+  const trimmed = String(text ?? '').trim()
+  if (!trimmed) {
+    return json({ ok: false, error: 'empty', message: 'Type an instruction first.' }, 400)
+  }
+  if (trimmed.length > 300) {
+    return json({ ok: false, error: 'too_long', message: 'Keep it under 300 characters.' }, 400)
+  }
+  if (!Array.isArray(jobs) || jobs.length === 0) {
+    return json({ ok: false, error: 'no_jobs', message: 'No jobs loaded to match against.' }, 400)
+  }
+  if (!env.GEMINI_API_KEY) {
+    return json({ ok: false, error: 'not_configured', message: 'The AI command box is not configured yet.' }, 503)
+  }
+
+  const prompt = buildCommandPrompt({
+    text: trimmed,
+    jobs,
+    mainSheetColumns: Array.isArray(mainSheetColumns) ? mainSheetColumns : [],
+    claimCalcFields: Array.isArray(claimCalcFields) ? claimCalcFields : [],
+    upcomingWorkFields: Array.isArray(upcomingWorkFields) ? upcomingWorkFields : [],
+  })
+
+  let geminiRes
+  try {
+    geminiRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${env.GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: { responseMimeType: 'application/json', responseSchema: COMMAND_RESPONSE_SCHEMA },
+        }),
+      }
+    )
+  } catch (err) {
+    return json({ ok: false, error: 'gemini_unreachable', message: `Could not reach the AI service: ${String(err.message ?? err)}` }, 502)
+  }
+
+  if (!geminiRes.ok) {
+    const errText = await geminiRes.text().catch(() => '')
+    return json({ ok: false, error: 'gemini_error', message: `AI service error (${geminiRes.status}). ${errText.slice(0, 200)}` }, 502)
+  }
+
+  const geminiPayload = await geminiRes.json().catch(() => null)
+  const rawText = geminiPayload?.candidates?.[0]?.content?.parts?.[0]?.text
+  let parsed
+  try {
+    parsed = JSON.parse(rawText)
+  } catch {
+    return json({ ok: false, error: 'gemini_bad_response', message: "Couldn't understand that — try rephrasing." }, 502)
+  }
+
+  if (parsed.ambiguous) {
+    return json({ ok: true, ambiguous: true, reason: parsed.reason ?? 'Not sure what you meant.', candidates: parsed.candidates ?? [] })
+  }
+
+  // Never trust the model's own claim of validity — cross-check its
+  // answer against the exact lists it was given, regardless of what it says.
+  const { target, jobNumber, col, value, fieldLabel, humanSummary } = parsed
+  const fieldList =
+    target === 'main-sheet' ? mainSheetColumns
+    : target === 'claim-calculator' ? claimCalcFields
+    : target === 'upcoming-work' ? upcomingWorkFields
+    : null
+  const jobValid = jobs.some((j) => String(j.jobNumber) === String(jobNumber))
+  const colValid = Array.isArray(fieldList) && fieldList.some((f) => Number(f.col) === Number(col))
+  if (!jobValid || !colValid) {
+    return json({ ok: true, ambiguous: true, reason: "Couldn't confidently match that to a real job and field.", candidates: [] })
+  }
+
+  return json({
+    ok: true,
+    ambiguous: false,
+    action: {
+      target,
+      jobNumber: String(jobNumber),
+      col: Number(col),
+      value: String(value ?? ''),
+      fieldLabel: fieldLabel ?? '',
+      humanSummary: humanSummary ?? '',
+    },
+  })
+}
+
+// ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
 
@@ -696,6 +838,14 @@ export default {
       } catch (err) {
         const msg = `Unexpected error: ${String(err.message ?? err)}`
         return respond(request, 500, { htmlMessage: `<div class="result err">${escapeHtml(msg)}</div>`, data: { error: 'unexpected', message: msg } })
+      }
+    }
+
+    if (request.method === 'POST' && url.pathname === '/command') {
+      try {
+        return await handleCommand(request, env)
+      } catch (err) {
+        return json({ ok: false, error: 'unexpected', message: `Unexpected error: ${String(err.message ?? err)}` }, 500)
       }
     }
 

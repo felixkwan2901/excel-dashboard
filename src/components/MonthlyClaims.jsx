@@ -1,9 +1,7 @@
 import { useMemo, useState } from 'react'
 import { money, percent } from '../lib/format'
-import { pollStagedStatus } from '../lib/pollStagedStatus'
+import { saveEdit } from '../lib/saveEdit'
 import { useLocalStorageState } from '../lib/useLocalStorageState'
-
-const UPLOAD_WORKER_URL = 'https://cde-data-upload.fkw24.workers.dev'
 
 // Claim and Costs used to be here too, but they're now auto-computed by
 // scripts/update-jobs.mjs on every weekly upload (this month's cumulative
@@ -100,7 +98,7 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
 
     setFieldOverrides((prev) => ({ ...prev, [job.jobNumber]: { ...prev[job.jobNumber], [field.key]: newValue } }))
     setSavingKeys((prev) => new Set(prev).add(cellKey))
-    setStatus({ kind: 'idle', message: '' })
+    setStatus({ kind: 'idle', message: `Saving "${field.label}" for ${job.jobNumber} ${job.jobName}…` })
 
     function revert(message) {
       setFieldOverrides((prev) => ({
@@ -110,44 +108,22 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
       setStatus({ kind: 'error', message })
     }
 
-    try {
-      const res = await fetch(`${UPLOAD_WORKER_URL}/claim-calculator`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({
-          edits: [{ jobNumber: job.jobNumber, col: field.col, value: newValue }],
-        }),
+    const result = await saveEdit('claim-calculator', job.jobNumber, field.col, newValue)
+    if (result.status === 'done') {
+      setStatus({
+        kind: 'ok',
+        message: `Saved "${field.label}" for ${job.jobNumber} ${job.jobName} — the site will redeploy in about a minute before it shows up here.`,
       })
-      const payload = await res.json()
-      if (!res.ok) {
-        revert(payload.message ?? `Save failed (${res.status}) — reverted.`)
-        return
-      }
-
-      setStatus({ kind: 'idle', message: `Saving "${field.label}" for ${job.jobNumber} ${job.jobName}…` })
-      const result = await pollStagedStatus(payload.staged)
-      if (result.status === 'done') {
-        setStatus({
-          kind: 'ok',
-          message: `Saved "${field.label}" for ${job.jobNumber} ${job.jobName} — the site will redeploy in about a minute before it shows up here.`,
-        })
-      } else if (result.status === 'failed') {
-        revert(`${result.message} — reverted.`)
-      } else {
-        setStatus({
-          kind: 'error',
-          message: `Still processing "${field.label}" after 3 minutes — check back shortly; the change may still land.`,
-        })
-      }
-    } catch (err) {
-      revert(`Could not reach the upload service: ${String(err.message ?? err)} — reverted.`)
-    } finally {
-      setSavingKeys((prev) => {
-        const next = new Set(prev)
-        next.delete(cellKey)
-        return next
-      })
+    } else if (result.status === 'failed' || result.status === 'error') {
+      revert(`${result.message} — reverted.`)
+    } else {
+      setStatus({ kind: 'error', message: result.message })
     }
+    setSavingKeys((prev) => {
+      const next = new Set(prev)
+      next.delete(cellKey)
+      return next
+    })
   }
 
   // Quoted GP $/hr is a per-job quote figure (from the Deliverables Sheet),

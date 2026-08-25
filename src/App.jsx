@@ -17,6 +17,7 @@ import WeeklyCheckSheetTab from './components/WeeklyCheckSheetTab'
 import JobCompletionChecklistTab from './components/JobCompletionChecklistTab'
 import LastSynced from './components/LastSynced'
 import Reveal from './components/Reveal'
+import CommandBox from './components/CommandBox'
 import './App.css'
 
 const initialNav = parseUrlState()
@@ -386,6 +387,8 @@ export default function App() {
           )}
         </main>
       )}
+
+      {state.status === 'ready' && <CommandBox jobs={jobs} mainSheetColumns={mainSheet.columns} />}
     </div>
   )
 }
