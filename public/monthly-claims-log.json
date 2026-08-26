@@ -15,8 +15,8 @@
     "7429": {
       "jobName": "Taggart House",
       "claim": 12937.1,
-      "costs": 4850.19,
-      "profit": 8086.910000000001
+      "costs": 4794.2300000000005,
+      "profit": 8142.87
     },
     "7658": {
       "jobName": "Charity Hospital",
@@ -75,8 +75,8 @@
     "8308": {
       "jobName": "Roydvale",
       "claim": 0,
-      "costs": 2584.2399999999907,
-      "profit": -2584.2399999999907
+      "costs": 9863.48999999999,
+      "profit": -9863.48999999999
     },
     "8337": {
       "jobName": "Waimak Dairys ",
@@ -146,9 +146,9 @@
     },
     "8946": {
       "jobName": "Westcoast Vaults",
-      "claim": 0,
-      "costs": 1749.8,
-      "profit": -1749.8
+      "claim": 30174.75,
+      "costs": 26124,
+      "profit": 4050.75
     },
     "9065": {
       "jobName": "Cooltranz stage 4",
@@ -176,9 +176,9 @@
     },
     "9508": {
       "jobName": "St Barnabas Church",
-      "claim": 0,
-      "costs": 6849.16,
-      "profit": -6849.16
+      "claim": 10204.54,
+      "costs": 6605.05,
+      "profit": 3599.4900000000007
     }
   },
   "2026-07": {
