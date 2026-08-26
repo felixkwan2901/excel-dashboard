@@ -39,24 +39,51 @@ function resultTone(r) {
   return r.status === 'failed' ? 'text-status-critical' : 'text-brand-green'
 }
 
+const STALE_SORT_OPTIONS = [
+  { key: 'behind', label: 'Most behind', sort: (a, b) => b.weeksBehind - a.weeksBehind },
+  { key: 'name', label: 'A–Z', sort: (a, b) => a.jobName.localeCompare(b.jobName) },
+  { key: 'number', label: 'Job #', sort: (a, b) => Number(a.jobNumber) - Number(b.jobNumber) },
+]
+
 // Surfaced right here, not just as a badge on the Job Directory — this is
 // the page someone actually visits to upload exports, so it's the most
 // useful place to see, before or after uploading, which jobs still don't
-// have this week's figures. Sorted worst-first (most weeks behind) so the
-// jobs needing the most urgent chasing show up at the top.
+// have this week's figures. Defaults to worst-first (most weeks behind) so
+// the jobs needing the most urgent chasing show up at the top, but a long
+// list is easier to scan for one specific job alphabetically instead.
 function StaleJobsPanel({ jobs }) {
-  const stale = (jobs ?? [])
-    .filter((j) => j.isStale)
-    .sort((a, b) => b.weeksBehind - a.weeksBehind)
+  const [sortKey, setSortKey] = useState('behind')
+  const activeSort = STALE_SORT_OPTIONS.find((o) => o.key === sortKey) ?? STALE_SORT_OPTIONS[0]
+
+  const stale = (jobs ?? []).filter((j) => j.isStale).sort(activeSort.sort)
 
   if (stale.length === 0) return null
 
   return (
     <Card className="mb-4 border-amber-400/30 bg-amber-400/[0.04]">
       <CardHeader>
-        <CardTitle className="text-sm text-amber-400">
-          {stale.length} job{stale.length === 1 ? '' : 's'} missing this week&apos;s update
-        </CardTitle>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <CardTitle className="text-sm text-amber-400">
+            {stale.length} job{stale.length === 1 ? '' : 's'} missing this week&apos;s update
+          </CardTitle>
+          <div className="flex gap-1.5">
+            {STALE_SORT_OPTIONS.map((o) => (
+              <button
+                key={o.key}
+                type="button"
+                onClick={() => setSortKey(o.key)}
+                aria-pressed={sortKey === o.key}
+                className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                  sortKey === o.key
+                    ? 'border-amber-400/50 bg-amber-400/15 text-amber-300'
+                    : 'border-white/10 text-neutral-400 hover:text-white'
+                }`}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         <p className="mb-3 text-xs text-text-muted">
