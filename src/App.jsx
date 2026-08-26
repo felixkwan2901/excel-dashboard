@@ -238,7 +238,7 @@ export default function App() {
             <LoadStatus status={state.status} error={state.error} onRetry={retryLoad} />
           ) : selectedJob ? (
             <Reveal index={0}>
-              <ProjectDetail job={selectedJob} onBack={goBack} />
+              <ProjectDetail job={selectedJob} mainSheet={mainSheet} onBack={goBack} />
             </Reveal>
           ) : (
             <p className="dashboard__status">That job couldn&apos;t be found.</p>

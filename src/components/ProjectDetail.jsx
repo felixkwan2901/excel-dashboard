@@ -114,9 +114,64 @@ function Section({ title, children }) {
   )
 }
 
-export default function ProjectDetail({ job, onBack }) {
+// The headline "can I understand this job in 5 seconds" row — a big
+// number plus a progress bar reading straight off the same over/under
+// logic the rest of the app already uses (JobTable's CostBar/MarginBar),
+// instead of a page full of same-weight label/value pairs where nothing
+// stands out. `good` is which direction is favorable — cost/hours want
+// LESS of the bar filled to be good, margin wants MORE.
+function StatCard({ label, value, formatValue, quoted, formatQuoted, ratio, good }) {
+  const hasBar = quoted !== null && quoted !== undefined && ratio !== null
+  const clippedRatio = hasBar ? Math.min(Math.max(ratio, 0), 1.5) / 1.5 : 0
+  // "low" (cost, hours): under 100% of quoted is fine, over is bad.
+  // "high" (margin): at/above the quoted target is fine, well under is bad.
+  const overThreshold = good === 'low' ? ratio > 1 : ratio < 0.7
+  const nearThreshold = good === 'low' ? ratio >= 0.85 && ratio <= 1 : ratio >= 0.7 && ratio < 1
+  const barColor = overThreshold ? 'bg-red-500' : nearThreshold ? 'bg-amber-400' : 'bg-brand-green'
+  const valueColor = overThreshold ? 'text-red-400' : 'text-white'
+
+  return (
+    <div className="flex flex-col gap-3 rounded-[14px] border border-white/[0.06] bg-white/[0.02] p-5">
+      <span className="text-[12px] font-medium tracking-wide text-neutral-500 uppercase">{label}</span>
+      <span className={`text-2xl font-bold tabular-nums ${valueColor}`}>
+        {value === null ? '—' : formatValue(value)}
+      </span>
+      {hasBar && (
+        <>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.08]">
+            <div
+              className={`h-full rounded-full transition-all ${barColor}`}
+              style={{ width: `${clippedRatio * 100}%` }}
+            />
+          </div>
+          <span className="text-[12px] tabular-nums text-neutral-500">
+            of {formatQuoted ? formatQuoted(quoted) : formatValue(quoted)} quoted
+          </span>
+        </>
+      )}
+    </div>
+  )
+}
+
+// Some hour figures come out of the workbook as a subtraction of two
+// floats (e.g. 208.2 - 317.25), which floating-point arithmetic can leave
+// as -109.05000000000001 instead of a clean -109.05 — round for display.
+function roundHours(v) {
+  return v === null ? null : Math.round(v * 100) / 100
+}
+
+function hours(v) {
+  return v === null ? '—' : `${roundHours(v)} hrs`
+}
+
+export default function ProjectDetail({ job, mainSheet, onBack }) {
   const reasons = statusReasons(job)
-  const [showCalculated, setShowCalculated] = useState(false)
+  const [showDetail, setShowDetail] = useState(false)
+  const jobOwner = mainSheet?.jobs?.find((j) => j.jobNumber === job.jobNumber)?.jobOwner
+
+  const costRatio = job.totalQuotedCost ? job.totalActualCost / job.totalQuotedCost : null
+  const hoursRatio = job.quotedLabourHours ? job.actualLabourHours / job.quotedLabourHours : null
+  const marginRatio = job.quotedMargin ? job.marginToDate / job.quotedMargin : null
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6">
@@ -130,16 +185,16 @@ export default function ProjectDetail({ job, onBack }) {
         </button>
 
         <button
-          onClick={() => setShowCalculated((v) => !v)}
-          aria-pressed={showCalculated}
+          onClick={() => setShowDetail((v) => !v)}
+          aria-pressed={showDetail}
           className={`flex w-fit items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green ${
-            showCalculated
+            showDetail
               ? 'border-brand-green/50 bg-brand-green/10 text-brand-green'
               : 'border-white/10 text-neutral-400 hover:border-white/20 hover:text-white'
           }`}
         >
           <SlidersHorizontal size={14} aria-hidden="true" />
-          {showCalculated ? 'Hide calculated figures' : 'Show calculated figures'}
+          {showDetail ? 'Hide full breakdown' : 'Show full breakdown'}
         </button>
       </div>
 
@@ -148,8 +203,9 @@ export default function ProjectDetail({ job, onBack }) {
           <div>
             <p className="text-sm text-neutral-500 tabular-nums">Job {job.jobNumber}</p>
             <h1 className="mt-1 text-3xl font-bold text-white">{job.jobName}</h1>
-            <div className="mt-2">
+            <div className="mt-2 flex flex-wrap items-center gap-3">
               <TrendBadge marginTrend={job.marginTrend} />
+              {jobOwner && <span className="text-[13px] text-neutral-500">Owner: {jobOwner}</span>}
             </div>
           </div>
           <p className="text-3xl font-bold text-brand-green tabular-nums">
@@ -175,74 +231,107 @@ export default function ProjectDetail({ job, onBack }) {
           </div>
         )}
 
-        <Section title="Cost">
-          {/* "Total quoted cost" (this section) is the quoted cost basis —
-              materials + labour, before markup — and is intentionally a
-              smaller figure than the "Quoted Price" shown above (the
-              client-facing sale price); quotedMargin = (quotedPrice -
-              totalQuotedCost) / quotedPrice. They're two distinct figures,
-              not the same value shown twice, hence spelling out "cost"
-              here rather than just "Total quoted". */}
-          <Field label="Total quoted cost">{money(job.totalQuotedCost)}</Field>
-          <Field label="Total actual cost" warn={job.overBudget}>
-            {money(job.totalActualCost)}
-          </Field>
-          {job.projectedTotalCost !== null && (
-            <Field label="Projected total cost (at current pace)" warn={job.overBudget}>
-              {money(job.projectedTotalCost)}
-            </Field>
-          )}
-          <Field label="Materials (quoted / actual)">
-            {money(job.quotedMaterialCost)} / {money(job.actualMaterialCost)}
-          </Field>
-          <Field label="Labour (quoted / actual)">
-            {money(job.quotedLabourCost)} / {money(job.actualLabourCost)}
-          </Field>
-          {showCalculated && (
-            <>
+        {/* The "5-second read" — everything else below is detail for when
+            you want to dig in, not what you need to just check the job. */}
+        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <StatCard
+            label="Cost"
+            value={job.totalActualCost}
+            formatValue={money}
+            quoted={job.totalQuotedCost}
+            ratio={costRatio}
+            good="low"
+          />
+          <StatCard
+            label="Hours"
+            value={job.actualLabourHours}
+            formatValue={hours}
+            quoted={job.quotedLabourHours}
+            formatQuoted={hours}
+            ratio={hoursRatio}
+            good="low"
+          />
+          <StatCard
+            label="Margin to date"
+            value={job.marginToDate}
+            formatValue={percent}
+            quoted={job.quotedMargin}
+            formatQuoted={percent}
+            ratio={marginRatio}
+            good="high"
+          />
+        </div>
+
+        {!showDetail && (
+          <div className="mt-6 grid grid-cols-1 gap-6 border-t border-white/10 pt-6 sm:grid-cols-3">
+            <Field label="Claim to date">{money(job.claimToDate)}</Field>
+            <Field label="Remaining to claim">{money(job.remainingToClaim)}</Field>
+            <Field label="% claim remaining">{percent(job.pctClaimRemaining)}</Field>
+          </div>
+        )}
+
+        {showDetail && (
+          <>
+            <Section title="Cost">
+              {/* "Total quoted cost" (this section) is the quoted cost basis —
+                  materials + labour, before markup — and is intentionally a
+                  smaller figure than the "Quoted Price" shown above (the
+                  client-facing sale price); quotedMargin = (quotedPrice -
+                  totalQuotedCost) / quotedPrice. They're two distinct figures,
+                  not the same value shown twice, hence spelling out "cost"
+                  here rather than just "Total quoted". */}
+              <Field label="Total quoted cost">{money(job.totalQuotedCost)}</Field>
+              <Field label="Total actual cost" warn={job.overBudget}>
+                {money(job.totalActualCost)}
+              </Field>
+              {job.projectedTotalCost !== null && (
+                <Field label="Projected total cost (at current pace)" warn={job.overBudget}>
+                  {money(job.projectedTotalCost)}
+                </Field>
+              )}
+              <Field label="Materials (quoted / actual)">
+                {money(job.quotedMaterialCost)} / {money(job.actualMaterialCost)}
+              </Field>
+              <Field label="Labour (quoted / actual)">
+                {money(job.quotedLabourCost)} / {money(job.actualLabourCost)}
+              </Field>
               <Field label="Material cost remaining">{money(job.materialCostRemaining)}</Field>
               <Field label="Material % remaining">{percent(job.materialPctRemaining)}</Field>
               <Field label="Est. % of materials received">{percent(job.estimatedPctMaterialsReceived)}</Field>
-            </>
-          )}
-        </Section>
+            </Section>
 
-        <Section title="Labour hours">
-          <Field label="Quoted hours">
-            {job.quotedLabourHours === null ? '—' : job.quotedLabourHours}
-          </Field>
-          <Field label="Actual hours">
-            {job.actualLabourHours === null ? '—' : job.actualLabourHours}
-          </Field>
-          {showCalculated && (
-            <>
+            <Section title="Labour hours">
+              <Field label="Quoted hours">
+                {job.quotedLabourHours === null ? '—' : roundHours(job.quotedLabourHours)}
+              </Field>
+              <Field label="Actual hours">
+                {job.actualLabourHours === null ? '—' : roundHours(job.actualLabourHours)}
+              </Field>
               <Field label="Labour cost remaining">{money(job.labourCostRemaining)}</Field>
               <Field label="Labour cost % remaining">{percent(job.labourCostPctRemaining)}</Field>
               <Field label="Labour hours remaining">
-                {job.labourHoursRemaining === null ? '—' : job.labourHoursRemaining}
+                {job.labourHoursRemaining === null ? '—' : roundHours(job.labourHoursRemaining)}
               </Field>
               <Field label="Labour hour % remaining">{percent(job.labourHourPctRemaining)}</Field>
-            </>
-          )}
-        </Section>
+            </Section>
 
-        <Section title="Claim progress">
-          <Field label="Claim to date">{money(job.claimToDate)}</Field>
-          <Field label="Remaining to claim">{money(job.remainingToClaim)}</Field>
-          <Field label="% claim remaining">{percent(job.pctClaimRemaining)}</Field>
-          {showCalculated && (
-            <Field label="Est. % of job complete">{percent(job.estimatedPctJobComplete)}</Field>
-          )}
-        </Section>
+            <Section title="Claim progress">
+              <Field label="Claim to date">{money(job.claimToDate)}</Field>
+              <Field label="Remaining to claim">{money(job.remainingToClaim)}</Field>
+              <Field label="% claim remaining">{percent(job.pctClaimRemaining)}</Field>
+              <Field label="Est. % of job complete">{percent(job.estimatedPctJobComplete)}</Field>
+            </Section>
 
-        <Section title="Margin">
-          <Field label="Margin to date" warn={job.losingMargin}>
-            {percent(job.marginToDate)}
-          </Field>
-          <Field label="Quoted margin">{percent(job.quotedMargin)}</Field>
-          <Field label="GP $/hour">{money(job.gpPerHour)}</Field>
-          <Field label="Quoted GP $/hour">{money(job.quotedGpPerHour)}</Field>
-        </Section>
+            <Section title="Margin">
+              <Field label="Margin to date" warn={job.losingMargin}>
+                {percent(job.marginToDate)}
+              </Field>
+              <Field label="Quoted margin">{percent(job.quotedMargin)}</Field>
+              <Field label="GP $/hour">{money(job.gpPerHour)}</Field>
+              <Field label="Quoted GP $/hour">{money(job.quotedGpPerHour)}</Field>
+            </Section>
+          </>
+        )}
 
         <div className="mt-6 border-t border-white/10 pt-6">
           <ArchiveJobControl job={job} onBack={onBack} />
