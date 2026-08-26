@@ -45,6 +45,7 @@
 import { createHash } from 'node:crypto'
 import { readFileSync, readdirSync, writeFileSync, mkdirSync, renameSync, statSync, existsSync } from 'node:fs'
 import { join, resolve, dirname, basename } from 'node:path'
+import { execFileSync } from 'node:child_process'
 import ExcelJS from 'exceljs'
 
 const folder = resolve(process.argv[2] ?? 'imports')
@@ -1007,6 +1008,22 @@ async function main() {
   }
 
   await wb.xlsx.writeFile(workbookPath)
+
+  // scripts/log-monthly-hours.mjs normally runs as its own separate step
+  // later in the workflow (process-pending-updates.yml) — too late for
+  // runConsistencyChecks below, which reads monthly-hours-log.json back
+  // off disk and compares it against the sheet this run JUST wrote. Any
+  // run that actually changed a job's hours would otherwise always fail
+  // that check (comparing this run's new hours against last run's log
+  // entry) even though nothing is really wrong — so freshen the log here,
+  // before the check, using the exact same script. Idempotent (it always
+  // overwrites the current month's entry), so running it again in its
+  // usual spot later changes nothing.
+  try {
+    execFileSync('node', ['scripts/log-monthly-hours.mjs'], { stdio: 'inherit' })
+  } catch (err) {
+    console.log(`::warning::Could not refresh monthly-hours-log.json before consistency checks: ${String(err.message ?? err)}`)
+  }
 
   // Written AFTER the workbook write succeeds, and unconditionally (not
   // best-effort) — this is what stops the NEXT run this same month from

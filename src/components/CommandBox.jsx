@@ -186,8 +186,9 @@ export default function CommandBox({ jobs, mainSheetColumns }) {
           )}
 
           <p className="mt-3 text-[11px] text-neutral-500">
-            Every change still needs your confirmation, saves the same way the manual boxes do (30-90s to merge,
-            then a redeploy), and only covers the Job checklist, Monthly claims, and Upcoming work.
+            Every change still needs your confirmation, saves instantly the same way the manual boxes do (the
+            workbook itself catches up in the background), and only covers the Job checklist, Monthly claims, and
+            Upcoming work.
           </p>
         </div>
       )}

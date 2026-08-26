@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx'
+import { fetchOverrides } from './overrides'
 
 // Lives in public/ as a stable, unhashed path (not a Vite `?url` import) so
 // a data-only change (ticking a checklist box, editing a claim figure) can
@@ -557,20 +558,85 @@ function parseMonthlyClaimsLog(log) {
   return { months, totalsByMonth, jobs }
 }
 
+// Overlays saveEdit()'s instant-write KV blobs (src/lib/overrides.js) on
+// top of what the Excel workbook itself currently says, so an edit shows
+// up everywhere within about a second instead of waiting on the real
+// merge+redeploy (~1-2 minutes). Each function maps a saved "col" back to
+// the field name the parsed job object actually uses.
+
+function applyMainSheetOverrides(mainSheet, overrides) {
+  for (const job of mainSheet.jobs) {
+    const jobOverrides = overrides[job.jobNumber]
+    if (!jobOverrides) continue
+    for (const [col, entry] of Object.entries(jobOverrides)) {
+      job.checklist[`col${col}`] = entry.value
+    }
+  }
+}
+
+// col -> [field name, isNumeric] on the Claim Calculator By Month sheet —
+// matches MonthlyClaims.jsx's EDITABLE_FIELDS and MainSheetTab's item-4
+// retention side-save (col 5).
+const CLAIM_CALC_OVERRIDE_FIELDS = {
+  5: ['retention', true],
+  8: ['hoursToCompleteBeforeEom', true],
+  9: ['costsToComeBeforeEom', true],
+  16: ['notes', false],
+}
+
+function applyClaimCalcOverrides(monthlyClaims, overrides) {
+  for (const job of monthlyClaims.jobs) {
+    const jobOverrides = overrides[job.jobNumber]
+    if (!jobOverrides) continue
+    for (const [col, entry] of Object.entries(jobOverrides)) {
+      const field = CLAIM_CALC_OVERRIDE_FIELDS[col]
+      if (!field) continue
+      const [key, numeric] = field
+      job[key] = numeric ? Number(entry.value) || 0 : entry.value
+    }
+  }
+}
+
+// col -> month key on the Upcoming Work Calculator sheet — matches
+// UpcomingWorkTab.jsx's MONTH_FIELDS/NOTES_COL.
+const UPCOMING_WORK_OVERRIDE_MONTHS = {
+  5: 'Jan', 6: 'Feb', 7: 'Mar', 8: 'Apr', 9: 'May', 10: 'Jun',
+  11: 'Jul', 12: 'Aug', 13: 'Sep', 14: 'Oct', 15: 'Nov', 16: 'Dec',
+}
+
+function applyUpcomingWorkOverrides(upcomingWork, overrides) {
+  for (const job of upcomingWork.jobs) {
+    const jobOverrides = overrides[job.jobNumber]
+    if (!jobOverrides) continue
+    for (const [col, entry] of Object.entries(jobOverrides)) {
+      if (col === '18') {
+        job.notes = entry.value
+        continue
+      }
+      const monthKey = UPCOMING_WORK_OVERRIDE_MONTHS[col]
+      if (monthKey) job.months[monthKey] = Number(entry.value) || 0
+    }
+  }
+}
+
 export async function loadWorkbook() {
   // A hung fetch (e.g. mid-deploy, or a stale service-worker transition)
   // would otherwise leave the app stuck in its loading state indefinitely
   // — this bounds it so an error state (with a retry) shows up instead.
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 20_000)
-  let res, hoursRes, claimsLogRes, archivedRes
+  let res, hoursRes, claimsLogRes, archivedRes, mainSheetOverrides, claimCalcOverrides, upcomingWorkOverrides
   try {
-    ;[res, hoursRes, claimsLogRes, archivedRes] = await Promise.all([
-      fetch(workbookUrl, { signal: controller.signal, cache: 'no-store' }),
-      fetch(monthlyHoursLogUrl, { signal: controller.signal, cache: 'no-store' }),
-      fetch(monthlyClaimsLogUrl, { signal: controller.signal, cache: 'no-store' }),
-      fetch(archivedJobsUrl, { signal: controller.signal, cache: 'no-store' }),
-    ])
+    ;[res, hoursRes, claimsLogRes, archivedRes, mainSheetOverrides, claimCalcOverrides, upcomingWorkOverrides] =
+      await Promise.all([
+        fetch(workbookUrl, { signal: controller.signal, cache: 'no-store' }),
+        fetch(monthlyHoursLogUrl, { signal: controller.signal, cache: 'no-store' }),
+        fetch(monthlyClaimsLogUrl, { signal: controller.signal, cache: 'no-store' }),
+        fetch(archivedJobsUrl, { signal: controller.signal, cache: 'no-store' }),
+        fetchOverrides('main-sheet'),
+        fetchOverrides('claim-calculator'),
+        fetchOverrides('upcoming-work'),
+      ])
   } finally {
     clearTimeout(timeout)
   }
@@ -583,6 +649,9 @@ export async function loadWorkbook() {
   const monthlyClaims = parseMonthlyClaims(workbook)
   const mainSheet = parseMainSheet(workbook)
   const upcomingWork = parseUpcomingWork(workbook)
+  applyMainSheetOverrides(mainSheet, mainSheetOverrides)
+  applyClaimCalcOverrides(monthlyClaims, claimCalcOverrides)
+  applyUpcomingWorkOverrides(upcomingWork, upcomingWorkOverrides)
   // The hours log is a nice-to-have on top of the core workbook data — if
   // it's missing or unreadable for any reason, degrade to an empty history
   // rather than failing the whole page load over it.

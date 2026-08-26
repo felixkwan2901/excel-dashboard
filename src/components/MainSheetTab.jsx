@@ -211,7 +211,7 @@ export default function MainSheetTab({
     setStatus({ kind: 'idle', message: `Processing "${column.label}" for ${job.jobNumber} ${job.jobName}…` })
     const result = await saveEdit('main-sheet', job.jobNumber, column.col, newValue)
     if (result.status === 'done') {
-      setStatus({ kind: 'ok', message: `Saved "${column.label}" for ${job.jobNumber} ${job.jobName} — the site will redeploy in about a minute before it shows up here.` })
+      setStatus({ kind: 'ok', message: `Saved "${column.label}" for ${job.jobNumber} ${job.jobName} — synced everywhere already; the workbook catches up in the background.` })
       // Item 19 ("Job completion checklist completed") archives the job
       // the moment it's marked Yes — that's the whole point of the item.
       if (item?.link === 'completion' && newValue === 'Yes') archiveJob(job)
@@ -273,9 +273,8 @@ export default function MainSheetTab({
       <div>
         <h1 className="text-2xl font-semibold text-white">Job checklist</h1>
         <p className="mt-1 text-sm text-neutral-400">
-          Tick a task done or mark it N/A to save it — merging takes 30-90 seconds, then the
-          site takes another minute or so to redeploy before it shows up here. From the
-          workbook&apos;s Main Sheet.
+          Tick a task done or mark it N/A — it saves instantly and syncs everywhere, while the
+          workbook itself catches up in the background. From the workbook&apos;s Main Sheet.
         </p>
       </div>
 

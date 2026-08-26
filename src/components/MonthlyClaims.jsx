@@ -83,10 +83,11 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
   // is the more actionable starting question than "which job made the most".
   const [tableSort, setTableSort] = useState({ key: 'margin', dir: 1 })
 
-  // Optimistic edits to the four manual fields, applied straight in the
-  // table — the real save below still takes 30-90s plus a redeploy before
-  // a fresh workbook fetch would show it, so without this the number just
-  // typed would look like it silently reverted. Keyed by job number.
+  // In-session optimistic edits to the four manual fields, applied straight
+  // in the table the instant you type — saveEdit() itself also writes an
+  // instant, cross-device KV overlay (src/lib/overrides.js) that
+  // loadWorkbook.js reads back on the next load, so this is really just
+  // for not waiting on that round trip within the current page view.
   const [fieldOverrides, setFieldOverrides] = useState({})
   const [savingKeys, setSavingKeys] = useState(() => new Set())
   const [status, setStatus] = useState({ kind: 'idle', message: '' })
@@ -112,7 +113,7 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
     if (result.status === 'done') {
       setStatus({
         kind: 'ok',
-        message: `Saved "${field.label}" for ${job.jobNumber} ${job.jobName} — the site will redeploy in about a minute before it shows up here.`,
+        message: `Saved "${field.label}" for ${job.jobNumber} ${job.jobName} — synced everywhere already; the workbook catches up in the background.`,
       })
     } else if (result.status === 'failed' || result.status === 'error') {
       revert(`${result.message} — reverted.`)

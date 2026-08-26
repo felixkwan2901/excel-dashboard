@@ -68,7 +68,7 @@ export default function UpcomingWorkTab({ upcomingWork, onBack }) {
     if (result.status === 'done') {
       setStatus({
         kind: 'ok',
-        message: `Saved "${key}" for ${job.jobNumber} ${job.jobName} — the site will redeploy in about a minute before it shows up here.`,
+        message: `Saved "${key}" for ${job.jobNumber} ${job.jobName} — synced everywhere already; the workbook catches up in the background.`,
       })
     } else if (result.status === 'failed' || result.status === 'error') {
       revert(`${result.message} — reverted.`)

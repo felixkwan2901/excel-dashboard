@@ -785,13 +785,16 @@ async function handleCommand(request, env) {
 // ---------------------------------------------------------------------------
 // /app-data — small JSON blobs with no home in the tracked workbook (the
 // Weekly Job Check Sheet, the Job Completion Checklist, a new job's
-// "first entered the site" timestamp for the 2-week overdue alert). Keys
-// are bounded to those three known prefixes — this isn't a general-purpose
-// KV proxy, just enough to replace what used to be per-browser
-// localStorage with something that syncs across devices.
+// "first entered the site" timestamp for the 2-week overdue alert), PLUS
+// the "override" overlay blobs (one per sheet — "override:main-sheet" /
+// "override:claim-calculator" / "override:upcoming-work") that
+// src/lib/saveEdit.js writes to instantly on every save so an edit is
+// visible everywhere in ~a second instead of waiting on the real
+// Excel merge — see that file for the full read/write design. Keys are
+// bounded to these known shapes — this isn't a general-purpose KV proxy.
 // ---------------------------------------------------------------------------
 
-const APP_DATA_KEY_RE = /^(weekly|completion|jobCreated):[A-Za-z0-9]{1,20}$/
+const APP_DATA_KEY_RE = /^(weekly|completion|jobCreated):[A-Za-z0-9]{1,20}$|^override:(main-sheet|claim-calculator|upcoming-work)$/
 
 async function handleAppDataGet(request, env) {
   const url = new URL(request.url)
@@ -812,7 +815,10 @@ async function handleAppDataPost(request, env) {
   if (!APP_DATA_KEY_RE.test(key ?? '')) {
     return json({ ok: false, error: 'bad_key', message: 'Invalid key.' }, 400)
   }
-  if (typeof value !== 'string' || value.length > 20_000) {
+  // Override blobs cover every job's pending edits for a whole sheet at
+  // once (main-sheet has 19 checklist columns per job), so they get a
+  // larger cap than the per-job weekly/completion/jobCreated records.
+  if (typeof value !== 'string' || value.length > 100_000) {
     return json({ ok: false, error: 'bad_value', message: 'Invalid value.' }, 400)
   }
   await env.APP_DATA.put(key, value)
