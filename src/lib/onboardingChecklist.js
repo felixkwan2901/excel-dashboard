@@ -1,4 +1,5 @@
 import { currentWeekStart } from './weekStart'
+import { getAppData, setAppData } from './appData'
 
 // The exact 19 items from the paper "Job Onboarding Checklist" — in order,
 // replacing whatever the workbook's own Main Sheet column headers happen to
@@ -31,29 +32,34 @@ export const ONBOARDING_ITEMS = [
 ]
 
 export const LINK_ITEM_COUNTS = { weekly: 9, completion: 11 }
-export const LINK_STORAGE_KEYS = { weekly: 'weeklyCheckSheet', completion: 'jobCompletionChecklist' }
 
-// Items 18/19 can't be marked Yes until every sub-item on their linked
-// checklist (Weekly Job Check Sheet / Job Completion Checklist) is either
-// done or N/A — that linked checklist is stored client-side (see
-// WeeklyCheckSheetTab/JobCompletionChecklistTab), so read it straight out
-// of localStorage rather than threading its state through props.
-export function isLinkedChecklistComplete(link, jobNumber) {
-  try {
-    const raw = localStorage.getItem(`${LINK_STORAGE_KEYS[link]}:${jobNumber}`)
-    if (!raw) return false
-    const stored = JSON.parse(raw)
-    // The weekly sheet resets every Saturday morning — a completion saved
-    // for an earlier week no longer counts as this week's item 18 being done.
-    if (link === 'weekly' && (!stored.weekOf || stored.weekOf < currentWeekStart())) return false
-    const items = stored.items ?? []
-    return items.length >= LINK_ITEM_COUNTS[link] && items.every((i) => i.done || i.na)
-  } catch {
-    return false
-  }
+// KV key prefixes for the linked checklists — "weekly:<jobNumber>" /
+// "completion:<jobNumber>", the same prefixes the Worker's /app-data route
+// accepts (see upload-worker/src/index.js's APP_DATA_KEY_RE).
+export const LINK_STORAGE_KEYS = { weekly: 'weekly', completion: 'completion' }
+
+// Pure/render-safe: given an already-fetched record (or null), says
+// whether every sub-item on that linked checklist is done or N/A. Split
+// out from the fetch itself so callers can fetch once (e.g. when a job is
+// selected) and reuse the result across a render loop, rather than
+// awaiting inside render.
+export function isLinkedChecklistCompleteFromRecord(link, record) {
+  if (!record) return false
+  // The weekly sheet resets every Saturday morning — a completion saved
+  // for an earlier week no longer counts as this week's item 18 being done.
+  if (link === 'weekly' && (!record.weekOf || record.weekOf < currentWeekStart())) return false
+  const items = record.items ?? []
+  return items.length >= LINK_ITEM_COUNTS[link] && items.every((i) => i.done || i.na)
 }
 
-const JOB_CREATED_KEY_PREFIX = 'jobCreatedAt'
+// Fetches the linked checklist's current record from KV (shared across
+// devices) for a single job. Callers needing to gate a render decision
+// should fetch once (e.g. on job selection) into state, then use
+// isLinkedChecklistCompleteFromRecord synchronously against that state.
+export async function fetchLinkedChecklistRecord(link, jobNumber) {
+  return getAppData(`${LINK_STORAGE_KEYS[link]}:${jobNumber}`)
+}
+
 const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000
 
 // Stamped once, right when a brand-new job is successfully added via
@@ -63,25 +69,19 @@ const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000
 // to decide they're overdue. Existing/legacy jobs never get this stamped,
 // so they're deliberately exempt — there's no meaningful "2 weeks from"
 // date for a job that already existed before this feature did.
-export function recordJobCreated(jobNumber) {
-  try {
-    localStorage.setItem(`${JOB_CREATED_KEY_PREFIX}:${jobNumber}`, new Date().toISOString())
-  } catch {
-    // Private browsing / storage full — the alert just won't fire for
-    // this job, not worth failing job creation over.
-  }
+export async function recordJobCreated(jobNumber) {
+  await setAppData(`jobCreated:${jobNumber}`, new Date().toISOString())
 }
 
-// True once 14+ days have passed since a job was stamped as created —
-// false (never flashing) for any job that was never stamped, i.e. every
-// job that existed before this feature, or before add-new-job started
-// recording it.
-export function isTwoWeeksOverdue(jobNumber) {
-  try {
-    const stamp = localStorage.getItem(`${JOB_CREATED_KEY_PREFIX}:${jobNumber}`)
-    if (!stamp) return false
-    return Date.now() - new Date(stamp).getTime() >= TWO_WEEKS_MS
-  } catch {
-    return false
-  }
+// Fetches a job's "first entered the site" stamp (or null if never
+// recorded — a legacy job, or one added before this feature existed).
+export async function fetchJobCreatedAt(jobNumber) {
+  return getAppData(`jobCreated:${jobNumber}`)
+}
+
+// Pure/render-safe: true once 14+ days have passed since the given stamp.
+// False (never flashing) for a null stamp.
+export function isTwoWeeksOverdueFromStamp(stamp) {
+  if (!stamp) return false
+  return Date.now() - new Date(stamp).getTime() >= TWO_WEEKS_MS
 }

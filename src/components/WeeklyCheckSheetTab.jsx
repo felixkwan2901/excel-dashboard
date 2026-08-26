@@ -1,11 +1,11 @@
-import { useLocalStorageState } from '../lib/useLocalStorageState'
+import { useEffect, useState } from 'react'
 import { currentWeekStart } from '../lib/weekStart'
+import { getAppData, setAppData } from '../lib/appData'
 
 // Matches the paper "Weekly Job Check Sheet" exactly — 9 recurring checks,
-// each a checkbox or N/A, plus a status pill and free notes. Saved straight
-// to this browser's local storage per job (no Excel sheet backs this yet),
-// so it's instant and needs no password — same "click, done" feel as the
-// rest of the checklist.
+// each a checkbox or N/A, plus a status pill and free notes. Saved to
+// Cloudflare KV per job (see src/lib/appData.js) so it's shared across
+// whatever device/browser you're on, not stuck to just one.
 const ITEMS = [
   'Programme updated to reflect actual progress',
   'Labour confirmed for next week',
@@ -31,6 +31,13 @@ function defaultState() {
     items: ITEMS.map(() => ({ done: false, na: false })),
     notes: '',
   }
+}
+
+// A saved sheet from before this week's Saturday is stale — reset it
+// rather than showing (or auto-completing) last week's ticks.
+function freshenIfStale(stored) {
+  const weekStart = currentWeekStart()
+  return stored?.weekOf && stored.weekOf >= weekStart ? stored : { ...defaultState(), weekOf: weekStart }
 }
 
 function ItemRow({ index, label, item, onChange }) {
@@ -67,23 +74,48 @@ function ItemRow({ index, label, item, onChange }) {
 }
 
 export default function WeeklyCheckSheetTab({ job, onBack }) {
-  const [state, setState] = useLocalStorageState(`weeklyCheckSheet:${job.jobNumber}`, defaultState(), {
-    deserialize: (raw) => {
-      const stored = JSON.parse(raw)
-      const weekStart = currentWeekStart()
-      // A saved sheet from before this week's Saturday is stale — reset it
-      // rather than showing (or auto-completing) last week's ticks.
-      return stored.weekOf && stored.weekOf >= weekStart ? stored : { ...defaultState(), weekOf: weekStart }
-    },
-  })
-  const doneCount = state.items.filter((i) => i.done).length
+  const [state, setState] = useState(null) // null while loading
+  const [saveStatus, setSaveStatus] = useState('') // '' | 'saving' | 'saved'
+  const [notesText, setNotesText] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+    getAppData(`weekly:${job.jobNumber}`).then((stored) => {
+      if (cancelled) return
+      const fresh = freshenIfStale(stored)
+      setState(fresh)
+      setNotesText(fresh.notes)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [job.jobNumber])
+
+  function updateState(updater) {
+    setState((prev) => {
+      const next = typeof updater === 'function' ? updater(prev) : updater
+      setSaveStatus('saving')
+      setAppData(`weekly:${job.jobNumber}`, next).then(() => setSaveStatus('saved'))
+      return next
+    })
+  }
 
   function updateItem(index, next) {
-    setState((prev) => ({
+    updateState((prev) => ({
       ...prev,
       items: prev.items.map((it, i) => (i === index ? next : it)),
     }))
   }
+
+  if (!state) {
+    return (
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
+        <p className="text-sm text-neutral-400">Loading…</p>
+      </div>
+    )
+  }
+
+  const doneCount = state.items.filter((i) => i.done).length
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
@@ -112,16 +144,19 @@ export default function WeeklyCheckSheetTab({ job, onBack }) {
               id="week-of"
               type="date"
               value={state.weekOf}
-              onChange={(e) => setState((prev) => ({ ...prev, weekOf: e.target.value }))}
+              onChange={(e) => updateState((prev) => ({ ...prev, weekOf: e.target.value }))}
               className="rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[13px] text-neutral-200 focus:border-brand-green/50 focus:outline-none"
             />
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            {saveStatus && (
+              <span className="text-[11px] text-neutral-500">{saveStatus === 'saving' ? 'Saving…' : 'Saved'}</span>
+            )}
             {STATUSES.map((s) => (
               <button
                 key={s.key}
                 type="button"
-                onClick={() => setState((prev) => ({ ...prev, status: s.key }))}
+                onClick={() => updateState((prev) => ({ ...prev, status: s.key }))}
                 className={`rounded-full border px-3 py-1 text-[12px] font-medium transition-colors ${
                   state.status === s.key ? s.style : 'border-white/10 text-neutral-500 hover:text-neutral-300'
                 }`}
@@ -153,8 +188,11 @@ export default function WeeklyCheckSheetTab({ job, onBack }) {
           <textarea
             id="week-notes"
             rows={3}
-            value={state.notes}
-            onChange={(e) => setState((prev) => ({ ...prev, notes: e.target.value }))}
+            value={notesText}
+            onChange={(e) => setNotesText(e.target.value)}
+            onBlur={() => {
+              if (notesText !== state.notes) updateState((prev) => ({ ...prev, notes: notesText }))
+            }}
             className="w-full rounded-md border border-white/10 bg-white/[0.04] px-3 py-2 text-[13px] text-neutral-200 focus:border-brand-green/50 focus:outline-none"
           />
         </div>

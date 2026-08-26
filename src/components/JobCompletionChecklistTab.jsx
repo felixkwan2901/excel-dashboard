@@ -1,9 +1,10 @@
-import { useLocalStorageState } from '../lib/useLocalStorageState'
+import { useEffect, useState } from 'react'
+import { getAppData, setAppData } from '../lib/appData'
 
 // Matches the paper "Job Completion Checklist" exactly — 11 close-out
 // items, each a checkbox or N/A, plus a completed date and free notes.
-// Saved to this browser's local storage per job (no Excel sheet backs this
-// yet), same as the Weekly job check sheet.
+// Saved to Cloudflare KV per job (see src/lib/appData.js) so it's shared
+// across whatever device/browser you're on, not stuck to just one.
 const ITEMS = [
   'Final QA completed',
   'Certificate of Compliance (COC) issued',
@@ -60,15 +61,48 @@ function ItemRow({ index, label, item, onChange }) {
 }
 
 export default function JobCompletionChecklistTab({ job, onBack }) {
-  const [state, setState] = useLocalStorageState(`jobCompletionChecklist:${job.jobNumber}`, defaultState())
-  const doneCount = state.items.filter((i) => i.done || i.na).length
+  const [state, setState] = useState(null) // null while loading
+  const [saveStatus, setSaveStatus] = useState('') // '' | 'saving' | 'saved'
+  const [notesText, setNotesText] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+    getAppData(`completion:${job.jobNumber}`).then((stored) => {
+      if (cancelled) return
+      const fresh = stored ?? defaultState()
+      setState(fresh)
+      setNotesText(fresh.notes)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [job.jobNumber])
+
+  function updateState(updater) {
+    setState((prev) => {
+      const next = typeof updater === 'function' ? updater(prev) : updater
+      setSaveStatus('saving')
+      setAppData(`completion:${job.jobNumber}`, next).then(() => setSaveStatus('saved'))
+      return next
+    })
+  }
 
   function updateItem(index, next) {
-    setState((prev) => ({
+    updateState((prev) => ({
       ...prev,
       items: prev.items.map((it, i) => (i === index ? next : it)),
     }))
   }
+
+  if (!state) {
+    return (
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
+        <p className="text-sm text-neutral-400">Loading…</p>
+      </div>
+    )
+  }
+
+  const doneCount = state.items.filter((i) => i.done || i.na).length
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
@@ -88,17 +122,22 @@ export default function JobCompletionChecklistTab({ job, onBack }) {
       </div>
 
       <div className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6">
-        <div className="flex items-center gap-2">
-          <label htmlFor="date-completed" className="text-[13px] text-neutral-500">
-            Date completed
-          </label>
-          <input
-            id="date-completed"
-            type="date"
-            value={state.dateCompleted}
-            onChange={(e) => setState((prev) => ({ ...prev, dateCompleted: e.target.value }))}
-            className="rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[13px] text-neutral-200 focus:border-brand-green/50 focus:outline-none"
-          />
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <label htmlFor="date-completed" className="text-[13px] text-neutral-500">
+              Date completed
+            </label>
+            <input
+              id="date-completed"
+              type="date"
+              value={state.dateCompleted}
+              onChange={(e) => updateState((prev) => ({ ...prev, dateCompleted: e.target.value }))}
+              className="rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[13px] text-neutral-200 focus:border-brand-green/50 focus:outline-none"
+            />
+          </div>
+          {saveStatus && (
+            <span className="text-[11px] text-neutral-500">{saveStatus === 'saving' ? 'Saving…' : 'Saved'}</span>
+          )}
         </div>
 
         <p className="mt-4 text-[13px] text-neutral-400">{doneCount} of {ITEMS.length} items complete</p>
@@ -122,8 +161,11 @@ export default function JobCompletionChecklistTab({ job, onBack }) {
           <textarea
             id="completion-notes"
             rows={3}
-            value={state.notes}
-            onChange={(e) => setState((prev) => ({ ...prev, notes: e.target.value }))}
+            value={notesText}
+            onChange={(e) => setNotesText(e.target.value)}
+            onBlur={() => {
+              if (notesText !== state.notes) updateState((prev) => ({ ...prev, notes: notesText }))
+            }}
             className="w-full rounded-md border border-white/10 bg-white/[0.04] px-3 py-2 text-[13px] text-neutral-200 focus:border-brand-green/50 focus:outline-none"
           />
         </div>

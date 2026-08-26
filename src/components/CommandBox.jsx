@@ -1,7 +1,12 @@
 import { useRef, useState } from 'react'
 import { Sparkles } from 'lucide-react'
 import { saveEdit } from '../lib/saveEdit'
-import { ONBOARDING_ITEMS, LINK_ITEM_COUNTS, isLinkedChecklistComplete } from '../lib/onboardingChecklist'
+import {
+  ONBOARDING_ITEMS,
+  LINK_ITEM_COUNTS,
+  isLinkedChecklistCompleteFromRecord,
+  fetchLinkedChecklistRecord,
+} from '../lib/onboardingChecklist'
 
 const UPLOAD_WORKER_URL = 'https://cde-data-upload.fkw24.workers.dev'
 
@@ -82,19 +87,21 @@ export default function CommandBox({ jobs, mainSheetColumns }) {
 
   // Same guard MainSheetTab.jsx applies for items 18/19 — the command box
   // can't be used to route around it.
-  function gateError(action) {
+  async function gateError(action) {
     if (action.target !== 'main-sheet' || action.value !== 'Yes') return null
     const colIndex = mainSheetColumns.findIndex((c) => c.col === action.col)
     const item = colIndex >= 0 ? ONBOARDING_ITEMS[colIndex] : null
     if (!item?.link) return null
-    if (isLinkedChecklistComplete(item.link, action.jobNumber)) return null
+    const record = await fetchLinkedChecklistRecord(item.link, action.jobNumber)
+    if (isLinkedChecklistCompleteFromRecord(item.link, record)) return null
     const sheetName = item.link === 'weekly' ? 'Weekly Job Check Sheet' : 'Job Completion Checklist'
     return `Finish all ${LINK_ITEM_COUNTS[item.link]} items on the ${sheetName} first.`
   }
 
   async function handleConfirm() {
     const { action } = result
-    const blocked = gateError(action)
+    setSaveStatus({ kind: 'idle', message: 'Checking…' })
+    const blocked = await gateError(action)
     if (blocked) {
       setSaveStatus({ kind: 'error', message: blocked })
       return

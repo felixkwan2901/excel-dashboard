@@ -1,11 +1,13 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { pollStagedStatus } from '../lib/pollStagedStatus'
 import { saveEdit } from '../lib/saveEdit'
 import {
   ONBOARDING_ITEMS,
   LINK_ITEM_COUNTS,
-  isLinkedChecklistComplete,
-  isTwoWeeksOverdue,
+  isLinkedChecklistCompleteFromRecord,
+  fetchLinkedChecklistRecord,
+  fetchJobCreatedAt,
+  isTwoWeeksOverdueFromStamp,
 } from '../lib/onboardingChecklist'
 
 const UPLOAD_WORKER_URL = 'https://cde-data-upload.fkw24.workers.dev'
@@ -122,6 +124,33 @@ export default function MainSheetTab({
     ? columns.filter((c) => values[selectedJob.jobNumber][c.key] === 'Yes').length
     : 0
 
+  // The Weekly/Completion checklist records and the job-created stamp now
+  // live in Cloudflare KV (shared across devices, see src/lib/appData.js)
+  // instead of localStorage — fetched once per job selection into state so
+  // the render loop below (item rows, the overdue flash) stays synchronous.
+  const [linkedRecords, setLinkedRecords] = useState({ weekly: null, completion: null })
+  const [jobCreatedAt, setJobCreatedAt] = useState(null)
+  useEffect(() => {
+    if (!selectedJob) return
+    let cancelled = false
+    Promise.all([
+      fetchLinkedChecklistRecord('weekly', selectedJob.jobNumber),
+      fetchLinkedChecklistRecord('completion', selectedJob.jobNumber),
+      fetchJobCreatedAt(selectedJob.jobNumber),
+    ]).then(([weekly, completion, createdAt]) => {
+      if (cancelled) return
+      setLinkedRecords({ weekly, completion })
+      setJobCreatedAt(createdAt)
+    })
+    return () => {
+      cancelled = true
+    }
+    // Keyed on the job number (a stable primitive) rather than
+    // `selectedJob` itself, which is a fresh object every render and would
+    // refetch on every keystroke elsewhere.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedJob?.jobNumber])
+
   async function archiveJob(job) {
     setArchiving(true)
     setStatus({ kind: 'idle', message: `Job completion checklist marked complete — archiving ${job.jobNumber}…` })
@@ -156,14 +185,17 @@ export default function MainSheetTab({
     const previousValue = values[job.jobNumber][colKey]
     if (newValue === previousValue) return
 
-    if (item?.link && newValue === 'Yes' && !isLinkedChecklistComplete(item.link, job.jobNumber)) {
-      const sheetName = item.link === 'weekly' ? 'Weekly Job Check Sheet' : 'Job Completion Checklist'
-      const count = LINK_ITEM_COUNTS[item.link]
-      setStatus({
-        kind: 'error',
-        message: `Finish all ${count} items on the ${sheetName} first — click "${item.label}" to open it.`,
-      })
-      return
+    if (item?.link && newValue === 'Yes') {
+      const record = await fetchLinkedChecklistRecord(item.link, job.jobNumber)
+      if (!isLinkedChecklistCompleteFromRecord(item.link, record)) {
+        const sheetName = item.link === 'weekly' ? 'Weekly Job Check Sheet' : 'Job Completion Checklist'
+        const count = LINK_ITEM_COUNTS[item.link]
+        setStatus({
+          kind: 'error',
+          message: `Finish all ${count} items on the ${sheetName} first — click "${item.label}" to open it.`,
+        })
+        return
+      }
     }
 
     setValues((prev) => ({ ...prev, [job.jobNumber]: { ...prev[job.jobNumber], [colKey]: newValue } }))
@@ -294,8 +326,8 @@ export default function MainSheetTab({
                 const overdue =
                   (item?.link === 'weekly' &&
                     isThursdayMorning() &&
-                    !isLinkedChecklistComplete('weekly', selectedJob.jobNumber)) ||
-                  (item?.twoWeek && pending && isTwoWeeksOverdue(selectedJob.jobNumber))
+                    !isLinkedChecklistCompleteFromRecord('weekly', linkedRecords.weekly)) ||
+                  (item?.twoWeek && pending && isTwoWeeksOverdueFromStamp(jobCreatedAt))
                 return (
                   <div
                     key={c.key}

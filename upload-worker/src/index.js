@@ -783,6 +783,43 @@ async function handleCommand(request, env) {
 }
 
 // ---------------------------------------------------------------------------
+// /app-data — small JSON blobs with no home in the tracked workbook (the
+// Weekly Job Check Sheet, the Job Completion Checklist, a new job's
+// "first entered the site" timestamp for the 2-week overdue alert). Keys
+// are bounded to those three known prefixes — this isn't a general-purpose
+// KV proxy, just enough to replace what used to be per-browser
+// localStorage with something that syncs across devices.
+// ---------------------------------------------------------------------------
+
+const APP_DATA_KEY_RE = /^(weekly|completion|jobCreated):[A-Za-z0-9]{1,20}$/
+
+async function handleAppDataGet(request, env) {
+  const url = new URL(request.url)
+  const key = url.searchParams.get('key') ?? ''
+  if (!APP_DATA_KEY_RE.test(key)) {
+    return json({ ok: false, error: 'bad_key', message: 'Invalid key.' }, 400)
+  }
+  const value = await env.APP_DATA.get(key)
+  return json({ ok: true, value })
+}
+
+async function handleAppDataPost(request, env) {
+  const body = await request.json().catch(() => null)
+  if (!body) {
+    return json({ ok: false, error: 'bad_request', message: 'Invalid request body.' }, 400)
+  }
+  const { key, value } = body
+  if (!APP_DATA_KEY_RE.test(key ?? '')) {
+    return json({ ok: false, error: 'bad_key', message: 'Invalid key.' }, 400)
+  }
+  if (typeof value !== 'string' || value.length > 20_000) {
+    return json({ ok: false, error: 'bad_value', message: 'Invalid value.' }, 400)
+  }
+  await env.APP_DATA.put(key, value)
+  return json({ ok: true })
+}
+
+// ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
 
@@ -872,6 +909,22 @@ export default {
     if (request.method === 'POST' && url.pathname === '/command') {
       try {
         return await handleCommand(request, env)
+      } catch (err) {
+        return json({ ok: false, error: 'unexpected', message: `Unexpected error: ${String(err.message ?? err)}` }, 500)
+      }
+    }
+
+    if (request.method === 'GET' && url.pathname === '/app-data') {
+      try {
+        return await handleAppDataGet(request, env)
+      } catch (err) {
+        return json({ ok: false, error: 'unexpected', message: `Unexpected error: ${String(err.message ?? err)}` }, 500)
+      }
+    }
+
+    if (request.method === 'POST' && url.pathname === '/app-data') {
+      try {
+        return await handleAppDataPost(request, env)
       } catch (err) {
         return json({ ok: false, error: 'unexpected', message: `Unexpected error: ${String(err.message ?? err)}` }, 500)
       }
