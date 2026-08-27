@@ -257,11 +257,19 @@
 
 .table-scroll {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
+/* border-collapse: collapse breaks position: sticky on table cells in
+   Safari/WebKit (a long-standing engine bug) — with sticky leading
+   columns on these wide tables, that made horizontal touch-scrolling on
+   iPhone effectively unusable. border-collapse: separate + zero spacing
+   looks identical here (every border is a per-cell border-bottom, not a
+   shared collapsed edge) but doesn't trigger the bug. */
 .data-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 13px;
 }
 
