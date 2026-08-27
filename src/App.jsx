@@ -314,7 +314,7 @@ export default function App() {
             <LoadStatus status={state.status} error={state.error} onRetry={retryLoad} />
           ) : (
             <Reveal index={0}>
-              <UpcomingWorkTab upcomingWork={upcomingWork} onBack={goHome} />
+              <UpcomingWorkTab upcomingWork={upcomingWork} monthlyHours={monthlyHours} onBack={goHome} />
             </Reveal>
           )}
         </main>

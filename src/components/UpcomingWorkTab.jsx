@@ -77,7 +77,7 @@ function EditableCapacityCell({ value, onChange }) {
 // Editing either one recomputes Hours available/Balance live for
 // whichever months you've overridden; everything else still reflects
 // the workbook's own values.
-function CapacityPanel({ capacity, usedHoursToDate }) {
+function CapacityPanel({ capacity, usedHoursByMonth }) {
   const [workingDaysOverrides, setWorkingDaysOverrides] = useLocalStorageState(
     'upcomingWork.workingDaysOverrides',
     {}
@@ -140,12 +140,15 @@ function CapacityPanel({ capacity, usedHoursToDate }) {
               ))}
             </tr>
             <tr>
-              <td className="whitespace-nowrap text-neutral-400">— Used hours (to date)</td>
-              {MONTH_LABELS.map((m) => (
-                <td key={m} className="num tabular text-neutral-400">
-                  {usedHoursToDate === null ? '—' : roundHours(usedHoursToDate)}
-                </td>
-              ))}
+              <td className="whitespace-nowrap text-neutral-400">— Used hours</td>
+              {MONTH_LABELS.map((m) => {
+                const v = usedHoursByMonth[m]
+                return (
+                  <td key={m} className="num tabular text-neutral-400">
+                    {v === null ? '—' : roundHours(v)}
+                  </td>
+                )
+              })}
             </tr>
             <tr>
               <td className="whitespace-nowrap">Hours available</td>
@@ -203,20 +206,26 @@ function CapacityPanel({ capacity, usedHoursToDate }) {
   )
 }
 
-export default function UpcomingWorkTab({ upcomingWork, onBack }) {
-  const { jobs, capacity } = upcomingWork
+// monthlyHours.totalsByMonth is company-wide actual hours worked, keyed
+// "YYYY-MM" (see parseMonthlyHoursLog) — matched here to this year's
+// Jan-Dec columns so "Used hours" lines up against "Total hours planned"
+// for the same month. Months with no logged entry yet (the log only
+// covers however far back logging started, and future months haven't
+// happened) come back null, shown as "—" rather than a false zero.
+function buildUsedHoursByLabel(monthlyHours) {
+  const year = new Date().getFullYear()
+  const map = {}
+  MONTH_LABELS.forEach((label, i) => {
+    const key = `${year}-${String(i + 1).padStart(2, '0')}`
+    const entry = monthlyHours.totalsByMonth.find((t) => t.month === key)
+    map[label] = entry ? entry.totalHours : null
+  })
+  return map
+}
 
-  // Each job's usedHours is a cumulative to-date total, not month-specific
-  // — there's no reliable way to split it by residential/commercial (that
-  // was a fixed row-range split from however the sheet happened to be laid
-  // out, brittle the same way the old Commercial/Residential totals split
-  // elsewhere in this app turned out to be — see parseMonthlyClaims). This
-  // is the same total shown in every month column below, as a standing
-  // reference next to the per-month planned-hours row rather than a
-  // month-by-month figure.
-  const usedHoursToDate = jobs.length
-    ? jobs.reduce((sum, j) => sum + (j.usedHours ?? 0), 0)
-    : null
+export default function UpcomingWorkTab({ upcomingWork, monthlyHours, onBack }) {
+  const { jobs, capacity } = upcomingWork
+  const usedHoursByMonth = buildUsedHoursByLabel(monthlyHours)
 
   const [values, setValues] = useState(() => {
     const map = {}
@@ -283,7 +292,7 @@ export default function UpcomingWorkTab({ upcomingWork, onBack }) {
         </p>
       )}
 
-      <CapacityPanel capacity={capacity} usedHoursToDate={usedHoursToDate} />
+      <CapacityPanel capacity={capacity} usedHoursByMonth={usedHoursByMonth} />
 
       <div className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6">
         <div className="table-scroll">
