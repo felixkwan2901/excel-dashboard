@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { saveEdit } from '../lib/saveEdit'
 import { roundHours } from '../lib/format'
+import { useLocalStorageState } from '../lib/useLocalStorageState'
 
 // Jan-Dec hours-allocation columns (cols F-Q, 0-indexed 5-16) plus the
 // notes column (S, 0-indexed 18) — the only manual entry on this sheet.
@@ -41,14 +42,71 @@ function EditableCell({ value, saving, numeric, onChange }) {
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
+function EditableCapacityCell({ value, onChange }) {
+  const [text, setText] = useState(value ?? '')
+  return (
+    <input
+      type="number"
+      value={text}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={() => {
+        const n = Number(text)
+        if (text !== '' && Number.isFinite(n) && n !== value) onChange(n)
+        else if (text === '' && value !== null) onChange(null)
+      }}
+      className="w-16 min-w-0 rounded-md border border-white/10 bg-white/[0.04] px-1.5 py-1 text-right text-[13px] tabular-nums text-neutral-200 focus:border-brand-green/50 focus:outline-none"
+    />
+  )
+}
+
 // Capacity summary — reproduces the sheet's own rows 70-77, which were
 // never surfaced anywhere in the app before: per month, is the work
 // already planned (Total hours, summed from every job's monthly
 // allocation) more than the crew can actually cover (Hours available =
 // staff on tools × working days × 8h × 0.8 productive-time factor)?
 // Balance is the difference — negative months are short-staffed.
-function CapacityPanel({ capacity }) {
+//
+// Working days / Staff on tools are editable here, but ONLY saved to
+// this browser (localStorage) — the real edit pipeline (saveEdit / the
+// upload worker / scripts/update-jobs.mjs) only knows how to address a
+// row by matching a job number in column A, and these two rows have no
+// job number at all (they're fixed physical rows, not one-per-job).
+// Wiring up real round-trip persistence for them would mean teaching
+// that whole pipeline a second, row-number-based addressing mode —
+// planning-only for now rather than half-building that untested.
+// Editing either one recomputes Hours available/Balance live for
+// whichever months you've overridden; everything else still reflects
+// the workbook's own values.
+function CapacityPanel({ capacity, usedHoursToDate }) {
+  const [workingDaysOverrides, setWorkingDaysOverrides] = useLocalStorageState(
+    'upcomingWork.workingDaysOverrides',
+    {}
+  )
+  const [staffOnToolsOverrides, setStaffOnToolsOverrides] = useLocalStorageState(
+    'upcomingWork.staffOnToolsOverrides',
+    {}
+  )
+
   if (!capacity) return null
+
+  function workingDaysFor(m) {
+    return workingDaysOverrides[m] !== undefined ? workingDaysOverrides[m] : capacity.workingDays[m]
+  }
+  function staffOnToolsFor(m) {
+    return staffOnToolsOverrides[m] !== undefined ? staffOnToolsOverrides[m] : capacity.staffOnTools[m]
+  }
+  function hoursAvailableFor(m) {
+    const days = workingDaysFor(m)
+    const staff = staffOnToolsFor(m)
+    return days !== null && days !== undefined && staff !== null && staff !== undefined
+      ? staff * days * 8 * 0.8
+      : capacity.hoursAvailable[m]
+  }
+  function balanceFor(m) {
+    const total = capacity.totalHours[m]
+    const available = hoursAvailableFor(m)
+    return total === null || available === null || available === undefined ? null : total - available
+  }
 
   return (
     <div className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6">
@@ -56,7 +114,8 @@ function CapacityPanel({ capacity }) {
       <p className="mt-1 text-[13px] text-neutral-400">
         Total hours planned across every job that month vs. hours available from the crew
         (staff on tools × working days × 8h × 80% productive time). Balance below zero means
-        that month is short-staffed for the work already planned.
+        that month is short-staffed for the work already planned. Working days/Staff on tools
+        are editable for planning ahead — saved to this browser only, not to the workbook.
       </p>
 
       <div className="table-scroll mt-4">
@@ -81,33 +140,28 @@ function CapacityPanel({ capacity }) {
               ))}
             </tr>
             <tr>
-              <td className="whitespace-nowrap text-neutral-400">— Residential</td>
+              <td className="whitespace-nowrap text-neutral-400">— Used hours (to date)</td>
               {MONTH_LABELS.map((m) => (
                 <td key={m} className="num tabular text-neutral-400">
-                  {capacity.residentialHours[m] === null ? '—' : roundHours(capacity.residentialHours[m])}
-                </td>
-              ))}
-            </tr>
-            <tr>
-              <td className="whitespace-nowrap text-neutral-400">— Commercial</td>
-              {MONTH_LABELS.map((m) => (
-                <td key={m} className="num tabular text-neutral-400">
-                  {capacity.commercialHours[m] === null ? '—' : roundHours(capacity.commercialHours[m])}
+                  {usedHoursToDate === null ? '—' : roundHours(usedHoursToDate)}
                 </td>
               ))}
             </tr>
             <tr>
               <td className="whitespace-nowrap">Hours available</td>
-              {MONTH_LABELS.map((m) => (
-                <td key={m} className="num tabular">
-                  {capacity.hoursAvailable[m] === null ? '—' : roundHours(capacity.hoursAvailable[m])}
-                </td>
-              ))}
+              {MONTH_LABELS.map((m) => {
+                const v = hoursAvailableFor(m)
+                return (
+                  <td key={m} className="num tabular">
+                    {v === null || v === undefined ? '—' : roundHours(v)}
+                  </td>
+                )
+              })}
             </tr>
             <tr>
               <td className="whitespace-nowrap font-medium text-neutral-200">Balance</td>
               {MONTH_LABELS.map((m) => {
-                const v = capacity.balanceHours[m]
+                const v = balanceFor(m)
                 return (
                   <td
                     key={m}
@@ -123,16 +177,22 @@ function CapacityPanel({ capacity }) {
             <tr>
               <td className="whitespace-nowrap text-neutral-500">Working days</td>
               {MONTH_LABELS.map((m) => (
-                <td key={m} className="num tabular text-neutral-500">
-                  {capacity.workingDays[m] ?? '—'}
+                <td key={m} className="p-1">
+                  <EditableCapacityCell
+                    value={workingDaysFor(m) ?? null}
+                    onChange={(n) => setWorkingDaysOverrides((prev) => ({ ...prev, [m]: n }))}
+                  />
                 </td>
               ))}
             </tr>
             <tr>
               <td className="whitespace-nowrap text-neutral-500">Staff on tools</td>
               {MONTH_LABELS.map((m) => (
-                <td key={m} className="num tabular text-neutral-500">
-                  {capacity.staffOnTools[m] ?? '—'}
+                <td key={m} className="p-1">
+                  <EditableCapacityCell
+                    value={staffOnToolsFor(m) ?? null}
+                    onChange={(n) => setStaffOnToolsOverrides((prev) => ({ ...prev, [m]: n }))}
+                  />
                 </td>
               ))}
             </tr>
@@ -145,6 +205,18 @@ function CapacityPanel({ capacity }) {
 
 export default function UpcomingWorkTab({ upcomingWork, onBack }) {
   const { jobs, capacity } = upcomingWork
+
+  // Each job's usedHours is a cumulative to-date total, not month-specific
+  // — there's no reliable way to split it by residential/commercial (that
+  // was a fixed row-range split from however the sheet happened to be laid
+  // out, brittle the same way the old Commercial/Residential totals split
+  // elsewhere in this app turned out to be — see parseMonthlyClaims). This
+  // is the same total shown in every month column below, as a standing
+  // reference next to the per-month planned-hours row rather than a
+  // month-by-month figure.
+  const usedHoursToDate = jobs.length
+    ? jobs.reduce((sum, j) => sum + (j.usedHours ?? 0), 0)
+    : null
 
   const [values, setValues] = useState(() => {
     const map = {}
@@ -211,7 +283,7 @@ export default function UpcomingWorkTab({ upcomingWork, onBack }) {
         </p>
       )}
 
-      <CapacityPanel capacity={capacity} />
+      <CapacityPanel capacity={capacity} usedHoursToDate={usedHoursToDate} />
 
       <div className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6">
         <div className="table-scroll">
