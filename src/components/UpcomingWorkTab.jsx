@@ -102,8 +102,17 @@ function CapacityPanel({ capacity, usedHoursByMonth }) {
       ? staff * days * 8 * 0.8
       : capacity.hoursAvailable[m]
   }
+  // Total hours planned = Used hours (actual, from the log) + Servicing
+  // (the sheet's fixed monthly allowance for any job under 30 hours) —
+  // null for a month with no logged Used hours yet, since there's nothing
+  // to add Servicing to.
+  function totalHoursFor(m) {
+    const used = usedHoursByMonth[m]
+    const servicing = capacity.servicingHours[m]
+    return used === null || servicing === null ? null : used + servicing
+  }
   function balanceFor(m) {
-    const total = capacity.totalHours[m]
+    const total = totalHoursFor(m)
     const available = hoursAvailableFor(m)
     return total === null || available === null || available === undefined ? null : total - available
   }
@@ -112,10 +121,11 @@ function CapacityPanel({ capacity, usedHoursByMonth }) {
     <div className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6">
       <h2 className="text-[15px] font-medium text-neutral-200">Monthly capacity</h2>
       <p className="mt-1 text-[13px] text-neutral-400">
-        Total hours planned across every job that month vs. hours available from the crew
-        (staff on tools × working days × 8h × 80% productive time). Balance below zero means
-        that month is short-staffed for the work already planned. Working days/Staff on tools
-        are editable for planning ahead — saved to this browser only, not to the workbook.
+        Total hours planned = Used hours + Servicing (any job under 30 hours) that month, vs.
+        hours available from the crew (staff on tools × working days × 8h × 80% productive
+        time). Balance = Total hours planned − Hours available, green when there's spare
+        capacity, red when that month is short-staffed. Working days/Staff on tools are
+        editable for planning ahead — saved to this browser only, not to the workbook.
       </p>
 
       <div className="table-scroll mt-4">
@@ -133,16 +143,32 @@ function CapacityPanel({ capacity, usedHoursByMonth }) {
           <tbody>
             <tr>
               <td className="whitespace-nowrap">Total hours planned</td>
-              {MONTH_LABELS.map((m) => (
-                <td key={m} className="num tabular">
-                  {capacity.totalHours[m] === null ? '—' : roundHours(capacity.totalHours[m])}
-                </td>
-              ))}
+              {MONTH_LABELS.map((m) => {
+                const v = totalHoursFor(m)
+                return (
+                  <td key={m} className="num tabular">
+                    {v === null ? '—' : roundHours(v)}
+                  </td>
+                )
+              })}
             </tr>
             <tr>
               <td className="whitespace-nowrap text-neutral-400">— Used hours</td>
               {MONTH_LABELS.map((m) => {
                 const v = usedHoursByMonth[m]
+                return (
+                  <td key={m} className="num tabular text-neutral-400">
+                    {v === null ? '—' : roundHours(v)}
+                  </td>
+                )
+              })}
+            </tr>
+            <tr>
+              <td className="whitespace-nowrap text-neutral-400" title="Servicing work any job under 30 hours">
+                — Servicing
+              </td>
+              {MONTH_LABELS.map((m) => {
+                const v = capacity.servicingHours[m]
                 return (
                   <td key={m} className="num tabular text-neutral-400">
                     {v === null ? '—' : roundHours(v)}

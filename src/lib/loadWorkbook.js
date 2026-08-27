@@ -466,6 +466,7 @@ function parseUpcomingWorkCapacity(sheet) {
   }
 
   return {
+    servicingHours: readMonthRow(3),
     totalHours: readMonthRow(70),
     residentialHours: readMonthRow(71),
     commercialHours: readMonthRow(72),
