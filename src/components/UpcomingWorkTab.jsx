@@ -78,6 +78,10 @@ function EditableCapacityCell({ value, onChange }) {
 // whichever months you've overridden; everything else still reflects
 // the workbook's own values.
 function CapacityPanel({ capacity, usedHoursByMonth }) {
+  const [servicingOverrides, setServicingOverrides] = useLocalStorageState(
+    'upcomingWork.servicingOverrides',
+    {}
+  )
   const [workingDaysOverrides, setWorkingDaysOverrides] = useLocalStorageState(
     'upcomingWork.workingDaysOverrides',
     {}
@@ -89,6 +93,9 @@ function CapacityPanel({ capacity, usedHoursByMonth }) {
 
   if (!capacity) return null
 
+  function servicingFor(m) {
+    return servicingOverrides[m] !== undefined ? servicingOverrides[m] : capacity.servicingHours[m]
+  }
   function workingDaysFor(m) {
     return workingDaysOverrides[m] !== undefined ? workingDaysOverrides[m] : capacity.workingDays[m]
   }
@@ -108,8 +115,8 @@ function CapacityPanel({ capacity, usedHoursByMonth }) {
   // to add Servicing to.
   function totalHoursFor(m) {
     const used = usedHoursByMonth[m]
-    const servicing = capacity.servicingHours[m]
-    return used === null || servicing === null ? null : used + servicing
+    const servicing = servicingFor(m)
+    return used === null || servicing === null || servicing === undefined ? null : used + servicing
   }
   function balanceFor(m) {
     const total = totalHoursFor(m)
@@ -124,8 +131,8 @@ function CapacityPanel({ capacity, usedHoursByMonth }) {
         Total hours planned = Used hours + Servicing (any job under 30 hours) that month, vs.
         hours available from the crew (staff on tools × working days × 8h × 80% productive
         time). Balance = Total hours planned − Hours available, green when there's spare
-        capacity, red when that month is short-staffed. Working days/Staff on tools are
-        editable for planning ahead — saved to this browser only, not to the workbook.
+        capacity, red when that month is short-staffed. Servicing/Working days/Staff on tools
+        are editable for planning ahead — saved to this browser only, not to the workbook.
       </p>
 
       <div className="table-scroll mt-4">
@@ -142,6 +149,19 @@ function CapacityPanel({ capacity, usedHoursByMonth }) {
           </thead>
           <tbody>
             <tr>
+              <td className="whitespace-nowrap text-neutral-500" title="Servicing work any job under 30 hours">
+                Servicing
+              </td>
+              {MONTH_LABELS.map((m) => (
+                <td key={m} className="p-1">
+                  <EditableCapacityCell
+                    value={servicingFor(m) ?? null}
+                    onChange={(n) => setServicingOverrides((prev) => ({ ...prev, [m]: n }))}
+                  />
+                </td>
+              ))}
+            </tr>
+            <tr>
               <td className="whitespace-nowrap">Total hours planned</td>
               {MONTH_LABELS.map((m) => {
                 const v = totalHoursFor(m)
@@ -156,19 +176,6 @@ function CapacityPanel({ capacity, usedHoursByMonth }) {
               <td className="whitespace-nowrap text-neutral-400">— Used hours</td>
               {MONTH_LABELS.map((m) => {
                 const v = usedHoursByMonth[m]
-                return (
-                  <td key={m} className="num tabular text-neutral-400">
-                    {v === null ? '—' : roundHours(v)}
-                  </td>
-                )
-              })}
-            </tr>
-            <tr>
-              <td className="whitespace-nowrap text-neutral-400" title="Servicing work any job under 30 hours">
-                — Servicing
-              </td>
-              {MONTH_LABELS.map((m) => {
-                const v = capacity.servicingHours[m]
                 return (
                   <td key={m} className="num tabular text-neutral-400">
                     {v === null ? '—' : roundHours(v)}
