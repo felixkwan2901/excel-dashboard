@@ -6,7 +6,7 @@ export const CURRENCY = new Intl.NumberFormat('en-NZ', {
 
 export const PERCENT = new Intl.NumberFormat('en-NZ', {
   style: 'percent',
-  maximumFractionDigits: 1,
+  maximumFractionDigits: 2,
 })
 
 // Claim/margin figures that should read as "done" often land at a small
@@ -22,5 +22,5 @@ export function money(v) {
 
 export function percent(v) {
   if (v === null) return '—'
-  return PERCENT.format(Math.round(v * 1000) === 0 ? 0 : v)
+  return PERCENT.format(Math.round(v * 10000) === 0 ? 0 : v)
 }
