@@ -409,7 +409,7 @@ const UPCOMING_WORK_MONTH_LABELS = [
 // and the notes column (S) are the sheet's only manual entry.
 function parseUpcomingWork(workbook) {
   const sheet = workbook.Sheets['Upcoming Work Calculator']
-  if (!sheet) return { jobs: [] }
+  if (!sheet) return { jobs: [], capacity: null }
 
   const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false, defval: '' })
   const jobs = []
@@ -435,7 +435,45 @@ function parseUpcomingWork(workbook) {
     })
   }
 
-  return { jobs }
+  return { jobs, capacity: parseUpcomingWorkCapacity(sheet) }
+}
+
+// Below the per-job rows, the sheet has a fixed capacity-planning block
+// (rows 70-77) that never got surfaced anywhere in the app — it answers
+// "do we have enough staff for the work already planned?" per month:
+//
+//   Total Hours (70)       = Servicing (row 3) + Residential (71) + Commercial (72)
+//   Residential Hours (71) = SUM of the residential job rows' hours that month
+//   Commercial Hours (72)  = SUM of the commercial job rows' hours that month
+//   Hours Available (73)   = Staff On Tools (77) × Working Days (76) × 8h × 0.8
+//                            (0.8 = assumed on-tools productive fraction of a
+//                            work day, the rest lost to travel/admin/etc.)
+//   Balance Hours (74)     = Total Hours (70) − Hours Available (73)
+//                            negative = short-staffed that month, positive = spare capacity
+//   Working Days (76) / Staff On Tools (77) are the sheet's own manual inputs.
+//
+// These are fixed physical rows on this sheet (not identified by a job
+// number like the rows above), so read directly by cell address rather
+// than via the header-driven job-row scan.
+function parseUpcomingWorkCapacity(sheet) {
+  function readMonthRow(rowNum) {
+    const out = {}
+    UPCOMING_WORK_MONTH_COLUMNS.forEach((col, i) => {
+      const addr = XLSX.utils.encode_cell({ r: rowNum - 1, c: col })
+      out[UPCOMING_WORK_MONTH_LABELS[i]] = toNumber(sheet[addr]?.v)
+    })
+    return out
+  }
+
+  return {
+    totalHours: readMonthRow(70),
+    residentialHours: readMonthRow(71),
+    commercialHours: readMonthRow(72),
+    hoursAvailable: readMonthRow(73),
+    balanceHours: readMonthRow(74),
+    workingDays: readMonthRow(76),
+    staffOnTools: readMonthRow(77),
+  }
 }
 
 // "Main Sheet" is the project-handover checklist — one row per job (each

@@ -39,8 +39,112 @@ function EditableCell({ value, saving, numeric, onChange }) {
   )
 }
 
+const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+// Capacity summary — reproduces the sheet's own rows 70-77, which were
+// never surfaced anywhere in the app before: per month, is the work
+// already planned (Total hours, summed from every job's monthly
+// allocation) more than the crew can actually cover (Hours available =
+// staff on tools × working days × 8h × 0.8 productive-time factor)?
+// Balance is the difference — negative months are short-staffed.
+function CapacityPanel({ capacity }) {
+  if (!capacity) return null
+
+  return (
+    <div className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6">
+      <h2 className="text-[15px] font-medium text-neutral-200">Monthly capacity</h2>
+      <p className="mt-1 text-[13px] text-neutral-400">
+        Total hours planned across every job that month vs. hours available from the crew
+        (staff on tools × working days × 8h × 80% productive time). Balance below zero means
+        that month is short-staffed for the work already planned.
+      </p>
+
+      <div className="table-scroll mt-4">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Month</th>
+              {MONTH_LABELS.map((m) => (
+                <th key={m} className="num">
+                  {m}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td className="whitespace-nowrap">Total hours planned</td>
+              {MONTH_LABELS.map((m) => (
+                <td key={m} className="num tabular">
+                  {capacity.totalHours[m] === null ? '—' : roundHours(capacity.totalHours[m])}
+                </td>
+              ))}
+            </tr>
+            <tr>
+              <td className="whitespace-nowrap text-neutral-400">— Residential</td>
+              {MONTH_LABELS.map((m) => (
+                <td key={m} className="num tabular text-neutral-400">
+                  {capacity.residentialHours[m] === null ? '—' : roundHours(capacity.residentialHours[m])}
+                </td>
+              ))}
+            </tr>
+            <tr>
+              <td className="whitespace-nowrap text-neutral-400">— Commercial</td>
+              {MONTH_LABELS.map((m) => (
+                <td key={m} className="num tabular text-neutral-400">
+                  {capacity.commercialHours[m] === null ? '—' : roundHours(capacity.commercialHours[m])}
+                </td>
+              ))}
+            </tr>
+            <tr>
+              <td className="whitespace-nowrap">Hours available</td>
+              {MONTH_LABELS.map((m) => (
+                <td key={m} className="num tabular">
+                  {capacity.hoursAvailable[m] === null ? '—' : roundHours(capacity.hoursAvailable[m])}
+                </td>
+              ))}
+            </tr>
+            <tr>
+              <td className="whitespace-nowrap font-medium text-neutral-200">Balance</td>
+              {MONTH_LABELS.map((m) => {
+                const v = capacity.balanceHours[m]
+                return (
+                  <td
+                    key={m}
+                    className={`num tabular font-medium ${
+                      v === null ? '' : v < 0 ? 'text-red-400' : 'text-brand-green'
+                    }`}
+                  >
+                    {v === null ? '—' : roundHours(v)}
+                  </td>
+                )
+              })}
+            </tr>
+            <tr>
+              <td className="whitespace-nowrap text-neutral-500">Working days</td>
+              {MONTH_LABELS.map((m) => (
+                <td key={m} className="num tabular text-neutral-500">
+                  {capacity.workingDays[m] ?? '—'}
+                </td>
+              ))}
+            </tr>
+            <tr>
+              <td className="whitespace-nowrap text-neutral-500">Staff on tools</td>
+              {MONTH_LABELS.map((m) => (
+                <td key={m} className="num tabular text-neutral-500">
+                  {capacity.staffOnTools[m] ?? '—'}
+                </td>
+              ))}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
 export default function UpcomingWorkTab({ upcomingWork, onBack }) {
-  const { jobs } = upcomingWork
+  const { jobs, capacity } = upcomingWork
 
   const [values, setValues] = useState(() => {
     const map = {}
@@ -106,6 +210,8 @@ export default function UpcomingWorkTab({ upcomingWork, onBack }) {
           {status.message}
         </p>
       )}
+
+      <CapacityPanel capacity={capacity} />
 
       <div className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6">
         <div className="table-scroll">
