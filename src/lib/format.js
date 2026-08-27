@@ -24,3 +24,10 @@ export function percent(v) {
   if (v === null) return '—'
   return PERCENT.format(Math.round(v * 10000) === 0 ? 0 : v)
 }
+
+// Some hour figures come out of the workbook as a subtraction of two
+// floats (e.g. 208.2 - 317.25), which floating-point arithmetic can leave
+// as -109.05000000000001 instead of a clean -109.05 — round for display.
+export function roundHours(v) {
+  return v === null ? null : Math.round(v * 100) / 100
+}

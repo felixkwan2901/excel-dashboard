@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ArrowLeft, AlertTriangle, Archive, SlidersHorizontal } from 'lucide-react'
 import TrendBadge from './TrendBadge'
-import { money, percent } from '../lib/format'
+import { money, percent, roundHours } from '../lib/format'
 import { statusReasons } from '../lib/statusReasons'
 import { pollStagedStatus } from '../lib/pollStagedStatus'
 
@@ -151,13 +151,6 @@ function StatCard({ label, value, formatValue, quoted, formatQuoted, ratio, good
       )}
     </div>
   )
-}
-
-// Some hour figures come out of the workbook as a subtraction of two
-// floats (e.g. 208.2 - 317.25), which floating-point arithmetic can leave
-// as -109.05000000000001 instead of a clean -109.05 — round for display.
-function roundHours(v) {
-  return v === null ? null : Math.round(v * 100) / 100
 }
 
 function hours(v) {

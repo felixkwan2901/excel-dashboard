@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { saveEdit } from '../lib/saveEdit'
+import { roundHours } from '../lib/format'
 
 // Jan-Dec hours-allocation columns (cols F-Q, 0-indexed 5-16) plus the
 // notes column (S, 0-indexed 18) — the only manual entry on this sheet.
@@ -144,16 +145,16 @@ export default function UpcomingWorkTab({ upcomingWork, onBack }) {
                     {job.jobNumber} {job.jobName}
                   </td>
                   <td className="num tabular sticky-col" style={{ left: STICKY_LEFTS[1], minWidth: STICKY_WIDTHS[1] }}>
-                    {job.quotedHours ?? '—'}
+                    {job.quotedHours === null ? '—' : roundHours(job.quotedHours)}
                   </td>
                   <td className="num tabular sticky-col" style={{ left: STICKY_LEFTS[2], minWidth: STICKY_WIDTHS[2] }}>
-                    {job.usedHours ?? '—'}
+                    {job.usedHours === null ? '—' : roundHours(job.usedHours)}
                   </td>
                   <td
                     className="num tabular sticky-col sticky-col-end"
                     style={{ left: STICKY_LEFTS[3], minWidth: STICKY_WIDTHS[3] }}
                   >
-                    {job.remainingHours ?? '—'}
+                    {job.remainingHours === null ? '—' : roundHours(job.remainingHours)}
                   </td>
                   {MONTH_FIELDS.map((field) => {
                     return (
