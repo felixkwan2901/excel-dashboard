@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { money, percent } from '../lib/format'
 import { saveEdit } from '../lib/saveEdit'
+import { useLocalStorageState } from '../lib/useLocalStorageState'
 
 // Claim and Costs used to be here too, but they're now auto-computed by
 // scripts/update-jobs.mjs on every weekly upload (this month's cumulative
@@ -22,10 +23,15 @@ const EDITABLE_FIELDS = [
   { key: 'notes', col: 16, label: 'Notes', num: false },
 ]
 
-// Hours-to-come are costed at a fixed $40/hr — hardcoded in the
-// workbook's own formula (=(I4*40)+J4), not a per-job or configurable
-// rate. Verified against every job row on the real sheet, no exceptions.
-const HOURS_TO_COME_RATE = 40
+// Hours-to-come are costed at a $/hr rate — hardcoded in the workbook's
+// own formula as literally "*40" (=(I4*40)+J4), verified against every
+// job row on the real sheet with no exceptions. Kept editable here rather
+// than hardcoded to 40 forever, since that "40" is itself a business-set
+// assumption someone updates by hand in the formula every ~6 months as
+// average rates change — not a fixed constant. Defaults to 40 (today's
+// real value) instead of blank, since defaulting to $0 silently zeroed
+// out hours-to-come cost until someone happened to type in a rate.
+const DEFAULT_HOURS_TO_COME_RATE = 40
 
 // Saves on blur (not per-keystroke) since these are numbers/notes someone
 // might pause mid-typing — matches the same convention used everywhere else
@@ -141,6 +147,14 @@ export default function MonthlyClaims({ monthlyClaims, monthlyHours, onBack }) {
     })
   }
 
+  // Reviewed by hand every ~6 months, same cadence as the workbook's own
+  // hardcoded formula constant it mirrors — see DEFAULT_HOURS_TO_COME_RATE.
+  const [hoursToComeRateInput, setHoursToComeRateInput] = useLocalStorageState(
+    'monthlyClaims.hoursToComeRate',
+    String(DEFAULT_HOURS_TO_COME_RATE)
+  )
+  const hoursToComeRate = Number(hoursToComeRateInput) || 0
+
   // Every job in the workbook gets a row on the "Claim Calculator By Month"
   // sheet whether or not it was claimed against this month — most fields
   // (claim, costs, profit, margin, GP $/hr) just come out as flat zero for
@@ -158,7 +172,7 @@ export default function MonthlyClaims({ monthlyClaims, monthlyHours, onBack }) {
   // "Claim Calculator By Month" sheet (verified against its own cells):
   //
   //   Margin              = (Profit + Retention) / Claim
-  //   Total cost to come  = (Hours to complete × $40/hr) + Costs to come
+  //   Total cost to come  = (Hours to complete × rate) + Costs to come
   //   Est. margin E.O.M.  = ((Profit − Total cost to come) + Retention) / Claim
   //   GP end of month     = (Profit + Retention) − Total cost to come
   //   GP $/hr this month  = GP end of month / (Hours this month + Hours to complete)
@@ -183,7 +197,7 @@ export default function MonthlyClaims({ monthlyClaims, monthlyHours, onBack }) {
           const claim = j.claim
           const profit = j.profit ?? 0
           const margin = claim ? (profit + retention) / claim : null
-          const totalCostToComeBeforeEom = hoursToCompleteBeforeEom * HOURS_TO_COME_RATE + costsToComeBeforeEom
+          const totalCostToComeBeforeEom = hoursToCompleteBeforeEom * hoursToComeRate + costsToComeBeforeEom
           const estimatedMarginEom = claim
             ? (profit - totalCostToComeBeforeEom + retention) / claim
             : null
@@ -205,7 +219,7 @@ export default function MonthlyClaims({ monthlyClaims, monthlyHours, onBack }) {
             gpPerHourThisMonth,
           }
         }),
-    [jobs, hoursThisMonthByJob, fieldOverrides]
+    [jobs, hoursThisMonthByJob, fieldOverrides, hoursToComeRate]
   )
   const inactiveCount = jobs.length - activeJobs.length
 
@@ -250,18 +264,33 @@ export default function MonthlyClaims({ monthlyClaims, monthlyHours, onBack }) {
       )}
 
       <div className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6">
-        <div className="mb-4">
-          <h2 className="text-[15px] font-medium text-neutral-100">Jobs claimed this month — full figures</h2>
-          <p className="mt-1 text-[12px] text-neutral-500">
-            Type into Retention, Hours to come, Cost to come, or Notes to save — no need to open
-            anything first. Total cost to come = (hours to come × $40/hr) + cost to come. Est.
-            margin E.O.M. = ((profit − total cost to come) + retention) ÷ claim. GP end of month =
-            (profit + retention) − total cost to come. GP $/hr this month = GP end of month ÷
-            (hours this month + hours to come).
-            {inactiveCount > 0 && (
-              <> {inactiveCount} other job{inactiveCount === 1 ? '' : 's'} with no claim this month {inactiveCount === 1 ? 'is' : 'are'} hidden.</>
-            )}
-          </p>
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h2 className="text-[15px] font-medium text-neutral-100">Jobs claimed this month — full figures</h2>
+            <p className="mt-1 text-[12px] text-neutral-500">
+              Type into Retention, Hours to come, Cost to come, or Notes to save — no need to open
+              anything first. Total cost to come = (hours to come × the rate here) + cost to come.
+              Est. margin E.O.M. = ((profit − total cost to come) + retention) ÷ claim. GP end of
+              month = (profit + retention) − total cost to come. GP $/hr this month = GP end of
+              month ÷ (hours this month + hours to come).
+              {inactiveCount > 0 && (
+                <> {inactiveCount} other job{inactiveCount === 1 ? '' : 's'} with no claim this month {inactiveCount === 1 ? 'is' : 'are'} hidden.</>
+              )}
+            </p>
+          </div>
+          <div>
+            <label htmlFor="hours-to-come-rate" className="mb-1 block text-[12px] text-neutral-500">
+              Hours-to-come rate ($/hr, reviewed every 6 months)
+            </label>
+            <input
+              id="hours-to-come-rate"
+              type="number"
+              value={hoursToComeRateInput}
+              onChange={(e) => setHoursToComeRateInput(e.target.value)}
+              placeholder={String(DEFAULT_HOURS_TO_COME_RATE)}
+              className="w-36 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1.5 text-sm text-neutral-200 focus:border-brand-green/50 focus:outline-none"
+            />
+          </div>
         </div>
 
         {/* Mobile: one stacked card per job with the headline figures plus
