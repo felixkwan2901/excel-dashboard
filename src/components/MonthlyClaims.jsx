@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import { money, percent } from '../lib/format'
 import { saveEdit } from '../lib/saveEdit'
-import { useLocalStorageState } from '../lib/useLocalStorageState'
 
 // Claim and Costs used to be here too, but they're now auto-computed by
 // scripts/update-jobs.mjs on every weekly upload (this month's cumulative
@@ -11,12 +10,22 @@ import { useLocalStorageState } from '../lib/useLocalStorageState'
 // (Hours/Costs to come before E.O.M) that nothing in the workbook can
 // derive automatically. Edited directly in the table now — a box to type
 // into, not a click-to-open-modal step in between.
+//
+// Retention (col F) is a raw dollar figure, not a percentage — confirmed
+// against the workbook's own formulas (Margin = (Profit+Retention)/Claim,
+// which only makes dimensional sense if Retention is in dollars like
+// Profit, not a 0-1 fraction).
 const EDITABLE_FIELDS = [
-  { key: 'retention', col: 5, label: 'Retention %', num: true },
+  { key: 'retention', col: 5, label: 'Retention ($)', num: true },
   { key: 'hoursToCompleteBeforeEom', col: 8, label: 'Hours to complete before E.O.M', num: true },
   { key: 'costsToComeBeforeEom', col: 9, label: 'Costs to come before E.O.M', num: true },
   { key: 'notes', col: 16, label: 'Notes', num: false },
 ]
+
+// Hours-to-come are costed at a fixed $40/hr — hardcoded in the
+// workbook's own formula (=(I4*40)+J4), not a per-job or configurable
+// rate. Verified against every job row on the real sheet, no exceptions.
+const HOURS_TO_COME_RATE = 40
 
 // Saves on blur (not per-keystroke) since these are numbers/notes someone
 // might pause mid-typing — matches the same convention used everywhere else
@@ -49,13 +58,18 @@ function hours(v) {
   return v === null ? '—' : v.toFixed(1)
 }
 
+// Mirrors the workbook's own column set exactly (Profit, Margin, Total
+// cost to come, Estimated margin E.O.M., GP end of month, GP $/hr this
+// month) — see the formulas reproduced in the useMemo below.
 const READONLY_COLUMNS = [
   { key: 'costs', label: 'Cost of month', num: true, format: money },
+  { key: 'profit', label: 'Profit', num: true, format: money },
+  { key: 'margin', label: 'Margin', num: true, format: percent },
   { key: 'hoursThisMonth', label: 'Hours', num: true, format: hours },
-  { key: 'quotedGpPerHour', label: 'Quoted GP $/hr', num: true, format: money },
-  { key: 'hoursToComeCost', label: 'Hours to come cost', num: true, format: money },
-  { key: 'quotedHoursValue', label: 'Quoted hours value', num: true, format: money },
-  { key: 'total', label: 'Total cost', num: true, format: money },
+  { key: 'totalCostToComeBeforeEom', label: 'Total cost to come', num: true, format: money },
+  { key: 'estimatedMarginEom', label: 'Est. margin E.O.M.', num: true, format: percent },
+  { key: 'gpEndOfMonth', label: 'GP end of month', num: true, format: money },
+  { key: 'gpPerHourThisMonth', label: 'GP $/hr this month', num: true, format: money },
 ]
 
 function currentMonthKey() {
@@ -63,7 +77,7 @@ function currentMonthKey() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
-export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHours, onBack }) {
+export default function MonthlyClaims({ monthlyClaims, monthlyHours, onBack }) {
   const { jobs } = monthlyClaims
 
   // The Claim Calculator sheet's own "Hours this month" cell is hand-typed
@@ -127,21 +141,6 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
     })
   }
 
-  // Quoted GP $/hr is a per-job quote figure (from the Deliverables Sheet),
-  // not something the Claim Calculator By Month sheet itself tracks — pull
-  // it in from the Job Directory's own data, matched by job number.
-  const quotedGpPerHourByJob = useMemo(() => {
-    const map = new Map()
-    for (const j of allJobs) map.set(j.jobNumber, j.quotedGpPerHour ?? null)
-    return map
-  }, [allJobs])
-
-  // A single company-wide $/hr rate, set by hand every ~6 months (not
-  // per-job, not derived from the workbook) — used below to turn "hours to
-  // come" into a projected dollar cost.
-  const [avgHourlyRate, setAvgHourlyRate] = useLocalStorageState('monthlyClaims.avgHourlyRate', '')
-  const rate = Number(avgHourlyRate) || 0
-
   // Every job in the workbook gets a row on the "Claim Calculator By Month"
   // sheet whether or not it was claimed against this month — most fields
   // (claim, costs, profit, margin, GP $/hr) just come out as flat zero for
@@ -150,38 +149,48 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
   // anything a claim-focused view needs. Jobs actually claimed against
   // this month are the ones worth showing.
   //
-  // Total cost = cost of month
-  //            + (hours to come × the rate above)
-  //            + cost to come
-  //            + ((hours actual + hours to come) × quoted GP $/hr)
-  //            + (retention % × cost of month), if a retention % is set
+  // Retention, Hours-to-complete, and Costs-to-come are editable right in
+  // this table, so Margin/Total-cost-to-come/Est-margin-EOM/GP-end-of-
+  // month/GP-$-per-hr all get recomputed here from whatever's on screen
+  // right now, rather than trusted from the sheet — the sheet's own cached
+  // formula result reflects whatever those three inputs were at the last
+  // sync, not a live edit. Formulas reproduced exactly from the workbook's
+  // "Claim Calculator By Month" sheet (verified against its own cells):
+  //
+  //   Margin              = (Profit + Retention) / Claim
+  //   Total cost to come  = (Hours to complete × $40/hr) + Costs to come
+  //   Est. margin E.O.M.  = ((Profit − Total cost to come) + Retention) / Claim
+  //   GP end of month     = (Profit + Retention) − Total cost to come
+  //   GP $/hr this month  = GP end of month / (Hours this month + Hours to complete)
   const activeJobs = useMemo(
     () =>
       jobs
         .filter((j) => j.claim !== 0 || j.costs !== 0)
         .map((j) => {
           const override = fieldOverrides[j.jobNumber]
-          const retention = override?.retention !== undefined ? Number(override.retention) || 0 : j.retention
+          const retention = override?.retention !== undefined ? Number(override.retention) || 0 : (j.retention ?? 0)
           const hoursToCompleteBeforeEom =
             override?.hoursToCompleteBeforeEom !== undefined
               ? Number(override.hoursToCompleteBeforeEom) || 0
-              : j.hoursToCompleteBeforeEom
+              : (j.hoursToCompleteBeforeEom ?? 0)
           const costsToComeBeforeEom =
             override?.costsToComeBeforeEom !== undefined
               ? Number(override.costsToComeBeforeEom) || 0
-              : j.costsToComeBeforeEom
+              : (j.costsToComeBeforeEom ?? 0)
           const notes = override?.notes !== undefined ? override.notes : j.notes
-          const hoursThisMonth = hoursThisMonthByJob.get(j.jobNumber) ?? j.hoursThisMonth
+          const hoursThisMonth = hoursThisMonthByJob.get(j.jobNumber) ?? j.hoursThisMonth ?? 0
 
-          const quotedGpPerHour = quotedGpPerHourByJob.get(j.jobNumber) ?? null
-          const hoursToCome = hoursToCompleteBeforeEom ?? 0
-          const hoursActual = hoursThisMonth ?? 0
-          const costsToCome = costsToComeBeforeEom ?? 0
-          const costOfMonth = j.costs ?? 0
-          const hoursToComeCost = hoursToCome * rate
-          const quotedHoursValue = (hoursActual + hoursToCome) * (quotedGpPerHour ?? 0)
-          const retentionAddOn = retention ? (retention / 100) * costOfMonth : 0
-          const total = costOfMonth + hoursToComeCost + costsToCome + quotedHoursValue + retentionAddOn
+          const claim = j.claim
+          const profit = j.profit ?? 0
+          const margin = claim ? (profit + retention) / claim : null
+          const totalCostToComeBeforeEom = hoursToCompleteBeforeEom * HOURS_TO_COME_RATE + costsToComeBeforeEom
+          const estimatedMarginEom = claim
+            ? (profit - totalCostToComeBeforeEom + retention) / claim
+            : null
+          const gpEndOfMonth = profit + retention - totalCostToComeBeforeEom
+          const hoursDenominator = hoursThisMonth + hoursToCompleteBeforeEom
+          const gpPerHourThisMonth = hoursDenominator ? gpEndOfMonth / hoursDenominator : null
+
           return {
             ...j,
             retention,
@@ -189,14 +198,14 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
             costsToComeBeforeEom,
             notes,
             hoursThisMonth,
-            quotedGpPerHour,
-            hoursToComeCost,
-            quotedHoursValue,
-            retentionAddOn,
-            total,
+            margin,
+            totalCostToComeBeforeEom,
+            estimatedMarginEom,
+            gpEndOfMonth,
+            gpPerHourThisMonth,
           }
         }),
-    [jobs, quotedGpPerHourByJob, hoursThisMonthByJob, rate, fieldOverrides]
+    [jobs, hoursThisMonthByJob, fieldOverrides]
   )
   const inactiveCount = jobs.length - activeJobs.length
 
@@ -241,32 +250,18 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
       )}
 
       <div className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6">
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h2 className="text-[15px] font-medium text-neutral-100">Jobs claimed this month — full figures</h2>
-            <p className="mt-1 text-[12px] text-neutral-500">
-              Type into Ret%, Hours to come, Cost to come, or Notes to save — no need to open
-              anything first. Total cost = cost of month + (hours to come × the rate here) + cost
-              to come + ((hours actual + hours to come) × quoted GP $/hr), plus retention % of
-              cost of month if set.
-              {inactiveCount > 0 && (
-                <> {inactiveCount} other job{inactiveCount === 1 ? '' : 's'} with no claim this month {inactiveCount === 1 ? 'is' : 'are'} hidden.</>
-              )}
-            </p>
-          </div>
-          <div>
-            <label htmlFor="avg-hourly-rate" className="mb-1 block text-[12px] text-neutral-500">
-              Average $/hr rate (reviewed every 6 months)
-            </label>
-            <input
-              id="avg-hourly-rate"
-              type="number"
-              value={avgHourlyRate}
-              onChange={(e) => setAvgHourlyRate(e.target.value)}
-              placeholder="e.g. 65"
-              className="w-36 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1.5 text-sm text-neutral-200 focus:border-brand-green/50 focus:outline-none"
-            />
-          </div>
+        <div className="mb-4">
+          <h2 className="text-[15px] font-medium text-neutral-100">Jobs claimed this month — full figures</h2>
+          <p className="mt-1 text-[12px] text-neutral-500">
+            Type into Retention, Hours to come, Cost to come, or Notes to save — no need to open
+            anything first. Total cost to come = (hours to come × $40/hr) + cost to come. Est.
+            margin E.O.M. = ((profit − total cost to come) + retention) ÷ claim. GP end of month =
+            (profit + retention) − total cost to come. GP $/hr this month = GP end of month ÷
+            (hours this month + hours to come).
+            {inactiveCount > 0 && (
+              <> {inactiveCount} other job{inactiveCount === 1 ? '' : 's'} with no claim this month {inactiveCount === 1 ? 'is' : 'are'} hidden.</>
+            )}
+          </p>
         </div>
 
         {/* Mobile: one stacked card per job with the headline figures plus
@@ -291,16 +286,17 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
                 </span>
                 <span className="text-neutral-500">Margin</span>
                 <span className="text-right tabular-nums text-neutral-200">{percent(j.margin)}</span>
-                <span className="text-neutral-500">Total cost</span>
-                <span className="text-right tabular-nums font-medium text-white">{money(j.total)}</span>
+                <span className="text-neutral-500">Est. margin E.O.M.</span>
+                <span className="text-right tabular-nums text-neutral-200">{percent(j.estimatedMarginEom)}</span>
+                <span className="text-neutral-500">GP end of month</span>
+                <span className="text-right tabular-nums font-medium text-white">{money(j.gpEndOfMonth)}</span>
+                <span className="text-neutral-500">GP $/hr this month</span>
+                <span className="text-right tabular-nums text-neutral-200">{money(j.gpPerHourThisMonth)}</span>
               </div>
               <div className="flex flex-col gap-2 border-t border-white/10 pt-3">
                 {EDITABLE_FIELDS.map((field) => (
                   <div key={field.key} className="flex items-center justify-between gap-3">
-                    <span className="text-[12px] text-neutral-400">
-                      {field.label}
-                      {field.key === 'retention' && j.retentionAddOn ? ` (${money(j.retentionAddOn)})` : ''}
-                    </span>
+                    <span className="text-[12px] text-neutral-400">{field.label}</span>
                     <div className="w-28 shrink-0">
                       <EditableCell
                         id={`claim-calc-mobile-${j.jobNumber}-${field.key}`}
@@ -338,8 +334,8 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
                 >
                   Job name{tableSort.key === 'jobName' && (tableSort.dir === 1 ? ' ▲' : ' ▼')}
                 </th>
-                <th className="num">Ret%</th>
-                {READONLY_COLUMNS.slice(0, 2).map((col) => (
+                <th className="num">Retention ($)</th>
+                {READONLY_COLUMNS.slice(0, 4).map((col) => (
                   <th
                     key={col.key}
                     className="num sortable"
@@ -352,7 +348,7 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
                 ))}
                 <th className="num">Hours to come</th>
                 <th className="num">Cost to come</th>
-                {READONLY_COLUMNS.slice(2).map((col) => (
+                {READONLY_COLUMNS.slice(4).map((col) => (
                   <th
                     key={col.key}
                     className="num sortable"
@@ -383,13 +379,8 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
                       numeric
                       onChange={(newValue) => saveField(j, EDITABLE_FIELDS[0], newValue)}
                     />
-                    {j.retentionAddOn ? (
-                      <p className="mt-0.5 text-right text-[11px] tabular-nums text-neutral-500">
-                        {money(j.retentionAddOn)}
-                      </p>
-                    ) : null}
                   </td>
-                  {READONLY_COLUMNS.slice(0, 2).map((col) => (
+                  {READONLY_COLUMNS.slice(0, 4).map((col) => (
                     <td key={col.key} className="num tabular">
                       {col.format(j[col.key])}
                     </td>
@@ -412,7 +403,7 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
                       onChange={(newValue) => saveField(j, EDITABLE_FIELDS[2], newValue)}
                     />
                   </td>
-                  {READONLY_COLUMNS.slice(2).map((col) => (
+                  {READONLY_COLUMNS.slice(4).map((col) => (
                     <td key={col.key} className="num tabular">
                       {col.format(j[col.key])}
                     </td>
@@ -430,7 +421,7 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
               ))}
               {tableRows.length === 0 && (
                 <tr>
-                  <td colSpan={12} className="empty-row">
+                  <td colSpan={14} className="empty-row">
                     No jobs to show.
                   </td>
                 </tr>
