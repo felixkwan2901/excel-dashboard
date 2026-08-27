@@ -59,6 +59,102 @@ function EditableCapacityCell({ value, onChange }) {
   )
 }
 
+function newStaffId() {
+  return typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `staff-${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
+
+function emptyStaffHours() {
+  const hours = {}
+  for (const label of MONTH_LABELS) hours[label] = null
+  return hours
+}
+
+// A real per-person roster, editable per month — replaces the single
+// "Staff on tools" headcount with actual named staff and their actual
+// planned hours, which is what "make their hours manually updated per
+// month" means: not a count you multiply by an assumed day length, but
+// each person's own hours entered directly. Same local-only caveat as
+// everything else in this panel (no job number to address, so it saves
+// to this browser, not the workbook).
+function StaffRoster({ staff, onAdd, onRemove, onRename, onHoursChange }) {
+  return (
+    <div className="mt-6 border-t border-white/10 pt-5">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h3 className="text-[13px] font-medium text-neutral-200">Staff</h3>
+          <p className="mt-0.5 text-[12px] text-neutral-500">
+            Add each staff member and their planned hours per month — Hours available above
+            uses the sum of these once at least one person's added, instead of the Staff on
+            tools/Working days estimate below.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onAdd}
+          className="shrink-0 rounded-md border border-white/10 px-2.5 py-1.5 text-[12px] font-medium text-neutral-200 transition-colors hover:border-brand-green/50 hover:text-brand-green"
+        >
+          + Add staff
+        </button>
+      </div>
+
+      {staff.length === 0 ? (
+        <p className="mt-3 text-[12px] text-neutral-500">No staff added yet.</p>
+      ) : (
+        <div className="table-scroll mt-3">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th style={{ minWidth: 160 }}>Name</th>
+                {MONTH_LABELS.map((m) => (
+                  <th key={m} className="num">
+                    {m}
+                  </th>
+                ))}
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {staff.map((person) => (
+                <tr key={person.id}>
+                  <td className="p-1">
+                    <input
+                      type="text"
+                      defaultValue={person.name}
+                      onBlur={(e) => onRename(person.id, e.target.value)}
+                      placeholder="Name"
+                      className="w-full min-w-0 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[13px] text-neutral-200 focus:border-brand-green/50 focus:outline-none"
+                    />
+                  </td>
+                  {MONTH_LABELS.map((m) => (
+                    <td key={m} className="p-1">
+                      <EditableCapacityCell
+                        value={person.hours[m] ?? null}
+                        onChange={(n) => onHoursChange(person.id, m, n)}
+                      />
+                    </td>
+                  ))}
+                  <td className="p-1">
+                    <button
+                      type="button"
+                      onClick={() => onRemove(person.id)}
+                      aria-label={`Remove ${person.name || 'staff member'}`}
+                      className="rounded-md px-2 py-1 text-[12px] text-neutral-500 transition-colors hover:text-red-400"
+                    >
+                      ✕
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // Capacity summary — reproduces the sheet's own rows 70-77, which were
 // never surfaced anywhere in the app before: per month, is the work
 // already planned (Total hours, summed from every job's monthly
@@ -90,6 +186,7 @@ function CapacityPanel({ capacity, usedHoursByMonth }) {
     'upcomingWork.staffOnToolsOverrides',
     {}
   )
+  const [staffRoster, setStaffRoster] = useLocalStorageState('upcomingWork.staffRoster', [])
 
   if (!capacity) return null
 
@@ -102,12 +199,36 @@ function CapacityPanel({ capacity, usedHoursByMonth }) {
   function staffOnToolsFor(m) {
     return staffOnToolsOverrides[m] !== undefined ? staffOnToolsOverrides[m] : capacity.staffOnTools[m]
   }
+  // Once at least one named staff member's been added, their entered
+  // hours are the real figure — sum them directly rather than falling
+  // back to the staff-count × working-days × 8h × 0.8 estimate.
+  function rosterHoursFor(m) {
+    if (staffRoster.length === 0) return null
+    return staffRoster.reduce((sum, s) => sum + (s.hours[m] ?? 0), 0)
+  }
   function hoursAvailableFor(m) {
+    const fromRoster = rosterHoursFor(m)
+    if (fromRoster !== null) return fromRoster
     const days = workingDaysFor(m)
     const staff = staffOnToolsFor(m)
     return days !== null && days !== undefined && staff !== null && staff !== undefined
       ? staff * days * 8 * 0.8
       : capacity.hoursAvailable[m]
+  }
+
+  function addStaffMember() {
+    setStaffRoster((prev) => [...prev, { id: newStaffId(), name: '', hours: emptyStaffHours() }])
+  }
+  function removeStaffMember(id) {
+    setStaffRoster((prev) => prev.filter((s) => s.id !== id))
+  }
+  function renameStaffMember(id, name) {
+    setStaffRoster((prev) => prev.map((s) => (s.id === id ? { ...s, name } : s)))
+  }
+  function updateStaffHours(id, month, value) {
+    setStaffRoster((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, hours: { ...s.hours, [month]: value } } : s))
+    )
   }
   // Total hours planned = Used hours (actual, from the log) + Servicing
   // (the sheet's fixed monthly allowance for any job under 30 hours) —
@@ -131,8 +252,10 @@ function CapacityPanel({ capacity, usedHoursByMonth }) {
         Total hours planned = Used hours + Servicing (any job under 30 hours) that month, vs.
         hours available from the crew (staff on tools × working days × 8h × 80% productive
         time). Balance = Total hours planned − Hours available, green when there's spare
-        capacity, red when that month is short-staffed. Servicing/Working days/Staff on tools
-        are editable for planning ahead — saved to this browser only, not to the workbook.
+        capacity, red when that month is short-staffed. Add named staff below with their own
+        hours per month for a real Hours available figure — Working days/Staff on tools is only
+        an estimate used until you do. Everything here is editable for planning ahead — saved
+        to this browser only, not to the workbook.
       </p>
 
       <div className="table-scroll mt-4">
@@ -211,7 +334,9 @@ function CapacityPanel({ capacity, usedHoursByMonth }) {
               })}
             </tr>
             <tr>
-              <td className="whitespace-nowrap text-neutral-500">Working days</td>
+              <td className="whitespace-nowrap text-neutral-500" title="Only used when no staff are added below">
+                Working days (estimate)
+              </td>
               {MONTH_LABELS.map((m) => (
                 <td key={m} className="p-1">
                   <EditableCapacityCell
@@ -222,7 +347,9 @@ function CapacityPanel({ capacity, usedHoursByMonth }) {
               ))}
             </tr>
             <tr>
-              <td className="whitespace-nowrap text-neutral-500">Staff on tools</td>
+              <td className="whitespace-nowrap text-neutral-500" title="Only used when no staff are added below">
+                Staff on tools (estimate)
+              </td>
               {MONTH_LABELS.map((m) => (
                 <td key={m} className="p-1">
                   <EditableCapacityCell
@@ -235,6 +362,14 @@ function CapacityPanel({ capacity, usedHoursByMonth }) {
           </tbody>
         </table>
       </div>
+
+      <StaffRoster
+        staff={staffRoster}
+        onAdd={addStaffMember}
+        onRemove={removeStaffMember}
+        onRename={renameStaffMember}
+        onHoursChange={updateStaffHours}
+      />
     </div>
   )
 }
