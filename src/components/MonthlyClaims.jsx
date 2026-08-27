@@ -138,8 +138,12 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
 
   // A single company-wide $/hr rate, set by hand every ~6 months (not
   // per-job, not derived from the workbook) — used below to turn "hours to
-  // come" into a projected dollar cost.
-  const [avgHourlyRate, setAvgHourlyRate] = useLocalStorageState('monthlyClaims.avgHourlyRate', '')
+  // come" into a projected dollar cost. Defaults to 40 (the real
+  // Claim Calculator sheet's own rate, confirmed against its formulas —
+  // =(HoursToComplete*40)+CostsToCome) rather than blank — blank meant
+  // this silently fell out of the total (rate defaulting to 0) until
+  // someone happened to type a value in.
+  const [avgHourlyRate, setAvgHourlyRate] = useLocalStorageState('monthlyClaims.avgHourlyRate', '40')
   const rate = Number(avgHourlyRate) || 0
 
   // Every job in the workbook gets a row on the "Claim Calculator By Month"
