@@ -8,7 +8,7 @@ import {
   fetchLinkedChecklistRecord,
 } from '../lib/onboardingChecklist'
 
-const UPLOAD_WORKER_URL = 'https://cde-data-upload.fkw24.workers.dev'
+import { workerFetch } from '@/lib/workerClient'
 
 // Same col numbers MonthlyClaims.jsx's EDITABLE_FIELDS already uses —
 // duplicated here rather than imported since that array is local to that
@@ -57,7 +57,7 @@ export default function CommandBox({ jobs, mainSheetColumns }) {
     setSaveStatus({ kind: 'idle', message: '' })
 
     try {
-      const res = await fetch(`${UPLOAD_WORKER_URL}/command`, {
+      const res = await workerFetch(`/command`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({

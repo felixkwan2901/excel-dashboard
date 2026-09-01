@@ -185,7 +185,53 @@ function renderForm(message) {
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Accept',
+  'Access-Control-Allow-Headers': 'Content-Type, Accept, X-Upload-Secret',
+}
+
+// ---------------------------------------------------------------------------
+// Access gate
+//
+// Every route here either reads or writes Cassidy-Davies data, and the write
+// routes commit to the repo using this worker's GITHUB_TOKEN. Until the
+// dashboard itself sits behind Cloudflare Access (see MIGRATION.md step 3b),
+// knowing this worker's URL was the only thing standing between a stranger
+// and CDE's job costs. A shared key typed by the operator closes that.
+//
+// Deliberately NOT read from a query parameter: keys in URLs end up in
+// browser history, referrer headers and Cloudflare's request logs. Header
+// only.
+//
+// Set the key with:  npx wrangler secret put UPLOAD_SECRET
+// ---------------------------------------------------------------------------
+
+function isAuthorized(request, env) {
+  const expected = env.UPLOAD_SECRET
+  // Fail closed. A worker deployed without the secret set serves nobody
+  // rather than silently serving everybody.
+  if (!expected) return false
+
+  const got = request.headers.get('X-Upload-Secret')
+  if (!got || got.length !== expected.length) return false
+
+  // Constant-time compare, so response timing doesn't leak the key.
+  let diff = 0
+  for (let i = 0; i < expected.length; i += 1) {
+    diff |= expected.charCodeAt(i) ^ got.charCodeAt(i)
+  }
+  return diff === 0
+}
+
+function unauthorized(env) {
+  return json(
+    {
+      ok: false,
+      error: 'unauthorized',
+      message: env.UPLOAD_SECRET
+        ? 'Missing or incorrect access key.'
+        : 'This worker has no UPLOAD_SECRET configured, so it is refusing all requests.',
+    },
+    401,
+  )
 }
 
 function html(body, status = 200) {
@@ -833,8 +879,14 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url)
 
+    // Preflight carries no credentials by design — answer it before the gate,
+    // otherwise the browser never gets to send the real request.
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: CORS_HEADERS })
+    }
+
+    if (!isAuthorized(request, env)) {
+      return unauthorized(env)
     }
 
     if (request.method === 'GET' && url.pathname === '/') {

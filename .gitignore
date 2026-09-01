@@ -14,10 +14,21 @@ dist-ssr
 .wrangler
 .dev.vars
 
-# Weekly job P&L exports dropped in for scripts/update-jobs.mjs, and its
-# dated archive of past runs
+# Client data must never be committed. The weekly job P&L exports dropped in
+# for scripts/update-jobs.mjs, its dated archive, and the upload worker's
+# staging area — all of these carry real Cassidy-Davies figures.
 /imports
 /imports-archive
+# imports-archive/ and results/ are write-only bookkeeping — update-jobs.mjs
+# moves processed files into the archive and writes a result record, and
+# nothing ever reads either back. pending-updates/exports/ is deliberately
+# NOT ignored: the upload worker stages there and the workflow must see it.
+/pending-updates/imports-archive
+/pending-updates/results
+
+# Ad-hoc workbooks kept at the repo root
+/July Data.xlsx
+/The Real Operations Spreadsheet*.xlsx
 
 # Editor directories and files
 .vscode/*

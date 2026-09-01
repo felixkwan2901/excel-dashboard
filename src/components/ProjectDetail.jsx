@@ -5,7 +5,7 @@ import { money, percent, roundHours } from '../lib/format'
 import { statusReasons } from '../lib/statusReasons'
 import { pollStagedStatus } from '../lib/pollStagedStatus'
 
-const UPLOAD_WORKER_URL = 'https://cde-data-upload.fkw24.workers.dev'
+import { workerFetch } from '@/lib/workerClient'
 
 // Archiving hides a job everywhere on the dashboard without touching any
 // of its data in the workbook — reversible from the Job Directory's
@@ -20,7 +20,7 @@ function ArchiveJobControl({ job, onBack }) {
     setBusy(true)
     setStatus({ kind: 'idle', message: '' })
     try {
-      const res = await fetch(`${UPLOAD_WORKER_URL}/archive-job`, {
+      const res = await workerFetch(`/archive-job`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ jobNumber: job.jobNumber, action: 'archive' }),

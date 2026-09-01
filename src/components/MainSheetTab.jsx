@@ -10,7 +10,7 @@ import {
   isTwoWeeksOverdueFromStamp,
 } from '../lib/onboardingChecklist'
 
-const UPLOAD_WORKER_URL = 'https://cde-data-upload.fkw24.workers.dev'
+import { workerFetch } from '@/lib/workerClient'
 
 // Thursday morning is when the Weekly job check sheet is supposed to be
 // done for the week (see its "Notes for the meeting" field) — if it isn't
@@ -155,7 +155,7 @@ export default function MainSheetTab({
     setArchiving(true)
     setStatus({ kind: 'idle', message: `Job completion checklist marked complete — archiving ${job.jobNumber}…` })
     try {
-      const res = await fetch(`${UPLOAD_WORKER_URL}/archive-job`, {
+      const res = await workerFetch(`/archive-job`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ jobNumber: job.jobNumber, action: 'archive' }),

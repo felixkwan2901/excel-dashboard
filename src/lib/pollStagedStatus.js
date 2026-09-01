@@ -1,4 +1,4 @@
-const UPLOAD_WORKER_URL = 'https://cde-data-upload.fkw24.workers.dev'
+import { workerFetch } from './workerClient'
 
 // The upload worker only stages requests (commits them under
 // pending-updates/) — a GitHub Actions workflow does the actual Excel
@@ -11,7 +11,7 @@ export async function pollStagedStatus(path, { intervalMs = 4000, timeoutMs = 18
   const start = Date.now()
   while (Date.now() - start < timeoutMs) {
     try {
-      const res = await fetch(`${UPLOAD_WORKER_URL}/status?path=${encodeURIComponent(path)}`, {
+      const res = await workerFetch(`/status?path=${encodeURIComponent(path)}`, {
         headers: { Accept: 'application/json' },
       })
       const payload = await res.json()

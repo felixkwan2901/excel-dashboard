@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { ArchiveRestore } from 'lucide-react'
 import { pollStagedStatus } from '../lib/pollStagedStatus'
 
-const UPLOAD_WORKER_URL = 'https://cde-data-upload.fkw24.workers.dev'
+import { workerFetch } from '@/lib/workerClient'
 
 // A small, collapsed-by-default panel — archived jobs are the exception,
 // not something that should compete for attention with the active job
@@ -18,7 +18,7 @@ export default function ArchivedJobsPanel({ archivedJobs }) {
     setBusyJob(job.jobNumber)
     setStatus({ kind: 'idle', message: '' })
     try {
-      const res = await fetch(`${UPLOAD_WORKER_URL}/archive-job`, {
+      const res = await workerFetch(`/archive-job`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ jobNumber: job.jobNumber, action: 'unarchive' }),

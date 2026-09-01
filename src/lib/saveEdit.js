@@ -1,7 +1,7 @@
 import { pollStagedStatus } from './pollStagedStatus'
 import { setOverride, clearOverride } from './overrides'
 
-const UPLOAD_WORKER_URL = 'https://cde-data-upload.fkw24.workers.dev'
+import { workerFetch } from './workerClient'
 
 const ENDPOINTS = {
   'main-sheet': '/main-sheet',
@@ -40,7 +40,7 @@ export async function saveEdit(target, jobNumber, col, value) {
 
 async function stageRealEdit(path, target, jobNumber, col, value) {
   try {
-    const res = await fetch(`${UPLOAD_WORKER_URL}${path}`, {
+    const res = await workerFetch(`${path}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({ edits: [{ jobNumber, col, value }] }),

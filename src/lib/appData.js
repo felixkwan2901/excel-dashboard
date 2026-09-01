@@ -1,4 +1,4 @@
-const UPLOAD_WORKER_URL = 'https://cde-data-upload.fkw24.workers.dev'
+import { workerFetch } from './workerClient'
 
 // Cloudflare KV-backed storage for the handful of things that have no home
 // in the tracked Excel workbook (Weekly Job Check Sheet, Job Completion
@@ -10,7 +10,7 @@ const UPLOAD_WORKER_URL = 'https://cde-data-upload.fkw24.workers.dev'
 
 export async function getAppData(key) {
   try {
-    const res = await fetch(`${UPLOAD_WORKER_URL}/app-data?key=${encodeURIComponent(key)}`)
+    const res = await workerFetch(`/app-data?key=${encodeURIComponent(key)}`, {}, { promptIfMissing: false })
     if (!res.ok) return null
     const { value } = await res.json()
     if (!value) return null
@@ -26,11 +26,15 @@ export async function getAppData(key) {
 
 export async function setAppData(key, value) {
   try {
-    await fetch(`${UPLOAD_WORKER_URL}/app-data`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key, value: JSON.stringify(value) }),
-    })
+    await workerFetch(
+      `/app-data`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key, value: JSON.stringify(value) }),
+      },
+      { promptIfMissing: false },
+    )
   } catch {
     // Best-effort — a failed sync here just means this browser keeps
     // showing its own optimistic state until the next successful save.

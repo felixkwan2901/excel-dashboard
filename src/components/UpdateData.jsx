@@ -4,7 +4,7 @@ import { Button } from './ui/button'
 import { pollStagedStatus } from '../lib/pollStagedStatus'
 import { recordJobCreated } from '../lib/onboardingChecklist'
 
-const UPLOAD_WORKER_URL = 'https://cde-data-upload.fkw24.workers.dev'
+import { workerFetch, workerDownload } from '@/lib/workerClient'
 
 // scripts/update-jobs.mjs writes a specific outcome per file once it's
 // done — falls back to the coarser staged-status label for an older
@@ -137,7 +137,7 @@ export default function UpdateData({ onBack, jobs }) {
     for (const file of files) form.append('files', file)
 
     try {
-      const res = await fetch(`${UPLOAD_WORKER_URL}/upload`, {
+      const res = await workerFetch(`/upload`, {
         method: 'POST',
         body: form,
         headers: { Accept: 'application/json' },
@@ -174,7 +174,7 @@ export default function UpdateData({ onBack, jobs }) {
     form.set('file', replaceFile)
 
     try {
-      const res = await fetch(`${UPLOAD_WORKER_URL}/replace`, {
+      const res = await workerFetch(`/replace`, {
         method: 'POST',
         body: form,
         headers: { Accept: 'application/json' },
@@ -211,7 +211,7 @@ export default function UpdateData({ onBack, jobs }) {
     setNewJobMessage('')
 
     try {
-      const res = await fetch(`${UPLOAD_WORKER_URL}/new-job`, {
+      const res = await workerFetch(`/new-job`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify(newJob),
@@ -499,8 +499,18 @@ export default function UpdateData({ onBack, jobs }) {
 
       <Card className="mt-6">
         <CardContent>
-          <Button asChild variant="outline" className="w-full">
-            <a href={`${UPLOAD_WORKER_URL}/download`}>Download the current workbook</a>
+          {/* A bare <a href> can't carry the access-key header, so fetch it
+              and hand the browser a blob instead. */}
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() =>
+              workerDownload('/download', 'Cassidy_Davies_Electrical_BPMN_Data.xlsx').catch((err) =>
+                window.alert(`Could not download the workbook: ${err.message}`),
+              )
+            }
+          >
+            Download the current workbook
           </Button>
         </CardContent>
       </Card>
