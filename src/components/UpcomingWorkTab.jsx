@@ -112,7 +112,7 @@ function StaffRoster({ staff, onAdd, onRemove, onRename, onHoursChange }) {
                     {m}
                   </th>
                 ))}
-                <th></th>
+                <th className="sticky-col-right"></th>
               </tr>
             </thead>
             <tbody>
@@ -135,12 +135,13 @@ function StaffRoster({ staff, onAdd, onRemove, onRename, onHoursChange }) {
                       />
                     </td>
                   ))}
-                  <td className="p-1">
+                  <td className="sticky-col-right p-1">
                     <button
                       type="button"
                       onClick={() => onRemove(person.id)}
+                      title={`Remove ${person.name || 'this staff member'}`}
                       aria-label={`Remove ${person.name || 'staff member'}`}
-                      className="rounded-md px-2 py-1 text-[12px] text-neutral-500 transition-colors hover:text-red-400"
+                      className="rounded-md border border-white/10 px-2 py-1 text-[12px] text-neutral-400 transition-colors hover:border-red-400/50 hover:text-red-400"
                     >
                       ✕
                     </button>
@@ -202,9 +203,15 @@ function CapacityPanel({ capacity, usedHoursByMonth }) {
   // Once at least one named staff member's been added, their entered
   // hours are the real figure — sum them directly rather than falling
   // back to the staff-count × working-days × 8h × 0.8 estimate.
+  // Only months where someone has actually entered hours count as "the real
+  // figure". Previously any non-empty roster took over every month, so adding
+  // one blank staff row turned all twelve months of Hours available into 0 —
+  // and Balance with them. A person with no hours entered for a month simply
+  // isn't information about that month, so fall back to the estimate there.
   function rosterHoursFor(m) {
-    if (staffRoster.length === 0) return null
-    return staffRoster.reduce((sum, s) => sum + (s.hours[m] ?? 0), 0)
+    const entered = staffRoster.filter((s) => s.hours[m] !== null && s.hours[m] !== undefined)
+    if (entered.length === 0) return null
+    return entered.reduce((sum, s) => sum + s.hours[m], 0)
   }
   function hoursAvailableFor(m) {
     const fromRoster = rosterHoursFor(m)
@@ -253,8 +260,8 @@ function CapacityPanel({ capacity, usedHoursByMonth }) {
         hours available from the crew (staff on tools × working days × 8h × 80% productive
         time). Balance = Total hours planned − Hours available, green when there's spare
         capacity, red when that month is short-staffed. Add named staff below with their own
-        hours per month for a real Hours available figure — Working days/Staff on tools is only
-        an estimate used until you do. Everything here is editable for planning ahead — saved
+        hours per month for a real Hours available figure — Working days/Staff on tools is the
+        estimate used for any month you haven't entered staff hours for. Everything here is editable for planning ahead — saved
         to this browser only, not to the workbook.
       </p>
 

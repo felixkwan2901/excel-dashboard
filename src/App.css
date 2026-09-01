@@ -360,6 +360,27 @@
   box-shadow: 2px 0 6px rgba(0, 0, 0, 0.35);
 }
 
+/* Same idea, pinned to the other edge. The staff roster's remove button is
+   the 14th column (Name + 12 months + remove) of a table that scrolls
+   sideways, so at any normal window width it sat past the right edge with
+   the scroller at scrollLeft 0 — present, focusable, and completely
+   invisible, which made a staff row look impossible to delete. */
+.data-table .sticky-col-right {
+  position: sticky;
+  right: 0;
+  background: #11161c;
+  z-index: 2;
+  box-shadow: -2px 0 6px rgba(0, 0, 0, 0.35);
+}
+
+.data-table thead .sticky-col-right {
+  z-index: 3;
+}
+
+.data-table tbody tr:nth-child(even) .sticky-col-right {
+  background: #141a21;
+}
+
 /* Thursday-morning overdue alert for an unfinished Weekly job check sheet —
    a steady red tint would be too easy to miss on a busy checklist page, so
    it pulses instead. Respects reduced-motion by falling back to a flat
