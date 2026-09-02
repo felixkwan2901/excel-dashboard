@@ -362,5 +362,187 @@
       "costs": 0,
       "profit": 0
     }
+  },
+  "2026-09": {
+    "6792": {
+      "jobName": "Major Hornbrook ",
+      "claim": 0,
+      "costs": 0,
+      "profit": 0
+    },
+    "7428": {
+      "jobName": "FAB Pegasus Lakeside",
+      "claim": 0,
+      "costs": 0,
+      "profit": 0
+    },
+    "7429": {
+      "jobName": "Taggart House",
+      "claim": 0,
+      "costs": 0,
+      "profit": 0
+    },
+    "7658": {
+      "jobName": "Charity Hospital",
+      "claim": 0,
+      "costs": 0,
+      "profit": 0
+    },
+    "7864": {
+      "jobName": "Ryans House",
+      "claim": 0,
+      "costs": 0,
+      "profit": 0
+    },
+    "7901": {
+      "jobName": "St Albans Street",
+      "claim": 52040.560000000005,
+      "costs": 746.3099999999977,
+      "profit": 51294.25000000001
+    },
+    "7912": {
+      "jobName": "71A Fendalton Road ",
+      "claim": 0,
+      "costs": 0,
+      "profit": 0
+    },
+    "8127": {
+      "jobName": "Rolly Autowash",
+      "claim": 0,
+      "costs": 1382.2599999999948,
+      "profit": -1382.2599999999948
+    },
+    "8142": {
+      "jobName": "Fisher Developements",
+      "claim": 0,
+      "costs": 972.0499999999884,
+      "profit": -972.0499999999884
+    },
+    "8183": {
+      "jobName": "Murney Custodian - 1 Freight Drive",
+      "claim": 0,
+      "costs": 2837.649999999994,
+      "profit": -2837.649999999994
+    },
+    "8214": {
+      "jobName": "6 Tiroroa Lane",
+      "claim": 0,
+      "costs": 0,
+      "profit": 0
+    },
+    "8234": {
+      "jobName": "Melhuish House",
+      "claim": 0,
+      "costs": 0,
+      "profit": 0
+    },
+    "8308": {
+      "jobName": "Roydvale",
+      "claim": 34650.399999999965,
+      "costs": 5744.570000000007,
+      "profit": 28905.829999999958
+    },
+    "8337": {
+      "jobName": "Waimak Dairys ",
+      "claim": 0,
+      "costs": 0,
+      "profit": 0
+    },
+    "8352": {
+      "jobName": "5 Sanscrit Place",
+      "claim": 0,
+      "costs": 0,
+      "profit": 0
+    },
+    "8360": {
+      "jobName": "Dixon House",
+      "claim": 0,
+      "costs": 0,
+      "profit": 0
+    },
+    "8670": {
+      "jobName": "Studio DB - tautara fit out",
+      "claim": 0,
+      "costs": 321.5200000000041,
+      "profit": -321.5200000000041
+    },
+    "8769": {
+      "jobName": "Percival Bach",
+      "claim": 0,
+      "costs": 0,
+      "profit": 0
+    },
+    "8824": {
+      "jobName": "3 Innovation Road",
+      "claim": 0,
+      "costs": 0,
+      "profit": 0
+    },
+    "8840": {
+      "jobName": "Inline Architecture",
+      "claim": 0,
+      "costs": 943.3400000000038,
+      "profit": -943.3400000000038
+    },
+    "8886": {
+      "jobName": "Monkey Toe - Fisher fit out",
+      "claim": 0,
+      "costs": 3226.1800000000003,
+      "profit": -3226.1800000000003
+    },
+    "8887": {
+      "jobName": "Tenancy 2 - Fisher Fit out",
+      "claim": 0,
+      "costs": 125.67999999999665,
+      "profit": -125.67999999999665
+    },
+    "8907": {
+      "jobName": "35 Mania",
+      "claim": 0,
+      "costs": 0,
+      "profit": 0
+    },
+    "8923": {
+      "jobName": "4 Perry St",
+      "claim": 2127.8099999999995,
+      "costs": 0,
+      "profit": 2127.8099999999995
+    },
+    "8946": {
+      "jobName": "Westcoast Vaults",
+      "claim": 0,
+      "costs": 0,
+      "profit": 0
+    },
+    "9065": {
+      "jobName": "Cooltranz stage 4",
+      "claim": 0,
+      "costs": 0,
+      "profit": 0
+    },
+    "9240": {
+      "jobName": "Daves Twizel Shack",
+      "claim": 0,
+      "costs": 853.55,
+      "profit": -853.55
+    },
+    "9259": {
+      "jobName": "Andrew Reeve Stage 2",
+      "claim": 0,
+      "costs": 1528.260000000002,
+      "profit": -1528.260000000002
+    },
+    "9351": {
+      "jobName": "Harewood Golf Club",
+      "claim": 0,
+      "costs": 0,
+      "profit": 0
+    },
+    "9508": {
+      "jobName": "St Barnabas Church",
+      "claim": 0,
+      "costs": 0,
+      "profit": 0
+    }
   }
 }
