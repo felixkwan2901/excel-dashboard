@@ -373,8 +373,8 @@
     "7428": {
       "jobName": "FAB Pegasus Lakeside",
       "claim": 0,
-      "costs": 0,
-      "profit": 0
+      "costs": 2629.5100000000093,
+      "profit": -2629.5100000000093
     },
     "7429": {
       "jobName": "Taggart House",
@@ -397,8 +397,8 @@
     "7901": {
       "jobName": "St Albans Street",
       "claim": 52040.560000000005,
-      "costs": 746.3099999999977,
-      "profit": 51294.25000000001
+      "costs": 526.0599999999977,
+      "profit": 51514.50000000001
     },
     "7912": {
       "jobName": "71A Fendalton Road ",
@@ -409,20 +409,20 @@
     "8127": {
       "jobName": "Rolly Autowash",
       "claim": 0,
-      "costs": 1382.2599999999948,
-      "profit": -1382.2599999999948
+      "costs": 1252.699999999997,
+      "profit": -1252.699999999997
     },
     "8142": {
       "jobName": "Fisher Developements",
       "claim": 0,
-      "costs": 972.0499999999884,
-      "profit": -972.0499999999884
+      "costs": 2351.029999999999,
+      "profit": -2351.029999999999
     },
     "8183": {
       "jobName": "Murney Custodian - 1 Freight Drive",
       "claim": 0,
-      "costs": 2837.649999999994,
-      "profit": -2837.649999999994
+      "costs": 3843.2399999999907,
+      "profit": -3843.2399999999907
     },
     "8214": {
       "jobName": "6 Tiroroa Lane",
@@ -433,14 +433,14 @@
     "8234": {
       "jobName": "Melhuish House",
       "claim": 0,
-      "costs": 0,
-      "profit": 0
+      "costs": -1055.7200000000012,
+      "profit": 1055.7200000000012
     },
     "8308": {
       "jobName": "Roydvale",
       "claim": 34650.399999999965,
-      "costs": 5744.570000000007,
-      "profit": 28905.829999999958
+      "costs": 7430.429999999993,
+      "profit": 27219.969999999972
     },
     "8337": {
       "jobName": "Waimak Dairys ",
@@ -463,8 +463,8 @@
     "8670": {
       "jobName": "Studio DB - tautara fit out",
       "claim": 0,
-      "costs": 321.5200000000041,
-      "profit": -321.5200000000041
+      "costs": 276.68000000000757,
+      "profit": -276.68000000000757
     },
     "8769": {
       "jobName": "Percival Bach",
@@ -475,26 +475,26 @@
     "8824": {
       "jobName": "3 Innovation Road",
       "claim": 0,
-      "costs": 0,
-      "profit": 0
+      "costs": 300,
+      "profit": -300
     },
     "8840": {
       "jobName": "Inline Architecture",
       "claim": 0,
-      "costs": 943.3400000000038,
-      "profit": -943.3400000000038
+      "costs": 923.8799999999974,
+      "profit": -923.8799999999974
     },
     "8886": {
       "jobName": "Monkey Toe - Fisher fit out",
       "claim": 0,
-      "costs": 3226.1800000000003,
-      "profit": -3226.1800000000003
+      "costs": 4015.729999999996,
+      "profit": -4015.729999999996
     },
     "8887": {
       "jobName": "Tenancy 2 - Fisher Fit out",
       "claim": 0,
-      "costs": 125.67999999999665,
-      "profit": -125.67999999999665
+      "costs": -24.220000000001164,
+      "profit": 24.220000000001164
     },
     "8907": {
       "jobName": "35 Mania",
@@ -511,14 +511,14 @@
     "8946": {
       "jobName": "Westcoast Vaults",
       "claim": 0,
-      "costs": 0,
-      "profit": 0
+      "costs": 4470.959999999999,
+      "profit": -4470.959999999999
     },
     "9065": {
       "jobName": "Cooltranz stage 4",
       "claim": 0,
-      "costs": 0,
-      "profit": 0
+      "costs": 565.6499999999996,
+      "profit": -565.6499999999996
     },
     "9240": {
       "jobName": "Daves Twizel Shack",
