@@ -365,6 +365,22 @@
    sideways, so at any normal window width it sat past the right edge with
    the scroller at scrollLeft 0 — present, focusable, and completely
    invisible, which made a staff row look impossible to delete. */
+/* Jobs over budget or losing margin. The red edge rides on the first cell so
+   it survives the horizontal scroll along with the rest of the row, and the
+   tint stays faint enough not to fight the margin/cost colours already in the
+   row. */
+.data-table tbody tr.job-row-flagged > td:first-child {
+  box-shadow: inset 3px 0 0 0 rgba(248, 113, 113, 0.75);
+}
+
+.data-table tbody tr.job-row-flagged > td {
+  background: rgba(248, 113, 113, 0.045);
+}
+
+.data-table tbody tr.job-row-flagged:hover > td {
+  background: rgba(248, 113, 113, 0.085);
+}
+
 .data-table .sticky-col-right {
   position: sticky;
   right: 0;

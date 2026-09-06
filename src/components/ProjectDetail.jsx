@@ -92,11 +92,23 @@ function ArchiveJobControl({ job, onBack }) {
   )
 }
 
-function Field({ label, children, warn }) {
+// `negative` marks a value that has gone the wrong way — an over-claim, a
+// blown budget. Those printed in the same plain white as everything else,
+// so "-$715" and "-2.2%" read as ordinary numbers rather than as the thing
+// worth noticing on the page.
+function Field({ label, children, warn, negative }) {
   return (
     <div className="flex flex-col gap-1.5">
       <span className="text-[13px] font-medium text-neutral-500">{label}</span>
-      <div className={`text-[15px] ${warn ? 'font-semibold text-amber-400' : 'text-neutral-100'}`}>
+      <div
+        className={`text-[15px] tabular-nums ${
+          warn
+            ? 'font-semibold text-amber-400'
+            : negative
+              ? 'font-semibold text-red-400'
+              : 'text-neutral-100'
+        }`}
+      >
         {children}
       </div>
     </div>
@@ -201,9 +213,18 @@ export default function ProjectDetail({ job, mainSheet, onBack }) {
               {jobOwner && <span className="text-[13px] text-neutral-500">Owner: {jobOwner}</span>}
             </div>
           </div>
-          <p className="text-3xl font-bold text-brand-green tabular-nums">
-            {money(job.quotedPrice)}
-          </p>
+          {/* This is the quoted price — a reference figure, not a verdict.
+              Rendered big and green with no label it read as "this job is
+              healthy", which on a job flagged as over quote is precisely
+              backwards. Neutral, and labelled. */}
+          <div className="text-right">
+            <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-500">
+              Quoted price
+            </p>
+            <p className="mt-0.5 text-3xl font-bold text-white tabular-nums">
+              {money(job.quotedPrice)}
+            </p>
+          </div>
         </div>
 
         {job.flagged && reasons.length > 0 && (
@@ -258,8 +279,12 @@ export default function ProjectDetail({ job, mainSheet, onBack }) {
         {!showDetail && (
           <div className="mt-6 grid grid-cols-1 gap-6 border-t border-white/10 pt-6 sm:grid-cols-3">
             <Field label="Claim to date">{money(job.claimToDate)}</Field>
-            <Field label="Remaining to claim">{money(job.remainingToClaim)}</Field>
-            <Field label="% claim remaining">{percent(job.pctClaimRemaining)}</Field>
+            <Field label="Remaining to claim" negative={job.remainingToClaim < 0}>
+              {money(job.remainingToClaim)}
+            </Field>
+            <Field label="% claim remaining" negative={job.pctClaimRemaining < 0}>
+              {percent(job.pctClaimRemaining)}
+            </Field>
           </div>
         )}
 
@@ -310,8 +335,12 @@ export default function ProjectDetail({ job, mainSheet, onBack }) {
 
             <Section title="Claim progress">
               <Field label="Claim to date">{money(job.claimToDate)}</Field>
-              <Field label="Remaining to claim">{money(job.remainingToClaim)}</Field>
-              <Field label="% claim remaining">{percent(job.pctClaimRemaining)}</Field>
+              <Field label="Remaining to claim" negative={job.remainingToClaim < 0}>
+                {money(job.remainingToClaim)}
+              </Field>
+              <Field label="% claim remaining" negative={job.pctClaimRemaining < 0}>
+                {percent(job.pctClaimRemaining)}
+              </Field>
               <Field label="Est. % of job complete">{percent(job.estimatedPctJobComplete)}</Field>
             </Section>
 

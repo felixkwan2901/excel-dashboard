@@ -425,7 +425,14 @@ export default function JobTable({
                   }}
                   tabIndex={onSelectJob ? 0 : undefined}
                   role={onSelectJob ? 'button' : undefined}
-                  className={onSelectJob ? 'row-clickable' : undefined}
+                  // A job over budget or losing margin was styled exactly like
+                  // a healthy one — the only tell was a colour buried in the
+                  // margin column, which you had to read row by row. A red edge
+                  // makes the handful that need attention findable at a glance
+                  // in a list of thirty.
+                  className={`${onSelectJob ? 'row-clickable' : ''} ${
+                    job.flagged ? 'job-row-flagged' : ''
+                  }`.trim()}
                 >
                   {columns.map((col) => (
                     <td key={col.key} className={col.num ? 'num tabular' : undefined}>
