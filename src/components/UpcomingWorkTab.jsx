@@ -42,6 +42,12 @@ function EditableCell({ value, saving, numeric, onChange }) {
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
+// Which column is "now". Twelve near-identical columns of numbers give the eye
+// nothing to anchor on, and the month header scrolls out of sight on a long
+// page — so the month you actually care about is tinted and its header kept
+// bold, letting you find today's figures without counting across.
+const CURRENT_MONTH = MONTH_LABELS[new Date().getMonth()]
+
 function EditableCapacityCell({ value, onChange }) {
   const [text, setText] = useState(value ?? '')
   return (
@@ -269,9 +275,16 @@ function CapacityPanel({ capacity, usedHoursByMonth }) {
         <table className="data-table">
           <thead>
             <tr>
-              <th>Month</th>
+              {/* Narrower on a phone: a 190px pinned column there would eat
+                  half the screen and leave almost no room for the months. */}
+              <th className="sticky-col sticky-col-end min-w-[116px] sm:min-w-[190px]" style={{ left: 0 }}>
+                Month
+              </th>
               {MONTH_LABELS.map((m) => (
-                <th key={m} className="num">
+                <th
+                  key={m}
+                  className={`num ${m === CURRENT_MONTH ? 'bg-brand-green/[0.12] font-semibold text-brand-green' : ''}`}
+                >
                   {m}
                 </th>
               ))}
@@ -279,11 +292,11 @@ function CapacityPanel({ capacity, usedHoursByMonth }) {
           </thead>
           <tbody>
             <tr>
-              <td className="whitespace-nowrap text-neutral-500" title="Servicing work any job under 30 hours">
+              <td className="sticky-col sticky-col-end whitespace-normal sm:whitespace-nowrap text-[12px] sm:text-[13px] leading-tight text-neutral-500" style={{ left: 0 }} title="Servicing work any job under 30 hours">
                 Servicing
               </td>
               {MONTH_LABELS.map((m) => (
-                <td key={m} className="p-1">
+                <td key={m} className={`p-1 ${m === CURRENT_MONTH ? 'bg-brand-green/[0.06]' : ''}`}>
                   <EditableCapacityCell
                     value={servicingFor(m) ?? null}
                     onChange={(n) => setServicingOverrides((prev) => ({ ...prev, [m]: n }))}
@@ -292,60 +305,63 @@ function CapacityPanel({ capacity, usedHoursByMonth }) {
               ))}
             </tr>
             <tr>
-              <td className="whitespace-nowrap">Total hours planned</td>
+              <td className="sticky-col sticky-col-end whitespace-normal sm:whitespace-nowrap text-[12px] sm:text-[13px] leading-tight" style={{ left: 0 }}>Total hours planned</td>
               {MONTH_LABELS.map((m) => {
                 const v = totalHoursFor(m)
                 return (
-                  <td key={m} className="num tabular">
-                    {v === null ? '—' : roundHours(v)}
+                  <td key={m} className={`num tabular ${m === CURRENT_MONTH ? 'bg-brand-green/[0.06]' : ''}`}>
+                    {v === null ? <span className="text-neutral-600">—</span> : roundHours(v)}
                   </td>
                 )
               })}
             </tr>
             <tr>
-              <td className="whitespace-nowrap text-neutral-400">— Used hours</td>
+              <td className="sticky-col sticky-col-end whitespace-normal sm:whitespace-nowrap text-[12px] sm:text-[13px] leading-tight text-neutral-400" style={{ left: 0 }}>— Used hours</td>
               {MONTH_LABELS.map((m) => {
                 const v = usedHoursByMonth[m]
                 return (
-                  <td key={m} className="num tabular text-neutral-400">
-                    {v === null ? '—' : roundHours(v)}
+                  <td key={m} className={`num tabular text-neutral-400 ${m === CURRENT_MONTH ? 'bg-brand-green/[0.06]' : ''}`}>
+                    {v === null ? <span className="text-neutral-600">—</span> : roundHours(v)}
                   </td>
                 )
               })}
             </tr>
             <tr>
-              <td className="whitespace-nowrap">Hours available</td>
+              <td className="sticky-col sticky-col-end whitespace-normal sm:whitespace-nowrap text-[12px] sm:text-[13px] leading-tight" style={{ left: 0 }}>Hours available</td>
               {MONTH_LABELS.map((m) => {
                 const v = hoursAvailableFor(m)
                 return (
-                  <td key={m} className="num tabular">
-                    {v === null || v === undefined ? '—' : roundHours(v)}
+                  <td key={m} className={`num tabular ${m === CURRENT_MONTH ? 'bg-brand-green/[0.06]' : ''}`}>
+                    {v === null || v === undefined ? <span className="text-neutral-600">—</span> : roundHours(v)}
                   </td>
                 )
               })}
             </tr>
-            <tr>
-              <td className="whitespace-nowrap font-medium text-neutral-200">Balance</td>
+            {/* Balance is the answer the whole table exists to give — spare
+                capacity or short-staffed, per month. Rule it off from the
+                inputs above so it reads as a result, not another row. */}
+            <tr className="border-t-2 border-white/15">
+              <td className="sticky-col sticky-col-end whitespace-normal sm:whitespace-nowrap text-[12px] sm:text-[13px] leading-tight text-[14px] font-semibold text-white" style={{ left: 0 }}>Balance</td>
               {MONTH_LABELS.map((m) => {
                 const v = balanceFor(m)
                 return (
                   <td
                     key={m}
-                    className={`num tabular font-medium ${
-                      v === null ? '' : v < 0 ? 'text-red-400' : 'text-brand-green'
-                    }`}
+                    className={`num tabular text-[14px] font-semibold ${
+                      m === CURRENT_MONTH ? 'bg-brand-green/[0.06]' : ''
+                    } ${v === null ? 'text-neutral-600' : v < 0 ? 'text-red-400' : 'text-brand-green'}`}
                   >
-                    {v === null ? '—' : roundHours(v)}
+                    {v === null ? <span className="text-neutral-600">—</span> : roundHours(v)}
                   </td>
                 )
               })}
             </tr>
             <tr>
-              <td className="whitespace-nowrap text-neutral-500" title="Only used when no staff are added below">
+              <td className="sticky-col sticky-col-end whitespace-normal sm:whitespace-nowrap text-[12px] sm:text-[13px] leading-tight text-neutral-500" style={{ left: 0 }} title="Only used when no staff are added below">
                 Working days (estimate)
               </td>
               {MONTH_LABELS.map((m) => (
-                <td key={m} className="p-1">
+                <td key={m} className={`p-1 ${m === CURRENT_MONTH ? 'bg-brand-green/[0.06]' : ''}`}>
                   <EditableCapacityCell
                     value={workingDaysFor(m) ?? null}
                     onChange={(n) => setWorkingDaysOverrides((prev) => ({ ...prev, [m]: n }))}
@@ -354,11 +370,11 @@ function CapacityPanel({ capacity, usedHoursByMonth }) {
               ))}
             </tr>
             <tr>
-              <td className="whitespace-nowrap text-neutral-500" title="Only used when no staff are added below">
+              <td className="sticky-col sticky-col-end whitespace-normal sm:whitespace-nowrap text-[12px] sm:text-[13px] leading-tight text-neutral-500" style={{ left: 0 }} title="Only used when no staff are added below">
                 Staff on tools (estimate)
               </td>
               {MONTH_LABELS.map((m) => (
-                <td key={m} className="p-1">
+                <td key={m} className={`p-1 ${m === CURRENT_MONTH ? 'bg-brand-green/[0.06]' : ''}`}>
                   <EditableCapacityCell
                     value={staffOnToolsFor(m) ?? null}
                     onChange={(n) => setStaffOnToolsOverrides((prev) => ({ ...prev, [m]: n }))}
