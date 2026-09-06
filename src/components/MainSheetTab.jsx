@@ -102,6 +102,7 @@ export default function MainSheetTab({
 
   const sortedJobs = [...jobs].sort((a, b) => Number(a.jobNumber) - Number(b.jobNumber))
   const [selectedJobNumber, setSelectedJobNumber] = useState('')
+  const [progressFilter, setProgressFilter] = useState('all')
   const [values, setValues] = useState(() => {
     const map = {}
     for (const job of jobs) map[job.jobNumber] = { ...job.checklist }
@@ -124,10 +125,43 @@ export default function MainSheetTab({
   const [retentionSaving, setRetentionSaving] = useState(() => new Set())
 
   const columnByKey = new Map(columns.map((c) => [c.key, c]))
+  // "Settled" = ticked or marked N/A. An item that doesn't apply to a job
+  // needs no action, so it shouldn't sit in the "still to do" count — the
+  // row colouring below already treats the two the same, and counting only
+  // 'Yes' meant the header could claim four items outstanding while not a
+  // single row was amber.
+  const settledCount = (jobNumber) =>
+    columns.filter((c) => {
+      const v = values[jobNumber]?.[c.key]
+      return v === 'Yes' || v === 'N/A'
+    }).length
+
   const selectedJob = sortedJobs.find((j) => j.jobNumber === selectedJobNumber) ?? sortedJobs[0] ?? null
-  const selectedJobDone = selectedJob
-    ? columns.filter((c) => values[selectedJob.jobNumber][c.key] === 'Yes').length
-    : 0
+  const selectedJobDone = selectedJob ? settledCount(selectedJob.jobNumber) : 0
+
+  // Onboarding progress for every job, so the filters below can say how many
+  // jobs sit in each state and the picker can show each job's own progress.
+  const progressByJob = new Map(sortedJobs.map((j) => [j.jobNumber, settledCount(j.jobNumber)]))
+  const bucketOf = (jobNumber) => {
+    const done = progressByJob.get(jobNumber) ?? 0
+    if (done === 0) return 'notStarted'
+    if (done >= columns.length) return 'complete'
+    return 'inProgress'
+  }
+  const FILTERS = [
+    { key: 'all', label: 'All jobs' },
+    { key: 'notStarted', label: 'Not started' },
+    { key: 'inProgress', label: 'In progress' },
+    { key: 'complete', label: 'Complete' },
+  ]
+  const filterCounts = {
+    all: sortedJobs.length,
+    notStarted: sortedJobs.filter((j) => bucketOf(j.jobNumber) === 'notStarted').length,
+    inProgress: sortedJobs.filter((j) => bucketOf(j.jobNumber) === 'inProgress').length,
+    complete: sortedJobs.filter((j) => bucketOf(j.jobNumber) === 'complete').length,
+  }
+  const visibleJobs =
+    progressFilter === 'all' ? sortedJobs : sortedJobs.filter((j) => bucketOf(j.jobNumber) === progressFilter)
 
   // The Weekly/Completion checklist records and the job-created stamp now
   // live in Cloudflare KV (shared across devices, see src/lib/appData.js)
@@ -319,12 +353,55 @@ export default function MainSheetTab({
             onChange={(e) => setSelectedJobNumber(e.target.value)}
             className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm text-neutral-200 focus:border-brand-green/50 focus:outline-none"
           >
-            {sortedJobs.map((job) => (
+            {(visibleJobs.length > 0 ? visibleJobs : sortedJobs).map((job) => (
               <option key={job.jobNumber} value={job.jobNumber} className="bg-[#11161c] text-neutral-200">
-                {job.jobNumber} — {job.jobName}
+                {job.jobNumber} — {job.jobName} · {progressByJob.get(job.jobNumber)}/{columns.length}
               </option>
             ))}
           </select>
+        </div>
+
+        {/* Which jobs still need onboarding work — the picker alone gave no way
+            to tell without opening all thirty one at a time. Same chip pattern
+            the Job directory already uses. */}
+        <div className="mt-4 flex flex-wrap gap-2">
+          {FILTERS.map((f) => {
+            const active = progressFilter === f.key
+            const count = filterCounts[f.key]
+            return (
+              <button
+                key={f.key}
+                type="button"
+                disabled={count === 0 && f.key !== 'all'}
+                onClick={() => {
+                  setProgressFilter(f.key)
+                  const next =
+                    f.key === 'all'
+                      ? sortedJobs
+                      : sortedJobs.filter((j) => bucketOf(j.jobNumber) === f.key)
+                  // Keep the current job if it belongs in the new filter,
+                  // otherwise jump to the first one that does — leaving a job
+                  // selected that the filter excludes would be confusing.
+                  if (next.length > 0 && !next.some((j) => j.jobNumber === selectedJob?.jobNumber)) {
+                    setSelectedJobNumber(next[0].jobNumber)
+                  }
+                }}
+                className={`rounded-full border px-4 py-2 text-[13px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                  active
+                    ? f.key === 'complete'
+                      ? 'border-brand-green/50 bg-brand-green/15 text-brand-green'
+                      : f.key === 'notStarted'
+                        ? 'border-red-400/50 bg-red-400/15 text-red-400'
+                        : f.key === 'inProgress'
+                          ? 'border-amber-400/50 bg-amber-400/15 text-amber-400'
+                          : 'border-white/25 bg-white/[0.08] text-white'
+                    : 'border-white/10 bg-white/[0.02] text-neutral-400 hover:border-white/25 hover:text-neutral-200'
+                }`}
+              >
+                {f.label} <span className="tabular-nums opacity-80">({count})</span>
+              </button>
+            )
+          })}
         </div>
 
         {selectedJob && (
