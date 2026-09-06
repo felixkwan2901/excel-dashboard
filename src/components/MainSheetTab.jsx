@@ -504,7 +504,7 @@ export default function MainSheetTab({
                                 : 'border-amber-400/30 bg-amber-400/10 text-amber-400'
                             }`}
                           >
-                            {overdue ? 'Overdue' : '2 wks'}
+                            {overdue ? 'Overdue' : '2 weeks'}
                           </span>
                         )}
                       </span>
