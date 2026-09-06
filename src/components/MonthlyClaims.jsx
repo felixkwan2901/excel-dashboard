@@ -55,8 +55,15 @@ const READONLY_COLUMNS = [
   { key: 'quotedGpPerHour', label: 'Quoted GP $/hr', num: true, format: money },
   { key: 'hoursToComeCost', label: 'Hours to come cost', num: true, format: money },
   { key: 'quotedHoursValue', label: 'Quoted hours value', num: true, format: money },
-  { key: 'total', label: 'Total cost', num: true, format: money },
 ]
+
+// "Total cost" is the answer this whole calculator produces, but it sat
+// second-to-last in a table twelve columns wide — so while you were typing
+// into Ret% / Hours to come / Cost to come on the left, the number those
+// inputs change was off-screen to the right. Pulled out, moved to the end
+// and pinned to the right edge, so the inputs and the result are visible
+// together.
+const TOTAL_COLUMN = { key: 'total', label: 'Total cost', num: true, format: money }
 
 function currentMonthKey() {
   const d = new Date()
@@ -368,6 +375,14 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
                   </th>
                 ))}
                 <th>Notes</th>
+                <th
+                  className="num sortable sticky-col-right"
+                  onClick={() => toggleTableSort(TOTAL_COLUMN.key)}
+                  aria-sort={tableSort.key === TOTAL_COLUMN.key ? (tableSort.dir === 1 ? 'ascending' : 'descending') : 'none'}
+                >
+                  {TOTAL_COLUMN.label}
+                  {tableSort.key === TOTAL_COLUMN.key && (tableSort.dir === 1 ? ' ▲' : ' ▼')}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -429,6 +444,9 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
                       numeric={false}
                       onChange={(newValue) => saveField(j, EDITABLE_FIELDS[3], newValue)}
                     />
+                  </td>
+                  <td className="num tabular sticky-col-right text-[14px] font-semibold text-white">
+                    {TOTAL_COLUMN.format(j[TOTAL_COLUMN.key])}
                   </td>
                 </tr>
               ))}
