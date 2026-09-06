@@ -258,6 +258,35 @@
 .table-scroll {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+  /* Draw the horizontal scrollbar permanently rather than leaving it to the
+     OS. macOS hides overlay scrollbars until you scroll, so on a trackpad
+     there's no sign these tables go sideways at all — and a Windows mouse
+     user, who has no two-finger swipe, needs something to grab. Chunky
+     enough to drag accurately. (Shift + wheel also works, but nobody
+     discovers that on their own.) */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
+}
+
+.table-scroll::-webkit-scrollbar {
+  height: 11px;
+}
+
+.table-scroll::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 999px;
+}
+
+.table-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+.table-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.45);
+  background-clip: content-box;
 }
 
 /* border-collapse: collapse breaks position: sticky on table cells in
