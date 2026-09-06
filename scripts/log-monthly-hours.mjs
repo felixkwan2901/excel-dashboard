@@ -28,6 +28,7 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import ExcelJS from 'exceljs'
+import { isValidJobBlock } from './lib/job-blocks.mjs'
 
 const workbookPath = resolve('public/Cassidy_Davies_Electrical_BPMN_Data.xlsx')
 // Lives in public/ (not bundled via a JS import) — Vite's JSON handling
@@ -135,7 +136,6 @@ async function main() {
   await wb.xlsx.readFile(workbookPath)
   const { rows, headerIdx } = findDeliverablesSheet(wb)
   const blocks = buildJobBlocks(rows, headerIdx)
-  const isValidJobBlock = (b) => Number(b.jobNumber) > 0 && String(b.jobName ?? '').trim() !== '' && String(b.jobName).trim() !== '0'
 
   const log = existsSync(logPath) ? JSON.parse(readFileSync(logPath, 'utf8')) : {}
   const month = monthKey(new Date())

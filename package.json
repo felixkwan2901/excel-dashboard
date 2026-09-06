@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist",
-    "update-jobs": "node scripts/update-jobs.mjs"
+    "update-jobs": "node scripts/update-jobs.mjs",
+    "test": "node --test scripts/__tests__/*.test.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

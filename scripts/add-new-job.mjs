@@ -14,6 +14,7 @@
 import { readFileSync, writeFileSync, readdirSync, renameSync, mkdirSync, existsSync, rmSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import ExcelJS from 'exceljs'
+import { isValidJobBlock } from './lib/job-blocks.mjs'
 
 const STAGING_DIR = resolve('pending-updates/new-job')
 const FAILED_DIR = resolve('pending-updates/failed')
@@ -86,8 +87,6 @@ function buildJobBlocks(rows, headerIdx) {
   return blocks
 }
 
-const isValidJobBlock = (b) =>
-  Number(b.jobNumber) > 0 && String(b.jobName ?? '').trim() !== '' && String(b.jobName).trim() !== '0'
 
 // Copies a row's full style (fill/border/font/numFmt/alignment + height) —
 // not its values — from one row to another, cell by cell. Used both for a

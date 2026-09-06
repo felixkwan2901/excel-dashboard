@@ -46,7 +46,9 @@ import { createHash } from 'node:crypto'
 import { readFileSync, readdirSync, writeFileSync, mkdirSync, renameSync, statSync, existsSync } from 'node:fs'
 import { join, resolve, dirname, basename } from 'node:path'
 import { execFileSync } from 'node:child_process'
+import { pathToFileURL } from 'node:url'
 import ExcelJS from 'exceljs'
+import { isValidJobBlock } from './lib/job-blocks.mjs'
 
 const folder = resolve(process.argv[2] ?? 'imports')
 const workbookPath = resolve('public/Cassidy_Davies_Electrical_BPMN_Data.xlsx')
@@ -136,14 +138,14 @@ function normalizeHeader(text) {
 // 2. Extract job number/name + cost figures from one export file.
 // ---------------------------------------------------------------------------
 
-function parseMoney(v) {
+export function parseMoney(v) {
   if (typeof v === 'number') return v
   if (typeof v !== 'string') return null
   const n = Number(v.replace(/[^0-9.-]/g, ''))
   return Number.isFinite(n) ? n : null
 }
 
-function parsePercent(v) {
+export function parsePercent(v) {
   if (typeof v === 'number') return v
   if (typeof v !== 'string') return null
   const n = Number(v.replace(/[^0-9.-]/g, ''))
@@ -301,13 +303,13 @@ function buildJobBlocks(rows, headerIdx) {
   return blocks
 }
 
-function monthKey(date) {
+export function monthKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
 }
 
 // Real calendar week of the month: days 1-7 -> Week 1, 8-14 -> Week 2, ...,
 // capped at 5 (the sheet only has 5 week slots, and no month needs a 6th).
-function calendarWeekOfMonth(date) {
+export function calendarWeekOfMonth(date) {
   return Math.min(5, Math.ceil(date.getDate() / 7))
 }
 
@@ -554,7 +556,7 @@ async function runConsistencyChecks(currentMonth) {
   await checkWb.xlsx.readFile(workbookPath)
   const { rows: checkRows, headerIdx: checkHeaderIdx } = findDeliverablesSheet(checkWb)
   const checkBlocks = buildJobBlocks(checkRows, checkHeaderIdx).filter(
-    (b) => Number(b.jobNumber) > 0 && String(b.jobName ?? '').trim() !== '' && String(b.jobName).trim() !== '0',
+    isValidJobBlock,
   )
   function lastFilledPos(weekIdxs) {
     for (let i = weekIdxs.length - 1; i >= 1; i--) {
@@ -721,7 +723,6 @@ async function main() {
   // Real jobs only — a handful of junk blocks (job number 0 / blank name)
   // exist in the sheet and aren't real jobs, same filter the dashboard's
   // own loader applies.
-  const isValidJobBlock = (b) => Number(b.jobNumber) > 0 && String(b.jobName ?? '').trim() !== '' && String(b.jobName).trim() !== '0'
   const validBlocks = blocks.filter(isValidJobBlock)
   const existingJobNumbers = new Set(validBlocks.map((b) => Number(b.jobNumber)))
 
@@ -1149,4 +1150,9 @@ async function main() {
   await runConsistencyChecks(currentMonth)
 }
 
-main()
+// Only run the pipeline when this file is executed directly. Without the
+// guard, importing it (as the tests do) would kick off a real merge against
+// the workbook.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main()
+}
