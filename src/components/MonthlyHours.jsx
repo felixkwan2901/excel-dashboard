@@ -90,7 +90,7 @@ export default function MonthlyHours({ monthlyHours, jobs: allJobs, onBack }) {
   const maxTotalHours = Math.max(1, ...totalsByMonth.map((t) => t.totalHours))
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
       <nav className="flex items-center gap-1.5 text-sm text-text-muted">
         <button className="transition-colors hover:text-text-primary" onClick={onBack}>
           Operations overview
