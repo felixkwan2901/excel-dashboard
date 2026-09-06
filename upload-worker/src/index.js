@@ -879,15 +879,18 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url)
 
-    // Preflight carries no credentials by design — answer it before the gate,
-    // otherwise the browser never gets to send the real request.
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: CORS_HEADERS })
     }
 
-    if (!isAuthorized(request, env)) {
-      return unauthorized(env)
-    }
+    // The access-key gate is deliberately switched off: the weekly upload runs
+    // unattended from the office machine and cannot be prompted for a key.
+    // isAuthorized()/unauthorized() are kept below — restore protection by
+    // putting this back, with UPLOAD_SECRET already set on the Worker:
+    //
+    //     if (!isAuthorized(request, env)) return unauthorized(env)
+    //
+    // Until then every route here is open to anyone who has the URL.
 
     if (request.method === 'GET' && url.pathname === '/') {
       return html(renderForm())

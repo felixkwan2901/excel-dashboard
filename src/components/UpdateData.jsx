@@ -118,6 +118,12 @@ export default function UpdateData({ onBack, jobs }) {
   const [replaceStatus, setReplaceStatus] = useState('idle') // idle | staging | processing | done | error
   const [replaceMessage, setReplaceMessage] = useState('')
 
+  // Job owner and the quoted figures aren't asked for on the form any more —
+  // the weekly export overwrites every quoted value (applyJobUpdate in
+  // scripts/update-jobs.mjs), so typing them was work the next upload undid.
+  // They stay in the payload as empty strings so the worker and
+  // scripts/add-new-job.mjs keep receiving the shape they already handle:
+  // exactly what they got whenever someone left these blank before.
   const [newJob, setNewJob] = useState({
     jobNumber: '', jobName: '', jobOwner: '',
     quotedPrice: '', quotedMaterialCost: '', quotedLabourCost: '', quotedLabourHours: '',
@@ -345,39 +351,24 @@ export default function UpdateData({ onBack, jobs }) {
           <p className="text-xs text-text-muted">
             Adds this job to the Deliverables Sheet, Job checklist, Monthly Claims, and Upcoming
             Work — all four at once, so weekly uploads and the checklist work for it right away.
-            Only the job number and name are required — the quoted figures below default to $0/0
-            hrs if left blank and can be filled in later (they don&apos;t come from weekly
-            exports, which only carry that week&apos;s actual hours/costs, not the original quote).
+            Quoted price, costs and hours aren&apos;t asked for here — the next weekly export
+            fills them in and overwrites anything entered now.
           </p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleNewJobSubmit} className="flex flex-col gap-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label htmlFor="new-job-number" className="mb-1.5 block text-xs text-text-muted">
-                  Job number
-                </label>
-                <input
-                  id="new-job-number"
-                  type="number"
-                  value={newJob.jobNumber}
-                  onChange={(e) => setNewJob((j) => ({ ...j, jobNumber: e.target.value }))}
-                  required
-                  className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-brand-green/50 focus:outline-none"
-                />
-              </div>
-              <div>
-                <label htmlFor="new-job-owner" className="mb-1.5 block text-xs text-text-muted">
-                  Job owner
-                </label>
-                <input
-                  id="new-job-owner"
-                  type="text"
-                  value={newJob.jobOwner}
-                  onChange={(e) => setNewJob((j) => ({ ...j, jobOwner: e.target.value }))}
-                  className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-brand-green/50 focus:outline-none"
-                />
-              </div>
+            <div>
+              <label htmlFor="new-job-number" className="mb-1.5 block text-xs text-text-muted">
+                Job number
+              </label>
+              <input
+                id="new-job-number"
+                type="number"
+                value={newJob.jobNumber}
+                onChange={(e) => setNewJob((j) => ({ ...j, jobNumber: e.target.value }))}
+                required
+                className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-brand-green/50 focus:outline-none"
+              />
             </div>
 
             <div>
@@ -392,61 +383,6 @@ export default function UpdateData({ onBack, jobs }) {
                 required
                 className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-brand-green/50 focus:outline-none"
               />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label htmlFor="new-job-quoted-price" className="mb-1.5 block text-xs text-text-muted">
-                  Quoted price
-                </label>
-                <input
-                  id="new-job-quoted-price"
-                  type="number"
-                  value={newJob.quotedPrice}
-                  onChange={(e) => setNewJob((j) => ({ ...j, quotedPrice: e.target.value }))}
-                  placeholder="Optional — defaults to $0"
-                  className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-brand-green/50 focus:outline-none"
-                />
-              </div>
-              <div>
-                <label htmlFor="new-job-quoted-material" className="mb-1.5 block text-xs text-text-muted">
-                  Quoted material cost
-                </label>
-                <input
-                  id="new-job-quoted-material"
-                  type="number"
-                  value={newJob.quotedMaterialCost}
-                  onChange={(e) => setNewJob((j) => ({ ...j, quotedMaterialCost: e.target.value }))}
-                  placeholder="Optional — defaults to $0"
-                  className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-brand-green/50 focus:outline-none"
-                />
-              </div>
-              <div>
-                <label htmlFor="new-job-quoted-labour-cost" className="mb-1.5 block text-xs text-text-muted">
-                  Quoted labour cost
-                </label>
-                <input
-                  id="new-job-quoted-labour-cost"
-                  type="number"
-                  value={newJob.quotedLabourCost}
-                  onChange={(e) => setNewJob((j) => ({ ...j, quotedLabourCost: e.target.value }))}
-                  placeholder="Optional — defaults to $0"
-                  className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-brand-green/50 focus:outline-none"
-                />
-              </div>
-              <div>
-                <label htmlFor="new-job-quoted-labour-hours" className="mb-1.5 block text-xs text-text-muted">
-                  Quoted labour hours
-                </label>
-                <input
-                  id="new-job-quoted-labour-hours"
-                  type="number"
-                  value={newJob.quotedLabourHours}
-                  onChange={(e) => setNewJob((j) => ({ ...j, quotedLabourHours: e.target.value }))}
-                  placeholder="Optional — defaults to 0"
-                  className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-brand-green/50 focus:outline-none"
-                />
-              </div>
             </div>
 
             <Button

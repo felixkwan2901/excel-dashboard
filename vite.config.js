@@ -5,8 +5,18 @@ import { VitePWA } from 'vite-plugin-pwa'
 import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
+// Where the app is served from. GitHub Pages serves it under a repo
+// subpath; a domain of its own (dashboard.<company>.co.nz) serves it at the
+// root. Everything in src/ already builds asset URLs from
+// import.meta.env.BASE_URL, so this one value is the only thing that needs
+// to change to move hosts:
+//
+//     APP_BASE=/ npm run build
+//
+const base = process.env.APP_BASE ?? '/excel-dashboard/'
+
 export default defineConfig({
-  base: '/excel-dashboard/',
+  base,
   // Baked into the JS bundle so a loaded page can tell whether a newer
   // deploy exists (see src/main.jsx's build-id check) — GITHUB_SHA is set
   // automatically by GitHub Actions; falls back to 'dev' for local builds,
@@ -33,8 +43,8 @@ export default defineConfig({
         theme_color: '#0a0a0a',
         background_color: '#0a0a0a',
         display: 'standalone',
-        start_url: '/excel-dashboard/',
-        scope: '/excel-dashboard/',
+        start_url: base,
+        scope: base,
         icons: [
           { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
           { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },

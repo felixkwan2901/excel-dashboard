@@ -24,9 +24,13 @@ export async function getAppData(key) {
   }
 }
 
+// Returns true only if the value actually reached the Worker. Callers must
+// use this to drive their "Saved" indicator: this used to swallow every
+// failure and resolve anyway, so a tick that never left the browser still
+// reported "Saved" and then vanished on the next refresh.
 export async function setAppData(key, value) {
   try {
-    await workerFetch(
+    const res = await workerFetch(
       `/app-data`,
       {
         method: 'POST',
@@ -35,8 +39,8 @@ export async function setAppData(key, value) {
       },
       { promptIfMissing: false },
     )
+    return res.ok
   } catch {
-    // Best-effort — a failed sync here just means this browser keeps
-    // showing its own optimistic state until the next successful save.
+    return false
   }
 }

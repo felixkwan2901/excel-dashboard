@@ -82,7 +82,9 @@ export default function JobCompletionChecklistTab({ job, onBack }) {
     setState((prev) => {
       const next = typeof updater === 'function' ? updater(prev) : updater
       setSaveStatus('saving')
-      setAppData(`completion:${job.jobNumber}`, next).then(() => setSaveStatus('saved'))
+      setAppData(`completion:${job.jobNumber}`, next).then((ok) =>
+        setSaveStatus(ok ? 'saved' : 'error'),
+      )
       return next
     })
   }
@@ -136,7 +138,12 @@ export default function JobCompletionChecklistTab({ job, onBack }) {
             />
           </div>
           {saveStatus && (
-            <span className="text-[11px] text-neutral-500">{saveStatus === 'saving' ? 'Saving…' : 'Saved'}</span>
+            <span
+              className={`text-[11px] ${saveStatus === 'error' ? 'text-red-400' : 'text-neutral-500'}`}
+              title={saveStatus === 'error' ? 'This tick is only on this device — it will disappear on refresh.' : undefined}
+            >
+              {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'error' ? 'Not saved' : 'Saved'}
+            </span>
           )}
         </div>
 

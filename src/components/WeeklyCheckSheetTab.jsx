@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { currentWeekStart } from '../lib/weekStart'
+import { currentWeekStart, isCurrentWeek } from '../lib/weekStart'
 import { getAppData, setAppData } from '../lib/appData'
 
 // Matches the paper "Weekly Job Check Sheet" exactly — 9 recurring checks,
@@ -36,8 +36,7 @@ function defaultState() {
 // A saved sheet from before this week's Saturday is stale — reset it
 // rather than showing (or auto-completing) last week's ticks.
 function freshenIfStale(stored) {
-  const weekStart = currentWeekStart()
-  return stored?.weekOf && stored.weekOf >= weekStart ? stored : { ...defaultState(), weekOf: weekStart }
+  return isCurrentWeek(stored?.weekOf) ? stored : { ...defaultState(), weekOf: currentWeekStart() }
 }
 
 function ItemRow({ index, label, item, onChange }) {
@@ -95,7 +94,9 @@ export default function WeeklyCheckSheetTab({ job, onBack }) {
     setState((prev) => {
       const next = typeof updater === 'function' ? updater(prev) : updater
       setSaveStatus('saving')
-      setAppData(`weekly:${job.jobNumber}`, next).then(() => setSaveStatus('saved'))
+      setAppData(`weekly:${job.jobNumber}`, next).then((ok) =>
+        setSaveStatus(ok ? 'saved' : 'error'),
+      )
       return next
     })
   }
@@ -150,7 +151,12 @@ export default function WeeklyCheckSheetTab({ job, onBack }) {
           </div>
           <div className="flex items-center gap-2">
             {saveStatus && (
-              <span className="text-[11px] text-neutral-500">{saveStatus === 'saving' ? 'Saving…' : 'Saved'}</span>
+              <span
+                className={`text-[11px] ${saveStatus === 'error' ? 'text-red-400' : 'text-neutral-500'}`}
+                title={saveStatus === 'error' ? 'This tick is only on this device — it will disappear on refresh.' : undefined}
+              >
+                {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'error' ? 'Not saved' : 'Saved'}
+              </span>
             )}
             {STATUSES.map((s) => (
               <button

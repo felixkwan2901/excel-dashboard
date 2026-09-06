@@ -60,12 +60,16 @@ function ChecklistCell({ value, saving, onChange }) {
         disabled={saving}
         onClick={() => onChange(done ? '' : 'Yes')}
         aria-pressed={done}
-        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md border text-[12px] font-medium transition-colors disabled:opacity-50 ${
+        // A ticked box used to be the only signal that an item was handled, and
+        // an unticked one rendered its ✓ in text-transparent — so a pending row
+        // showed an empty square with no hint it was even clickable. Solid green
+        // when done, a visible ghost tick when not.
+        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md border text-[14px] font-bold transition-colors disabled:opacity-50 ${
           done
-            ? 'border-brand-green/40 bg-brand-green/10 text-brand-green'
-            : 'border-white/10 bg-white/[0.02] text-transparent hover:border-white/20'
+            ? 'border-brand-green bg-brand-green text-[#04170c]'
+            : 'border-white/20 bg-white/[0.03] text-white/25 hover:border-brand-green/60 hover:bg-brand-green/10 hover:text-brand-green'
         }`}
-        title="Done"
+        title={done ? 'Done — click to clear' : 'Mark done'}
       >
         ✓
       </button>
@@ -74,10 +78,11 @@ function ChecklistCell({ value, saving, onChange }) {
         disabled={saving}
         onClick={() => onChange(na ? '' : 'N/A')}
         aria-pressed={na}
-        className={`shrink-0 rounded-full border px-2 py-1 text-[11px] font-medium transition-colors disabled:opacity-50 ${
+        title={na ? 'Not applicable — click to clear' : 'Mark not applicable'}
+        className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors disabled:opacity-50 ${
           na
-            ? 'border-white/30 bg-white/[0.08] text-neutral-200'
-            : 'border-white/10 bg-white/[0.02] text-neutral-500 hover:text-neutral-300'
+            ? 'border-white/40 bg-white/[0.14] text-white'
+            : 'border-white/10 bg-white/[0.02] text-neutral-500 hover:border-white/25 hover:text-neutral-200'
         }`}
       >
         N/A
@@ -289,8 +294,23 @@ export default function MainSheetTab({
           <div>
             <h2 className="text-[15px] font-semibold text-white">Job onboarding checklist</h2>
             {selectedJob && (
+              // "11 of 19 complete" makes you do the subtraction. What actually
+              // matters on a checklist is how many are left, so lead with that.
               <p className="mt-1 text-[13px] text-neutral-400">
-                {selectedJobDone} of {columns.length} items complete
+                {columns.length - selectedJobDone > 0 ? (
+                  <>
+                    <span className="text-[15px] font-semibold text-amber-400">
+                      {columns.length - selectedJobDone}
+                    </span>{' '}
+                    still to do
+                    <span className="text-neutral-600"> · </span>
+                    {selectedJobDone} of {columns.length} done
+                  </>
+                ) : (
+                  <span className="font-semibold text-brand-green">
+                    All {columns.length} items complete
+                  </span>
+                )}
               </p>
             )}
           </div>
@@ -309,11 +329,23 @@ export default function MainSheetTab({
 
         {selectedJob && (
           <>
-            <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
+            <div className="mt-4 h-2.5 w-full overflow-hidden rounded-full bg-white/[0.08]">
               <div
-                className="h-full rounded-full bg-brand-green transition-all"
+                className="h-full rounded-full bg-brand-green transition-all duration-300"
                 style={{ width: `${columns.length ? (selectedJobDone / columns.length) * 100 : 0}%` }}
               />
+            </div>
+
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11.5px] text-neutral-500">
+              <span className="flex items-center gap-1.5">
+                <span className="h-2.5 w-1 rounded-full bg-amber-400/70" /> To do
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-2.5 w-1 rounded-full bg-brand-green/70" /> Done
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-2.5 w-1 rounded-full bg-white/20" /> N/A
+              </span>
             </div>
 
             <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -322,17 +354,29 @@ export default function MainSheetTab({
                 const label = item?.label ?? c.label
                 const itemValue = values[selectedJob.jobNumber][c.key]
                 const pending = itemValue !== 'Yes' && itemValue !== 'N/A'
+                const isDone = itemValue === 'Yes'
+                const isNa = itemValue === 'N/A'
                 const overdue =
                   (item?.link === 'weekly' &&
                     isThursdayMorning() &&
                     !isLinkedChecklistCompleteFromRecord('weekly', linkedRecords.weekly)) ||
                   (item?.twoWeek && pending && isTwoWeeksOverdueFromStamp(jobCreatedAt))
+                // Done, N/A and still-to-do rows all used to render identically,
+                // so the only way to read the list was to check each small tick
+                // box in turn. Give each state its own weight instead: settled
+                // rows recede, outstanding ones carry a left bar and a lighter
+                // panel, so what still needs doing is what catches the eye.
+                const rowStyle = overdue
+                  ? 'overdue-flash'
+                  : isDone
+                    ? 'border-brand-green/25 bg-brand-green/[0.06] border-l-[3px] border-l-brand-green/70'
+                    : isNa
+                      ? 'border-white/[0.05] bg-white/[0.015] border-l-[3px] border-l-white/20'
+                      : 'border-white/15 bg-white/[0.05] border-l-[3px] border-l-amber-400/70'
                 return (
                   <div
                     key={c.key}
-                    className={`flex items-center justify-between gap-3 rounded-[10px] border p-3 ${
-                      overdue ? 'overdue-flash' : 'border-white/[0.06] bg-white/[0.02]'
-                    }`}
+                    className={`flex items-center justify-between gap-3 rounded-[10px] border p-3 transition-colors ${rowStyle}`}
                   >
                     {item?.link ? (
                       <button
@@ -342,16 +386,25 @@ export default function MainSheetTab({
                             ? onOpenWeeklyCheckSheet(selectedJob)
                             : onOpenJobCompletionChecklist(selectedJob)
                         }
-                        className="flex-1 text-left text-[13px] text-brand-green underline decoration-brand-green/40 underline-offset-2 hover:text-white"
+                        className="flex-1 text-left text-[13.5px] leading-snug text-brand-green underline decoration-brand-green/40 underline-offset-2 hover:text-white"
                       >
-                        <span className="mr-2 text-neutral-500">{i + 1}.</span>
+                        <span className="mr-2 font-semibold tabular-nums text-neutral-500">{i + 1}.</span>
                         {label}
                       </button>
                     ) : (
-                      <span className="text-[13px] text-neutral-300">
-                        <span className="mr-2 text-neutral-500">{i + 1}.</span>
+                      // Settled items step back so the eye lands on what is left.
+                      <span
+                        className={`text-[13.5px] leading-snug ${
+                          isDone ? 'text-neutral-400' : isNa ? 'text-neutral-500' : 'text-neutral-100'
+                        }`}
+                      >
+                        <span className="mr-2 font-semibold tabular-nums text-neutral-500">{i + 1}.</span>
                         {label}
-                        {item?.twoWeek && (
+                        {/* The 2-week target only means something while the item
+                            is outstanding — once it's done or N/A the badge is
+                            just amber noise competing with the rows that do
+                            still need attention. */}
+                        {item?.twoWeek && pending && (
                           <span
                             className={`ml-2 rounded-full border px-1.5 py-0.5 text-[10px] font-medium ${
                               overdue

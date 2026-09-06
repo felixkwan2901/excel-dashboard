@@ -1,4 +1,4 @@
-import { currentWeekStart } from './weekStart'
+import { isCurrentWeek } from './weekStart'
 import { getAppData, setAppData } from './appData'
 
 // The exact 19 items from the paper "Job Onboarding Checklist" — in order,
@@ -47,7 +47,7 @@ export function isLinkedChecklistCompleteFromRecord(link, record) {
   if (!record) return false
   // The weekly sheet resets every Saturday morning — a completion saved
   // for an earlier week no longer counts as this week's item 18 being done.
-  if (link === 'weekly' && (!record.weekOf || record.weekOf < currentWeekStart())) return false
+  if (link === 'weekly' && !isCurrentWeek(record.weekOf)) return false
   const items = record.items ?? []
   return items.length >= LINK_ITEM_COUNTS[link] && items.every((i) => i.done || i.na)
 }

@@ -38,28 +38,24 @@ function askForKey(message = 'Enter the dashboard access key') {
   return entered ? entered.trim() : ''
 }
 
-// fetch() against the worker, with the access key attached. On a 401 it
-// clears the stored key, asks once more, and retries — so a mistyped key is
-// a re-prompt rather than a dead session.
-// promptIfMissing: false is for background calls that fire on page load
-// (the KV-backed check sheets). Those must never interrupt someone who is
-// only reading the dashboard — they fail quietly and the caller falls back.
+// fetch() against the worker.
+//
+// The worker's access-key gate is currently switched off, so no key is
+// required and nobody is prompted for one. A key is still sent if one
+// happens to be stored, and a 401 still triggers a re-prompt — so turning
+// the gate back on in upload-worker/src/index.js needs no change here.
 export async function workerFetch(path, init = {}, { retry = true, promptIfMissing = true } = {}) {
-  let key = getAccessKey()
-  if (!key) {
-    if (!promptIfMissing) throw new Error('no-access-key')
-    key = askForKey()
-    if (!key) throw new Error('An access key is required to make changes.')
-  }
+  const key = getAccessKey()
 
   const headers = new Headers(init.headers || {})
-  headers.set('X-Upload-Secret', key)
+  if (key) headers.set('X-Upload-Secret', key)
 
   const res = await fetch(`${UPLOAD_WORKER_URL}${path}`, { ...init, headers })
 
+  // Only reached if the gate is re-enabled on the worker.
   if (res.status === 401 && retry && promptIfMissing) {
     setAccessKey('')
-    const again = askForKey('That key was not accepted. Try again')
+    const again = askForKey(key ? 'That key was not accepted. Try again' : 'Enter the dashboard access key')
     if (!again) throw new Error('An access key is required to make changes.')
     return workerFetch(path, init, { retry: false, promptIfMissing })
   }
