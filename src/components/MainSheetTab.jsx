@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { CircleDashed, CircleDot, CircleCheck } from 'lucide-react'
+import StatCard from './StatCard'
 import { pollStagedStatus } from '../lib/pollStagedStatus'
 import { saveEdit } from '../lib/saveEdit'
 import {
@@ -148,11 +150,28 @@ export default function MainSheetTab({
     if (done >= columns.length) return 'complete'
     return 'inProgress'
   }
-  const FILTERS = [
-    { key: 'all', label: 'All jobs' },
-    { key: 'notStarted', label: 'Not started' },
-    { key: 'inProgress', label: 'In progress' },
-    { key: 'complete', label: 'Complete' },
+  const PROGRESS_CARDS = [
+    {
+      key: 'notStarted',
+      label: 'Not started',
+      context: 'Nothing ticked yet',
+      icon: CircleDashed,
+      ring: 'ring-red-400/60',
+    },
+    {
+      key: 'inProgress',
+      label: 'In progress',
+      context: 'Started, not finished',
+      icon: CircleDot,
+      ring: 'ring-amber-400/60',
+    },
+    {
+      key: 'complete',
+      label: 'Complete',
+      context: `All ${columns.length} items settled`,
+      icon: CircleCheck,
+      ring: 'ring-brand-green/60',
+    },
   ]
   const filterCounts = {
     all: sortedJobs.length,
@@ -162,6 +181,17 @@ export default function MainSheetTab({
   }
   const visibleJobs =
     progressFilter === 'all' ? sortedJobs : sortedJobs.filter((j) => bucketOf(j.jobNumber) === progressFilter)
+
+  // Selecting a filter that excludes the currently open job would leave the
+  // picker showing something the filter says isn't there — move to the first
+  // job that does belong.
+  function applyFilter(key) {
+    setProgressFilter(key)
+    const next = key === 'all' ? sortedJobs : sortedJobs.filter((j) => bucketOf(j.jobNumber) === key)
+    if (next.length > 0 && !next.some((j) => j.jobNumber === selectedJob?.jobNumber)) {
+      setSelectedJobNumber(next[0].jobNumber)
+    }
+  }
 
   // The Weekly/Completion checklist records and the job-created stamp now
   // live in Cloudflare KV (shared across devices, see src/lib/appData.js)
@@ -361,45 +391,30 @@ export default function MainSheetTab({
           </select>
         </div>
 
-        {/* Which jobs still need onboarding work — the picker alone gave no way
-            to tell without opening all thirty one at a time. Same chip pattern
-            the Job directory already uses. */}
-        <div className="mt-4 flex flex-wrap gap-2">
-          {FILTERS.map((f) => {
-            const active = progressFilter === f.key
-            const count = filterCounts[f.key]
+        {/* Three big cards rather than a row of small chips: this is the first
+            thing you want off this page — how many jobs nobody has started —
+            and a subtle pill was easy to scroll straight past. Clicking one
+            filters the picker below; clicking the active one again clears it. */}
+        <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {PROGRESS_CARDS.map((card) => {
+            const active = progressFilter === card.key
+            const count = filterCounts[card.key]
             return (
-              <button
-                key={f.key}
-                type="button"
-                disabled={count === 0 && f.key !== 'all'}
-                onClick={() => {
-                  setProgressFilter(f.key)
-                  const next =
-                    f.key === 'all'
-                      ? sortedJobs
-                      : sortedJobs.filter((j) => bucketOf(j.jobNumber) === f.key)
-                  // Keep the current job if it belongs in the new filter,
-                  // otherwise jump to the first one that does — leaving a job
-                  // selected that the filter excludes would be confusing.
-                  if (next.length > 0 && !next.some((j) => j.jobNumber === selectedJob?.jobNumber)) {
-                    setSelectedJobNumber(next[0].jobNumber)
-                  }
-                }}
-                className={`rounded-full border px-4 py-2 text-[13px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-                  active
-                    ? f.key === 'complete'
-                      ? 'border-brand-green/50 bg-brand-green/15 text-brand-green'
-                      : f.key === 'notStarted'
-                        ? 'border-red-400/50 bg-red-400/15 text-red-400'
-                        : f.key === 'inProgress'
-                          ? 'border-amber-400/50 bg-amber-400/15 text-amber-400'
-                          : 'border-white/25 bg-white/[0.08] text-white'
-                    : 'border-white/10 bg-white/[0.02] text-neutral-400 hover:border-white/25 hover:text-neutral-200'
+              <div
+                key={card.key}
+                className={`rounded-[18px] transition-shadow ${
+                  active ? `ring-2 ${card.ring}` : ''
                 }`}
               >
-                {f.label} <span className="tabular-nums opacity-80">({count})</span>
-              </button>
+                <StatCard
+                  icon={card.icon}
+                  label={card.label}
+                  value={count}
+                  context={active ? 'Showing these — click to clear' : card.context}
+                  tone={card.key === 'notStarted' && count > 0 ? 'critical' : 'neutral'}
+                  onClick={() => applyFilter(active ? 'all' : card.key)}
+                />
+              </div>
             )
           })}
         </div>
