@@ -50,6 +50,7 @@ import { pathToFileURL } from 'node:url'
 import ExcelJS from 'exceljs'
 import { isValidJobBlock } from './lib/job-blocks.mjs'
 import { businessNow, businessDateString } from './lib/business-time.mjs'
+import { findJobsMissingFromSheets, formatMissingJobsReport } from './lib/job-presence.mjs'
 
 const folder = resolve(process.argv[2] ?? 'imports')
 const workbookPath = resolve('public/Cassidy_Davies_Electrical_BPMN_Data.xlsx')
@@ -685,7 +686,18 @@ async function runConsistencyChecks(currentMonth) {
     for (const p of problems) console.log(`::error::${p}`)
     process.exitCode = 1
   } else {
-    console.log('\nAll consistency checks passed — every tab\'s data is confirmed in sync.')
+    // The figure comparisons above say nothing about a job being absent from
+    // a tab altogether, so claiming "every tab is in sync" on their strength
+    // alone was overstating it — that is how 8530 passed while missing from
+    // two sheets. Check presence too, and only make the claim if it holds.
+    const missingJobs = findJobsMissingFromSheets(checkWb, checkBlocks)
+    const report = formatMissingJobsReport(missingJobs)
+    if (report) {
+      console.log(report)
+      console.log('\nFigure checks passed, but the tabs are NOT in sync — see above.')
+    } else {
+      console.log('\nAll consistency checks passed — every tab\'s data is confirmed in sync.')
+    }
   }
 }
 
