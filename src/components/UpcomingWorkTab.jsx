@@ -89,23 +89,33 @@ function emptyStaffHours() {
   return hours
 }
 
-// A real per-person roster, editable per month — replaces the single
-// "Staff on tools" headcount with actual named staff and their actual
-// planned hours, which is what "make their hours manually updated per
-// month" means: not a count you multiply by an assumed day length, but
-// each person's own hours entered directly. Same local-only caveat as
-// everything else in this panel (no job number to address, so it saves
-// to this browser, not the workbook).
-function StaffRoster({ staff, onAdd, onRemove, onRename, onHoursChange }) {
+// A named roster carrying each person's FTE per month — 1 for full time,
+// 0.5 for half, 0 for someone not on the tools that month.
+//
+// This mirrors how the workbook already does it. Rows 81-105 of the Upcoming
+// Work Calculator list the crew with exactly that column (Kyle 0.5, Ben Dyer
+// 0), totalling 16.5 at row 110, and that total is typed into "Staff on
+// tools" — the sheet's own label says "enter in above spreadsheet". Hours
+// then come from the formula, and it reconciles: 16.5 x 20 days x 8h x 0.8
+// = 2112, the sheet's February figure exactly.
+//
+// It used to ask for hours per person instead, which is a different model
+// and could not be made to agree: the estimate discounts to 80% productive
+// time and a typed hours total does not, so entering everyone's real monthly
+// hours overstated capacity by about a third. Counting people and letting
+// the formula do the rest removes that trap. Unlike the sheet, which stores
+// one FTE per person, this holds a value per month, so someone joining or
+// dropping to part time mid-year is just a different number in that column.
+function StaffRoster({ staff, onAdd, onRemove, onRename, onHoursChange, totalFor }) {
   return (
     <div className="mt-6 border-t border-white/10 pt-5">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h3 className="text-[13px] font-medium text-neutral-200">Staff</h3>
           <p className="mt-0.5 text-[12px] text-neutral-400">
-            Add each staff member and their planned hours per month — Hours available above
-            uses the sum of these once at least one person's added, instead of the Staff on
-            tools/Working days estimate below.
+            Add each person and their FTE per month — 1 for full time, 0.5 for half, 0 if
+            they&apos;re not on the tools. The monthly total replaces Staff on tools below,
+            and Hours available stays the same formula: staff x working days x 8h x 80%.
           </p>
         </div>
         <button
@@ -166,6 +176,22 @@ function StaffRoster({ staff, onAdd, onRemove, onRename, onHoursChange }) {
                   </td>
                 </tr>
               ))}
+              {/* The sheet totals its FTE column at row 110 and that number is
+                  typed into Staff on tools. Showing the same total here means
+                  you can see at a glance whether the roster agrees with the
+                  row it replaces. */}
+              <tr className="border-t-2 border-white/15">
+                <td className="p-1 text-[13px] font-semibold text-white">Total on tools</td>
+                {MONTH_LABELS.map((m) => {
+                  const t = totalFor(m)
+                  return (
+                    <td key={m} className="num tabular text-[13px] font-semibold text-white">
+                      {t === null ? <span className="text-neutral-600">—</span> : t}
+                    </td>
+                  )
+                })}
+                <td className="sticky-col-right p-1"></td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -223,16 +249,21 @@ function CapacityPanel({ capacity, usedHoursByMonth }) {
   // one blank staff row turned all twelve months of Hours available into 0 —
   // and Balance with them. A person with no hours entered for a month simply
   // isn't information about that month, so fall back to the estimate there.
-  function rosterHoursFor(m) {
+  // Headcount on the tools that month, from the roster: the sum of everyone's
+  // FTE. Null when nobody has been given a figure for that month, so the
+  // Staff on tools row below still applies.
+  function rosterStaffFor(m) {
     const entered = staffRoster.filter((s) => s.hours[m] !== null && s.hours[m] !== undefined)
     if (entered.length === 0) return null
     return entered.reduce((sum, s) => sum + s.hours[m], 0)
   }
   function hoursAvailableFor(m) {
-    const fromRoster = rosterHoursFor(m)
-    if (fromRoster !== null) return fromRoster
     const days = workingDaysFor(m)
-    const staff = staffOnToolsFor(m)
+    // The roster's headcount takes precedence over the Staff on tools row,
+    // but both go through the same formula — the roster replaces the *count*,
+    // not the calculation. Feeding a typed hours total straight in was what
+    // made the two disagree.
+    const staff = rosterStaffFor(m) ?? staffOnToolsFor(m)
     return days !== null && days !== undefined && staff !== null && staff !== undefined
       ? staff * days * 8 * 0.8
       : capacity.hoursAvailable[m]
@@ -408,6 +439,7 @@ function CapacityPanel({ capacity, usedHoursByMonth }) {
         onRemove={removeStaffMember}
         onRename={renameStaffMember}
         onHoursChange={updateStaffHours}
+        totalFor={rosterStaffFor}
       />
     </div>
   )
