@@ -385,8 +385,8 @@
     "7658": {
       "jobName": "Charity Hospital",
       "claim": 0,
-      "costs": 0,
-      "profit": 0
+      "costs": 403.9200000000128,
+      "profit": -403.9200000000128
     },
     "7864": {
       "jobName": "Ryans House",
@@ -409,20 +409,20 @@
     "8127": {
       "jobName": "Rolly Autowash",
       "claim": 0,
-      "costs": 1252.699999999997,
-      "profit": -1252.699999999997
+      "costs": 3373.6399999999994,
+      "profit": -3373.6399999999994
     },
     "8142": {
       "jobName": "Fisher Developements",
       "claim": 0,
-      "costs": 2351.029999999999,
-      "profit": -2351.029999999999
+      "costs": 5653.709999999992,
+      "profit": -5653.709999999992
     },
     "8183": {
       "jobName": "Murney Custodian - 1 Freight Drive",
       "claim": 0,
-      "costs": 3843.2399999999907,
-      "profit": -3843.2399999999907
+      "costs": 7314.940000000002,
+      "profit": -7314.940000000002
     },
     "8214": {
       "jobName": "6 Tiroroa Lane",
@@ -433,8 +433,8 @@
     "8234": {
       "jobName": "Melhuish House",
       "claim": 0,
-      "costs": -1055.7200000000012,
-      "profit": 1055.7200000000012
+      "costs": -945.4600000000028,
+      "profit": 945.4600000000028
     },
     "8308": {
       "jobName": "Roydvale",
@@ -463,8 +463,8 @@
     "8670": {
       "jobName": "Studio DB - tautara fit out",
       "claim": 0,
-      "costs": 276.68000000000757,
-      "profit": -276.68000000000757
+      "costs": 1162.87000000001,
+      "profit": -1162.87000000001
     },
     "8769": {
       "jobName": "Percival Bach",
@@ -487,14 +487,14 @@
     "8886": {
       "jobName": "Monkey Toe - Fisher fit out",
       "claim": 0,
-      "costs": 4015.729999999996,
-      "profit": -4015.729999999996
+      "costs": 6987.919999999998,
+      "profit": -6987.919999999998
     },
     "8887": {
       "jobName": "Tenancy 2 - Fisher Fit out",
       "claim": 0,
-      "costs": -24.220000000001164,
-      "profit": 24.220000000001164
+      "costs": -15.220000000001164,
+      "profit": 15.220000000001164
     },
     "8907": {
       "jobName": "35 Mania",
@@ -529,8 +529,8 @@
     "9259": {
       "jobName": "Andrew Reeve Stage 2",
       "claim": 0,
-      "costs": 1528.260000000002,
-      "profit": -1528.260000000002
+      "costs": -2222.279999999999,
+      "profit": 2222.279999999999
     },
     "9351": {
       "jobName": "Harewood Golf Club",
