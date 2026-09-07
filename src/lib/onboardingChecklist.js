@@ -49,6 +49,8 @@ export function isLinkedChecklistCompleteFromRecord(link, record) {
   // for an earlier week no longer counts as this week's item 18 being done.
   if (link === 'weekly' && !isCurrentWeek(record.weekOf)) return false
   const items = record.items ?? []
+  // `na` is only ever a legacy value now that the N/A option is gone; an item
+  // carrying one was settled at the time, so it still counts.
   return items.length >= LINK_ITEM_COUNTS[link] && items.every((i) => i.done || i.na)
 }
 

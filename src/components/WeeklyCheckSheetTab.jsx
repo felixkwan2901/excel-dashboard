@@ -3,7 +3,7 @@ import { currentWeekStart, isCurrentWeek } from '../lib/weekStart'
 import { getAppData, setAppData } from '../lib/appData'
 
 // Matches the paper "Weekly Job Check Sheet" exactly — 9 recurring checks,
-// each a checkbox or N/A, plus a status pill and free notes. Saved to
+// each a simple done/not-done tick, plus a status pill and free notes. Saved to
 // Cloudflare KV per job (see src/lib/appData.js) so it's shared across
 // whatever device/browser you're on, not stuck to just one.
 const ITEMS = [
@@ -46,27 +46,15 @@ function ItemRow({ index, label, item, onChange }) {
       <span className="flex-1 text-[13px] text-neutral-300">{label}</span>
       <button
         type="button"
-        onClick={() => onChange({ done: !item.done, na: false })}
-        aria-pressed={item.done}
+        onClick={() => onChange({ done: !(item.done || item.na), na: false })}
+        aria-pressed={item.done || item.na}
         className={`shrink-0 rounded-md border px-2.5 py-1 text-[12px] font-medium transition-colors ${
-          item.done
+          item.done || item.na
             ? 'border-brand-green/40 bg-brand-green/10 text-brand-green'
             : 'border-white/10 bg-white/[0.02] text-neutral-500 hover:text-neutral-300'
         }`}
       >
         Done
-      </button>
-      <button
-        type="button"
-        onClick={() => onChange({ done: false, na: !item.na })}
-        aria-pressed={item.na}
-        className={`shrink-0 rounded-full border px-2.5 py-1 text-[12px] font-medium transition-colors ${
-          item.na
-            ? 'border-white/30 bg-white/[0.08] text-neutral-200'
-            : 'border-white/10 bg-white/[0.02] text-neutral-500 hover:text-neutral-300'
-        }`}
-      >
-        N/A
       </button>
     </div>
   )
@@ -116,7 +104,7 @@ export default function WeeklyCheckSheetTab({ job, onBack }) {
     )
   }
 
-  const doneCount = state.items.filter((i) => i.done).length
+  const doneCount = state.items.filter((i) => i.done || i.na).length
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">

@@ -47,25 +47,22 @@ function RetentionInput({ value, saving, onChange }) {
   )
 }
 
-// A checkbox (done) plus an N/A pill — matches the paper form's checkbox +
-// N/A circle exactly, instead of a 4-option dropdown nobody needs (there's
-// no "No" on the paper checklist, just done or not-yet). Still saves as
-// 'Yes' / 'N/A' / '' under the hood, so the workbook's Main Sheet columns
-// are untouched.
+// A single checkbox: done, or not done. Saves as 'Yes' / '' under the hood,
+// so the workbook's Main Sheet columns are untouched.
 function ChecklistCell({ value, saving, onChange }) {
-  const done = value === 'Yes'
-  const na = value === 'N/A'
+  // 'N/A' is no longer offered — an item is either done or it isn't. Values
+  // already saved as 'N/A' still read as done, so the 50-odd items across 17
+  // jobs that people deliberately marked not-applicable don't reappear as
+  // outstanding work. Toggling one writes 'Yes' or '', so N/A drains out of
+  // the workbook naturally rather than needing a rewrite.
+  const done = value === 'Yes' || value === 'N/A'
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex items-center">
       <button
         type="button"
         disabled={saving}
         onClick={() => onChange(done ? '' : 'Yes')}
         aria-pressed={done}
-        // A ticked box used to be the only signal that an item was handled, and
-        // an unticked one rendered its ✓ in text-transparent — so a pending row
-        // showed an empty square with no hint it was even clickable. Solid green
-        // when done, a visible ghost tick when not.
         className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md border text-[14px] font-bold transition-colors disabled:opacity-50 ${
           done
             ? 'border-brand-green bg-brand-green text-[#04170c]'
@@ -74,20 +71,6 @@ function ChecklistCell({ value, saving, onChange }) {
         title={done ? 'Done — click to clear' : 'Mark done'}
       >
         ✓
-      </button>
-      <button
-        type="button"
-        disabled={saving}
-        onClick={() => onChange(na ? '' : 'N/A')}
-        aria-pressed={na}
-        title={na ? 'Not applicable — click to clear' : 'Mark not applicable'}
-        className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors disabled:opacity-50 ${
-          na
-            ? 'border-white/40 bg-white/[0.14] text-white'
-            : 'border-white/10 bg-white/[0.02] text-neutral-500 hover:border-white/25 hover:text-neutral-200'
-        }`}
-      >
-        N/A
       </button>
     </div>
   )
@@ -127,11 +110,8 @@ export default function MainSheetTab({
   const [retentionSaving, setRetentionSaving] = useState(() => new Set())
 
   const columnByKey = new Map(columns.map((c) => [c.key, c]))
-  // "Settled" = ticked or marked N/A. An item that doesn't apply to a job
-  // needs no action, so it shouldn't sit in the "still to do" count — the
-  // row colouring below already treats the two the same, and counting only
-  // 'Yes' meant the header could claim four items outstanding while not a
-  // single row was amber.
+  // Ticked, or holding a legacy 'N/A' from before the N/A option was removed
+  // — both mean the item needs no further action.
   const settledCount = (jobNumber) =>
     columns.filter((c) => {
       const v = values[jobNumber]?.[c.key]
@@ -342,7 +322,7 @@ export default function MainSheetTab({
       <div>
         <h1 className="text-2xl font-semibold text-white">Job checklist</h1>
         <p className="mt-1 text-sm text-neutral-400">
-          Tick a task done or mark it N/A — it saves instantly and syncs everywhere, while the
+          Tick a task when it&apos;s done — it saves instantly and syncs everywhere, while the
           workbook itself catches up in the background. From the workbook&apos;s Main Sheet.
         </p>
       </div>
@@ -435,9 +415,6 @@ export default function MainSheetTab({
               <span className="flex items-center gap-1.5">
                 <span className="h-2.5 w-1 rounded-full bg-brand-green/70" /> Done
               </span>
-              <span className="flex items-center gap-1.5">
-                <span className="h-2.5 w-1 rounded-full bg-white/20" /> N/A
-              </span>
             </div>
 
             <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -445,9 +422,8 @@ export default function MainSheetTab({
                 const item = ONBOARDING_ITEMS[i]
                 const label = item?.label ?? c.label
                 const itemValue = values[selectedJob.jobNumber][c.key]
-                const pending = itemValue !== 'Yes' && itemValue !== 'N/A'
-                const isDone = itemValue === 'Yes'
-                const isNa = itemValue === 'N/A'
+                const isDone = itemValue === 'Yes' || itemValue === 'N/A'
+                const pending = !isDone
                 const overdue =
                   (item?.link === 'weekly' &&
                     isThursdayMorning() &&
@@ -462,9 +438,7 @@ export default function MainSheetTab({
                   ? 'overdue-flash'
                   : isDone
                     ? 'border-brand-green/25 bg-brand-green/[0.06] border-l-[3px] border-l-brand-green/70'
-                    : isNa
-                      ? 'border-white/[0.05] bg-white/[0.015] border-l-[3px] border-l-white/20'
-                      : 'border-white/15 bg-white/[0.05] border-l-[3px] border-l-amber-400/70'
+                    : 'border-white/15 bg-white/[0.05] border-l-[3px] border-l-amber-400/70'
                 return (
                   <div
                     key={c.key}
@@ -487,7 +461,7 @@ export default function MainSheetTab({
                       // Settled items step back so the eye lands on what is left.
                       <span
                         className={`text-[13.5px] leading-snug ${
-                          isDone ? 'text-neutral-400' : isNa ? 'text-neutral-500' : 'text-neutral-100'
+                          isDone ? 'text-neutral-400' : 'text-neutral-100'
                         }`}
                       >
                         <span className="mr-2 font-semibold tabular-nums text-neutral-500">{i + 1}.</span>
