@@ -548,3 +548,18 @@
     padding: 0;
   }
 }
+
+/* Cells that hold an editable input. The input fills the cell, so the cell's
+   own padding has to go — otherwise the input's right edge sits 10px inside
+   the column and every figure reads one notch left of the month header it
+   belongs to. The input carries the padding instead (9px + its 1px border
+   = the 10px the headers use), which lines the digits up with the header
+   text exactly. Needs to live here rather than as a utility class because
+   `.data-table td` outranks `px-0` on specificity. */
+.data-table tbody td.cell-input {
+  padding: 4px 0;
+}
+
+.data-table tbody td.cell-input input {
+  padding-right: 9px;
+}

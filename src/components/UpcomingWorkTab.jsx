@@ -72,7 +72,10 @@ function EditableCapacityCell({ value, onChange }) {
         if (text !== '' && Number.isFinite(n) && n !== value) onChange(n)
         else if (text === '' && value !== null) onChange(null)
       }}
-      className="w-16 min-w-0 rounded-md border border-white/10 bg-white/[0.04] px-1.5 py-1 text-right text-[13px] tabular-nums text-neutral-200 focus:border-brand-green/50 focus:outline-none"
+      // Fills the cell rather than sitting at a fixed 64px inside it: the
+      // column headers are right-aligned to the cell edge, so a narrower input
+      // left every figure about 10px adrift of the month it belongs to.
+      className="w-full min-w-0 rounded-md border border-white/10 bg-white/[0.04] px-2.5 py-1 text-right text-[13px] tabular-nums text-neutral-200 focus:border-brand-green/50 focus:outline-none"
     />
   )
 }
@@ -89,39 +92,53 @@ function emptyStaffHours() {
   return hours
 }
 
-// A named roster carrying each person's hours for each month.
+// A named roster carrying each person's FTE per month — 1 for full time,
+// 0.5 for half, 0 for someone not on the tools that month.
 //
-// Seeded from the workbook so nobody types eighteen names: rows 81-105 of the
-// Upcoming Work Calculator list the crew against an FTE column (Kyle 0.5, Ben
-// Dyer 0, the rest 1), and each person's monthly hours are that FTE run
-// through the sheet's own estimate — FTE x working days x 8h x 80%. So the
-// roster starts out summing to exactly what the Staff on tools row produced,
-// and any later difference is a deliberate edit rather than a units
-// mismatch.
+// Same units the workbook already uses: rows 81-105 of the Upcoming Work
+// Calculator list the crew against exactly this column (Kyle 0.5, Ben Dyer
+// 0), totalling 16.5 at row 110, and that total is typed into "Staff on
+// tools" — the sheet's own label says "enter in above spreadsheet". Hours
+// then fall out of the formula.
 //
-// Hours, not headcount, because the point is to record what the crew
-// actually has: someone on light duties, on leave for a fortnight, or
-// splitting time with another site is a number you can just type here.
-function StaffRoster({ staff, onAdd, onRemove, onRename, onHoursChange, totalFor }) {
+// Hours per person was tried and discarded: the estimate discounts to 80%
+// productive time and a typed hours total does not, so the two could never
+// agree, and the figures were unreadable besides. Counting people keeps the
+// numbers small and the arithmetic honest. Unlike the sheet, which stores
+// one FTE per person, this holds a value per month, so someone joining or
+// going part time mid-year is just a different number in that column.
+function StaffRoster({ staff, onAdd, onRemove, onRename, onHoursChange, onSort, totalFor, targetFor }) {
   return (
     <div className="mt-6 border-t border-white/10 pt-5">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h3 className="text-[13px] font-medium text-neutral-200">Staff</h3>
           <p className="mt-0.5 text-[12px] text-neutral-400">
-            Each person&apos;s hours for the month. Hours available above is the sum of
-            these for any month someone has filled in; months left blank fall back to the
-            Staff on tools estimate below. Seeded from the workbook, so adjust rather than
-            start from scratch — drop someone to 0 for a month they&apos;re away.
+            Each person&apos;s FTE for the month — 1 full time, 0.5 half, 0 if they&apos;re
+            not on the tools. This is the breakdown behind Staff on tools, not a
+            replacement for it: Hours available keeps using Staff on tools x working
+            days x 8h x 80%. The total row flags any month where the names don&apos;t
+            add up to the estimate.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onAdd}
-          className="shrink-0 rounded-md border border-white/10 px-2.5 py-1.5 text-[12px] font-medium text-neutral-200 transition-colors hover:border-brand-green/50 hover:text-brand-green"
-        >
-          + Add staff
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={onSort}
+            disabled={staff.length < 2}
+            title="Sort staff A-Z by name"
+            className="rounded-md border border-white/10 px-2.5 py-1.5 text-[12px] font-medium text-neutral-200 transition-colors hover:border-brand-green/50 hover:text-brand-green disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-white/10 disabled:hover:text-neutral-200"
+          >
+            Sort A-Z
+          </button>
+          <button
+            type="button"
+            onClick={onAdd}
+            className="rounded-md border border-white/10 px-2.5 py-1.5 text-[12px] font-medium text-neutral-200 transition-colors hover:border-brand-green/50 hover:text-brand-green"
+          >
+            + Add staff
+          </button>
+        </div>
       </div>
 
       {staff.length === 0 ? (
@@ -153,7 +170,7 @@ function StaffRoster({ staff, onAdd, onRemove, onRename, onHoursChange, totalFor
                     />
                   </td>
                   {MONTH_LABELS.map((m) => (
-                    <td key={m} className="p-1">
+                    <td key={m} className="cell-input">
                       <EditableCapacityCell
                         value={person.hours[m] ?? null}
                         onChange={(n) => onHoursChange(person.id, m, n)}
@@ -174,16 +191,23 @@ function StaffRoster({ staff, onAdd, onRemove, onRename, onHoursChange, totalFor
                 </tr>
               ))}
               {/* The sheet totals its FTE column at row 110 and that number is
-                  typed into Staff on tools. Showing the same total here means
-                  you can see at a glance whether the roster agrees with the
-                  row it replaces. */}
+                  typed into Staff on tools. Showing the same total here turns
+                  the roster into a check on that figure: amber where the names
+                  don't add up to what the estimate claims. */}
               <tr className="border-t-2 border-white/15">
-                <td className="p-1 text-[13px] font-semibold text-white">Total hours</td>
+                <td className="p-1 text-[13px] font-semibold text-white">Total on tools</td>
                 {MONTH_LABELS.map((m) => {
                   const t = totalFor(m)
+                  const target = targetFor(m)
+                  const off =
+                    t !== null && target !== null && target !== undefined && t !== target
                   return (
-                    <td key={m} className="num tabular text-[13px] font-semibold text-white">
-                      {t === null ? <span className="text-neutral-600">—</span> : roundHours(t)}
+                    <td
+                      key={m}
+                      title={off ? `Staff on tools says ${target} for ${m} — the names add up to ${t}` : undefined}
+                      className={`num tabular text-[13px] font-semibold ${off ? 'text-amber-400' : 'text-white'}`}
+                    >
+                      {t === null ? <span className="text-neutral-600">—</span> : t}
                     </td>
                   )
                 })}
@@ -238,32 +262,21 @@ function CapacityPanel({ capacity, usedHoursByMonth }) {
   function staffOnToolsFor(m) {
     return staffOnToolsOverrides[m] !== undefined ? staffOnToolsOverrides[m] : capacity.staffOnTools[m]
   }
-  // Once at least one named staff member's been added, their entered
-  // hours are the real figure — sum them directly rather than falling
-  // back to the staff-count × working-days × 8h × 0.8 estimate.
-  // Only months where someone has actually entered hours count as "the real
-  // figure". Previously any non-empty roster took over every month, so adding
-  // one blank staff row turned all twelve months of Hours available into 0 —
-  // and Balance with them. A person with no hours entered for a month simply
-  // isn't information about that month, so fall back to the estimate there.
-  // Total hours the crew has for that month, from the roster. Null when
-  // nobody has a figure for that month, so the Staff on tools estimate below
-  // still applies for it.
-  function rosterHoursFor(m) {
+  // Headcount on the tools that month: the sum of everyone's FTE. Null when
+  // nobody has a figure for that month, so there's nothing to check against.
+  //
+  // This total is a cross-check, not an input. Staff on tools stays the one
+  // number that drives Hours available — the roster just shows who makes it
+  // up, so a month where the names don't add up to the estimate is visible
+  // instead of silently wrong. Letting the roster take over the calculation
+  // meant one blank or half-filled month quietly rewrote Hours available and
+  // Balance with it.
+  function rosterStaffFor(m) {
     const entered = staffRoster.filter((s) => s.hours[m] !== null && s.hours[m] !== undefined)
     if (entered.length === 0) return null
     return entered.reduce((sum, s) => sum + s.hours[m], 0)
   }
   function hoursAvailableFor(m) {
-    // Real hours beat the estimate: once someone has entered what the crew
-    // actually has for a month, that is the figure. The estimate below
-    // (staff x days x 8h x 80%) only fills months nobody has filled in.
-    //
-    // The roster is seeded from the workbook's own FTE column run through
-    // that same estimate, so it starts out agreeing with it exactly and any
-    // later divergence is a deliberate edit rather than a units mismatch.
-    const fromRoster = rosterHoursFor(m)
-    if (fromRoster !== null) return fromRoster
     const days = workingDaysFor(m)
     const staff = staffOnToolsFor(m)
     return days !== null && days !== undefined && staff !== null && staff !== undefined
@@ -271,6 +284,11 @@ function CapacityPanel({ capacity, usedHoursByMonth }) {
       : capacity.hoursAvailable[m]
   }
 
+  function sortStaffByName() {
+    setStaffRoster((prev) =>
+      [...prev].sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }))
+    )
+  }
   function addStaffMember() {
     setStaffRoster((prev) => [...prev, { id: newStaffId(), name: '', hours: emptyStaffHours() }])
   }
@@ -345,7 +363,7 @@ function CapacityPanel({ capacity, usedHoursByMonth }) {
                 Servicing
               </td>
               {MONTH_LABELS.map((m) => (
-                <td key={m} className={`p-1 ${m === CURRENT_MONTH ? 'bg-brand-green/[0.06]' : ''}`}>
+                <td key={m} className={`cell-input ${m === CURRENT_MONTH ? 'bg-brand-green/[0.06]' : ''}`}>
                   <EditableCapacityCell
                     value={servicingFor(m) ?? null}
                     onChange={(n) => setServicingOverrides((prev) => ({ ...prev, [m]: n }))}
@@ -410,7 +428,7 @@ function CapacityPanel({ capacity, usedHoursByMonth }) {
                 Working days (estimate)
               </td>
               {MONTH_LABELS.map((m) => (
-                <td key={m} className={`p-1 ${m === CURRENT_MONTH ? 'bg-brand-green/[0.06]' : ''}`}>
+                <td key={m} className={`cell-input ${m === CURRENT_MONTH ? 'bg-brand-green/[0.06]' : ''}`}>
                   <EditableCapacityCell
                     value={workingDaysFor(m) ?? null}
                     onChange={(n) => setWorkingDaysOverrides((prev) => ({ ...prev, [m]: n }))}
@@ -419,11 +437,11 @@ function CapacityPanel({ capacity, usedHoursByMonth }) {
               ))}
             </tr>
             <tr>
-              <td className="sticky-col sticky-col-end whitespace-normal sm:whitespace-nowrap text-[12px] sm:text-[13px] leading-tight text-neutral-400" style={{ left: 0 }} title="Only used when no staff are added below">
+              <td className="sticky-col sticky-col-end whitespace-normal sm:whitespace-nowrap text-[12px] sm:text-[13px] leading-tight text-neutral-400" style={{ left: 0 }} title="Drives Hours available: staff x working days x 8h x 80%">
                 Staff on tools (estimate)
               </td>
               {MONTH_LABELS.map((m) => (
-                <td key={m} className={`p-1 ${m === CURRENT_MONTH ? 'bg-brand-green/[0.06]' : ''}`}>
+                <td key={m} className={`cell-input ${m === CURRENT_MONTH ? 'bg-brand-green/[0.06]' : ''}`}>
                   <EditableCapacityCell
                     value={staffOnToolsFor(m) ?? null}
                     onChange={(n) => setStaffOnToolsOverrides((prev) => ({ ...prev, [m]: n }))}
@@ -441,7 +459,9 @@ function CapacityPanel({ capacity, usedHoursByMonth }) {
         onRemove={removeStaffMember}
         onRename={renameStaffMember}
         onHoursChange={updateStaffHours}
-        totalFor={rosterHoursFor}
+        onSort={sortStaffByName}
+        totalFor={rosterStaffFor}
+        targetFor={staffOnToolsFor}
       />
     </div>
   )
