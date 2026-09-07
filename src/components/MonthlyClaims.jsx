@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { money, percent } from '../lib/format'
 import { saveEdit } from '../lib/saveEdit'
 import { useSharedState } from '../lib/useSharedState'
+import CollapsibleSection from './CollapsibleSection'
 
 // Claim and Costs used to be here too, but they're now auto-computed by
 // scripts/update-jobs.mjs on every weekly upload (this month's cumulative
@@ -251,20 +252,22 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
         </p>
       )}
 
-      <div className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6">
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h2 className="text-[15px] font-medium text-neutral-100">Jobs claimed this month — full figures</h2>
-            <p className="mt-1 text-[12px] text-neutral-400">
-              Type into Ret%, Hours to come, Cost to come, or Notes to save — no need to open
-              anything first. Total cost = cost of month + (hours to come × the rate here) + cost
-              to come + ((hours actual + hours to come) × quoted GP $/hr), plus retention % of
-              cost of month if set.
-              {inactiveCount > 0 && (
-                <> {inactiveCount} other job{inactiveCount === 1 ? '' : 's'} with no claim this month {inactiveCount === 1 ? 'is' : 'are'} hidden.</>
-              )}
-            </p>
-          </div>
+      <CollapsibleSection
+        className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6"
+        storageKey="monthly-claims.jobs"
+        title="Jobs claimed this month — full figures"
+        description={
+          <>
+            Type into Ret%, Hours to come, Cost to come, or Notes to save — no need to open
+            anything first. Total cost = cost of month + (hours to come x the rate here) + cost
+            to come + ((hours actual + hours to come) x quoted GP $/hr), plus retention % of
+            cost of month if set.
+            {inactiveCount > 0 && (
+              <> {inactiveCount} other job{inactiveCount === 1 ? '' : 's'} with no claim this month {inactiveCount === 1 ? 'is' : 'are'} hidden.</>
+            )}
+          </>
+        }
+        actions={
           <div>
             <label htmlFor="avg-hourly-rate" className="mb-1 block text-[12px] text-neutral-400">
               Average $/hr rate (reviewed every 6 months)
@@ -278,11 +281,12 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
               className="w-36 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1.5 text-sm text-neutral-200 focus:border-brand-green/50 focus:outline-none"
             />
           </div>
-        </div>
+        }
+      >
 
         {/* Mobile: one stacked card per job with the headline figures plus
             the same inline editable fields as the desktop table. */}
-        <div className="flex flex-col gap-3 sm:hidden">
+        <div className="mt-4 flex flex-col gap-3 sm:hidden">
           {tableRows.map((j) => (
             <div
               key={j.jobNumber}
@@ -460,7 +464,7 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
             </tbody>
           </table>
         </div>
-      </div>
+      </CollapsibleSection>
     </div>
   )
 }

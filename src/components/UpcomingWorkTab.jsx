@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { saveEdit } from '../lib/saveEdit'
 import { roundHours } from '../lib/format'
 import { useSharedState } from '../lib/useSharedState'
+import CollapsibleSection from './CollapsibleSection'
 
 // Jan-Dec hours-allocation columns (cols F-Q, 0-indexed 5-16) plus the
 // notes column (S, 0-indexed 18) — the only manual entry on this sheet.
@@ -107,29 +108,50 @@ function emptyStaffHours() {
 // numbers small and the arithmetic honest. Unlike the sheet, which stores
 // one FTE per person, this holds a value per month, so someone joining or
 // going part time mid-year is just a different number in that column.
-function StaffRoster({ staff, onAdd, onRemove, onRename, onHoursChange, onSort, totalFor, targetFor }) {
+function StaffRoster({ staff, onAdd, onRemove, onRename, onHoursChange, totalFor, targetFor }) {
+  // Sorting is a way of looking at the list, not a change to it. Ordering the
+  // stored roster instead would have been a one-way door — there'd be no
+  // "before" left to go back to once it saved. Flipping this back to
+  // "Added order" restores exactly the order the rows were entered in.
+  const [sortAZ, setSortAZ] = useState(false)
+  const shown = sortAZ
+    ? [...staff].sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }))
+    : staff
+
   return (
-    <div className="mt-6 border-t border-white/10 pt-5">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h3 className="text-[13px] font-medium text-neutral-200">Staff</h3>
-          <p className="mt-0.5 text-[12px] text-neutral-400">
-            Each person&apos;s FTE for the month — 1 full time, 0.5 half, 0 if they&apos;re
-            not on the tools. This is the breakdown behind Staff on tools, not a
-            replacement for it: Hours available keeps using Staff on tools x working
-            days x 8h x 80%. The total row flags any month where the names don&apos;t
-            add up to the estimate.
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
+    <CollapsibleSection
+      className="mt-6 border-t border-white/10 pt-5"
+      storageKey="upcoming-work.staff"
+      headingLevel="h3"
+      headingClassName="text-[13px] font-medium text-neutral-200"
+      title="Staff"
+      description={
+        <>
+          Each person&apos;s FTE for the month — 1 full time, 0.5 half, 0 if they&apos;re
+          not on the tools. This is the breakdown behind Staff on tools, not a
+          replacement for it: Hours available keeps using Staff on tools x working
+          days x 8h x 80%. The total row flags any month where the names don&apos;t
+          add up to the estimate.
+        </>
+      }
+      actions={
+        <>
           <button
             type="button"
-            onClick={onSort}
+            onClick={() => setSortAZ((prev) => !prev)}
             disabled={staff.length < 2}
-            title="Sort staff A-Z by name"
-            className="rounded-md border border-white/10 px-2.5 py-1.5 text-[12px] font-medium text-neutral-200 transition-colors hover:border-brand-green/50 hover:text-brand-green disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-white/10 disabled:hover:text-neutral-200"
+            title={
+              sortAZ
+                ? 'Back to the order staff were added in'
+                : 'Show staff A-Z by name — this only changes the view, nothing is saved'
+            }
+            className={`rounded-md border px-2.5 py-1.5 text-[12px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+              sortAZ
+                ? 'border-brand-green/50 bg-brand-green/10 text-brand-green'
+                : 'border-white/10 text-neutral-200 hover:border-brand-green/50 hover:text-brand-green disabled:hover:border-white/10 disabled:hover:text-neutral-200'
+            }`}
           >
-            Sort A-Z
+            {sortAZ ? 'Added order' : 'Sort A-Z'}
           </button>
           <button
             type="button"
@@ -138,9 +160,9 @@ function StaffRoster({ staff, onAdd, onRemove, onRename, onHoursChange, onSort, 
           >
             + Add staff
           </button>
-        </div>
-      </div>
-
+        </>
+      }
+    >
       {staff.length === 0 ? (
         <p className="mt-3 text-[12px] text-neutral-400">No staff added yet.</p>
       ) : (
@@ -158,7 +180,7 @@ function StaffRoster({ staff, onAdd, onRemove, onRename, onHoursChange, onSort, 
               </tr>
             </thead>
             <tbody>
-              {staff.map((person) => (
+              {shown.map((person) => (
                 <tr key={person.id}>
                   <td className="p-1">
                     <input
@@ -217,7 +239,7 @@ function StaffRoster({ staff, onAdd, onRemove, onRename, onHoursChange, onSort, 
           </table>
         </div>
       )}
-    </div>
+    </CollapsibleSection>
   )
 }
 
@@ -284,11 +306,6 @@ function CapacityPanel({ capacity, usedHoursByMonth }) {
       : capacity.hoursAvailable[m]
   }
 
-  function sortStaffByName() {
-    setStaffRoster((prev) =>
-      [...prev].sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }))
-    )
-  }
   function addStaffMember() {
     setStaffRoster((prev) => [...prev, { id: newStaffId(), name: '', hours: emptyStaffHours() }])
   }
@@ -319,8 +336,21 @@ function CapacityPanel({ capacity, usedHoursByMonth }) {
   }
 
   return (
-    <div className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6">
-      <h2 className="text-[15px] font-medium text-neutral-200">Monthly capacity</h2>
+    <CollapsibleSection
+      className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6"
+      storageKey="upcoming-work.capacity"
+      title="Monthly capacity"
+      headingClassName="text-[15px] font-medium text-neutral-200"
+      description={
+        <>
+          Total hours planned = Used hours + Servicing (any job under 30 hours) that month,
+          vs. hours available from the crew (staff on tools x working days x 8h x 80%
+          productive time). Balance = Total hours planned - Hours available, green when
+          there&apos;s spare capacity, red when that month is short-staffed. Everything here
+          is editable for planning ahead — saved to this browser only, not to the workbook.
+        </>
+      }
+    >
       {planningSaveFailed && (
         <p className="mt-2 rounded-lg border border-red-400/30 bg-red-400/[0.08] px-3 py-2 text-[13px] text-red-400">
           Couldn&apos;t save to the shared store — these figures are only on this device
@@ -328,16 +358,6 @@ function CapacityPanel({ capacity, usedHoursByMonth }) {
           again.
         </p>
       )}
-      <p className="mt-1 text-[13px] text-neutral-400">
-        Total hours planned = Used hours + Servicing (any job under 30 hours) that month, vs.
-        hours available from the crew (staff on tools × working days × 8h × 80% productive
-        time). Balance = Total hours planned − Hours available, green when there's spare
-        capacity, red when that month is short-staffed. Add named staff below with their own
-        hours per month for a real Hours available figure — Working days/Staff on tools is the
-        estimate used for any month you haven't entered staff hours for. Everything here is editable for planning ahead — saved
-        to this browser only, not to the workbook.
-      </p>
-
       <div className="table-scroll mt-4">
         <table className="data-table">
           <thead>
@@ -459,11 +479,10 @@ function CapacityPanel({ capacity, usedHoursByMonth }) {
         onRemove={removeStaffMember}
         onRename={renameStaffMember}
         onHoursChange={updateStaffHours}
-        onSort={sortStaffByName}
         totalFor={rosterStaffFor}
         targetFor={staffOnToolsFor}
       />
-    </div>
+    </CollapsibleSection>
   )
 }
 
@@ -555,8 +574,12 @@ export default function UpcomingWorkTab({ upcomingWork, monthlyHours, onBack }) 
 
       <CapacityPanel capacity={capacity} usedHoursByMonth={usedHoursByMonth} />
 
-      <div className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6">
-        <div className="table-scroll">
+      <CollapsibleSection
+        className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6"
+        storageKey="upcoming-work.jobs"
+        title="Planned hours by job"
+      >
+        <div className="table-scroll mt-4">
           <table className="data-table">
             <thead>
               <tr>
@@ -636,7 +659,7 @@ export default function UpcomingWorkTab({ upcomingWork, monthlyHours, onBack }) 
             </tbody>
           </table>
         </div>
-      </div>
+      </CollapsibleSection>
     </div>
   )
 }

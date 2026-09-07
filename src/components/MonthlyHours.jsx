@@ -1,4 +1,5 @@
 import { Fragment, useMemo, useState } from 'react'
+import CollapsibleSection from './CollapsibleSection'
 
 // Deliberately the job's WHOLE-LIFETIME actual hours vs quoted — not the
 // same timeframe as the monthly columns next to it, which only cover
@@ -124,17 +125,23 @@ export default function MonthlyHours({ monthlyHours, jobs: allJobs, onBack }) {
               recorded change.
             </p>
           )}
-          <div className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6">
-            <h2 className="mb-4 text-[15px] font-medium text-neutral-100">Total hours worked, by month</h2>
-            <div className="flex flex-col">
+          <CollapsibleSection
+            className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6"
+            storageKey="monthly-hours.totals"
+            title="Total hours worked, by month"
+          >
+            <div className="mt-4 flex flex-col">
               {totalsByMonth.map((t) => (
                 <HoursBar key={t.month} label={monthLabel(t.month)} hours={t.totalHours} maxHours={maxTotalHours} />
               ))}
             </div>
-          </div>
+          </CollapsibleSection>
 
-          <div className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6">
-            <h2 className="text-[15px] font-medium text-neutral-100">Hours per job, by month</h2>
+          <CollapsibleSection
+            className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6"
+            storageKey="monthly-hours.per-job"
+            title="Hours per job, by month"
+          >
             <p className="mt-1 mb-4 text-[13px] text-neutral-400">
               &quot;Total&quot; only adds up the month columns shown here — it starts from zero
               the month this tracking began, not from when the job itself started.
@@ -243,7 +250,7 @@ export default function MonthlyHours({ monthlyHours, jobs: allJobs, onBack }) {
                 </tbody>
               </table>
             </div>
-          </div>
+          </CollapsibleSection>
         </>
       )}
     </div>
