@@ -29,6 +29,7 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import ExcelJS from 'exceljs'
 import { isValidJobBlock } from './lib/job-blocks.mjs'
+import { businessNow } from './lib/business-time.mjs'
 
 const workbookPath = resolve('public/Cassidy_Davies_Electrical_BPMN_Data.xlsx')
 // Lives in public/ (not bundled via a JS import) — Vite's JSON handling
@@ -138,7 +139,9 @@ async function main() {
   const blocks = buildJobBlocks(rows, headerIdx)
 
   const log = existsSync(logPath) ? JSON.parse(readFileSync(logPath, 'utf8')) : {}
-  const month = monthKey(new Date())
+  // NZ wall clock — a run just after midnight UTC would otherwise file the
+  // snapshot under the previous month.
+  const month = monthKey(businessNow())
   const snapshot = {}
 
   for (const block of blocks.filter(isValidJobBlock)) {

@@ -49,6 +49,7 @@ import { execFileSync } from 'node:child_process'
 import { pathToFileURL } from 'node:url'
 import ExcelJS from 'exceljs'
 import { isValidJobBlock } from './lib/job-blocks.mjs'
+import { businessNow, businessDateString } from './lib/business-time.mjs'
 
 const folder = resolve(process.argv[2] ?? 'imports')
 const workbookPath = resolve('public/Cassidy_Davies_Electrical_BPMN_Data.xlsx')
@@ -514,7 +515,7 @@ function archiveProcessedFiles(sourceDir) {
   const entries = readdirSync(sourceDir)
   if (entries.length === 0) return null
 
-  const d = new Date()
+  const d = businessNow()
   const pad = (n) => String(n).padStart(2, '0')
   const dateStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
   const archiveDir = join(dirname(sourceDir), 'imports-archive', dateStr)
@@ -764,7 +765,8 @@ async function main() {
   // run — with no positive evidence a month boundary was actually crossed
   // — would treat "we've never tracked this before" the same as "a month
   // just changed" and wipe out whatever's already been uploaded this month.
-  const now = new Date()
+  // NZ wall clock, not the runner's UTC — see scripts/lib/business-time.mjs.
+  const now = businessNow()
   const currentMonth = monthKey(now)
   let syncMeta = {}
   try {
@@ -795,7 +797,7 @@ async function main() {
   // every job, Week 2 the next 7, and so on, regardless of how often any
   // individual job happens to get re-exported.
   const weekOfMonth = calendarWeekOfMonth(now)
-  console.log(`Today (${now.toISOString().slice(0, 10)}) is calendar Week ${weekOfMonth} of the month — new figures write there.`)
+  console.log(`Today (${businessDateString(now)} NZ) is calendar Week ${weekOfMonth} of the month — new figures write there.`)
 
   // Archived jobs (see scripts/apply-archived-jobs-edits.mjs) never get
   // touched by the normal weekly upload — otherwise an accidentally
