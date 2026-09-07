@@ -50,6 +50,17 @@ if ('serviceWorker' in navigator) {
 
 registerSW({
   immediate: true,
+  // Without an onNeedRefresh callback, vite-plugin-pwa's register code falls
+  // through to window.location.reload() the moment a new build's service
+  // worker takes over — and registration.update() below polls every 60s. So
+  // shipping a deploy reloaded every open tab within a minute, throwing
+  // people out of whatever they were part-way through typing ("it keeps
+  // refreshing the page and loosing what we are doing"). Supplying the
+  // callback keeps the reload from happening on its own; the banner below
+  // offers it instead and the person decides when.
+  onNeedRefresh() {
+    showUpdateBanner()
+  },
   onRegisteredSW(_url, registration) {
     if (!registration) return
     registration.update()
