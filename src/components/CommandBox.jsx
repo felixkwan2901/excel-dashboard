@@ -185,7 +185,7 @@ export default function CommandBox({ jobs, mainSheetColumns }) {
             </div>
           )}
 
-          <p className="mt-3 text-[11px] text-neutral-500">
+          <p className="mt-3 text-[11px] text-neutral-400">
             Every change still needs your confirmation, saves instantly the same way the manual boxes do (the
             workbook itself catches up in the background), and only covers the Job checklist, Monthly claims, and
             Upcoming work.

@@ -102,7 +102,7 @@ function StaffRoster({ staff, onAdd, onRemove, onRename, onHoursChange }) {
       <div className="flex items-center justify-between gap-3">
         <div>
           <h3 className="text-[13px] font-medium text-neutral-200">Staff</h3>
-          <p className="mt-0.5 text-[12px] text-neutral-500">
+          <p className="mt-0.5 text-[12px] text-neutral-400">
             Add each staff member and their planned hours per month — Hours available above
             uses the sum of these once at least one person's added, instead of the Staff on
             tools/Working days estimate below.
@@ -118,7 +118,7 @@ function StaffRoster({ staff, onAdd, onRemove, onRename, onHoursChange }) {
       </div>
 
       {staff.length === 0 ? (
-        <p className="mt-3 text-[12px] text-neutral-500">No staff added yet.</p>
+        <p className="mt-3 text-[12px] text-neutral-400">No staff added yet.</p>
       ) : (
         <div className="table-scroll mt-3">
           <table className="data-table">
@@ -308,7 +308,7 @@ function CapacityPanel({ capacity, usedHoursByMonth }) {
           </thead>
           <tbody>
             <tr>
-              <td className="sticky-col sticky-col-end whitespace-normal sm:whitespace-nowrap text-[12px] sm:text-[13px] leading-tight text-neutral-500" style={{ left: 0 }} title="Servicing work any job under 30 hours">
+              <td className="sticky-col sticky-col-end whitespace-normal sm:whitespace-nowrap text-[12px] sm:text-[13px] leading-tight text-neutral-400" style={{ left: 0 }} title="Servicing work any job under 30 hours">
                 Servicing
               </td>
               {MONTH_LABELS.map((m) => (
@@ -373,7 +373,7 @@ function CapacityPanel({ capacity, usedHoursByMonth }) {
               })}
             </tr>
             <tr>
-              <td className="sticky-col sticky-col-end whitespace-normal sm:whitespace-nowrap text-[12px] sm:text-[13px] leading-tight text-neutral-500" style={{ left: 0 }} title="Only used when no staff are added below">
+              <td className="sticky-col sticky-col-end whitespace-normal sm:whitespace-nowrap text-[12px] sm:text-[13px] leading-tight text-neutral-400" style={{ left: 0 }} title="Only used when no staff are added below">
                 Working days (estimate)
               </td>
               {MONTH_LABELS.map((m) => (
@@ -386,7 +386,7 @@ function CapacityPanel({ capacity, usedHoursByMonth }) {
               ))}
             </tr>
             <tr>
-              <td className="sticky-col sticky-col-end whitespace-normal sm:whitespace-nowrap text-[12px] sm:text-[13px] leading-tight text-neutral-500" style={{ left: 0 }} title="Only used when no staff are added below">
+              <td className="sticky-col sticky-col-end whitespace-normal sm:whitespace-nowrap text-[12px] sm:text-[13px] leading-tight text-neutral-400" style={{ left: 0 }} title="Only used when no staff are added below">
                 Staff on tools (estimate)
               </td>
               {MONTH_LABELS.map((m) => (

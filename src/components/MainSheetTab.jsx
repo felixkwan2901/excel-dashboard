@@ -408,7 +408,7 @@ export default function MainSheetTab({
               />
             </div>
 
-            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11.5px] text-neutral-500">
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11.5px] text-neutral-400">
               <span className="flex items-center gap-1.5">
                 <span className="h-2.5 w-1 rounded-full bg-amber-400/70" /> To do
               </span>
@@ -475,7 +475,7 @@ export default function MainSheetTab({
                         }
                         className="flex-1 text-left text-[13.5px] leading-snug text-brand-green underline decoration-brand-green/40 underline-offset-2 hover:text-white"
                       >
-                        <span className="mr-2 font-semibold tabular-nums text-neutral-500">{i + 1}.</span>
+                        <span className="mr-2 font-semibold tabular-nums text-neutral-400">{i + 1}.</span>
                         {label}
                       </button>
                     ) : (
@@ -485,7 +485,7 @@ export default function MainSheetTab({
                           isDone ? 'text-neutral-400' : 'text-neutral-100'
                         }`}
                       >
-                        <span className="mr-2 font-semibold tabular-nums text-neutral-500">{i + 1}.</span>
+                        <span className="mr-2 font-semibold tabular-nums text-neutral-400">{i + 1}.</span>
                         {label}
                         {/* The 2-week target only means something while the item
                             is outstanding — once it's done or N/A the badge is
@@ -512,7 +512,7 @@ export default function MainSheetTab({
                           saving={retentionSaving.has(selectedJob.jobNumber)}
                           onChange={(newValue) => handleRetentionChange(selectedJob, newValue)}
                         />
-                        <span className="text-[12px] text-neutral-500">%</span>
+                        <span className="text-[12px] text-neutral-400">%</span>
                       </div>
                     )}
                     <div className="shrink-0">

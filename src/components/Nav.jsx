@@ -95,7 +95,7 @@ export default function Nav({
           onClick={hardRefresh}
           title="Refresh — fetches the latest version and data"
           aria-label="Refresh"
-          className="flex items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.03] p-2 text-neutral-500 transition-colors hover:border-white/20 hover:text-white"
+          className="flex items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.03] p-2 text-neutral-400 transition-colors hover:border-white/20 hover:text-white"
         >
           <RefreshCw size={14} aria-hidden="true" />
         </button>

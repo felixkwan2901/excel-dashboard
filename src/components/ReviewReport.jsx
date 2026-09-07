@@ -50,12 +50,12 @@ export default function ReviewReport({ jobs, onBack }) {
         <div className="flex items-start justify-between gap-4 border-b border-white/10 pb-5 print:border-neutral-300">
           <div>
             <h1 className="text-2xl font-bold text-white print:text-black">Needs Review Report</h1>
-            <p className="mt-1 text-sm text-neutral-500 print:text-neutral-600">
+            <p className="mt-1 text-sm text-neutral-400 print:text-neutral-600">
               Cassidy-Davies Electrical · Generated {GENERATED} · {jobs.length} job
               {jobs.length === 1 ? '' : 's'} flagged
             </p>
             {jobs.length > 0 && (
-              <p className="mt-1 text-sm text-neutral-500 print:text-neutral-600">
+              <p className="mt-1 text-sm text-neutral-400 print:text-neutral-600">
                 {overBudgetJobs.length} over budget by {money(totalOverBudgetAmount)} combined ·{' '}
                 {losingMarginCount} losing margin
               </p>
@@ -65,7 +65,7 @@ export default function ReviewReport({ jobs, onBack }) {
         </div>
 
         {jobs.length === 0 && (
-          <p className="py-8 text-center text-sm text-neutral-500 print:text-neutral-600">
+          <p className="py-8 text-center text-sm text-neutral-400 print:text-neutral-600">
             Nothing flagged right now.
           </p>
         )}
@@ -78,7 +78,7 @@ export default function ReviewReport({ jobs, onBack }) {
                   {COLUMNS.map((col) => (
                     <th
                       key={col.key}
-                      className={`px-2 py-2 font-medium text-neutral-500 print:text-neutral-700 ${
+                      className={`px-2 py-2 font-medium text-neutral-400 print:text-neutral-700 ${
                         col.num ? 'text-right tabular-nums' : 'text-left'
                       }`}
                     >
@@ -101,7 +101,7 @@ export default function ReviewReport({ jobs, onBack }) {
                       className="border-b border-white/10 align-top print:break-inside-avoid print:border-neutral-300"
                     >
                       <td className="px-2 py-3">
-                        <p className="text-neutral-500 tabular-nums print:text-neutral-600">
+                        <p className="text-neutral-400 tabular-nums print:text-neutral-600">
                           Job {job.jobNumber}
                         </p>
                         <p className="font-semibold text-white print:text-black">{job.jobName}</p>

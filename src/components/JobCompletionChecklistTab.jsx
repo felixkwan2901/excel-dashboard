@@ -30,7 +30,7 @@ function defaultState() {
 function ItemRow({ index, label, item, onChange }) {
   return (
     <div className="flex items-center gap-3 rounded-[10px] border border-white/[0.06] bg-white/[0.02] p-3">
-      <span className="w-6 shrink-0 text-[12px] text-neutral-500">{index + 1}.</span>
+      <span className="w-6 shrink-0 text-[12px] text-neutral-400">{index + 1}.</span>
       <span className="flex-1 text-[13px] text-neutral-300">{label}</span>
       <button
         type="button"
@@ -39,7 +39,7 @@ function ItemRow({ index, label, item, onChange }) {
         className={`shrink-0 rounded-md border px-2.5 py-1 text-[12px] font-medium transition-colors ${
           item.done || item.na
             ? 'border-brand-green/40 bg-brand-green/10 text-brand-green'
-            : 'border-white/10 bg-white/[0.02] text-neutral-500 hover:text-neutral-300'
+            : 'border-white/10 bg-white/[0.02] text-neutral-400 hover:text-neutral-300'
         }`}
       >
         Done
@@ -114,7 +114,7 @@ export default function JobCompletionChecklistTab({ job, onBack }) {
       <div className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <label htmlFor="date-completed" className="text-[13px] text-neutral-500">
+            <label htmlFor="date-completed" className="text-[13px] text-neutral-400">
               Date completed
             </label>
             <input
@@ -127,7 +127,7 @@ export default function JobCompletionChecklistTab({ job, onBack }) {
           </div>
           {saveStatus && (
             <span
-              className={`text-[11px] ${saveStatus === 'error' ? 'text-red-400' : 'text-neutral-500'}`}
+              className={`text-[11px] ${saveStatus === 'error' ? 'text-red-400' : 'text-neutral-400'}`}
               title={saveStatus === 'error' ? 'This tick is only on this device — it will disappear on refresh.' : undefined}
             >
               {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'error' ? 'Not saved' : 'Saved'}
@@ -150,7 +150,7 @@ export default function JobCompletionChecklistTab({ job, onBack }) {
         </div>
 
         <div className="mt-4">
-          <label htmlFor="completion-notes" className="mb-1 block text-[12px] text-neutral-500">
+          <label htmlFor="completion-notes" className="mb-1 block text-[12px] text-neutral-400">
             Notes / flags for attention
           </label>
           <textarea

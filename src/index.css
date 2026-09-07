@@ -197,8 +197,12 @@ body {
 /*
  * Site-wide backdrop: a real jobsite photo of the crew, pushed almost
  * entirely into shadow by a heavy dark overlay so it reads as ambient
- * texture (~10-15% visible) rather than a photo competing with card
- * content or text. The faint grid + green glows sit on top as the
+ * texture (~10% visible) rather than a photo competing with card content
+ * or text. The overlay used to sit at 0.62-0.70 with brightness(1.05)
+ * lifting the photo back up, which left it showing through at roughly a
+ * third — enough to wash out text wherever a surface wasn't fully opaque,
+ * which is most visible while the scroll-reveal is still fading a section
+ * in. Now genuinely in shadow, as the note always claimed. The faint grid + green glows sit on top as the
  * "electrical" accent. Fixed + behind #root so it persists across every
  * view without being tied to any single page's markup.
  */
@@ -208,7 +212,7 @@ body::before {
   inset: -20px;
   z-index: -1;
   pointer-events: none;
-  filter: grayscale(0.35) saturate(0.7) contrast(0.95) brightness(1.05) blur(3px);
+  filter: grayscale(0.35) saturate(0.7) contrast(0.95) brightness(0.9) blur(3px);
   background-image:
     linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
@@ -216,7 +220,7 @@ body::before {
     radial-gradient(660px circle at 88% 78%, rgba(56, 184, 106, 0.065), transparent 60%),
     radial-gradient(560px circle at 92% 8%, rgba(56, 184, 106, 0.05), transparent 55%),
     radial-gradient(140% 100% at 50% 0%, transparent 40%, rgba(0, 0, 0, 0.5) 100%),
-    linear-gradient(160deg, rgba(12, 15, 20, 0.62) 0%, rgba(9, 11, 15, 0.7) 55%, rgba(17, 22, 28, 0.65) 100%),
+    linear-gradient(160deg, rgba(12, 15, 20, 0.88) 0%, rgba(9, 11, 15, 0.92) 55%, rgba(17, 22, 28, 0.9) 100%),
     url('./assets/1.png');
   background-size:
     48px 48px,

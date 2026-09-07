@@ -255,7 +255,7 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
         <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
           <div>
             <h2 className="text-[15px] font-medium text-neutral-100">Jobs claimed this month — full figures</h2>
-            <p className="mt-1 text-[12px] text-neutral-500">
+            <p className="mt-1 text-[12px] text-neutral-400">
               Type into Ret%, Hours to come, Cost to come, or Notes to save — no need to open
               anything first. Total cost = cost of month + (hours to come × the rate here) + cost
               to come + ((hours actual + hours to come) × quoted GP $/hr), plus retention % of
@@ -266,7 +266,7 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
             </p>
           </div>
           <div>
-            <label htmlFor="avg-hourly-rate" className="mb-1 block text-[12px] text-neutral-500">
+            <label htmlFor="avg-hourly-rate" className="mb-1 block text-[12px] text-neutral-400">
               Average $/hr rate (reviewed every 6 months)
             </label>
             <input
@@ -289,20 +289,20 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
               className="flex flex-col gap-3 rounded-[14px] border border-white/[0.06] bg-white/[0.02] p-4"
             >
               <p className="text-[14px] font-medium text-white">
-                <span className="text-neutral-500">{j.jobNumber}</span> {j.jobName}
+                <span className="text-neutral-400">{j.jobNumber}</span> {j.jobName}
               </p>
               <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[13px]">
-                <span className="text-neutral-500">Claim this month</span>
+                <span className="text-neutral-400">Claim this month</span>
                 <span className="text-right tabular-nums text-neutral-200">{money(j.claim)}</span>
-                <span className="text-neutral-500">Costs this month</span>
+                <span className="text-neutral-400">Costs this month</span>
                 <span className="text-right tabular-nums text-neutral-200">{money(j.costs)}</span>
-                <span className="text-neutral-500">Profit</span>
+                <span className="text-neutral-400">Profit</span>
                 <span className={`text-right tabular-nums ${j.profit !== null && j.profit < 0 ? 'text-red-400' : 'text-neutral-200'}`}>
                   {money(j.profit)}
                 </span>
-                <span className="text-neutral-500">Margin</span>
+                <span className="text-neutral-400">Margin</span>
                 <span className="text-right tabular-nums text-neutral-200">{percent(j.margin)}</span>
-                <span className="text-neutral-500">Total cost</span>
+                <span className="text-neutral-400">Total cost</span>
                 <span className="text-right tabular-nums font-medium text-white">{money(j.total)}</span>
               </div>
               <div className="flex flex-col gap-2 border-t border-white/10 pt-3">
@@ -403,7 +403,7 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
                       onChange={(newValue) => saveField(j, EDITABLE_FIELDS[0], newValue)}
                     />
                     {j.retentionAddOn ? (
-                      <p className="mt-0.5 text-right text-[11px] tabular-nums text-neutral-500">
+                      <p className="mt-0.5 text-right text-[11px] tabular-nums text-neutral-400">
                         {money(j.retentionAddOn)}
                       </p>
                     ) : null}

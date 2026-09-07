@@ -132,7 +132,7 @@ export default function StatsRow({ kpis, onSelectFilter, onPrintReport }) {
               {w.label}
             </label>
           ))}
-          <p className="text-[12px] text-neutral-500">Drag a tile below by its handle to reorder.</p>
+          <p className="text-[12px] text-neutral-400">Drag a tile below by its handle to reorder.</p>
         </div>
       )}
 

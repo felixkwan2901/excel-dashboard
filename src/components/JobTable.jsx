@@ -75,7 +75,7 @@ const COLUMN_GROUP_ORDER = ['Claim', 'Cost', 'Material', 'Labour', 'Margin', 'Pr
 // 100% of quote spent is red, 85-100% is "getting close" amber, under
 // that is comfortably green.
 function CostBar({ actual, quoted, formatValue = money }) {
-  if (!quoted) return <span className="text-neutral-500">—</span>
+  if (!quoted) return <span className="text-neutral-400">—</span>
 
   const ratio = actual === null ? 0 : actual / quoted
   const fillWidth = Math.min(Math.max(ratio, 0), 1) * 100
@@ -100,7 +100,7 @@ function CostBar({ actual, quoted, formatValue = money }) {
 // center. The clip only affects the pill's position — the percentage
 // label next to it always shows the real, unclipped value.
 function MarginBar({ value }) {
-  if (value === null) return <span className="text-neutral-500">—</span>
+  if (value === null) return <span className="text-neutral-400">—</span>
 
   const pct = value * 100
   const clipped = Math.max(-100, Math.min(100, pct))
@@ -362,7 +362,7 @@ export default function JobTable({
               >
                 <div className="flex items-start justify-between gap-3">
                   <p className="text-[14px] font-medium text-white">
-                    <span className="text-neutral-500">{job.jobNumber}</span> {job.jobName}
+                    <span className="text-neutral-400">{job.jobNumber}</span> {job.jobName}
                   </p>
                   <div className="flex shrink-0 items-center gap-1.5">
                     <StaleBadge job={job} />
@@ -371,7 +371,7 @@ export default function JobTable({
                 </div>
                 {wideCols.map((c) => (
                   <div key={c.key} className="flex flex-col gap-1">
-                    <span className="text-[11px] text-neutral-500">{c.label}</span>
+                    <span className="text-[11px] text-neutral-400">{c.label}</span>
                     {renderCell(job, c)}
                   </div>
                 ))}
@@ -379,7 +379,7 @@ export default function JobTable({
                   <div className="grid grid-cols-2 gap-x-3 gap-y-2.5">
                     {compactCols.map((c) => (
                       <div key={c.key} className="flex flex-col gap-1">
-                        <span className="text-[11px] text-neutral-500">{c.label}</span>
+                        <span className="text-[11px] text-neutral-400">{c.label}</span>
                         {renderCell(job, c)}
                       </div>
                     ))}
@@ -479,7 +479,7 @@ export default function JobTable({
               </div>
               {COLUMN_GROUP_ORDER.map((group) => (
                 <div key={group} className="flex flex-col gap-2">
-                  <h3 className="text-[11px] font-semibold tracking-wide text-neutral-500 uppercase">
+                  <h3 className="text-[11px] font-semibold tracking-wide text-neutral-400 uppercase">
                     {group}
                   </h3>
                   {OPTIONAL_COLUMNS.filter((c) => c.group === group).map((c) => (

@@ -15,7 +15,7 @@ function pctUsedLabel(actualHours, quotedHours) {
   return `${Math.round((actualHours / quotedHours) * 100)}%`
 }
 function pctUsedTone(actualHours, quotedHours) {
-  if (!quotedHours || actualHours === null) return 'text-neutral-500'
+  if (!quotedHours || actualHours === null) return 'text-neutral-400'
   return actualHours / quotedHours > 1 ? 'text-red-400 font-medium' : 'text-neutral-300'
 }
 
@@ -135,7 +135,7 @@ export default function MonthlyHours({ monthlyHours, jobs: allJobs, onBack }) {
 
           <div className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6">
             <h2 className="text-[15px] font-medium text-neutral-100">Hours per job, by month</h2>
-            <p className="mt-1 mb-4 text-[13px] text-neutral-500">
+            <p className="mt-1 mb-4 text-[13px] text-neutral-400">
               &quot;Total&quot; only adds up the month columns shown here — it starts from zero
               the month this tracking began, not from when the job itself started.
               &quot;Used of full quote&quot; is different on purpose: it's the job's actual hours
@@ -165,14 +165,14 @@ export default function MonthlyHours({ monthlyHours, jobs: allJobs, onBack }) {
                 >
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-[14px] font-medium text-white">
-                      <span className="text-neutral-500">{j.jobNumber}</span> {j.jobName}
+                      <span className="text-neutral-400">{j.jobNumber}</span> {j.jobName}
                     </p>
                     <span className="text-[13px] font-medium tabular-nums text-neutral-200">
                       {j.total.toFixed(1)} hrs
                     </span>
                   </div>
                   <div className="flex items-center justify-between gap-3 text-[12px]">
-                    <span className="text-neutral-500">Used of full quote</span>
+                    <span className="text-neutral-400">Used of full quote</span>
                     <span className={pctUsedTone(j.actualHours, j.quotedHours)}>
                       {j.actualHours ?? '—'} / {j.quotedHours ?? '—'} hrs ({pctUsedLabel(j.actualHours, j.quotedHours)})
                     </span>
@@ -180,7 +180,7 @@ export default function MonthlyHours({ monthlyHours, jobs: allJobs, onBack }) {
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[13px]">
                     {months.map((m) => (
                       <Fragment key={m}>
-                        <span className="text-neutral-500">{monthLabel(m)}</span>
+                        <span className="text-neutral-400">{monthLabel(m)}</span>
                         <span className="text-right tabular-nums text-neutral-200">
                           {j.hoursByMonth[m] !== undefined ? `${j.hoursByMonth[m].toFixed(1)} hrs` : '—'}
                         </span>

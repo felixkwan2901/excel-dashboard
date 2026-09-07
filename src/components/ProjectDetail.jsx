@@ -99,7 +99,7 @@ function ArchiveJobControl({ job, onBack }) {
 function Field({ label, children, warn, negative }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="text-[13px] font-medium text-neutral-500">{label}</span>
+      <span className="text-[13px] font-medium text-neutral-400">{label}</span>
       <div
         className={`text-[15px] tabular-nums ${
           warn
@@ -144,7 +144,7 @@ function StatCard({ label, value, formatValue, quoted, formatQuoted, ratio, good
 
   return (
     <div className="flex flex-col gap-3 rounded-[14px] border border-white/[0.06] bg-white/[0.02] p-5">
-      <span className="text-[12px] font-medium tracking-wide text-neutral-500 uppercase">{label}</span>
+      <span className="text-[12px] font-medium tracking-wide text-neutral-400 uppercase">{label}</span>
       <span className={`text-2xl font-bold tabular-nums ${valueColor}`}>
         {value === null ? '—' : formatValue(value)}
       </span>
@@ -156,7 +156,7 @@ function StatCard({ label, value, formatValue, quoted, formatQuoted, ratio, good
               style={{ width: `${clippedRatio * 100}%` }}
             />
           </div>
-          <span className="text-[12px] tabular-nums text-neutral-500">
+          <span className="text-[12px] tabular-nums text-neutral-400">
             of {formatQuoted ? formatQuoted(quoted) : formatValue(quoted)} quoted
           </span>
         </>
@@ -206,11 +206,11 @@ export default function ProjectDetail({ job, mainSheet, onBack }) {
       <div className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-7">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-sm text-neutral-500 tabular-nums">Job {job.jobNumber}</p>
+            <p className="text-sm text-neutral-400 tabular-nums">Job {job.jobNumber}</p>
             <h1 className="mt-1 text-3xl font-bold text-white">{job.jobName}</h1>
             <div className="mt-2 flex flex-wrap items-center gap-3">
               <TrendBadge marginTrend={job.marginTrend} />
-              {jobOwner && <span className="text-[13px] text-neutral-500">Owner: {jobOwner}</span>}
+              {jobOwner && <span className="text-[13px] text-neutral-400">Owner: {jobOwner}</span>}
             </div>
           </div>
           {/* This is the quoted price — a reference figure, not a verdict.
@@ -218,7 +218,7 @@ export default function ProjectDetail({ job, mainSheet, onBack }) {
               healthy", which on a job flagged as over quote is precisely
               backwards. Neutral, and labelled. */}
           <div className="text-right">
-            <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-500">
+            <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400">
               Quoted price
             </p>
             <p className="mt-0.5 text-3xl font-bold text-white tabular-nums">
