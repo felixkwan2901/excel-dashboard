@@ -5,6 +5,7 @@ import { pollStagedStatus } from '../lib/pollStagedStatus'
 import { recordJobCreated } from '../lib/onboardingChecklist'
 
 import { workerFetch, workerDownload } from '@/lib/workerClient'
+import LastSynced from './LastSynced'
 
 // scripts/update-jobs.mjs writes a specific outcome per file once it's
 // done — falls back to the coarser staged-status label for an older
@@ -262,6 +263,8 @@ export default function UpdateData({ onBack, jobs }) {
         <span aria-hidden="true">/</span>
         <span className="text-text-primary">Update data</span>
       </nav>
+
+      <LastSynced detailed />
 
       <StaleJobsPanel jobs={jobs} />
 
