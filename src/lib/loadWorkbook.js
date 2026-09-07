@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx'
 import { fetchOverrides } from './overrides'
+import { findRowByLabel } from './findSheetRow'
 
 // Lives in public/ as a stable, unhashed path (not a Vite `?url` import) so
 // a data-only change (ticking a checklist box, editing a claim figure) can
@@ -465,15 +466,29 @@ function parseUpcomingWorkCapacity(sheet) {
     return out
   }
 
+  // These rows were addressed by hard-coded number, and at some point a row
+  // was inserted above "Total Hours" on the sheet. Every capacity row below
+  // it shifted down by one while the numbers here stayed put, so the parser
+  // silently read the row above the one it wanted: "Staff on tools" showed
+  // the working-days figures, and Hours available/Balance read the blank row
+  // and the wrong row respectively.
+  //
+  // Nothing failed — it just quietly displayed the neighbouring row's data,
+  // which is the kind of error you only catch by knowing the business. Look
+  // the rows up by their own label instead, so inserting or deleting a row
+  // can't shift the mapping again. The old row number stays as a fallback in
+  // case a label is ever reworded.
+  const findRow = (pattern, fallbackRow) => findRowByLabel(sheet, pattern, fallbackRow)
+
   return {
-    servicingHours: readMonthRow(3),
-    totalHours: readMonthRow(70),
-    residentialHours: readMonthRow(71),
-    commercialHours: readMonthRow(72),
-    hoursAvailable: readMonthRow(73),
-    balanceHours: readMonthRow(74),
-    workingDays: readMonthRow(76),
-    staffOnTools: readMonthRow(77),
+    servicingHours: readMonthRow(findRow(/^servicing$/i, 3)),
+    totalHours: readMonthRow(findRow(/^total hours$/i, 71)),
+    residentialHours: readMonthRow(findRow(/^residential hours$/i, 72)),
+    commercialHours: readMonthRow(findRow(/^commercial hours$/i, 73)),
+    hoursAvailable: readMonthRow(findRow(/^hours available$/i, 74)),
+    balanceHours: readMonthRow(findRow(/^balance hours$/i, 75)),
+    workingDays: readMonthRow(findRow(/^working days in month/i, 77)),
+    staffOnTools: readMonthRow(findRow(/staff on tools/i, 78)),
   }
 }
 
