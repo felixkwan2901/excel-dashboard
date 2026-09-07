@@ -373,8 +373,8 @@
     "7428": {
       "jobName": "FAB Pegasus Lakeside",
       "claim": 0,
-      "costs": 2629.5100000000093,
-      "profit": -2629.5100000000093
+      "costs": 2236.75,
+      "profit": -2236.75
     },
     "7429": {
       "jobName": "Taggart House",
@@ -439,8 +439,8 @@
     "8308": {
       "jobName": "Roydvale",
       "claim": 34650.399999999965,
-      "costs": 7430.429999999993,
-      "profit": 27219.969999999972
+      "costs": 10984.75,
+      "profit": 23665.649999999965
     },
     "8337": {
       "jobName": "Waimak Dairys ",
@@ -523,8 +523,8 @@
     "9240": {
       "jobName": "Daves Twizel Shack",
       "claim": 0,
-      "costs": 853.55,
-      "profit": -853.55
+      "costs": 2116.21,
+      "profit": -2116.21
     },
     "9259": {
       "jobName": "Andrew Reeve Stage 2",
