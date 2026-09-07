@@ -439,10 +439,31 @@ export default function MainSheetTab({
                   : isDone
                     ? 'border-brand-green/25 bg-brand-green/[0.06] border-l-[3px] border-l-brand-green/70'
                     : 'border-white/15 bg-white/[0.05] border-l-[3px] border-l-amber-400/70'
+                const cellKey = `${selectedJob.jobNumber}:${c.key}`
+                const rowSaving = savingKeys.has(cellKey)
+                // With N/A gone there is one control per row, and it was a 32px
+                // box you had to hit exactly — awkward on a tablet on site.
+                // Clicking anywhere on the row now toggles it. Clicks that
+                // start on a real control (the link on items 18/19, the
+                // retention input on item 4, the tick itself) are left alone so
+                // they keep doing their own job.
+                //
+                // Deliberately not role="button": the row already contains
+                // buttons, and nesting interactive roles breaks screen-reader
+                // navigation. The tick stays the real control for keyboard and
+                // assistive tech; the row click is a pointer convenience.
+                const toggleRow = (e) => {
+                  if (rowSaving) return
+                  if (e.target.closest('button, input, a')) return
+                  handleChange(selectedJob, c.key, isDone ? '' : 'Yes', item)
+                }
                 return (
                   <div
                     key={c.key}
-                    className={`flex items-center justify-between gap-3 rounded-[10px] border p-3 transition-colors ${rowStyle}`}
+                    onClick={toggleRow}
+                    className={`flex cursor-pointer items-center justify-between gap-3 rounded-[10px] border p-3 transition-colors hover:border-white/25 ${rowStyle} ${
+                      rowSaving ? 'opacity-60' : ''
+                    }`}
                   >
                     {item?.link ? (
                       <button
@@ -494,7 +515,7 @@ export default function MainSheetTab({
                         <span className="text-[12px] text-neutral-500">%</span>
                       </div>
                     )}
-                    <div className="w-28 shrink-0">
+                    <div className="shrink-0">
                       <ChecklistCell
                         value={values[selectedJob.jobNumber][c.key]}
                         saving={savingKeys.has(`${selectedJob.jobNumber}:${c.key}`)}
