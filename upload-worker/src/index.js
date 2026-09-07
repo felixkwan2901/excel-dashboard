@@ -840,7 +840,14 @@ async function handleCommand(request, env) {
 // bounded to these known shapes — this isn't a general-purpose KV proxy.
 // ---------------------------------------------------------------------------
 
-const APP_DATA_KEY_RE = /^(weekly|completion|jobCreated):[A-Za-z0-9]{1,20}$|^override:(main-sheet|claim-calculator|upcoming-work)$/
+// Planning figures that have no home in the workbook — the staff roster and
+// the capacity overrides behind Upcoming work, plus Monthly claims' average
+// $/hr. These lived in one browser's localStorage, so whoever typed them was
+// the only person who could see them and clearing site data lost them
+// silently. Named explicitly rather than allowing any planning:* key, so the
+// KV namespace can't be filled with arbitrary values.
+const APP_DATA_KEY_RE =
+  /^(weekly|completion|jobCreated):[A-Za-z0-9]{1,20}$|^override:(main-sheet|claim-calculator|upcoming-work)$|^planning:(staff-roster|servicing|working-days|staff-on-tools|avg-hourly-rate)$/
 
 async function handleAppDataGet(request, env) {
   const url = new URL(request.url)

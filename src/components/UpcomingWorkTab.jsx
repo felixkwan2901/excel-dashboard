@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { saveEdit } from '../lib/saveEdit'
 import { roundHours } from '../lib/format'
-import { useLocalStorageState } from '../lib/useLocalStorageState'
+import { useSharedState } from '../lib/useSharedState'
 
 // Jan-Dec hours-allocation columns (cols F-Q, 0-indexed 5-16) plus the
 // notes column (S, 0-indexed 18) — the only manual entry on this sheet.
@@ -50,6 +50,18 @@ const CURRENT_MONTH = MONTH_LABELS[new Date().getMonth()]
 
 function EditableCapacityCell({ value, onChange }) {
   const [text, setText] = useState(value ?? '')
+  // These figures now load from the shared store, which answers a moment
+  // after the input has already mounted. Seeding state once at mount meant
+  // the cell kept showing the workbook default and silently ignored the
+  // saved override — it only ever worked because localStorage was
+  // synchronous. This is React's "adjust state when a prop changes" pattern:
+  // reset during render when the incoming value differs, so no extra paint
+  // and no cascading effect.
+  const [lastValue, setLastValue] = useState(value)
+  if (value !== lastValue) {
+    setLastValue(value)
+    setText(value ?? '')
+  }
   return (
     <input
       type="number"
@@ -181,19 +193,16 @@ function StaffRoster({ staff, onAdd, onRemove, onRename, onHoursChange }) {
 // whichever months you've overridden; everything else still reflects
 // the workbook's own values.
 function CapacityPanel({ capacity, usedHoursByMonth }) {
-  const [servicingOverrides, setServicingOverrides] = useLocalStorageState(
-    'upcomingWork.servicingOverrides',
-    {}
-  )
-  const [workingDaysOverrides, setWorkingDaysOverrides] = useLocalStorageState(
-    'upcomingWork.workingDaysOverrides',
-    {}
-  )
-  const [staffOnToolsOverrides, setStaffOnToolsOverrides] = useLocalStorageState(
-    'upcomingWork.staffOnToolsOverrides',
-    {}
-  )
-  const [staffRoster, setStaffRoster] = useLocalStorageState('upcomingWork.staffRoster', [])
+  const [servicingOverrides, setServicingOverrides, servicingFailed] = useSharedState('planning:servicing', 'upcomingWork.servicingOverrides', {})
+  const [workingDaysOverrides, setWorkingDaysOverrides, workingDaysFailed] = useSharedState('planning:working-days', 'upcomingWork.workingDaysOverrides', {})
+  const [staffOnToolsOverrides, setStaffOnToolsOverrides, staffOnToolsFailed] = useSharedState('planning:staff-on-tools', 'upcomingWork.staffOnToolsOverrides', {})
+  const [staffRoster, setStaffRoster, rosterFailed] = useSharedState('planning:staff-roster', 'upcomingWork.staffRoster', [])
+
+  // A planning figure that silently failed to save is how the check-sheet bug
+  // worked: the screen looked right, the value never left the browser, and it
+  // vanished on the next refresh. Say so instead.
+  const planningSaveFailed =
+    servicingFailed || workingDaysFailed || staffOnToolsFailed || rosterFailed
 
   if (!capacity) return null
 
@@ -261,6 +270,13 @@ function CapacityPanel({ capacity, usedHoursByMonth }) {
   return (
     <div className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6">
       <h2 className="text-[15px] font-medium text-neutral-200">Monthly capacity</h2>
+      {planningSaveFailed && (
+        <p className="mt-2 rounded-lg border border-red-400/30 bg-red-400/[0.08] px-3 py-2 text-[13px] text-red-400">
+          Couldn&apos;t save to the shared store — these figures are only on this device
+          right now, and will disappear if you refresh. Check your connection and edit
+          again.
+        </p>
+      )}
       <p className="mt-1 text-[13px] text-neutral-400">
         Total hours planned = Used hours + Servicing (any job under 30 hours) that month, vs.
         hours available from the crew (staff on tools × working days × 8h × 80% productive

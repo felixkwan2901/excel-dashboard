@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { money, percent } from '../lib/format'
 import { saveEdit } from '../lib/saveEdit'
-import { useLocalStorageState } from '../lib/useLocalStorageState'
+import { useSharedState } from '../lib/useSharedState'
 
 // Claim and Costs used to be here too, but they're now auto-computed by
 // scripts/update-jobs.mjs on every weekly upload (this month's cumulative
@@ -150,7 +150,7 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
   // =(HoursToComplete*40)+CostsToCome) rather than blank — blank meant
   // this silently fell out of the total (rate defaulting to 0) until
   // someone happened to type a value in.
-  const [avgHourlyRate, setAvgHourlyRate] = useLocalStorageState('monthlyClaims.avgHourlyRate', '40')
+  const [avgHourlyRate, setAvgHourlyRate] = useSharedState('planning:avg-hourly-rate', 'monthlyClaims.avgHourlyRate', '40')
   const rate = Number(avgHourlyRate) || 0
 
   // Every job in the workbook gets a row on the "Claim Calculator By Month"
