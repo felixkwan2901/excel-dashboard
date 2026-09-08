@@ -54,6 +54,11 @@
   --text-secondary: #a5afb8;
   --text-muted: #8b95a1;
 
+  --sidebar: #0d1117;
+  --sidebar-2: #1b232e;
+  --sidebar-text: #9aa6b2;
+  --brand-orange: #ef6c1f;
+
   --gridline: #232b3a;
   --baseline: #38382f;
   --border: rgba(255, 255, 255, 0.06);
@@ -325,9 +330,9 @@ input:focus-visible {
 }
 
 /* =========================================================================
-   Katipolt preview skin — turned on with ?skin=katipolt, off with ?skin=off.
-   See src/lib/skin.js. Nothing here applies without that attribute, so the
-   default dark app is untouched.
+   Light theme — the Katipolt-matching palette. See src/lib/theme.js. Dark is
+   the absence of this attribute, so the tokens at the top of the file stand
+   as written and nothing here applies.
 
    Two layers. First, the design tokens: most of the app already reads these,
    so redefining them does most of the work. Second, a compatibility layer for
@@ -340,7 +345,7 @@ input:focus-visible {
    design is adopted, those utilities get replaced with real tokens in the
    components and this block shrinks to nothing.
    ========================================================================= */
-:root[data-skin='katipolt'] {
+:root[data-theme='light'] {
   /* Katipolt's orange is the accent; the green stays for "good/complete"
      states, darkened because #38b86a on white is only 2.2:1 — well under
      the 4.5:1 that body text needs. */
@@ -391,9 +396,9 @@ input:focus-visible {
 /* ---- compatibility layer: hardcoded dark utilities ---- */
 
 /* Panels and cards. */
-:root[data-skin='katipolt'] [class*='bg-[#11161c]'],
-:root[data-skin='katipolt'] [class*='bg-[#0c0f14]'],
-:root[data-skin='katipolt'] [class*='bg-[#090b0f]'] {
+:root[data-theme='light'] [class*='bg-[#11161c]'],
+:root[data-theme='light'] [class*='bg-[#0c0f14]'],
+:root[data-theme='light'] [class*='bg-[#090b0f]'] {
   background-color: var(--surface-1);
   box-shadow: var(--shadow);
 }
@@ -401,91 +406,80 @@ input:focus-visible {
 /* White-on-dark washes read as dirt on a light ground — a 2% white tint over
    white is invisible, and a 6% white border disappears entirely. Both become
    real light-theme values. */
-:root[data-skin='katipolt'] [class*='bg-white/'] {
+:root[data-theme='light'] [class*='bg-white/'] {
   background-color: var(--surface-2);
 }
 
-:root[data-skin='katipolt'] [class*='border-white/'] {
+:root[data-theme='light'] [class*='border-white/'] {
   border-color: var(--border);
 }
 
 /* Text. The neutral scale runs light-on-dark, so it inverts: 200/300 was
    near-white body text and becomes near-black, 400/500 was muted grey and
    stays muted. */
-:root[data-skin='katipolt'] .text-white,
-:root[data-skin='katipolt'] .text-neutral-100,
-:root[data-skin='katipolt'] .text-neutral-200,
-:root[data-skin='katipolt'] .text-neutral-300 {
+:root[data-theme='light'] .text-white,
+:root[data-theme='light'] .text-neutral-100,
+:root[data-theme='light'] .text-neutral-200,
+:root[data-theme='light'] .text-neutral-300 {
   color: var(--text-primary);
 }
 
-:root[data-skin='katipolt'] .text-neutral-400,
-:root[data-skin='katipolt'] .text-neutral-500 {
+:root[data-theme='light'] .text-neutral-400,
+:root[data-theme='light'] .text-neutral-500 {
   color: var(--text-muted);
 }
 
-:root[data-skin='katipolt'] .text-neutral-600 {
+:root[data-theme='light'] .text-neutral-600 {
   color: var(--baseline);
 }
 
 /* Status colours picked for a dark ground fail on white — red-400 is 3.1:1,
    amber-400 barely 2:1. These are the AA-passing equivalents. */
-:root[data-skin='katipolt'] .text-red-400 {
+:root[data-theme='light'] .text-red-400 {
   color: var(--status-critical);
 }
 
-:root[data-skin='katipolt'] .text-amber-400 {
+:root[data-theme='light'] .text-amber-400 {
   color: var(--status-flagged);
 }
 
-:root[data-skin='katipolt'] [class*='text-brand-green'] {
+:root[data-theme='light'] [class*='text-brand-green'] {
   color: var(--brand-green);
 }
 
 /* Row striping has to invert too: a white tint over white is nothing, so the
    even rows would lose the banding that lets you track one row across
    thirteen columns of figures. */
-:root[data-skin='katipolt'] .data-table tbody tr:nth-child(even) {
+:root[data-theme='light'] .data-table tbody tr:nth-child(even) {
   background-color: #f7f9fb;
 }
 
-:root[data-skin='katipolt'] .data-table tbody tr:nth-child(even) .sticky-col,
-:root[data-skin='katipolt'] .data-table tbody tr:nth-child(even) .sticky-col-right {
+:root[data-theme='light'] .data-table tbody tr:nth-child(even) .sticky-col,
+:root[data-theme='light'] .data-table tbody tr:nth-child(even) .sticky-col-right {
   background-color: #f7f9fb;
 }
 
-:root[data-skin='katipolt'] .data-table thead th {
+:root[data-theme='light'] .data-table thead th {
   background-color: var(--surface-2);
   color: var(--text-secondary);
 }
 
 /* Inputs sat on a white-tint background that's now the same white as the
    card, so they need a visible field colour of their own. */
-:root[data-skin='katipolt'] input,
-:root[data-skin='katipolt'] textarea,
-:root[data-skin='katipolt'] select {
+:root[data-theme='light'] input,
+:root[data-theme='light'] textarea,
+:root[data-theme='light'] select {
   background-color: #ffffff;
   border-color: var(--gridline);
   color: var(--text-primary);
 }
 
-:root[data-skin='katipolt'] input:focus,
-:root[data-skin='katipolt'] textarea:focus {
+:root[data-theme='light'] input:focus,
+:root[data-theme='light'] textarea:focus {
   border-color: var(--brand-orange);
 }
 
 /* ---- sidebar layout ---- */
-
-:root[data-skin='katipolt'] .site {
-  flex-direction: row;
-  align-items: stretch;
-}
-
-:root[data-skin='katipolt'] .site > main,
-:root[data-skin='katipolt'] .site > .site-main {
-  flex: 1;
-  min-width: 0;
-}
 
 .side-nav {
   display: flex;
@@ -496,6 +490,15 @@ input:focus-visible {
   background: var(--sidebar);
   padding: 18px 12px;
   border-right: 1px solid var(--sidebar-2);
+  /* Pinned to the viewport rather than scrolling away with the page. The
+     tables here run to thousands of pixels, and a nav you have to scroll back
+     up to reach isn't much of a nav — nor is a Collapse button that sits at
+     the bottom of a 2700px column. */
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  height: 100vh;
+  overflow-y: auto;
 }
 
 .side-nav__brand {
@@ -562,14 +565,16 @@ input:focus-visible {
 }
 
 @media (max-width: 860px) {
-  :root[data-skin='katipolt'] .site {
+  .site {
     flex-direction: column;
   }
 
   .side-nav {
     width: 100%;
+    height: auto;
     flex-direction: row;
     overflow-x: auto;
+    overflow-y: hidden;
     border-right: 0;
     border-bottom: 1px solid var(--sidebar-2);
   }
@@ -587,37 +592,105 @@ input:focus-visible {
 /* The photographic backdrop is built for a dark app — under the light skin it
    leaves the page heading dark-on-dark and unreadable. Katipolt's own answer
    is a plain ground, so the photo goes and the page keeps the flat grey. */
-:root[data-skin='katipolt'] body::before {
+:root[data-theme='light'] body::before {
   display: none;
 }
 
-:root[data-skin='katipolt'] body {
+:root[data-theme='light'] body {
   background: var(--page-plane);
 }
 
 /* Pinned columns hardcode the dark card colour, because they have to paint an
    opaque background for the scrolling cells to slide under. On white they read
    as black bars down each edge of the table. */
-:root[data-skin='katipolt'] .data-table .sticky-col,
-:root[data-skin='katipolt'] .data-table .sticky-col-right {
+:root[data-theme='light'] .data-table .sticky-col,
+:root[data-theme='light'] .data-table .sticky-col-right {
   background: var(--surface-1);
 }
 
-:root[data-skin='katipolt'] .data-table tbody tr:nth-child(even) .sticky-col,
-:root[data-skin='katipolt'] .data-table tbody tr:nth-child(even) .sticky-col-right {
+:root[data-theme='light'] .data-table tbody tr:nth-child(even) .sticky-col,
+:root[data-theme='light'] .data-table tbody tr:nth-child(even) .sticky-col-right {
   background: #f7f9fb;
 }
 
-:root[data-skin='katipolt'] .data-table thead .sticky-col,
-:root[data-skin='katipolt'] .data-table thead .sticky-col-right {
+:root[data-theme='light'] .data-table thead .sticky-col,
+:root[data-theme='light'] .data-table thead .sticky-col-right {
   background: var(--surface-2);
 }
 
 /* The drop shadows either side of a pinned column were tuned against black. */
-:root[data-skin='katipolt'] .data-table .sticky-col-end {
+:root[data-theme='light'] .data-table .sticky-col-end {
   box-shadow: 2px 0 6px rgba(23, 33, 43, 0.1);
 }
 
-:root[data-skin='katipolt'] .data-table .sticky-col-right {
+:root[data-theme='light'] .data-table .sticky-col-right {
   box-shadow: -2px 0 6px rgba(23, 33, 43, 0.1);
+}
+
+/* Collapsed sidebar: an icon rail. The labels are removed from the flow
+   rather than hidden with opacity so the column can actually narrow, and each
+   button keeps a title so the icon alone is never the only clue. */
+.side-nav__label {
+  white-space: nowrap;
+}
+
+:root[data-rail] .side-nav {
+  width: 60px;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+:root[data-rail] .side-nav__label,
+:root[data-rail] .side-nav__brand span {
+  display: none;
+}
+
+:root[data-rail] .side-nav__link,
+:root[data-rail] .side-nav__brand {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.side-nav__rail-toggle {
+  appearance: none;
+  border: 0;
+  background: none;
+  color: var(--sidebar-text);
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 9px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font: inherit;
+  font-size: 12.5px;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.side-nav__rail-toggle:hover {
+  background: var(--sidebar-2);
+  color: #ffffff;
+}
+
+:root[data-rail] .side-nav__rail-toggle {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+/* On a phone the sidebar is already a horizontal strip, so an icon rail is
+   neither available nor wanted. */
+@media (max-width: 860px) {
+  .side-nav__rail-toggle {
+    display: none;
+  }
+
+  :root[data-rail] .side-nav {
+    width: 100%;
+  }
+
+  :root[data-rail] .side-nav__label {
+    display: inline;
+  }
 }

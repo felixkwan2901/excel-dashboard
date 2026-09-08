@@ -2,9 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { loadWorkbook } from './lib/loadWorkbook'
 import { computeKpis } from './lib/deriveMetrics'
 import { parseUrlState, pushUrlState, replaceUrlState } from './lib/urlState'
-import Nav from './components/Nav'
 import { Sidebar, TopStrip } from './components/SidebarNav'
-import { readSkin, applySkin } from './lib/skin'
+import { readTheme, applyTheme } from './lib/theme'
 import StatsRow from './components/StatsRow'
 import JobTable from './components/JobTable'
 import ProjectDetail from './components/ProjectDetail'
@@ -24,9 +23,9 @@ import './App.css'
 
 const initialNav = parseUrlState()
 
-// Read once at module load, before React paints, so the page never flashes
-// the dark theme on its way to the light one.
-const initialSkin = applySkin(readSkin())
+// Applied at module load, before React paints, so the page never flashes the
+// wrong theme on its way to the right one.
+const initialTheme = applyTheme(readTheme())
 
 // Every view needs to handle all three load states consistently — several
 // previously just required `state.status === 'ready'` data implicitly (e.g.
@@ -52,6 +51,7 @@ function LoadStatus({ status, error, onRetry }) {
 
 export default function App() {
   const [state, setState] = useState({ status: 'loading' })
+  const [theme, setTheme] = useState(initialTheme)
   const [view, setView] = useState(initialNav.view)
   const [selectedJobId, setSelectedJobId] = useState(initialNav.selectedJobId)
   const [searchQuery, setSearchQuery] = useState('')
@@ -237,25 +237,21 @@ export default function App() {
     onGoMainSheet: goMainSheet,
     onGoUpcomingWork: goUpcomingWork,
   }
-  const katipolt = initialSkin === 'katipolt'
-
   return (
     <div className="site">
-      {katipolt ? <Sidebar {...navProps} /> : <Nav {...navProps} />}
-      {/* `contents` off-skin means this wrapper isn't a box at all, so the
-          default layout's DOM structure is exactly what it always was. */}
-      <div className={katipolt ? 'flex min-w-0 flex-1 flex-col' : 'contents'}>
-        {katipolt && (
-          <TopStrip
-            searchValue={searchQuery}
-            onSearchChange={setSearchQuery}
-            onSearchSubmit={submitSearch}
-            flaggedJobs={flaggedJobs}
-            onSelectFlaggedJob={openJob}
-            onPrintReport={goReviewReport}
-            onRefresh={() => window.location.reload()}
-          />
-        )}
+      <Sidebar {...navProps} />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <TopStrip
+          searchValue={searchQuery}
+          onSearchChange={setSearchQuery}
+          onSearchSubmit={submitSearch}
+          flaggedJobs={flaggedJobs}
+          onSelectFlaggedJob={openJob}
+          onPrintReport={goReviewReport}
+          onRefresh={() => window.location.reload()}
+          theme={theme}
+          onThemeChange={setTheme}
+        />
 
       {view === 'project' && (
         <main className="dashboard">
