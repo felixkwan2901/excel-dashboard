@@ -3,6 +3,8 @@ import { loadWorkbook } from './lib/loadWorkbook'
 import { computeKpis } from './lib/deriveMetrics'
 import { parseUrlState, pushUrlState, replaceUrlState } from './lib/urlState'
 import Nav from './components/Nav'
+import { Sidebar, TopStrip } from './components/SidebarNav'
+import { readSkin, applySkin } from './lib/skin'
 import StatsRow from './components/StatsRow'
 import JobTable from './components/JobTable'
 import ProjectDetail from './components/ProjectDetail'
@@ -21,6 +23,10 @@ import CommandBox from './components/CommandBox'
 import './App.css'
 
 const initialNav = parseUrlState()
+
+// Read once at module load, before React paints, so the page never flashes
+// the dark theme on its way to the light one.
+const initialSkin = applySkin(readSkin())
 
 // Every view needs to handle all three load states consistently — several
 // previously just required `state.status === 'ready'` data implicitly (e.g.
@@ -213,24 +219,43 @@ export default function App() {
     })
   }
 
+  // Both navigations take the same props, so which one renders is the only
+  // difference between the two layouts.
+  const navProps = {
+    view,
+    onGoHome: goHome,
+    onGoDashboard: () => goDashboard(),
+    searchValue: searchQuery,
+    onSearchChange: setSearchQuery,
+    onSearchSubmit: submitSearch,
+    flaggedJobs,
+    onSelectFlaggedJob: openJob,
+    onPrintReport: goReviewReport,
+    onGoUpdateData: goUpdateData,
+    onGoMonthlyClaims: goMonthlyClaims,
+    onGoMonthlyHours: goMonthlyHours,
+    onGoMainSheet: goMainSheet,
+    onGoUpcomingWork: goUpcomingWork,
+  }
+  const katipolt = initialSkin === 'katipolt'
+
   return (
     <div className="site">
-      <Nav
-        view={view}
-        onGoHome={goHome}
-        onGoDashboard={() => goDashboard()}
-        searchValue={searchQuery}
-        onSearchChange={setSearchQuery}
-        onSearchSubmit={submitSearch}
-        flaggedJobs={flaggedJobs}
-        onSelectFlaggedJob={openJob}
-        onPrintReport={goReviewReport}
-        onGoUpdateData={goUpdateData}
-        onGoMonthlyClaims={goMonthlyClaims}
-        onGoMonthlyHours={goMonthlyHours}
-        onGoMainSheet={goMainSheet}
-        onGoUpcomingWork={goUpcomingWork}
-      />
+      {katipolt ? <Sidebar {...navProps} /> : <Nav {...navProps} />}
+      {/* `contents` off-skin means this wrapper isn't a box at all, so the
+          default layout's DOM structure is exactly what it always was. */}
+      <div className={katipolt ? 'flex min-w-0 flex-1 flex-col' : 'contents'}>
+        {katipolt && (
+          <TopStrip
+            searchValue={searchQuery}
+            onSearchChange={setSearchQuery}
+            onSearchSubmit={submitSearch}
+            flaggedJobs={flaggedJobs}
+            onSelectFlaggedJob={openJob}
+            onPrintReport={goReviewReport}
+            onRefresh={() => window.location.reload()}
+          />
+        )}
 
       {view === 'project' && (
         <main className="dashboard">
@@ -389,6 +414,7 @@ export default function App() {
       )}
 
       {state.status === 'ready' && <CommandBox jobs={jobs} mainSheetColumns={mainSheet.columns} />}
+      </div>
     </div>
   )
 }

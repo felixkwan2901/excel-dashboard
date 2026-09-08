@@ -323,3 +323,301 @@ input:focus-visible {
     @apply border-border outline-ring/50;
   }
 }
+
+/* =========================================================================
+   Katipolt preview skin — turned on with ?skin=katipolt, off with ?skin=off.
+   See src/lib/skin.js. Nothing here applies without that attribute, so the
+   default dark app is untouched.
+
+   Two layers. First, the design tokens: most of the app already reads these,
+   so redefining them does most of the work. Second, a compatibility layer for
+   the places that hardcode dark colours as Tailwind utilities (bg-[#11161c],
+   border-white/[0.06], text-neutral-400 and friends — around 370 of them
+   across 23 files). Those can't follow a token, so they're caught here by
+   attribute-substring selectors.
+
+   That second layer is preview scaffolding, not the finished job. If this
+   design is adopted, those utilities get replaced with real tokens in the
+   components and this block shrinks to nothing.
+   ========================================================================= */
+:root[data-skin='katipolt'] {
+  /* Katipolt's orange is the accent; the green stays for "good/complete"
+     states, darkened because #38b86a on white is only 2.2:1 — well under
+     the 4.5:1 that body text needs. */
+  --brand-orange: #ef6c1f;
+  --brand-orange-dim: #d4590f;
+  --brand-green: #17864a;
+  --brand-green-dim: #0f6b39;
+  --brand-green-ink: #ffffff;
+
+  --sidebar: #1f2a37;
+  --sidebar-2: #2b3949;
+  --sidebar-text: #cdd6e0;
+
+  --page-plane: #f4f6f8;
+  --page-plane-2: #ffffff;
+  --page-plane-3: #ffffff;
+  --surface-1: #ffffff;
+  --surface-2: #eef1f5;
+  --glass-card: #ffffff;
+
+  --text-primary: #17212b;
+  --text-secondary: #4a5763;
+  --text-muted: #68757f;
+
+  --gridline: #dfe4ea;
+  --baseline: #c7ced6;
+  --border: #dfe4ea;
+
+  --status-good: #17864a;
+  --status-good-bg: rgba(23, 134, 74, 0.1);
+  --status-warning: #8a6100;
+  --status-warning-bg: rgba(214, 158, 46, 0.14);
+  --status-critical: #b4231d;
+  --status-critical-bg: rgba(180, 35, 29, 0.1);
+  --status-flagged: #b46a00;
+  --status-flagged-bg: rgba(239, 148, 32, 0.16);
+
+  --shadow: 0 1px 2px rgba(23, 33, 43, 0.06), 0 4px 16px rgba(23, 33, 43, 0.06);
+
+  --background: var(--page-plane);
+  --foreground: var(--text-primary);
+  --card: var(--surface-1);
+  --primary: var(--brand-orange);
+  --primary-foreground: #ffffff;
+  color-scheme: light;
+}
+
+/* ---- compatibility layer: hardcoded dark utilities ---- */
+
+/* Panels and cards. */
+:root[data-skin='katipolt'] [class*='bg-[#11161c]'],
+:root[data-skin='katipolt'] [class*='bg-[#0c0f14]'],
+:root[data-skin='katipolt'] [class*='bg-[#090b0f]'] {
+  background-color: var(--surface-1);
+  box-shadow: var(--shadow);
+}
+
+/* White-on-dark washes read as dirt on a light ground — a 2% white tint over
+   white is invisible, and a 6% white border disappears entirely. Both become
+   real light-theme values. */
+:root[data-skin='katipolt'] [class*='bg-white/'] {
+  background-color: var(--surface-2);
+}
+
+:root[data-skin='katipolt'] [class*='border-white/'] {
+  border-color: var(--border);
+}
+
+/* Text. The neutral scale runs light-on-dark, so it inverts: 200/300 was
+   near-white body text and becomes near-black, 400/500 was muted grey and
+   stays muted. */
+:root[data-skin='katipolt'] .text-white,
+:root[data-skin='katipolt'] .text-neutral-100,
+:root[data-skin='katipolt'] .text-neutral-200,
+:root[data-skin='katipolt'] .text-neutral-300 {
+  color: var(--text-primary);
+}
+
+:root[data-skin='katipolt'] .text-neutral-400,
+:root[data-skin='katipolt'] .text-neutral-500 {
+  color: var(--text-muted);
+}
+
+:root[data-skin='katipolt'] .text-neutral-600 {
+  color: var(--baseline);
+}
+
+/* Status colours picked for a dark ground fail on white — red-400 is 3.1:1,
+   amber-400 barely 2:1. These are the AA-passing equivalents. */
+:root[data-skin='katipolt'] .text-red-400 {
+  color: var(--status-critical);
+}
+
+:root[data-skin='katipolt'] .text-amber-400 {
+  color: var(--status-flagged);
+}
+
+:root[data-skin='katipolt'] [class*='text-brand-green'] {
+  color: var(--brand-green);
+}
+
+/* Row striping has to invert too: a white tint over white is nothing, so the
+   even rows would lose the banding that lets you track one row across
+   thirteen columns of figures. */
+:root[data-skin='katipolt'] .data-table tbody tr:nth-child(even) {
+  background-color: #f7f9fb;
+}
+
+:root[data-skin='katipolt'] .data-table tbody tr:nth-child(even) .sticky-col,
+:root[data-skin='katipolt'] .data-table tbody tr:nth-child(even) .sticky-col-right {
+  background-color: #f7f9fb;
+}
+
+:root[data-skin='katipolt'] .data-table thead th {
+  background-color: var(--surface-2);
+  color: var(--text-secondary);
+}
+
+/* Inputs sat on a white-tint background that's now the same white as the
+   card, so they need a visible field colour of their own. */
+:root[data-skin='katipolt'] input,
+:root[data-skin='katipolt'] textarea,
+:root[data-skin='katipolt'] select {
+  background-color: #ffffff;
+  border-color: var(--gridline);
+  color: var(--text-primary);
+}
+
+:root[data-skin='katipolt'] input:focus,
+:root[data-skin='katipolt'] textarea:focus {
+  border-color: var(--brand-orange);
+}
+
+/* ---- sidebar layout ---- */
+
+:root[data-skin='katipolt'] .site {
+  flex-direction: row;
+  align-items: stretch;
+}
+
+:root[data-skin='katipolt'] .site > main,
+:root[data-skin='katipolt'] .site > .site-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.side-nav {
+  display: flex;
+  width: 232px;
+  flex-shrink: 0;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--sidebar);
+  padding: 18px 12px;
+  border-right: 1px solid var(--sidebar-2);
+}
+
+.side-nav__brand {
+  appearance: none;
+  border: 0;
+  background: none;
+  color: #ffffff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px 16px;
+}
+
+.side-nav__link {
+  appearance: none;
+  border: 0;
+  background: none;
+  color: var(--sidebar-text);
+  font: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 9px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.side-nav__link:hover {
+  background: var(--sidebar-2);
+  color: #ffffff;
+}
+
+/* The active row is marked with the brand orange rather than a fill, the way
+   Katipolt does it — a filled pill at this size competes with the content. */
+.side-nav__link.is-active {
+  background: var(--sidebar-2);
+  color: #ffffff;
+  box-shadow: inset 3px 0 0 var(--brand-orange);
+}
+
+.side-nav__spacer {
+  flex: 1;
+}
+
+/* The top strip that survives the move: search, weather, clock, alerts. These
+   are glanceable things, not destinations, so they stay horizontal above the
+   content instead of being crammed into a 232px column. */
+.top-strip {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 12px 28px;
+  border-bottom: 1px solid var(--gridline);
+  background: var(--surface-1);
+}
+
+@media (max-width: 860px) {
+  :root[data-skin='katipolt'] .site {
+    flex-direction: column;
+  }
+
+  .side-nav {
+    width: 100%;
+    flex-direction: row;
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--sidebar-2);
+  }
+
+  .side-nav__brand,
+  .side-nav__spacer {
+    display: none;
+  }
+
+  .side-nav__link.is-active {
+    box-shadow: inset 0 -3px 0 var(--brand-orange);
+  }
+}
+
+/* The photographic backdrop is built for a dark app — under the light skin it
+   leaves the page heading dark-on-dark and unreadable. Katipolt's own answer
+   is a plain ground, so the photo goes and the page keeps the flat grey. */
+:root[data-skin='katipolt'] body::before {
+  display: none;
+}
+
+:root[data-skin='katipolt'] body {
+  background: var(--page-plane);
+}
+
+/* Pinned columns hardcode the dark card colour, because they have to paint an
+   opaque background for the scrolling cells to slide under. On white they read
+   as black bars down each edge of the table. */
+:root[data-skin='katipolt'] .data-table .sticky-col,
+:root[data-skin='katipolt'] .data-table .sticky-col-right {
+  background: var(--surface-1);
+}
+
+:root[data-skin='katipolt'] .data-table tbody tr:nth-child(even) .sticky-col,
+:root[data-skin='katipolt'] .data-table tbody tr:nth-child(even) .sticky-col-right {
+  background: #f7f9fb;
+}
+
+:root[data-skin='katipolt'] .data-table thead .sticky-col,
+:root[data-skin='katipolt'] .data-table thead .sticky-col-right {
+  background: var(--surface-2);
+}
+
+/* The drop shadows either side of a pinned column were tuned against black. */
+:root[data-skin='katipolt'] .data-table .sticky-col-end {
+  box-shadow: 2px 0 6px rgba(23, 33, 43, 0.1);
+}
+
+:root[data-skin='katipolt'] .data-table .sticky-col-right {
+  box-shadow: -2px 0 6px rgba(23, 33, 43, 0.1);
+}
