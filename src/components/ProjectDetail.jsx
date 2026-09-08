@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { ArrowLeft, AlertTriangle, Archive } from 'lucide-react'
-import TrendBadge from './TrendBadge'
+import StatusPills from './StatusPills'
 import { money, percent, roundHours } from '../lib/format'
 import { statusReasons } from '../lib/statusReasons'
 import { pollStagedStatus } from '../lib/pollStagedStatus'
@@ -225,10 +225,7 @@ export default function ProjectDetail({ job, mainSheet, onBack }) {
           <div>
             <p className="text-sm text-neutral-400 tabular-nums">Job {job.jobNumber}</p>
             <h1 className="mt-1 text-3xl font-bold text-white">{job.jobName}</h1>
-            <div className="mt-2 flex flex-wrap items-center gap-3">
-              <TrendBadge marginTrend={job.marginTrend} />
-              {jobOwner && <span className="text-[13px] text-neutral-400">Owner: {jobOwner}</span>}
-            </div>
+            <StatusPills job={job} jobOwner={jobOwner} />
           </div>
           {/* This is the quoted price — a reference figure, not a verdict.
               Rendered big and green with no label it read as "this job is
