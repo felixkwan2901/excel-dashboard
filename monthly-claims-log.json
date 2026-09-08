@@ -366,9 +366,9 @@
   "2026-09": {
     "6792": {
       "jobName": "Major Hornbrook ",
-      "claim": 0,
-      "costs": 0,
-      "profit": 0
+      "claim": -715,
+      "costs": 245.72999999999956,
+      "profit": -960.7299999999996
     },
     "7428": {
       "jobName": "FAB Pegasus Lakeside",
@@ -391,8 +391,8 @@
     "7864": {
       "jobName": "Ryans House",
       "claim": 0,
-      "costs": 0,
-      "profit": 0
+      "costs": -13.369999999998981,
+      "profit": 13.369999999998981
     },
     "7901": {
       "jobName": "St Albans Street",
@@ -409,20 +409,20 @@
     "8127": {
       "jobName": "Rolly Autowash",
       "claim": 0,
-      "costs": 3373.6399999999994,
-      "profit": -3373.6399999999994
+      "costs": 3752.0599999999977,
+      "profit": -3752.0599999999977
     },
     "8142": {
       "jobName": "Fisher Developements",
       "claim": 0,
-      "costs": 5653.709999999992,
-      "profit": -5653.709999999992
+      "costs": 5726.869999999995,
+      "profit": -5726.869999999995
     },
     "8183": {
       "jobName": "Murney Custodian - 1 Freight Drive",
       "claim": 0,
-      "costs": 7314.940000000002,
-      "profit": -7314.940000000002
+      "costs": 7399.049999999988,
+      "profit": -7399.049999999988
     },
     "8214": {
       "jobName": "6 Tiroroa Lane",
@@ -439,8 +439,8 @@
     "8308": {
       "jobName": "Roydvale",
       "claim": 34650.399999999965,
-      "costs": 10984.75,
-      "profit": 23665.649999999965
+      "costs": 12036.179999999993,
+      "profit": 22614.219999999972
     },
     "8337": {
       "jobName": "Waimak Dairys ",
@@ -451,8 +451,8 @@
     "8352": {
       "jobName": "5 Sanscrit Place",
       "claim": 0,
-      "costs": 0,
-      "profit": 0
+      "costs": -1125.8799999999992,
+      "profit": 1125.8799999999992
     },
     "8360": {
       "jobName": "Dixon House",
@@ -463,8 +463,8 @@
     "8670": {
       "jobName": "Studio DB - tautara fit out",
       "claim": 0,
-      "costs": 1162.87000000001,
-      "profit": -1162.87000000001
+      "costs": 2657.6300000000047,
+      "profit": -2657.6300000000047
     },
     "8769": {
       "jobName": "Percival Bach",
@@ -487,8 +487,8 @@
     "8886": {
       "jobName": "Monkey Toe - Fisher fit out",
       "claim": 0,
-      "costs": 6987.919999999998,
-      "profit": -6987.919999999998
+      "costs": 7246.129999999997,
+      "profit": -7246.129999999997
     },
     "8887": {
       "jobName": "Tenancy 2 - Fisher Fit out",
