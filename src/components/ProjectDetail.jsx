@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowLeft, AlertTriangle, Archive, SlidersHorizontal } from 'lucide-react'
+import { ArrowLeft, AlertTriangle, Archive } from 'lucide-react'
 import TrendBadge from './TrendBadge'
 import { money, percent, roundHours } from '../lib/format'
 import { statusReasons } from '../lib/statusReasons'
@@ -97,11 +97,14 @@ function ArchiveJobControl({ job, onBack }) {
 // so "-$715" and "-2.2%" read as ordinary numbers rather than as the thing
 // worth noticing on the page.
 function Field({ label, children, warn, negative }) {
+  // Label and value on one line rather than stacked. Across four columns the
+  // stacked version put a figure a long way from the words that named it, and
+  // left so much air between rows that reading eight of them meant scrolling.
   return (
-    <div className="flex flex-col gap-1.5">
-      <span className="text-[13px] font-medium text-neutral-400">{label}</span>
-      <div
-        className={`text-[15px] tabular-nums ${
+    <div className="flex items-baseline justify-between gap-6 border-b border-white/[0.06] py-2.5">
+      <span className="text-[13px] text-neutral-400">{label}</span>
+      <span
+        className={`shrink-0 text-[15px] tabular-nums ${
           warn
             ? 'font-semibold text-amber-400'
             : negative
@@ -110,20 +113,15 @@ function Field({ label, children, warn, negative }) {
         }`}
       >
         {children}
-      </div>
+      </span>
     </div>
   )
 }
 
-function Section({ title, children }) {
-  return (
-    <div className="mt-6 border-t border-white/10 pt-6">
-      <h2 className="mb-4 text-[13px] font-semibold tracking-wide text-neutral-400 uppercase">
-        {title}
-      </h2>
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">{children}</div>
-    </div>
-  )
+// Two columns of rows, so a section of eight figures is four lines deep
+// instead of eight.
+function Section({ children }) {
+  return <div className="grid grid-cols-1 gap-x-10 sm:grid-cols-2">{children}</div>
 }
 
 // The headline "can I understand this job in 5 seconds" row — a big
@@ -169,9 +167,41 @@ function hours(v) {
   return v === null ? '—' : `${roundHours(v)} hrs`
 }
 
+// The full breakdown used to sit behind a "Show full breakdown" button, which
+// meant a click on every job before you could see any of it, and then a long
+// scroll through four stacked sections. Same figures, reached as tabs: nothing
+// is hidden behind a toggle, and the one you want is one click, not a scroll.
+const TABS = [
+  { key: 'cost', label: 'Cost' },
+  { key: 'hours', label: 'Hours' },
+  { key: 'claims', label: 'Claims' },
+  { key: 'margin', label: 'Margin' },
+]
+const TAB_KEY = 'job-detail-tab'
+
+function readTab() {
+  try {
+    const stored = localStorage.getItem(TAB_KEY)
+    return TABS.some((t) => t.key === stored) ? stored : 'cost'
+  } catch {
+    return 'cost'
+  }
+}
+
 export default function ProjectDetail({ job, mainSheet, onBack }) {
   const reasons = statusReasons(job)
-  const [showDetail, setShowDetail] = useState(false)
+  // Remembered, because whoever spends their morning checking margins wants
+  // the margin tab on the next job too, not to pick it again each time.
+  const [tab, setTab] = useState(readTab)
+
+  function selectTab(key) {
+    setTab(key)
+    try {
+      localStorage.setItem(TAB_KEY, key)
+    } catch {
+      // Preference won't persist; the tab still switches.
+    }
+  }
   const jobOwner = mainSheet?.jobs?.find((j) => j.jobNumber === job.jobNumber)?.jobOwner
 
   const costRatio = job.totalQuotedCost ? job.totalActualCost / job.totalQuotedCost : null
@@ -187,19 +217,6 @@ export default function ProjectDetail({ job, mainSheet, onBack }) {
         >
           <ArrowLeft size={14} aria-hidden="true" />
           All jobs
-        </button>
-
-        <button
-          onClick={() => setShowDetail((v) => !v)}
-          aria-pressed={showDetail}
-          className={`flex w-fit items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green ${
-            showDetail
-              ? 'border-brand-green/50 bg-brand-green/10 text-brand-green'
-              : 'border-white/10 text-neutral-400 hover:border-white/20 hover:text-white'
-          }`}
-        >
-          <SlidersHorizontal size={14} aria-hidden="true" />
-          {showDetail ? 'Hide full breakdown' : 'Show full breakdown'}
         </button>
       </div>
 
@@ -276,21 +293,28 @@ export default function ProjectDetail({ job, mainSheet, onBack }) {
           />
         </div>
 
-        {!showDetail && (
-          <div className="mt-6 grid grid-cols-1 gap-6 border-t border-white/10 pt-6 sm:grid-cols-3">
-            <Field label="Claim to date">{money(job.claimToDate)}</Field>
-            <Field label="Remaining to claim" negative={job.remainingToClaim < 0}>
-              {money(job.remainingToClaim)}
-            </Field>
-            <Field label="% claim remaining" negative={job.pctClaimRemaining < 0}>
-              {percent(job.pctClaimRemaining)}
-            </Field>
-          </div>
-        )}
+        {/* Tab bar. Underline rather than pills: it reads as "these are parts
+            of the thing above", which a row of buttons doesn't. */}
+        <div className="mt-7 flex gap-1 overflow-x-auto border-b border-white/10">
+          {TABS.map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => selectTab(key)}
+              aria-current={tab === key ? 'true' : undefined}
+              className={`-mb-px shrink-0 border-b-2 px-4 py-2.5 text-[14px] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green ${
+                tab === key
+                  ? 'border-brand-green text-white'
+                  : 'border-transparent text-neutral-400 hover:text-neutral-200'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
 
-        {showDetail && (
-          <>
-            <Section title="Cost">
+        <div className="mt-4">
+          {tab === 'cost' && (
+            <Section>
               {/* "Total quoted cost" (this section) is the quoted cost basis —
                   materials + labour, before markup — and is intentionally a
                   smaller figure than the "Quoted Price" shown above (the
@@ -317,8 +341,10 @@ export default function ProjectDetail({ job, mainSheet, onBack }) {
               <Field label="Material % remaining">{percent(job.materialPctRemaining)}</Field>
               <Field label="Est. % of materials received">{percent(job.estimatedPctMaterialsReceived)}</Field>
             </Section>
+          )}
 
-            <Section title="Labour hours">
+          {tab === 'hours' && (
+            <Section>
               <Field label="Quoted hours">
                 {job.quotedLabourHours === null ? '—' : roundHours(job.quotedLabourHours)}
               </Field>
@@ -332,8 +358,10 @@ export default function ProjectDetail({ job, mainSheet, onBack }) {
               </Field>
               <Field label="Labour hour % remaining">{percent(job.labourHourPctRemaining)}</Field>
             </Section>
+          )}
 
-            <Section title="Claim progress">
+          {tab === 'claims' && (
+            <Section>
               <Field label="Claim to date">{money(job.claimToDate)}</Field>
               <Field label="Remaining to claim" negative={job.remainingToClaim < 0}>
                 {money(job.remainingToClaim)}
@@ -343,8 +371,10 @@ export default function ProjectDetail({ job, mainSheet, onBack }) {
               </Field>
               <Field label="Est. % of job complete">{percent(job.estimatedPctJobComplete)}</Field>
             </Section>
+          )}
 
-            <Section title="Margin">
+          {tab === 'margin' && (
+            <Section>
               <Field label="Margin to date" warn={job.losingMargin}>
                 {percent(job.marginToDate)}
               </Field>
@@ -352,8 +382,8 @@ export default function ProjectDetail({ job, mainSheet, onBack }) {
               <Field label="GP $/hour">{money(job.gpPerHour)}</Field>
               <Field label="Quoted GP $/hour">{money(job.quotedGpPerHour)}</Field>
             </Section>
-          </>
-        )}
+          )}
+        </div>
 
         <div className="mt-6 border-t border-white/10 pt-6">
           <ArchiveJobControl job={job} onBack={onBack} />
