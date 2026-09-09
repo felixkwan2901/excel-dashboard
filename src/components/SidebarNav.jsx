@@ -4,7 +4,9 @@ import {
   CalendarClock,
   ChartColumn,
   ClipboardCheck,
+  ExternalLink,
   FolderKanban,
+  HardHat,
   Moon,
   PanelLeftClose,
   PanelLeftOpen,
@@ -67,6 +69,24 @@ export function Sidebar({ view, onGoHome, ...handlers }) {
           <span className="side-nav__label">{label}</span>
         </button>
       ))}
+      {/* The field app is a separate app on a separate URL, so this is a real
+          link rather than another view. Marked with an arrow and opened in a
+          new tab: nothing is more disorienting than a sidebar item that
+          silently replaces the dashboard you were working in. */}
+      <a
+        href="https://www.kwanfelix.me/cde-field/"
+        target="_blank"
+        rel="noreferrer"
+        className="side-nav__link"
+        title="Field app — on-site task progress (opens in a new tab)"
+      >
+        <HardHat size={15} aria-hidden="true" />
+        <span className="side-nav__label">
+          Field app
+          <ExternalLink size={12} aria-hidden="true" className="ml-1.5 inline align-[-1px] opacity-60" />
+        </span>
+      </a>
+
       <div className="side-nav__spacer" />
       <button
         type="button"
