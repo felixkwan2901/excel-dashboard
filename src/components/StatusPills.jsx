@@ -1,4 +1,4 @@
-import { AlertTriangle, CircleCheck, Clock, TrendingDown, TrendingUp, User } from 'lucide-react'
+import { AlertTriangle, CircleCheck, Clock, HardHat, TrendingDown, TrendingUp, User } from 'lucide-react'
 import { percent } from '../lib/format'
 
 // The row of state under a job's name: what condition it's in, which way it's
@@ -9,6 +9,12 @@ import { percent } from '../lib/format'
 // Deliberately not here: "Quote accepted" and "Invoice sent". Those live in
 // Katipult, not in the workbook these exports come from, so a pill claiming
 // them would be a guess that looks like a fact.
+//
+// Field progress is here, and it is held to the same standard: it says
+// nothing while it is loading, says "No field updates" rather than 0% when
+// nobody has recorded anything, and turns amber once it is a week old —
+// a percentage nobody has touched in a fortnight misleads exactly the way a
+// stale export does.
 const TREND_STEADY = 0.005 // ±0.5 margin points reads as noise, not a real move
 
 const TONES = {
@@ -60,7 +66,7 @@ function trendPill(marginTrend) {
   return { icon: TrendingUp, tone: 'neutral', label: 'Steady margin' }
 }
 
-export default function StatusPills({ job, jobOwner }) {
+export default function StatusPills({ job, jobOwner, field }) {
   const trend = trendPill(job.marginTrend)
 
   return (
@@ -91,6 +97,26 @@ export default function StatusPills({ job, jobOwner }) {
           ? `${job.weeksBehind} week${job.weeksBehind === 1 ? '' : 's'} behind`
           : `Current · ${job.lastUpdatedLabel}`}
       </Pill>
+
+      {field && field.state !== 'none' && field.state !== 'no-data' && (
+        <Pill
+          icon={HardHat}
+          tone={field.stale ? 'warn' : 'neutral'}
+          title={
+            field.stale
+              ? `Recorded on site: ${field.percent}% across ${field.total} tasks, but nothing has been updated since ${new Date(field.updatedAt).toLocaleDateString('en-NZ')}`
+              : `Recorded on site by the crew — an average across ${field.total} tasks. Not the same thing as the claim percentage.`
+          }
+        >
+          Field {field.percent}%
+        </Pill>
+      )}
+
+      {field && field.state === 'none' && (
+        <Pill icon={HardHat} title="Nobody has recorded field progress against this job yet">
+          No field updates
+        </Pill>
+      )}
 
       {jobOwner && (
         <Pill icon={User} title="Job owner, from the job checklist">

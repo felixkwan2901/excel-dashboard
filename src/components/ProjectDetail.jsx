@@ -1,6 +1,9 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { ArrowLeft, AlertTriangle, Archive } from 'lucide-react'
 import StatusPills from './StatusPills'
+import FieldProgressTab from './FieldProgressTab'
+import { getAppData } from '../lib/appData'
+import { fieldProgress, isStale, toTaskRows } from '../lib/fieldProgress'
 import { money, percent, roundHours } from '../lib/format'
 import { statusReasons } from '../lib/statusReasons'
 import { pollStagedStatus } from '../lib/pollStagedStatus'
@@ -176,6 +179,7 @@ const TABS = [
   { key: 'hours', label: 'Hours' },
   { key: 'claims', label: 'Claims' },
   { key: 'margin', label: 'Margin' },
+  { key: 'field', label: 'Field' },
 ]
 const TAB_KEY = 'job-detail-tab'
 
@@ -193,6 +197,61 @@ export default function ProjectDetail({ job, mainSheet, onBack }) {
   // Remembered, because whoever spends their morning checking margins wants
   // the margin tab on the next job too, not to pick it again each time.
   const [tab, setTab] = useState(readTab)
+
+  // Fetched here rather than through useSharedState: that hook reads once
+  // with an empty dependency list and is shared with the Upcoming work
+  // planning figures, so changing its semantics has blast radius. A fetch
+  // keyed on the job number is the right granularity anyway — it re-reads
+  // whenever you open a different job, which is the moment the answer
+  // changes. Same pattern as JobCompletionChecklistTab.
+  // Carries the job it belongs to, so "still loading" is derived from a
+  // mismatch rather than set synchronously at the top of the effect — which
+  // would cascade a second render on every open. It also means a Refresh
+  // keeps the current figures on screen while the new ones arrive, instead
+  // of blanking them.
+  const [field, setField] = useState({ status: 'loading', jobNumber: null })
+  const [fieldReload, setFieldReload] = useState(0)
+
+  useEffect(() => {
+    let cancelled = false
+    Promise.all([
+      getAppData(`field:${job.jobNumber}`),
+      // The catalogue holds the labels; the job record only stores task ids,
+      // so a task renamed in the catalogue reads correctly here without every
+      // historical record needing a rewrite.
+      getAppData('fieldTasks:commercial'),
+      getAppData('fieldTasks:residential'),
+    ])
+      .then(([record, commercial, residential]) => {
+        if (cancelled) return
+        const catalogue = record?.template === 'residential' ? residential : commercial
+        setField({ status: 'ready', jobNumber: job.jobNumber, record, catalogue: catalogue ?? [], asAt: new Date() })
+      })
+      .catch(() => {
+        if (!cancelled) setField({ status: 'error', jobNumber: job.jobNumber })
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [job.jobNumber, fieldReload])
+
+  const refreshField = useCallback(() => setFieldReload((n) => n + 1), [])
+
+  const fieldState = field.jobNumber === job.jobNumber ? field : { status: 'loading' }
+
+  // Only summarised once there is something to summarise. While it is
+  // loading the pill shows nothing at all rather than a placeholder zero —
+  // 0% is a claim about work, and "we haven't asked yet" is not that claim.
+  const fieldSummary =
+    fieldState.status === 'ready' && fieldState.record
+      ? {
+          ...fieldProgress(toTaskRows(fieldState.record, fieldState.catalogue)),
+          stale: isStale(fieldState.record.updatedAt),
+          updatedAt: fieldState.record.updatedAt,
+        }
+      : fieldState.status === 'ready'
+        ? { state: 'none' }
+        : null
 
   function selectTab(key) {
     setTab(key)
@@ -225,7 +284,7 @@ export default function ProjectDetail({ job, mainSheet, onBack }) {
           <div>
             <p className="text-sm text-neutral-400 tabular-nums">Job {job.jobNumber}</p>
             <h1 className="mt-1 text-3xl font-bold text-white">{job.jobName}</h1>
-            <StatusPills job={job} jobOwner={jobOwner} />
+            <StatusPills job={job} jobOwner={jobOwner} field={fieldSummary} />
           </div>
           {/* This is the quoted price — a reference figure, not a verdict.
               Rendered big and green with no label it read as "this job is
@@ -380,6 +439,8 @@ export default function ProjectDetail({ job, mainSheet, onBack }) {
               <Field label="Quoted GP $/hour">{money(job.quotedGpPerHour)}</Field>
             </Section>
           )}
+
+          {tab === 'field' && <FieldProgressTab state={fieldState} onRefresh={refreshField} />}
         </div>
 
         <div className="mt-6 border-t border-white/10 pt-6">
