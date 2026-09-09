@@ -361,7 +361,13 @@ export default function MainSheetTab({
           <select
             value={selectedJob?.jobNumber ?? ''}
             onChange={(e) => setSelectedJobNumber(e.target.value)}
-            className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm text-neutral-200 focus:border-brand-green/50 focus:outline-none"
+            /* A <select> sizes itself to its widest option, and these read
+               "6792 — Major Hornbrook · 13/19" — wide enough to push the page
+               past a phone's screen and give the whole dashboard a horizontal
+               scrollbar. min-w-0 + max-w-full lets it shrink; the browser
+               truncates the label and the full text is still there when the
+               list is open. */
+            className="min-w-0 max-w-full rounded-md border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm text-neutral-200 focus:border-brand-green/50 focus:outline-none"
           >
             {(visibleJobs.length > 0 ? visibleJobs : sortedJobs).map((job) => (
               <option key={job.jobNumber} value={job.jobNumber} className="bg-[#11161c] text-neutral-200">

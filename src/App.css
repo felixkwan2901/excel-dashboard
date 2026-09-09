@@ -2,9 +2,23 @@
   min-height: 100vh;
   display: flex;
   /* Sidebar in the first column, everything else in the second — see
-     SidebarNav.jsx. Stacks back to a column under 860px, in index.css. */
+     SidebarNav.jsx. */
   flex-direction: row;
   align-items: stretch;
+}
+
+/* Stacked on a phone: the sidebar becomes a scrolling strip across the top.
+   This override has to live here, next to the rule it overrides, not with the
+   rest of the narrow-screen styles in index.css. App.css is imported after
+   index.css, so an unconditional `.site` rule there beats a media query here
+   on source order at equal specificity — which is exactly what happened: the
+   media query matched on a phone and did nothing, leaving a full-width
+   sidebar sitting in a row beside the content and the whole page 700px wide
+   with a horizontal scrollbar. */
+@media (max-width: 860px) {
+  .site {
+    flex-direction: column;
+  }
 }
 
 /* Subtle attention pulse for the Needs Review card's warning icon —
