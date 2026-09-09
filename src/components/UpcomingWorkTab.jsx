@@ -81,197 +81,16 @@ function EditableCapacityCell({ value, onChange }) {
   )
 }
 
-function newStaffId() {
-  return typeof crypto !== 'undefined' && crypto.randomUUID
-    ? crypto.randomUUID()
-    : `staff-${Date.now()}-${Math.random().toString(36).slice(2)}`
-}
-
-function emptyStaffHours() {
-  const hours = {}
-  for (const label of MONTH_LABELS) hours[label] = null
-  return hours
-}
-
-// A named roster carrying each person's FTE per month — 1 for full time,
-// 0.5 for half, 0 for someone not on the tools that month.
-//
-// Same units the workbook already uses: rows 81-105 of the Upcoming Work
-// Calculator list the crew against exactly this column (Kyle 0.5, Ben Dyer
-// 0), totalling 16.5 at row 110, and that total is typed into "Staff on
-// tools" — the sheet's own label says "enter in above spreadsheet". Hours
-// then fall out of the formula.
-//
-// Hours per person was tried and discarded: the estimate discounts to 80%
-// productive time and a typed hours total does not, so the two could never
-// agree, and the figures were unreadable besides. Counting people keeps the
-// numbers small and the arithmetic honest. Unlike the sheet, which stores
-// one FTE per person, this holds a value per month, so someone joining or
-// going part time mid-year is just a different number in that column.
-function StaffRoster({ staff, onAdd, onRemove, onRename, onHoursChange, totalFor, targetFor }) {
-  // Sorting is a way of looking at the list, not a change to it. Ordering the
-  // stored roster instead would have been a one-way door — there'd be no
-  // "before" left to go back to once it saved. Flipping this back to
-  // "Added order" restores exactly the order the rows were entered in.
-  const [sortAZ, setSortAZ] = useState(false)
-  const shown = sortAZ
-    ? [...staff].sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }))
-    : staff
-
-  return (
-    <CollapsibleSection
-      className="mt-6 border-t border-white/10 pt-5"
-      storageKey="upcoming-work.staff"
-      headingLevel="h3"
-      headingClassName="text-[13px] font-medium text-neutral-200"
-      title="Staff"
-      description={
-        <>
-          Each person&apos;s FTE for the month — 1 full time, 0.5 half, 0 if they&apos;re
-          not on the tools. This is the breakdown behind Staff on tools, not a
-          replacement for it: Hours available keeps using Staff on tools x working
-          days x 8h x 80%. The total row flags any month where the names don&apos;t
-          add up to the estimate.
-        </>
-      }
-      actions={
-        <>
-          <button
-            type="button"
-            onClick={() => setSortAZ((prev) => !prev)}
-            disabled={staff.length < 2}
-            title={
-              sortAZ
-                ? 'Back to the order staff were added in'
-                : 'Show staff A-Z by name — this only changes the view, nothing is saved'
-            }
-            className={`rounded-md border px-2.5 py-1.5 text-[12px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-              sortAZ
-                ? 'border-brand-green/50 bg-brand-green/10 text-brand-green'
-                : 'border-white/10 text-neutral-200 hover:border-brand-green/50 hover:text-brand-green disabled:hover:border-white/10 disabled:hover:text-neutral-200'
-            }`}
-          >
-            {sortAZ ? 'Added order' : 'Sort A-Z'}
-          </button>
-          <button
-            type="button"
-            onClick={onAdd}
-            className="rounded-md border border-white/10 px-2.5 py-1.5 text-[12px] font-medium text-neutral-200 transition-colors hover:border-brand-green/50 hover:text-brand-green"
-          >
-            + Add staff
-          </button>
-        </>
-      }
-    >
-      {staff.length === 0 ? (
-        <p className="mt-3 text-[12px] text-neutral-400">No staff added yet.</p>
-      ) : (
-        <div className="table-scroll mt-3">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th style={{ minWidth: 160 }}>Name</th>
-                {MONTH_LABELS.map((m) => (
-                  <th key={m} className="num">
-                    {m}
-                  </th>
-                ))}
-                <th className="sticky-col-right"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {shown.map((person) => (
-                <tr key={person.id}>
-                  <td className="p-1">
-                    <input
-                      type="text"
-                      defaultValue={person.name}
-                      onBlur={(e) => onRename(person.id, e.target.value)}
-                      placeholder="Name"
-                      className="w-full min-w-0 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[13px] text-neutral-200 focus:border-brand-green/50 focus:outline-none"
-                    />
-                  </td>
-                  {MONTH_LABELS.map((m) => (
-                    <td key={m} className="cell-input">
-                      <EditableCapacityCell
-                        value={person.hours[m] ?? null}
-                        onChange={(n) => onHoursChange(person.id, m, n)}
-                      />
-                    </td>
-                  ))}
-                  <td className="sticky-col-right p-1">
-                    <button
-                      type="button"
-                      onClick={() => onRemove(person.id)}
-                      title={`Remove ${person.name || 'this staff member'}`}
-                      aria-label={`Remove ${person.name || 'staff member'}`}
-                      className="rounded-md border border-white/10 px-2 py-1 text-[12px] text-neutral-400 transition-colors hover:border-red-400/50 hover:text-red-400"
-                    >
-                      ✕
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {/* The sheet totals its FTE column at row 110 and that number is
-                  typed into Staff on tools. Showing the same total here turns
-                  the roster into a check on that figure: amber where the names
-                  don't add up to what the estimate claims. */}
-              <tr className="border-t-2 border-white/15">
-                <td className="p-1 text-[13px] font-semibold text-white">Total on tools</td>
-                {MONTH_LABELS.map((m) => {
-                  const t = totalFor(m)
-                  const target = targetFor(m)
-                  const off =
-                    t !== null && target !== null && target !== undefined && t !== target
-                  return (
-                    <td
-                      key={m}
-                      title={off ? `Staff on tools says ${target} for ${m} — the names add up to ${t}` : undefined}
-                      className={`num tabular text-[13px] font-semibold ${off ? 'text-amber-400' : 'text-white'}`}
-                    >
-                      {t === null ? <span className="text-neutral-600">—</span> : t}
-                    </td>
-                  )
-                })}
-                <td className="sticky-col-right p-1"></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      )}
-    </CollapsibleSection>
-  )
-}
-
-// Capacity summary — reproduces the sheet's own rows 70-77, which were
-// never surfaced anywhere in the app before: per month, is the work
-// already planned (Total hours, summed from every job's monthly
-// allocation) more than the crew can actually cover (Hours available =
-// staff on tools × working days × 8h × 0.8 productive-time factor)?
-// Balance is the difference — negative months are short-staffed.
-//
-// Working days / Staff on tools are editable here, but ONLY saved to
-// this browser (localStorage) — the real edit pipeline (saveEdit / the
-// upload worker / scripts/update-jobs.mjs) only knows how to address a
-// row by matching a job number in column A, and these two rows have no
-// job number at all (they're fixed physical rows, not one-per-job).
-// Wiring up real round-trip persistence for them would mean teaching
-// that whole pipeline a second, row-number-based addressing mode —
-// planning-only for now rather than half-building that untested.
-// Editing either one recomputes Hours available/Balance live for
-// whichever months you've overridden; everything else still reflects
-// the workbook's own values.
 function CapacityPanel({ capacity, plannedByJobFor }) {
   const [servicingOverrides, setServicingOverrides, servicingFailed] = useSharedState('planning:servicing', 'upcomingWork.servicingOverrides', {})
   const [workingDaysOverrides, setWorkingDaysOverrides, workingDaysFailed] = useSharedState('planning:working-days', 'upcomingWork.workingDaysOverrides', {})
   const [staffOnToolsOverrides, setStaffOnToolsOverrides, staffOnToolsFailed] = useSharedState('planning:staff-on-tools', 'upcomingWork.staffOnToolsOverrides', {})
-  const [staffRoster, setStaffRoster, rosterFailed] = useSharedState('planning:staff-roster', 'upcomingWork.staffRoster', [])
 
   // A planning figure that silently failed to save is how the check-sheet bug
   // worked: the screen looked right, the value never left the browser, and it
   // vanished on the next refresh. Say so instead.
   const planningSaveFailed =
-    servicingFailed || workingDaysFailed || staffOnToolsFailed || rosterFailed
+    servicingFailed || workingDaysFailed || staffOnToolsFailed
 
   if (!capacity) return null
 
@@ -287,17 +106,6 @@ function CapacityPanel({ capacity, plannedByJobFor }) {
   // Headcount on the tools that month: the sum of everyone's FTE. Null when
   // nobody has a figure for that month, so there's nothing to check against.
   //
-  // This total is a cross-check, not an input. Staff on tools stays the one
-  // number that drives Hours available — the roster just shows who makes it
-  // up, so a month where the names don't add up to the estimate is visible
-  // instead of silently wrong. Letting the roster take over the calculation
-  // meant one blank or half-filled month quietly rewrote Hours available and
-  // Balance with it.
-  function rosterStaffFor(m) {
-    const entered = staffRoster.filter((s) => s.hours[m] !== null && s.hours[m] !== undefined)
-    if (entered.length === 0) return null
-    return entered.reduce((sum, s) => sum + s.hours[m], 0)
-  }
   function hoursAvailableFor(m) {
     const days = workingDaysFor(m)
     const staff = staffOnToolsFor(m)
@@ -306,20 +114,6 @@ function CapacityPanel({ capacity, plannedByJobFor }) {
       : capacity.hoursAvailable[m]
   }
 
-  function addStaffMember() {
-    setStaffRoster((prev) => [...prev, { id: newStaffId(), name: '', hours: emptyStaffHours() }])
-  }
-  function removeStaffMember(id) {
-    setStaffRoster((prev) => prev.filter((s) => s.id !== id))
-  }
-  function renameStaffMember(id, name) {
-    setStaffRoster((prev) => prev.map((s) => (s.id === id ? { ...s, name } : s)))
-  }
-  function updateStaffHours(id, month, value) {
-    setStaffRoster((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, hours: { ...s.hours, [month]: value } } : s))
-    )
-  }
   // Total hours planned = Servicing + everything planned against a job in the
   // table below.
   //
@@ -451,8 +245,8 @@ function CapacityPanel({ capacity, plannedByJobFor }) {
               })}
             </tr>
             <tr>
-              <td className="sticky-col sticky-col-end whitespace-normal sm:whitespace-nowrap text-[12px] sm:text-[13px] leading-tight text-neutral-400" style={{ left: 0 }} title="Only used when no staff are added below">
-                Working days (estimate)
+              <td className="sticky-col sticky-col-end whitespace-normal sm:whitespace-nowrap text-[12px] sm:text-[13px] leading-tight text-neutral-400" style={{ left: 0 }} title="Drives Hours available: staff on tools x working days x 8h x 80%">
+                Working days
               </td>
               {MONTH_LABELS.map((m) => (
                 <td key={m} className={`cell-input ${m === CURRENT_MONTH ? 'bg-brand-green/[0.06]' : ''}`}>
@@ -464,8 +258,8 @@ function CapacityPanel({ capacity, plannedByJobFor }) {
               ))}
             </tr>
             <tr>
-              <td className="sticky-col sticky-col-end whitespace-normal sm:whitespace-nowrap text-[12px] sm:text-[13px] leading-tight text-neutral-400" style={{ left: 0 }} title="Drives Hours available: staff x working days x 8h x 80%">
-                Staff on tools (estimate)
+              <td className="sticky-col sticky-col-end whitespace-normal sm:whitespace-nowrap text-[12px] sm:text-[13px] leading-tight text-neutral-400" style={{ left: 0 }} title="Drives Hours available: staff on tools x working days x 8h x 80%">
+                Staff on tools
               </td>
               {MONTH_LABELS.map((m) => (
                 <td key={m} className={`cell-input ${m === CURRENT_MONTH ? 'bg-brand-green/[0.06]' : ''}`}>
@@ -479,16 +273,6 @@ function CapacityPanel({ capacity, plannedByJobFor }) {
           </tbody>
         </table>
       </div>
-
-      <StaffRoster
-        staff={staffRoster}
-        onAdd={addStaffMember}
-        onRemove={removeStaffMember}
-        onRename={renameStaffMember}
-        onHoursChange={updateStaffHours}
-        totalFor={rosterStaffFor}
-        targetFor={staffOnToolsFor}
-      />
     </CollapsibleSection>
   )
 }
