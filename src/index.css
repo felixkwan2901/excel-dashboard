@@ -65,6 +65,7 @@
      down this file, and those are declared later, so they would win. */
   --viz-1: #3987e5;
   --viz-2: #d95926;
+  --viz-3: #199e70;
   --viz-critical: #e66767;
 
   --sidebar: #0d1117;
@@ -364,6 +365,11 @@ input:focus-visible {
      the 4.5:1 that body text needs. */
   --viz-1: #2a78d6;
   --viz-2: #eb6834;
+  /* Slot 3 measures 2.82:1 on white — under the 3:1 bar. It is only ever used
+     as a filled band with a legend swatch beside its name and a table of the
+     same numbers under the card, which is the documented relief for a
+     sub-3:1 series colour. Never use it for a thin line or small mark. */
+  --viz-3: #1baf7a;
   --viz-critical: #d03b3b;
 
   --brand-orange: #ef6c1f;

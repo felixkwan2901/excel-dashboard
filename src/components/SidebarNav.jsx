@@ -27,13 +27,16 @@ import { applySidebarCollapsed, applyTheme, readSidebarCollapsed } from '../lib/
 // Icons rather than plain labels because a vertical list of text is much
 // harder to scan than a horizontal one — the eye has no shape to lock onto —
 // and because they're what's left when the sidebar is collapsed to a rail.
+// The view key stays 'charts'. 'dashboard' is already taken — it is the
+// default view, the one labelled "Projects" — so reusing it here would send
+// every visit to the wrong screen.
 const LINKS = [
+  { view: 'charts', label: 'Dashboard', icon: ChartColumn, handler: 'onGoCharts' },
   { view: 'main-sheet', label: 'Job checklist', icon: ClipboardCheck, handler: 'onGoMainSheet' },
   { view: 'dashboard', label: 'Projects', icon: FolderKanban, handler: 'onGoDashboard' },
   { view: 'monthly-claims', label: 'Monthly claims', icon: Receipt, handler: 'onGoMonthlyClaims' },
   { view: 'monthly-hours', label: 'Hours by month', icon: BarChart3, handler: 'onGoMonthlyHours' },
   { view: 'upcoming-work', label: 'Upcoming work', icon: CalendarClock, handler: 'onGoUpcomingWork' },
-  { view: 'charts', label: 'Charts', icon: ChartColumn, handler: 'onGoCharts' },
   { view: 'update', label: 'Update data', icon: Upload, handler: 'onGoUpdateData' },
 ]
 

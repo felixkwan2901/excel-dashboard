@@ -15,6 +15,26 @@ export function niceTicks(rawMax, targetCount = 4) {
   return { max, ticks }
 }
 
+// A nice range that spans zero, for a measure that goes both ways (capacity
+// balance). Both arms get the same step so the zero line lands on a tick and
+// the two halves stay comparable — an axis with a finer step below zero makes
+// a small shortfall look like a large one.
+export function niceTicksSigned(rawMin, rawMax, targetCount = 4) {
+  const lo = Math.min(0, rawMin)
+  const hi = Math.max(0, rawMax)
+  if (hi === lo) return { min: 0, max: 1, ticks: [0, 1] }
+  const span = hi - lo
+  const roughStep = span / targetCount
+  const magnitude = 10 ** Math.floor(Math.log10(roughStep))
+  const normalised = roughStep / magnitude
+  const step = (normalised <= 1 ? 1 : normalised <= 2 ? 2 : normalised <= 5 ? 5 : 10) * magnitude
+  const min = Math.floor(lo / step) * step
+  const max = Math.ceil(hi / step) * step
+  const ticks = []
+  for (let t = min; t <= max + step / 2; t += step) ticks.push(Number(t.toFixed(10)))
+  return { min, max, ticks }
+}
+
 // Rounded top corners only. A plain rect with rx rounds the bottom too, which
 // lifts the bar off its own baseline and reads as floating.
 export function barPath(x, y, w, h, r = 4) {

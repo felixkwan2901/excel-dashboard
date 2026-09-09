@@ -44,6 +44,10 @@ export default function BarChart({
   // bars beats an unreadable one on all of them, and the tooltip still names
   // every bar exactly.
   const labelStride = groupW >= 26 ? 1 : groupW >= 15 ? 2 : 3
+  // Categories that can't be dropped — five margin bands, not twelve months —
+  // carry a short form instead. "10–20%" needs ~30px and the slot is 33px on
+  // a phone, so the bands ran into each other.
+  const useShort = groupW < 46
   // Bars never fill their whole slot — the breathing room is what separates
   // one month from the next without needing a divider line.
   const gaps = GROUP_GAP * (series.length - 1)
@@ -120,7 +124,7 @@ export default function BarChart({
                     textAnchor="middle"
                     className={`text-[11px] ${hover === i ? 'fill-[var(--text-primary)]' : 'fill-[var(--text-muted)]'}`}
                   >
-                    {d.label}
+                    {(useShort && d.shortLabel) || d.label}
                   </text>
                 )}
                 {/* Hit target spans the full slot, not just the bars — a 12px
