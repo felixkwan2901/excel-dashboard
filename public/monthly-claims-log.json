@@ -529,8 +529,8 @@
     "9259": {
       "jobName": "Andrew Reeve Stage 2",
       "claim": 0,
-      "costs": -864.0400000000009,
-      "profit": 864.0400000000009
+      "costs": -249.79000000000087,
+      "profit": 249.79000000000087
     },
     "9351": {
       "jobName": "Harewood Golf Club",
@@ -541,8 +541,8 @@
     "9508": {
       "jobName": "St Barnabas Church",
       "claim": 0,
-      "costs": 0,
-      "profit": 0
+      "costs": 178.1800000000003,
+      "profit": -178.1800000000003
     }
   }
 }
