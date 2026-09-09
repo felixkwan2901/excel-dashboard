@@ -3,7 +3,8 @@ import { hBarPath, niceTicks } from './chartScale'
 import { useChartWidth } from './useChartWidth'
 import { ChartTooltip } from './ChartCard'
 
-const M = { top: 8, right: 12, bottom: 24 }
+// The right margin holds the value label that sits past the end of the bar.
+const M = { top: 8, right: 54, bottom: 24 }
 const ROW_H = 34
 const BAR_GAP = 2
 
@@ -32,6 +33,11 @@ export default function HBarChart({
   const wOf = (v) => (v / max) * plotW
 
   const barH = (ROW_H - 10 - BAR_GAP * (series.length - 1)) / series.length
+  // Job names are truncated to fit whatever gutter this width allows, rather
+  // than at a fixed character count — a 20-character name is comfortable at
+  // 150px and overlaps the bars at 126px. ~6.2px per character at 12px type.
+  const maxChars = Math.max(6, Math.floor((gutter - 14) / 6.2))
+  const fit = (text) => (text.length > maxChars ? `${text.slice(0, maxChars - 1)}…` : text)
 
   return (
     <div ref={box} className="relative w-full">
@@ -70,7 +76,7 @@ export default function HBarChart({
                   textAnchor="end"
                   className={`text-[12px] ${hover === i ? 'fill-[var(--text-primary)]' : 'fill-[var(--text-muted)]'}`}
                 >
-                  {r.label}
+                  {fit(r.label)}
                 </text>
                 {r.values.map((v, s) => (
                   <path
@@ -80,6 +86,18 @@ export default function HBarChart({
                     opacity={hover === null || hover === i ? 1 : 0.45}
                   />
                 ))}
+                {/* The spend figure sits at the end of its own bar. On a
+                    phone there is no hover, so the chart has to carry at
+                    least the number it is ranked by. */}
+                {r.values[0] !== null && r.values[0] !== undefined && (
+                  <text
+                    x={Math.min(gutter + wOf(r.values[0]) + 6, width - 2)}
+                    y={top + barH - 1}
+                    className="fill-[var(--text-secondary)] text-[10.5px] tabular-nums"
+                  >
+                    {axisFormat(r.values[0])}
+                  </text>
+                )}
                 <rect
                   x={0}
                   y={M.top + i * ROW_H}

@@ -3,7 +3,10 @@ import { barPath, niceTicks } from './chartScale'
 import { useChartWidth } from './useChartWidth'
 import { ChartTooltip } from './ChartCard'
 
-const M = { top: 10, right: 8, bottom: 26, left: 52 }
+const M = { top: 18, right: 8, bottom: 26, left: 52 }
+// 52px of axis gutter is fine on a 958px card and a sixth of the plot on a
+// phone. The labels are shorter there too ($400k, not $400,000), so they fit.
+const NARROW_LEFT = 38
 const GROUP_GAP = 2 // the surface gap that keeps two bars from fusing into one
 // With only three months logged, bars sized purely as a fraction of the slot
 // come out ~90px wide and read as slabs — the eye starts comparing areas
@@ -21,12 +24,14 @@ export default function BarChart({
   valueFormat,
   axisFormat,
   colorFor,
+  barLabel,
   emptyMessage = 'No data yet.',
 }) {
   const [box, width] = useChartWidth()
   const [hover, setHover] = useState(null)
 
-  const plotW = Math.max(0, width - M.left - M.right)
+  const left = width < 460 ? NARROW_LEFT : M.left
+  const plotW = Math.max(0, width - left - M.right)
   const plotH = height - M.top - M.bottom
   const rawMax = Math.max(0, ...data.flatMap((d) => d.values.map((v) => v ?? 0)))
   const { max, ticks } = niceTicks(rawMax)
@@ -53,16 +58,18 @@ export default function BarChart({
         <svg width={width} height={height} role="img" aria-hidden="true" style={{ display: 'block', maxWidth: '100%' }}>
           {ticks.map((t) => (
             <g key={t}>
+              {/* The zero line is the one the bars actually sit on, so it
+                  reads as an axis rather than another gridline. */}
               <line
-                x1={M.left}
+                x1={left}
                 x2={width - M.right}
                 y1={yOf(t)}
                 y2={yOf(t)}
-                stroke="var(--gridline)"
+                stroke={t === 0 ? 'var(--baseline)' : 'var(--gridline)'}
                 strokeWidth={1}
               />
               <text
-                x={M.left - 8}
+                x={left - 8}
                 y={yOf(t) + 4}
                 textAnchor="end"
                 className="fill-[var(--text-muted)] text-[11px] tabular-nums"
@@ -73,20 +80,37 @@ export default function BarChart({
           ))}
 
           {data.map((d, i) => {
-            const groupX = M.left + i * groupW
+            const groupX = left + i * groupW
             const startX = groupX + (groupW - bandW) / 2
             return (
               <g key={d.label}>
                 {d.values.map((v, s) => {
                   const value = v ?? 0
                   const y = yOf(value)
+                  const x = startX + s * (barW + GROUP_GAP)
+                  // Selective direct labels, not a number on every bar. A
+                  // phone has no hover at all, so anything the chart is
+                  // actually making a point about has to say its figure on
+                  // the face of it; the rest stay in the tooltip and table.
+                  const label = barLabel ? barLabel(d, s, v) : null
                   return (
-                    <path
-                      key={series[s].name}
-                      d={barPath(startX + s * (barW + GROUP_GAP), y, barW, M.top + plotH - y)}
-                      fill={colorFor ? colorFor(d, s) : series[s].color}
-                      opacity={hover === null || hover === i ? 1 : 0.45}
-                    />
+                    <g key={series[s].name}>
+                      <path
+                        d={barPath(x, y, barW, M.top + plotH - y)}
+                        fill={colorFor ? colorFor(d, s) : series[s].color}
+                        opacity={hover === null || hover === i ? 1 : 0.45}
+                      />
+                      {label && (
+                        <text
+                          x={x + barW / 2}
+                          y={y - 6}
+                          textAnchor="middle"
+                          className="fill-[var(--text-secondary)] text-[10.5px] tabular-nums"
+                        >
+                          {label}
+                        </text>
+                      )}
+                    </g>
                   )
                 })}
                 {(i % labelStride === 0 || hover === i) && (
@@ -118,7 +142,7 @@ export default function BarChart({
       )}
 
       {hover !== null && data[hover] && (
-        <ChartTooltip x={M.left + (hover + 0.5) * groupW} y={M.top} width={width}>
+        <ChartTooltip x={left + (hover + 0.5) * groupW} y={M.top} width={width}>
           <p className="font-medium text-white">{data[hover].fullLabel ?? data[hover].label}</p>
           {series.map((s, i) => (
             <p key={s.name} className="mt-1 flex items-center justify-between gap-4">

@@ -50,7 +50,12 @@ export default function CollapsibleSection({
 
   return (
     <div className={className}>
-      <div className="flex items-start justify-between gap-3">
+      {/* Stacked on a phone. Side by side, the actions — a 144px rate input on
+          Monthly claims — take their width first and leave the heading a
+          ~50px column, which wraps "Jobs claimed this month" to one word per
+          line. There is no room for both on 390px, so the actions go
+          underneath rather than crushing the title. */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
         <button
           type="button"
           onClick={toggle}
@@ -68,15 +73,23 @@ export default function CollapsibleSection({
           </svg>
           <span className="min-w-0">
             <Heading className={headingClassName}>{title}</Heading>
+            {/* Hidden on a phone. These run to several lines of formula and
+                push the actual figures below the fold on a screen that has
+                none to spare; the explanation is still there on any wider
+                screen, which is where someone reads it anyway. */}
             {description && !collapsed && (
-              <span className="mt-0.5 block text-[12px] leading-relaxed text-neutral-400">{description}</span>
+              <span className="mt-0.5 hidden text-[12px] leading-relaxed text-neutral-400 sm:block">
+                {description}
+              </span>
             )}
           </span>
         </button>
         {/* Actions stay reachable while the section is open, and get out of
             the way when it's shut — a "+ Add staff" button above a folded
             table would add a row you can't see. */}
-        {actions && !collapsed && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+        {actions && !collapsed && (
+          <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>
+        )}
       </div>
       {!collapsed && children}
     </div>

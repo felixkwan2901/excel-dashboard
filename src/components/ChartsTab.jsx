@@ -168,6 +168,7 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, on
           series={[{ name: 'Claimed', color: SERIES_1 }, { name: 'Costs', color: SERIES_2 }]}
           valueFormat={money}
           axisFormat={compactMoney}
+          barLabel={(d, i) => compactMoney(d.values[i])}
           emptyMessage="No month-by-month claims logged yet."
         />
       </ChartCard>
@@ -197,6 +198,12 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, on
           series={[{ name: 'Hours planned', color: SERIES_1 }, { name: 'Hours available', color: SERIES_2 }]}
           valueFormat={(v) => `${roundHours(v)} hrs`}
           axisFormat={compactHours}
+          // Twelve months x two series is twenty-four labels, which is
+          // wallpaper. Only the oversold months get one, because those are
+          // the only ones the chart is making a point about.
+          barLabel={(d, i) =>
+            i === 0 && d.values[0] > d.values[1] ? compactHours(d.values[0]) : null
+          }
           emptyMessage="No capacity figures on the Upcoming Work sheet."
         />
       </ChartCard>
@@ -226,6 +233,7 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, on
           valueFormat={(v) => `${v} job${v === 1 ? '' : 's'}`}
           axisFormat={(v) => String(v)}
           colorFor={(d) => (d.critical ? CRITICAL : SERIES_1)}
+          barLabel={(d) => (d.values[0] ? String(d.values[0]) : null)}
           height={200}
         />
       </ChartCard>
