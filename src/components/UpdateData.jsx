@@ -1,11 +1,44 @@
 import { useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
+import { Download } from 'lucide-react'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card'
 import { Button } from './ui/button'
 import { pollStagedStatus } from '../lib/pollStagedStatus'
 import { recordJobCreated } from '../lib/onboardingChecklist'
 
 import { workerFetch, workerDownload } from '@/lib/workerClient'
 import LastSynced from './LastSynced'
+import {
+  capacityByMonthCsv,
+  claimsByMonthCsv,
+  downloadCsv,
+  hoursByMonthCsv,
+  jobsCsv,
+  plannedHoursCsv,
+} from '../lib/tableauExport'
+
+const TABLEAU_EXPORTS = [
+  { file: 'cde-jobs.csv', label: 'Jobs — one row per job', build: ({ jobs }) => jobsCsv(jobs) },
+  {
+    file: 'cde-claims-by-month.csv',
+    label: 'Claims by job by month',
+    build: ({ monthlyClaimsHistory }) => claimsByMonthCsv(monthlyClaimsHistory),
+  },
+  {
+    file: 'cde-hours-by-month.csv',
+    label: 'Hours by job by month',
+    build: ({ monthlyHours }) => hoursByMonthCsv(monthlyHours),
+  },
+  {
+    file: 'cde-capacity-by-month.csv',
+    label: 'Capacity by month',
+    build: ({ upcomingWork }) => capacityByMonthCsv(upcomingWork),
+  },
+  {
+    file: 'cde-planned-hours.csv',
+    label: 'Planned hours by job by month',
+    build: ({ upcomingWork }) => plannedHoursCsv(upcomingWork),
+  },
+]
 
 // scripts/update-jobs.mjs writes a specific outcome per file once it's
 // done — falls back to the coarser staged-status label for an older
@@ -108,7 +141,7 @@ function StaleJobsPanel({ jobs }) {
   )
 }
 
-export default function UpdateData({ onBack, jobs }) {
+export default function UpdateData({ onBack, jobs, monthlyClaimsHistory, monthlyHours, upcomingWork }) {
   const [files, setFiles] = useState(null)
   const [status, setStatus] = useState('idle') // idle | staging | processing | done | error
   const [message, setMessage] = useState('')
@@ -436,7 +469,41 @@ export default function UpdateData({ onBack, jobs }) {
         </Card>
       )}
 
+      {/* Tidy CSVs for Tableau, Power BI, or anything else that reads a
+          table. Generated here in the browser from what the dashboard has
+          already parsed, so there is one workbook parser rather than two
+          drifting apart — and so the files, which carry client names and
+          costs, are written to this machine and go nowhere near a server. */}
       <Card className="mt-6">
+        <CardHeader>
+          <CardTitle className="text-sm">Export for Tableau</CardTitle>
+          <CardDescription>
+            One row per job per month, not a column per month — Tableau wants the date to be a
+            field it can put on an axis. Months are written as real dates so they sort properly.
+            These files hold client names and costs: they download to this computer and are not
+            uploaded anywhere.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {TABLEAU_EXPORTS.map(({ file, label, build }) => (
+              <Button
+                key={file}
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() =>
+                  downloadCsv(file, build({ jobs, monthlyClaimsHistory, monthlyHours, upcomingWork }))
+                }
+              >
+                <Download size={14} aria-hidden="true" />
+                {label}
+              </Button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="mt-4">
         <CardContent>
           {/* A bare <a href> can't carry the access-key header, so fetch it
               and hand the browser a blob instead. */}

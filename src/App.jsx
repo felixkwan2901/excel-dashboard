@@ -296,7 +296,13 @@ export default function App() {
       {view === 'update' && (
         <main className="dashboard">
           <Reveal index={0}>
-            <UpdateData onBack={goHome} jobs={jobs} />
+            <UpdateData
+              onBack={goHome}
+              jobs={jobs}
+              monthlyClaimsHistory={monthlyClaimsHistory}
+              monthlyHours={monthlyHours}
+              upcomingWork={upcomingWork}
+            />
           </Reveal>
         </main>
       )}
