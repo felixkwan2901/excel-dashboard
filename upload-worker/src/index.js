@@ -846,8 +846,19 @@ async function handleCommand(request, env) {
 // the only person who could see them and clearing site data lost them
 // silently. Named explicitly rather than allowing any planning:* key, so the
 // KV namespace can't be filled with arbitrary values.
+//
+// "field:<jobNumber>" is per-job install progress written by the field-staff
+// app (a separate front end, same Worker): one record per job holding a
+// percentage per task with who set it and when. Per job rather than per job
+// per worker, because percent-complete of a physical task is a property of
+// the building, not of who is looking at it — and because there is no list
+// endpoint here, so per-worker keys could not be enumerated to read a job
+// back. "fieldTasks:commercial" / "fieldTasks:residential" are the two task
+// catalogues those records point at: the labels live there once, so renaming
+// a task is a data change rather than a redeploy of two apps. Both are
+// enumerated by name, same reasoning as planning:* above.
 const APP_DATA_KEY_RE =
-  /^(weekly|completion|jobCreated):[A-Za-z0-9]{1,20}$|^override:(main-sheet|claim-calculator|upcoming-work)$|^planning:(staff-roster|servicing|working-days|staff-on-tools|avg-hourly-rate)$/
+  /^(weekly|completion|jobCreated|field):[A-Za-z0-9]{1,20}$|^override:(main-sheet|claim-calculator|upcoming-work)$|^planning:(staff-roster|servicing|working-days|staff-on-tools|avg-hourly-rate)$|^fieldTasks:(commercial|residential)$/
 
 async function handleAppDataGet(request, env) {
   const url = new URL(request.url)
