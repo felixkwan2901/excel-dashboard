@@ -4,7 +4,7 @@ import { computeKpis } from './lib/deriveMetrics'
 import { parseUrlState, pushUrlState, replaceUrlState } from './lib/urlState'
 import { Sidebar, TopStrip } from './components/SidebarNav'
 import { readTheme, applyTheme } from './lib/theme'
-import { installHorizontalWheelScroll } from './lib/horizontalWheelScroll'
+import { installTableScrolling } from './lib/tableScroll'
 import StatsRow from './components/StatsRow'
 import JobTable from './components/JobTable'
 import ProjectDetail from './components/ProjectDetail'
@@ -87,9 +87,9 @@ export default function App() {
     fetchWorkbook()
   }
 
-  // A plain mouse wheel scrolls the wide tables sideways, so the right-hand
-  // columns are reachable without travelling to the scrollbar at the bottom.
-  useEffect(() => installHorizontalWheelScroll(), [])
+  // Wide tables can be scrolled sideways with a plain mouse wheel, or by
+  // grabbing and dragging them — see tableScroll.js.
+  useEffect(() => installTableScrolling(), [])
 
   useEffect(() => {
     fetchWorkbook()
