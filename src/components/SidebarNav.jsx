@@ -2,6 +2,7 @@ import { useState } from 'react'
 import {
   BarChart3,
   CalendarClock,
+  ChartColumn,
   ClipboardCheck,
   FolderKanban,
   Moon,
@@ -32,6 +33,7 @@ const LINKS = [
   { view: 'monthly-claims', label: 'Monthly claims', icon: Receipt, handler: 'onGoMonthlyClaims' },
   { view: 'monthly-hours', label: 'Hours by month', icon: BarChart3, handler: 'onGoMonthlyHours' },
   { view: 'upcoming-work', label: 'Upcoming work', icon: CalendarClock, handler: 'onGoUpcomingWork' },
+  { view: 'charts', label: 'Charts', icon: ChartColumn, handler: 'onGoCharts' },
   { view: 'update', label: 'Update data', icon: Upload, handler: 'onGoUpdateData' },
 ]
 

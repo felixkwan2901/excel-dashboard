@@ -54,6 +54,19 @@
   --text-secondary: #a5afb8;
   --text-muted: #8b95a1;
 
+  /* Chart series. Categorical slots 1 and 2 of a validated palette — blue and
+     orange, the standard colour-blind-safe opening because they separate on
+     the blue-yellow axis that every common form of colour blindness keeps.
+     Each mode gets its own step rather than one hex reused on both grounds:
+     these were validated against this app's actual card colours (#11161c dark,
+     #ffffff light), not a generic surface. --viz-critical is the status red,
+     used only for a state (over quote, losing money) and never as a series.
+     Named viz- rather than chart-: shadcn already owns --chart-1..5 further
+     down this file, and those are declared later, so they would win. */
+  --viz-1: #3987e5;
+  --viz-2: #d95926;
+  --viz-critical: #e66767;
+
   --sidebar: #0d1117;
   --sidebar-2: #1b232e;
   --sidebar-text: #9aa6b2;
@@ -349,6 +362,10 @@ input:focus-visible {
   /* Katipolt's orange is the accent; the green stays for "good/complete"
      states, darkened because #38b86a on white is only 2.2:1 — well under
      the 4.5:1 that body text needs. */
+  --viz-1: #2a78d6;
+  --viz-2: #eb6834;
+  --viz-critical: #d03b3b;
+
   --brand-orange: #ef6c1f;
   --brand-orange-dim: #d4590f;
   --brand-green: #17864a;

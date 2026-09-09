@@ -4,6 +4,7 @@ import { computeKpis } from './lib/deriveMetrics'
 import { parseUrlState, pushUrlState, replaceUrlState } from './lib/urlState'
 import { Sidebar, TopStrip } from './components/SidebarNav'
 import { readTheme, applyTheme } from './lib/theme'
+import { installHorizontalWheelScroll } from './lib/horizontalWheelScroll'
 import StatsRow from './components/StatsRow'
 import JobTable from './components/JobTable'
 import ProjectDetail from './components/ProjectDetail'
@@ -14,6 +15,7 @@ import MonthlyHours from './components/MonthlyHours'
 import MainSheetTab from './components/MainSheetTab'
 import ArchivedJobsPanel from './components/ArchivedJobsPanel'
 import UpcomingWorkTab from './components/UpcomingWorkTab'
+import ChartsTab from './components/ChartsTab'
 import WeeklyCheckSheetTab from './components/WeeklyCheckSheetTab'
 import JobCompletionChecklistTab from './components/JobCompletionChecklistTab'
 import LastSynced from './components/LastSynced'
@@ -85,6 +87,10 @@ export default function App() {
     fetchWorkbook()
   }
 
+  // A plain mouse wheel scrolls the wide tables sideways, so the right-hand
+  // columns are reachable without travelling to the scrollbar at the bottom.
+  useEffect(() => installHorizontalWheelScroll(), [])
+
   useEffect(() => {
     fetchWorkbook()
 
@@ -108,6 +114,8 @@ export default function App() {
   const mainSheet = state.status === 'ready' ? state.mainSheet : { jobs: [], columns: [] }
   const monthlyHours = state.status === 'ready' ? state.monthlyHours : { months: [], totalsByMonth: [], jobs: [] }
   const upcomingWork = state.status === 'ready' ? state.upcomingWork : { jobs: [] }
+  const monthlyClaimsHistory =
+    state.status === 'ready' ? state.monthlyClaimsHistory : { months: [], totalsByMonth: [], jobs: [] }
   const archivedJobs = state.status === 'ready' ? state.archivedJobs : []
   const kpis = state.status === 'ready' ? computeKpis(jobs) : null
   const flaggedJobs = useMemo(() => jobs.filter((j) => j.flagged), [jobs])
@@ -180,6 +188,11 @@ export default function App() {
     pushUrlState({ view: 'upcoming-work', selectedJobId, dashboardQuery, dashboardFilter })
   }
 
+  function goCharts() {
+    setView('charts')
+    pushUrlState({ view: 'charts', selectedJobId, dashboardQuery, dashboardFilter })
+  }
+
   function goWeeklyCheckSheet(job) {
     setSelectedJobId(job.jobNumber)
     setView('weekly-check-sheet')
@@ -236,6 +249,7 @@ export default function App() {
     onGoMonthlyHours: goMonthlyHours,
     onGoMainSheet: goMainSheet,
     onGoUpcomingWork: goUpcomingWork,
+    onGoCharts: goCharts,
   }
   return (
     <div className="site">
@@ -306,6 +320,23 @@ export default function App() {
           ) : (
             <Reveal index={0}>
               <MonthlyHours monthlyHours={monthlyHours} jobs={jobs} onBack={goHome} />
+            </Reveal>
+          )}
+        </main>
+      )}
+
+      {view === 'charts' && (
+        <main className="dashboard">
+          {state.status !== 'ready' ? (
+            <LoadStatus status={state.status} error={state.error} onRetry={retryLoad} />
+          ) : (
+            <Reveal index={0}>
+              <ChartsTab
+                jobs={jobs}
+                monthlyClaimsHistory={monthlyClaimsHistory}
+                upcomingWork={upcomingWork}
+                onBack={goHome}
+              />
             </Reveal>
           )}
         </main>
