@@ -46,6 +46,26 @@ const MARGIN_BUCKETS = [
   { label: '30%+', short: '30+', test: (m) => m >= 0.3 },
 ]
 
+// Compact headline figures above the charts. Deliberately not the StatCard
+// used on Projects: that one is 152px tall with a progress bar, which is
+// right when three of them are the whole page and wrong when they are a strip
+// above eight charts.
+function KpiTile({ label, value, context, tone = 'neutral' }) {
+  return (
+    <div className="rounded-[14px] border border-white/[0.06] bg-[#11161c] p-4">
+      <p className="text-[11px] font-medium tracking-wide text-neutral-400 uppercase">{label}</p>
+      <p
+        className={`mt-1 text-[24px] font-semibold tabular-nums ${
+          tone === 'critical' ? 'text-red-400' : 'text-white'
+        }`}
+      >
+        {value}
+      </p>
+      {context && <p className="mt-0.5 text-[12px] leading-snug text-neutral-400">{context}</p>}
+    </div>
+  )
+}
+
 // A quiet divider between the three questions this page answers: what the
 // business billed, what the crew is committed to, and how the book is doing.
 // Eight charts in one column with no grouping is a wall.
@@ -57,7 +77,7 @@ function SectionHeading({ children }) {
   )
 }
 
-export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, onBack }) {
+export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, onSelectJob, onBack }) {
   const capacity = upcomingWork?.capacity
 
   const moneyByMonth = useMemo(
@@ -123,6 +143,7 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, on
         .sort((a, b) => b.totalActualCost - a.totalActualCost)
         .slice(0, 10)
         .map((j) => ({
+          jobNumber: j.jobNumber,
           label: j.jobName.length > 20 ? `${j.jobName.slice(0, 19)}…` : j.jobName,
           fullLabel: `${j.jobNumber} ${j.jobName}`,
           values: [j.totalActualCost, j.totalQuotedCost],
@@ -214,6 +235,7 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, on
       jobs
         .filter((j) => j.marginToDate !== null && j.quotedMargin !== null && j.quotedMargin !== 0)
         .map((j) => ({
+          jobNumber: j.jobNumber,
           label: j.jobName,
           fullLabel: `${j.jobNumber} ${j.jobName}`,
           x: j.quotedMargin * 100,
@@ -231,6 +253,17 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, on
 
   const lastMonth = moneyByMonth[moneyByMonth.length - 1]
 
+  // The last month with a full set of figures, not the current one — on the
+  // 10th, "this month" is three claims and reads like a collapse.
+  const lastFullMonth = moneyByMonth.length > 1 ? moneyByMonth[moneyByMonth.length - 2] : null
+  const oversoldMonths = balanceByMonth.filter((d) => d.values[0] > 0)
+  const totalQuoted = jobs.reduce((sum, j) => sum + (j.quotedPrice ?? 0), 0)
+  const flaggedCount = jobs.filter((j) => j.flagged).length
+  const openJob = (jobNumber) => {
+    const job = jobs.find((j) => j.jobNumber === jobNumber)
+    if (job && onSelectJob) onSelectJob(job)
+  }
+
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
       <nav className="flex items-center gap-1.5 text-sm text-text-muted">
@@ -247,6 +280,35 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, on
           The same figures the other tabs carry, drawn so you can see the shape of them. Hover
           anything for the exact numbers; on a phone the figures are printed on the charts.
         </p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <KpiTile label="Active jobs" value={jobs.length} context={`${money(totalQuoted)} quoted`} />
+        <KpiTile
+          label="Needs review"
+          value={flaggedCount}
+          tone={flaggedCount > 0 ? 'critical' : 'neutral'}
+          context="Over budget or losing margin"
+        />
+        <KpiTile
+          label="Behind quote"
+          value={`${behindQuote} of ${marginVsQuoted.length}`}
+          context="Jobs earning less than sold for"
+        />
+        <KpiTile
+          label={lastFullMonth ? `${lastFullMonth.fullLabel.split(' ')[0]} profit` : 'Last month'}
+          value={lastFullMonth ? money(lastFullMonth.values[0] - lastFullMonth.values[1]) : '—'}
+          tone={lastFullMonth && lastFullMonth.values[0] < lastFullMonth.values[1] ? 'critical' : 'neutral'}
+          context={lastFullMonth ? `${money(lastFullMonth.values[0])} claimed` : undefined}
+        />
+        <KpiTile
+          label="Months oversold"
+          value={oversoldMonths.length}
+          tone={oversoldMonths.length > 0 ? 'critical' : 'neutral'}
+          context={
+            oversoldMonths.length ? oversoldMonths.map((m) => m.label).join(', ') : 'Capacity is fine'
+          }
+        />
       </div>
 
       <SectionHeading>Billing</SectionHeading>
@@ -466,7 +528,7 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, on
         title="The ten biggest jobs, spend against quote"
         question="Where is the money actually going, and is it staying inside the quote?"
         series={[{ name: 'Actual cost', color: SERIES_1 }, { name: 'Quoted cost', color: SERIES_2 }]}
-        footnote="Ranked by what has been spent. A job whose actual bar is red has passed its quoted cost — the same test the Needs review count uses."
+        footnote="Ranked by what has been spent. A job whose actual bar is red has passed its quoted cost — the same test the Needs review count uses. Click a row to open the job."
         table={
           <table>
             <caption>Actual cost against quoted cost for the ten biggest jobs</caption>
@@ -487,6 +549,7 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, on
           series={[{ name: 'Actual cost', color: SERIES_1 }, { name: 'Quoted cost', color: SERIES_2 }]}
           valueFormat={money}
           axisFormat={compactMoney}
+          onSelect={(r) => openJob(r.jobNumber)}
           emptyMessage="No job costs to rank yet."
         />
       </ChartCard>
@@ -494,7 +557,7 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, on
       <ChartCard
         title="Delivered margin against quoted margin"
         question="Are jobs returning what they were sold for?"
-        footnote={`Each dot is a job. The dashed line is "exactly as quoted" — anything below it is earning less than it was sold for, and ${behindQuote} of ${marginVsQuoted.length} jobs are. Both axes are the same scale, which is the only way the diagonal means anything.`}
+        footnote={`Each dot is a job. The dashed line is "exactly as quoted" — anything below it is earning less than it was sold for, and ${behindQuote} of ${marginVsQuoted.length} jobs are. Both axes are the same scale, which is the only way the diagonal means anything. Click a dot to open the job.`}
         table={
           <table>
             <caption>Quoted margin against margin to date, per job</caption>
@@ -516,6 +579,7 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, on
           yLabel="Margin to date"
           format={(v) => `${Math.round(v)}%`}
           colorFor={(p) => (p.under ? CRITICAL : SERIES_1)}
+          onSelect={(p) => openJob(p.jobNumber)}
           emptyMessage="No jobs with both a quoted and an actual margin."
         />
       </ChartCard>

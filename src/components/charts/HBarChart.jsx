@@ -17,6 +17,7 @@ export default function HBarChart({
   labelWidth = 150,
   valueFormat,
   axisFormat,
+  onSelect,
   emptyMessage = 'No data yet.',
 }) {
   const [box, width] = useChartWidth()
@@ -104,6 +105,19 @@ export default function HBarChart({
                   width={width}
                   height={ROW_H}
                   fill="transparent"
+                  style={onSelect ? { cursor: 'pointer' } : undefined}
+                  tabIndex={onSelect ? 0 : undefined}
+                  role={onSelect ? 'button' : undefined}
+                  aria-label={onSelect ? r.fullLabel : undefined}
+                  onFocus={() => setHover(i)}
+                  onBlur={() => setHover(null)}
+                  onKeyDown={(e) => {
+                    if (onSelect && (e.key === 'Enter' || e.key === ' ')) {
+                      e.preventDefault()
+                      onSelect(r)
+                    }
+                  }}
+                  onClick={onSelect ? () => onSelect(r) : undefined}
                   onMouseEnter={() => setHover(i)}
                   onMouseLeave={() => setHover(null)}
                 />

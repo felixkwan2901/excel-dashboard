@@ -18,6 +18,7 @@ export default function ScatterChart({
   format,
   parity = true,
   colorFor,
+  onSelect,
   emptyMessage = 'No data yet.',
 }) {
   const [box, width] = useChartWidth()
@@ -117,6 +118,19 @@ export default function ScatterChart({
               stroke="var(--surface-1)"
               strokeWidth={2}
               opacity={hover === null || hover === i ? 1 : 0.5}
+              style={onSelect ? { cursor: 'pointer' } : undefined}
+              tabIndex={onSelect ? 0 : undefined}
+              role={onSelect ? 'button' : undefined}
+              aria-label={onSelect ? p.fullLabel : undefined}
+              onFocus={() => setHover(i)}
+              onBlur={() => setHover(null)}
+              onKeyDown={(e) => {
+                if (onSelect && (e.key === 'Enter' || e.key === ' ')) {
+                  e.preventDefault()
+                  onSelect(p)
+                }
+              }}
+              onClick={onSelect ? () => onSelect(p) : undefined}
               onMouseEnter={() => setHover(i)}
               onMouseLeave={() => setHover(null)}
             />
