@@ -44,8 +44,18 @@ function showUpdateBanner() {
 // Data updates (via the upload form) and app updates both ship as a new
 // build — without this, an already-open tab/installed PWA keeps running
 // the old JS bundle until the person happens to refresh on their own.
+//
+// Guarded on there having been a controller already. clientsClaim means the
+// very first service worker takes control of the page that registered it,
+// which fires controllerchange on a first visit — so a brand new visitor was
+// greeted with "A new version is available" before they had any version at
+// all. A controller arriving where there was none is an install; only a
+// controller *replacing* one is an update.
+const hadController = 'serviceWorker' in navigator && !!navigator.serviceWorker.controller
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.addEventListener('controllerchange', showUpdateBanner)
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (hadController) showUpdateBanner()
+  })
 }
 
 registerSW({
