@@ -261,7 +261,7 @@ function StaffRoster({ staff, onAdd, onRemove, onRename, onHoursChange, totalFor
 // Editing either one recomputes Hours available/Balance live for
 // whichever months you've overridden; everything else still reflects
 // the workbook's own values.
-function CapacityPanel({ capacity, usedHoursByMonth }) {
+function CapacityPanel({ capacity, plannedByJobFor }) {
   const [servicingOverrides, setServicingOverrides, servicingFailed] = useSharedState('planning:servicing', 'upcomingWork.servicingOverrides', {})
   const [workingDaysOverrides, setWorkingDaysOverrides, workingDaysFailed] = useSharedState('planning:working-days', 'upcomingWork.workingDaysOverrides', {})
   const [staffOnToolsOverrides, setStaffOnToolsOverrides, staffOnToolsFailed] = useSharedState('planning:staff-on-tools', 'upcomingWork.staffOnToolsOverrides', {})
@@ -320,14 +320,20 @@ function CapacityPanel({ capacity, usedHoursByMonth }) {
       prev.map((s) => (s.id === id ? { ...s, hours: { ...s.hours, [month]: value } } : s))
     )
   }
-  // Total hours planned = Used hours (actual, from the log) + Servicing
-  // (the sheet's fixed monthly allowance for any job under 30 hours) —
-  // null for a month with no logged Used hours yet, since there's nothing
-  // to add Servicing to.
+  // Total hours planned = Servicing + everything planned against a job in the
+  // table below.
+  //
+  // This used to add actual hours worked, taken from the monthly hours log,
+  // to Servicing — which is a different question entirely. It answered "how
+  // much have we done" in a row sitting above Hours available and Balance,
+  // both of which are about what is still to come, so a month with plenty of
+  // work booked but no hours worked yet read as nearly empty. It also went
+  // nowhere near the per-job plan directly underneath it, so editing a job's
+  // hours changed nothing above.
   function totalHoursFor(m) {
-    const used = usedHoursByMonth[m]
+    const planned = plannedByJobFor(m)
     const servicing = servicingFor(m)
-    return used === null || servicing === null || servicing === undefined ? null : used + servicing
+    return servicing === null || servicing === undefined ? planned : planned + servicing
   }
   function balanceFor(m) {
     const total = totalHoursFor(m)
@@ -343,9 +349,10 @@ function CapacityPanel({ capacity, usedHoursByMonth }) {
       headingClassName="text-[15px] font-medium text-neutral-200"
       description={
         <>
-          Total hours planned = Used hours + Servicing (any job under 30 hours) that month,
-          vs. hours available from the crew (staff on tools x working days x 8h x 80%
-          productive time). Balance = Total hours planned - Hours available, green when
+          Total hours planned = Servicing (the sheet&apos;s flat allowance for jobs under 30
+          hours) + every hour booked against a job in the table below, so editing a job there
+          moves these figures. Compared against hours available from the crew (staff on tools x
+          working days x 8h x 80% productive time). Balance = Total hours planned - Hours available, green when
           there&apos;s spare capacity, red when that month is short-staffed. Everything here
           is editable for planning ahead — saved to this browser only, not to the workbook.
         </>
@@ -403,9 +410,9 @@ function CapacityPanel({ capacity, usedHoursByMonth }) {
               })}
             </tr>
             <tr>
-              <td className="sticky-col sticky-col-end whitespace-normal sm:whitespace-nowrap text-[12px] sm:text-[13px] leading-tight text-neutral-400" style={{ left: 0 }}>— Used hours</td>
+              <td className="sticky-col sticky-col-end whitespace-normal sm:whitespace-nowrap text-[12px] sm:text-[13px] leading-tight text-neutral-400" style={{ left: 0 }}>— Planned on jobs</td>
               {MONTH_LABELS.map((m) => {
-                const v = usedHoursByMonth[m]
+                const v = plannedByJobFor(m)
                 return (
                   <td key={m} className={`num tabular text-neutral-400 ${m === CURRENT_MONTH ? 'bg-brand-green/[0.06]' : ''}`}>
                     {v === null ? <span className="text-neutral-600">—</span> : roundHours(v)}
@@ -486,26 +493,8 @@ function CapacityPanel({ capacity, usedHoursByMonth }) {
   )
 }
 
-// monthlyHours.totalsByMonth is company-wide actual hours worked, keyed
-// "YYYY-MM" (see parseMonthlyHoursLog) — matched here to this year's
-// Jan-Dec columns so "Used hours" lines up against "Total hours planned"
-// for the same month. Months with no logged entry yet (the log only
-// covers however far back logging started, and future months haven't
-// happened) come back null, shown as "—" rather than a false zero.
-function buildUsedHoursByLabel(monthlyHours) {
-  const year = new Date().getFullYear()
-  const map = {}
-  MONTH_LABELS.forEach((label, i) => {
-    const key = `${year}-${String(i + 1).padStart(2, '0')}`
-    const entry = monthlyHours.totalsByMonth.find((t) => t.month === key)
-    map[label] = entry ? entry.totalHours : null
-  })
-  return map
-}
-
-export default function UpcomingWorkTab({ upcomingWork, monthlyHours, onBack }) {
+export default function UpcomingWorkTab({ upcomingWork, onBack }) {
   const { jobs, capacity } = upcomingWork
-  const usedHoursByMonth = buildUsedHoursByLabel(monthlyHours)
 
   const [values, setValues] = useState(() => {
     const map = {}
@@ -517,6 +506,21 @@ export default function UpcomingWorkTab({ upcomingWork, monthlyHours, onBack }) 
   })
   const [savingKeys, setSavingKeys] = useState(() => new Set())
   const [status, setStatus] = useState({ kind: 'idle', message: '' })
+
+  // Summed from the editable values rather than the parsed workbook, so
+  // committing an edit to a job below (cells save on blur) moves Total hours
+  // planned and Balance above it straight away. Reading the workbook copy
+  // instead would leave the summary a merge behind — a minute or two, long
+  // enough to make a planning edit look like it did nothing.
+  function plannedByJobFor(month) {
+    let total = 0
+    for (const job of jobs) {
+      const raw = values[job.jobNumber]?.[month]
+      const n = Number(raw)
+      if (raw !== '' && raw !== null && raw !== undefined && Number.isFinite(n)) total += n
+    }
+    return total
+  }
 
   async function handleChange(job, key, col, newValue) {
     const cellKey = `${job.jobNumber}:${key}`
@@ -572,7 +576,7 @@ export default function UpcomingWorkTab({ upcomingWork, monthlyHours, onBack }) 
         </p>
       )}
 
-      <CapacityPanel capacity={capacity} usedHoursByMonth={usedHoursByMonth} />
+      <CapacityPanel capacity={capacity} plannedByJobFor={plannedByJobFor} />
 
       <CollapsibleSection
         className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6"

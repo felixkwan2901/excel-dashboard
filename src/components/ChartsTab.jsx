@@ -21,6 +21,7 @@ import { compactHours, compactMoney } from './charts/chartScale'
 const SERIES_1 = 'var(--viz-1)'
 const SERIES_2 = 'var(--viz-2)'
 const SERIES_3 = 'var(--viz-3)'
+const SERIES_4 = 'var(--viz-4)'
 const CRITICAL = 'var(--viz-critical)'
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -80,6 +81,27 @@ function SectionHeading({ children }) {
 export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, onSelectJob, onBack }) {
   const capacity = upcomingWork?.capacity
 
+  // Planned hours summed from the per-job rows, not read off the sheet's own
+  // Total Hours row.
+  //
+  // Those rows are typed, not formulas, and they lag: as of this writing the
+  // sheet says 1316 hours for October while the jobs underneath add up to
+  // 1718. Jan-Sep agree exactly, which is what makes the rule clear —
+  // servicing plus everything booked against a job IS the total, and the
+  // stored row is just the last time someone recalculated it.
+  const plannedByJob = useMemo(() => {
+    const totals = {}
+    for (const m of MONTH_LABELS) {
+      totals[m] = (upcomingWork?.jobs ?? []).reduce((sum, job) => {
+        const v = job.months?.[m]
+        return sum + (typeof v === 'number' ? v : 0)
+      }, 0)
+    }
+    return totals
+  }, [upcomingWork])
+
+  const plannedTotalFor = (m) => (capacity?.servicingHours?.[m] ?? 0) + (plannedByJob[m] ?? 0)
+
   const moneyByMonth = useMemo(
     () =>
       (monthlyClaimsHistory?.totalsByMonth ?? []).map((t) => ({
@@ -94,13 +116,12 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, on
     [monthlyClaimsHistory],
   )
 
-  // Straight off the workbook's own Total hours and Hours available rows
-  // rather than recomputed here, so this chart and the Upcoming work table
-  // can never disagree about the same month.
+  // Planned is servicing plus the per-job rows, exactly as the Upcoming work
+  // table now computes it, so the two can never disagree about a month.
   const capacityByMonth = useMemo(() => {
     if (!capacity) return []
     return MONTH_LABELS.map((m) => {
-      const planned = capacity.totalHours?.[m] ?? null
+      const planned = plannedTotalFor(m)
       const available = capacity.hoursAvailable?.[m] ?? null
       const short = planned !== null && available !== null && planned > available
       return {
@@ -155,28 +176,37 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, on
     [jobs],
   )
 
-  // Servicing + residential + commercial is exactly the sheet's Total Hours
-  // row, so these three stack into the same number the capacity chart plots
-  // — which is what makes a stacked area honest here rather than decorative.
+  // The bands add up to the same planned total the capacity chart plots,
+  // which is what makes a stacked area honest here rather than decorative.
+  //
+  // The fourth band exists because the sheet's Residential and Commercial
+  // rows are typed and lag the per-job plan — October's split accounts for
+  // 616 of 1018 planned hours. Rather than quietly show a short total, the
+  // remainder is its own band: the work is planned, nobody has said which
+  // kind it is yet.
   const workloadMix = useMemo(() => {
     if (!capacity) return []
-    return MONTH_LABELS.map((m) => ({
-      label: m,
-      fullLabel: m,
-      values: [
-        capacity.servicingHours?.[m] ?? 0,
-        capacity.residentialHours?.[m] ?? 0,
-        capacity.commercialHours?.[m] ?? 0,
-      ],
-    }))
-  }, [capacity])
+    return MONTH_LABELS.map((m) => {
+      const residential = capacity.residentialHours?.[m] ?? 0
+      const commercial = capacity.commercialHours?.[m] ?? 0
+      const unsplit = Math.max(0, (plannedByJob[m] ?? 0) - residential - commercial)
+      return {
+        label: m,
+        fullLabel: m,
+        values: [capacity.servicingHours?.[m] ?? 0, residential, commercial, unsplit],
+      }
+    })
+  }, [capacity, plannedByJob])
 
-  // Balance is planned minus available, as the sheet computes it: above the
-  // line the month is short of people, below it there is room to sell.
+  // Planned minus available, computed from the corrected planned figure
+  // rather than read off the sheet's Balance row, which inherits the same lag
+  // as the Total Hours row it is derived from.
   const balanceByMonth = useMemo(() => {
     if (!capacity) return []
     return MONTH_LABELS.map((m) => {
-      const balance = capacity.balanceHours?.[m] ?? null
+      const available = capacity.hoursAvailable?.[m]
+      const balance =
+        available === null || available === undefined ? null : plannedTotalFor(m) - available
       return {
         label: m,
         fullLabel: m,
@@ -425,8 +455,9 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, on
           { name: 'Servicing', color: SERIES_1 },
           { name: 'Residential', color: SERIES_2 },
           { name: 'Commercial', color: SERIES_3 },
+          { name: 'Not yet split', color: SERIES_4 },
         ]}
-        footnote="The three bands add up to the Total hours row on the Upcoming Work sheet — the same number the capacity chart plots. Servicing is the sheet's flat monthly allowance for small jobs, which is why it is the one band that never stops."
+        footnote="The bands add up to the same planned total the capacity chart plots. Servicing is the sheet's flat monthly allowance for small jobs, which is why it is the one band that never stops. “Not yet split” is work booked against a job that the sheet's residential/commercial rows haven't caught up with — those rows are typed by hand, so they lag the per-job plan."
         table={
           <table>
             <caption>Servicing, residential and commercial hours by month</caption>
@@ -437,6 +468,7 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, on
                   <td>Servicing {d.values[0]}</td>
                   <td>Residential {d.values[1]}</td>
                   <td>Commercial {d.values[2]}</td>
+                  <td>Not yet split {d.values[3]}</td>
                 </tr>
               ))}
             </tbody>
@@ -449,6 +481,7 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, on
             { name: 'Servicing', color: SERIES_1 },
             { name: 'Residential', color: SERIES_2 },
             { name: 'Commercial', color: SERIES_3 },
+            { name: 'Not yet split', color: SERIES_4 },
           ]}
           mode="stack"
           valueFormat={(v) => `${roundHours(v)} hrs`}

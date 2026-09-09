@@ -66,6 +66,7 @@
   --viz-1: #3987e5;
   --viz-2: #d95926;
   --viz-3: #199e70;
+  --viz-4: #c98500;
   --viz-critical: #e66767;
 
   --sidebar: #0d1117;
@@ -370,6 +371,9 @@ input:focus-visible {
      same numbers under the card, which is the documented relief for a
      sub-3:1 series colour. Never use it for a thin line or small mark. */
   --viz-3: #1baf7a;
+  /* Slot 4 sits beside slot 3 in the one place it is used, never beside
+     slot 2 — yellow and orange are the pair this ordering trades away. */
+  --viz-4: #eda100;
   --viz-critical: #d03b3b;
 
   --brand-orange: #ef6c1f;
