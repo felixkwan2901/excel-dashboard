@@ -55,7 +55,14 @@ const READONLY_COLUMNS = [
   { key: 'hoursThisMonth', label: 'Hours', num: true, format: hours },
   { key: 'quotedGpPerHour', label: 'Quoted GP $/hr', num: true, format: money },
   { key: 'hoursToComeCost', label: 'Hours to come cost', num: true, format: money },
-  { key: 'quotedHoursValue', label: 'Quoted hours value', num: true, format: money },
+  // Total cost with the gross profit taken back out — the cost side on its own.
+  // Placed immediately before GP to add so the three columns read as the sum
+  // they are: cost excl. GP + GP to add = Total cost.
+  { key: 'costExclGp', label: 'Cost excl. GP', num: true, format: money },
+  // (hours this month + hours to come) x quoted GP $/hr. This is the gross profit
+  // added on top of cost to reach Total cost, so it is named for what it does
+  // rather than for the hours it is derived from.
+  { key: 'gpToAdd', label: 'GP to add', num: true, format: money },
 ]
 
 // "Total cost" is the answer this whole calculator produces, but it sat
@@ -191,9 +198,12 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
           const costsToCome = costsToComeBeforeEom ?? 0
           const costOfMonth = j.costs ?? 0
           const hoursToComeCost = hoursToCome * rate
-          const quotedHoursValue = (hoursActual + hoursToCome) * (quotedGpPerHour ?? 0)
+          const gpToAdd = (hoursActual + hoursToCome) * (quotedGpPerHour ?? 0)
           const retentionAddOn = retention ? (retention / 100) * costOfMonth : 0
-          const total = costOfMonth + hoursToComeCost + costsToCome + quotedHoursValue + retentionAddOn
+          // Derived by subtraction rather than re-adding the four cost terms, so
+          // it cannot drift out of step with Total cost if that formula changes.
+          const total = costOfMonth + hoursToComeCost + costsToCome + gpToAdd + retentionAddOn
+          const costExclGp = total - gpToAdd
           return {
             ...j,
             retention,
@@ -203,7 +213,8 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
             hoursThisMonth,
             quotedGpPerHour,
             hoursToComeCost,
-            quotedHoursValue,
+            costExclGp,
+            gpToAdd,
             retentionAddOn,
             total,
           }
@@ -261,7 +272,8 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
             Type into Ret%, Hours to come, Cost to come, or Notes to save — no need to open
             anything first. Total cost = cost of month + (hours to come x the rate here) + cost
             to come + ((hours actual + hours to come) x quoted GP $/hr), plus retention % of
-            cost of month if set.
+            cost of month if set. Cost excl. GP is that same total with the gross profit
+            taken back out, so Cost excl. GP + GP to add = Total cost.
             {inactiveCount > 0 && (
               <> {inactiveCount} other job{inactiveCount === 1 ? '' : 's'} with no claim this month {inactiveCount === 1 ? 'is' : 'are'} hidden.</>
             )}
@@ -456,7 +468,11 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
               ))}
               {tableRows.length === 0 && (
                 <tr>
-                  <td colSpan={12} className="empty-row">
+                  {/* Job + Job name + the read-only columns + the editable
+                      fields + Total cost. Counted rather than hardcoded — the
+                      literal 12 was already one short the moment a column was
+                      added, which silently narrows the empty-state row. */}
+                  <td colSpan={3 + READONLY_COLUMNS.length + EDITABLE_FIELDS.length} className="empty-row">
                     No jobs to show.
                   </td>
                 </tr>
