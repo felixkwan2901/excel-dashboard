@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import { money, percent, roundHours } from '../lib/format'
 import ChartCard from './charts/ChartCard'
 import BarChart from './charts/BarChart'
@@ -100,7 +100,10 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, on
     return totals
   }, [upcomingWork])
 
-  const plannedTotalFor = (m) => (capacity?.servicingHours?.[m] ?? 0) + (plannedByJob[m] ?? 0)
+  const plannedTotalFor = useCallback(
+    (m) => (capacity?.servicingHours?.[m] ?? 0) + (plannedByJob[m] ?? 0),
+    [capacity, plannedByJob],
+  )
 
   const moneyByMonth = useMemo(
     () =>
@@ -135,7 +138,7 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, on
             : null,
       }
     }).filter((d) => d.values.some((v) => v !== null && v !== 0))
-  }, [capacity])
+  }, [capacity, plannedTotalFor])
 
   const marginSpread = useMemo(() => {
     const withMargin = jobs.filter((j) => j.marginToDate !== null)
@@ -219,7 +222,7 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, on
               : 'Room to take on more',
       }
     }).filter((d) => d.values[0] !== null)
-  }, [capacity])
+  }, [capacity, plannedTotalFor])
 
   // How much of a month's billing comes from how few jobs. Plotted as a
   // cumulative share against job rank: the faster the line climbs, the more
