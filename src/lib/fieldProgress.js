@@ -63,3 +63,30 @@ export function toTaskRows(record, catalogue) {
     .map((id) => ({ id, label: id, ...recorded[id], recorded: true, orphan: true }))
   return [...listed, ...orphans].filter((t) => t.recorded)
 }
+
+// The change log, newest first, with task ids resolved to labels.
+//
+// A job is worked by several people over months, so a percentage on its own
+// does not say who moved it or when. The field app writes an entry on every
+// change; this reads them.
+export function toHistoryRows(record, catalogue) {
+  const labels = new Map((catalogue ?? []).map((entry) => [entry.id, entry.label]))
+  return [...(record?.log ?? [])]
+    .reverse()
+    .map((entry, i) => ({
+      key: `${entry.at}-${entry.t}-${i}`,
+      label: labels.get(entry.t) ?? entry.t,
+      by: entry.by,
+      at: entry.at,
+      // "set it to 75%" reads better than a bare number, and the from-value
+      // is only worth showing when there was one — "from nothing to 25%" is
+      // noise on a task's first entry.
+      change: entry.na
+        ? 'marked it not applicable'
+        : entry.from === null || entry.from === undefined
+          ? `set it to ${entry.to}%`
+          : entry.from === entry.to
+            ? `confirmed it at ${entry.to}%`
+            : `moved it from ${entry.from}% to ${entry.to}%`,
+    }))
+}

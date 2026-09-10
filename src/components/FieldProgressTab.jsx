@@ -1,6 +1,6 @@
 import { RefreshCw } from 'lucide-react'
 import SiteQrCode from './SiteQrCode'
-import { fieldProgress, isStale, toTaskRows } from '../lib/fieldProgress'
+import { fieldProgress, isStale, toHistoryRows, toTaskRows } from '../lib/fieldProgress'
 import { formatRelativeTime } from '../lib/relativeTime'
 
 // What the crew recorded on site, read-only.
@@ -26,6 +26,7 @@ export default function FieldProgressTab({ state, onRefresh, jobNumber, jobName 
   }
 
   const rows = toTaskRows(state.record, state.catalogue)
+  const history = toHistoryRows(state.record, state.catalogue)
 
   if (rows.length === 0) {
     return (
@@ -92,6 +93,72 @@ export default function FieldProgressTab({ state, onRefresh, jobNumber, jobName 
           </li>
         ))}
       </ul>
+
+      {(state.record?.notes?.length ?? 0) > 0 && (
+        <div className="mt-6 border-t border-white/[0.06] pt-5">
+          <h3 className="text-[14px] font-medium text-neutral-100">Handover notes</h3>
+          <p className="mt-1 text-[12px] text-neutral-400">
+            Left by the crew for whoever is on site next. Read-only here.
+          </p>
+          <ul className="mt-3">
+            {[...state.record.notes]
+              .reverse()
+              .slice(0, 6)
+              .map((note, i) => (
+                <li key={`${note.at}-${i}`} className="border-b border-white/[0.06] py-2.5 last:border-b-0">
+                  <p className="text-[13px] leading-snug text-neutral-200">{note.text}</p>
+                  <p className="mt-0.5 text-[12px] text-neutral-500">
+                    {note.by} · {formatRelativeTime(note.at)}
+                  </p>
+                </li>
+              ))}
+          </ul>
+          {state.record.notes.length > 6 && (
+            <p className="mt-2 text-[12px] text-neutral-500">
+              Showing the 6 most recent of {state.record.notes.length}.
+            </p>
+          )}
+        </div>
+      )}
+
+      {history.length > 0 && (
+        <div className="mt-6 border-t border-white/[0.06] pt-5">
+          <h3 className="text-[14px] font-medium text-neutral-100">
+            Change history
+            <span className="ml-2 text-[12px] font-normal text-neutral-500">
+              {history.length} change{history.length === 1 ? '' : 's'}
+            </span>
+          </h3>
+          <p className="mt-1 text-[12px] text-neutral-400">
+            Several people work one job, so who moved a figure and when is often the question.
+            Recorded automatically and not editable from either app.
+          </p>
+          <ul className="mt-3">
+            {/* Capped on screen. The record keeps the last 200 changes, and a
+                job that has been running a while would otherwise push the QR
+                code and everything else off the bottom of the tab. */}
+            {history.slice(0, 12).map((entry) => (
+              <li
+                key={entry.key}
+                className="flex items-baseline justify-between gap-4 border-b border-white/[0.06] py-2 last:border-b-0"
+              >
+                <span className="min-w-0 text-[13px] text-neutral-300">
+                  <span className="text-neutral-100">{entry.by}</span> {entry.change} —{' '}
+                  <span className="text-neutral-400">{entry.label}</span>
+                </span>
+                <span className="shrink-0 text-[12px] text-neutral-500">
+                  {formatRelativeTime(entry.at)}
+                </span>
+              </li>
+            ))}
+          </ul>
+          {history.length > 12 && (
+            <p className="mt-2 text-[12px] text-neutral-500">
+              Showing the 12 most recent of {history.length}.
+            </p>
+          )}
+        </div>
+      )}
 
       <RefreshButton onRefresh={onRefresh} asAt={state.asAt} />
       <SiteQrCode jobNumber={jobNumber} jobName={jobName} />
