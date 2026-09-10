@@ -268,8 +268,18 @@ async function addNewJobToWorkbook(workbook, input) {
   // part of the insert itself.
   const claimNewJobRow = claimLastJobRow + 1
   insertBlankRowWithStyle(claimWs, claimNewJobRow, claimLastJobRow)
-  claimWs.getRow(claimNewJobRow).getCell(1).value = { formula: `'Main Sheet'!A${mainNewJobRow}` }
-  claimWs.getRow(claimNewJobRow).getCell(2).value = { formula: `'Main Sheet'!B${mainNewJobRow}` }
+  // Job number and name are written as VALUES, not as formulas pointing at
+  // the Main Sheet row.
+  //
+  // A formula here is invisible to everything that reads this workbook. The
+  // dashboard parses it with SheetJS, which reads a formula's *cached* value
+  // — and ExcelJS writes formulas with no cached value, because it does not
+  // evaluate them. Nothing in this pipeline ever opens the file in Excel to
+  // recalculate, so those cells stayed empty for good: the job existed in the
+  // workbook and never appeared on the site. Every other job row on this
+  // sheet holds literal values, which is what the parser expects.
+  claimWs.getRow(claimNewJobRow).getCell(1).value = Number(jobNumber)
+  claimWs.getRow(claimNewJobRow).getCell(2).value = String(jobName)
   claimWs.getRow(claimNewJobRow).getCell(5).value = { formula: `C${claimNewJobRow}-D${claimNewJobRow}` } // Profit
   claimWs.getRow(claimNewJobRow).getCell(7).value = { formula: `(E${claimNewJobRow}+F${claimNewJobRow})/C${claimNewJobRow}` } // Margin
   claimWs.getRow(claimNewJobRow).getCell(8).value = {
@@ -309,8 +319,12 @@ async function addNewJobToWorkbook(workbook, input) {
   // on every other job row.
   const week1Row = newDelivBlockRowRange.startRow + 1
   const week5Row = newDelivBlockRowRange.endRow
-  upcomingWs.getRow(upcomingNewJobRow).getCell(1).value = { formula: `'Main Sheet'!A${mainNewJobRow}` }
-  upcomingWs.getRow(upcomingNewJobRow).getCell(2).value = { formula: `'Main Sheet'!B${mainNewJobRow}` }
+  // Values rather than formulas, for the reason spelled out on the Claim
+  // Calculator above: a formula with no cached value is invisible to the
+  // parser, so the job never shows up in Upcoming work and nobody can plan
+  // hours against it.
+  upcomingWs.getRow(upcomingNewJobRow).getCell(1).value = Number(jobNumber)
+  upcomingWs.getRow(upcomingNewJobRow).getCell(2).value = String(jobName)
   upcomingWs.getRow(upcomingNewJobRow).getCell(3).value = {
     formula: `LOOKUP(2,1/('Deliverables Sheet'!S${week1Row}:S${week5Row}<>0),'Deliverables Sheet'!S${week1Row}:S${week5Row})`,
   }
