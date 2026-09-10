@@ -378,6 +378,10 @@
       "jobName": "Taggart House",
       "cumulativeHours": 34.75
     },
+    "7480": {
+      "jobName": "7480",
+      "cumulativeHours": 0
+    },
     "7658": {
       "jobName": "Charity Hospital",
       "cumulativeHours": 600.25
@@ -430,6 +434,10 @@
       "jobName": "Dixon House",
       "cumulativeHours": 260.75
     },
+    "8386": {
+      "jobName": "8386",
+      "cumulativeHours": 0
+    },
     "8530": {
       "jobName": "224 Cashel St - Eastern WC Block Reno",
       "cumulativeHours": 0
@@ -445,6 +453,10 @@
     "8824": {
       "jobName": "3 Innovation Road",
       "cumulativeHours": 34.75
+    },
+    "8829": {
+      "jobName": "8829",
+      "cumulativeHours": 0
     },
     "8840": {
       "jobName": "Inline Architecture",
@@ -485,6 +497,10 @@
     "9351": {
       "jobName": "Harewood Golf Club",
       "cumulativeHours": 23.75
+    },
+    "9437": {
+      "jobName": "9437",
+      "cumulativeHours": 27.84
     },
     "9508": {
       "jobName": "St Barnabas Church",
