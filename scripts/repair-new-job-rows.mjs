@@ -1,22 +1,26 @@
-// One-off repair for jobs that were added to the workbook but never showed up
-// on the site.
+// Repairs jobs that were added to the workbook but never appeared on the site,
+// and optionally sets their names.
 //
-// add-new-job.mjs used to write the job number and name into the Claim
-// Calculator and Upcoming Work sheets as formulas pointing at the Main Sheet
-// row. ExcelJS writes formulas with no cached value and nothing in this
-// pipeline opens the file in Excel to recalculate, so SheetJS — which reads
-// cached values — saw empty cells. The rows were inserted (the Totals block
-// moved down) but stayed blank, and the parser skips any row without a
-// numeric job number. The jobs were in the workbook and invisible on the
-// site, which is the worst of both.
+// add-new-job.mjs used to write a new job's number and name into the Claim
+// Calculator and Upcoming Work sheets as formulas pointing at its Main Sheet
+// row. A formula is invisible to everything that reads this workbook: the
+// dashboard parses with SheetJS, which reads a formula's *cached* value;
+// ExcelJS writes formulas with no cached value because it does not evaluate
+// them; and nothing in this pipeline opens the file in Excel to recalculate.
+// So the row existed, held only formulas, and the parser — which needs a
+// numeric job number — skipped it. The job was in the workbook and could not
+// be seen or planned against.
 //
-// add-new-job.mjs now writes values. This fills in the rows already left
-// blank by the old behaviour.
+// Rows are identified by the Main Sheet row their formula points at, not by
+// counting blanks, so each one is matched to its actual job rather than
+// guessed at.
 //
-//   node scripts/repair-new-job-rows.mjs 8386 8829 7480 9437
+//   node scripts/repair-new-job-rows.mjs
+//   node scripts/repair-new-job-rows.mjs 9437="65A Belfast Road (Revised)"
 //
-// Only ever writes into a row that is genuinely empty, and says exactly what
-// it changed. Safe to run twice: a job already present is skipped.
+// With no arguments it converts every formula row it finds. Arguments rename
+// a job first — in the Main Sheet and the Deliverables Sheet, which are where
+// a name actually lives — and the converted rows then carry the new name.
 import ExcelJS from 'exceljs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -28,66 +32,72 @@ const WORKBOOK = path.join(
   'Cassidy_Davies_Electrical_BPMN_Data.xlsx',
 )
 const SHEETS = ['Claim Calculator By Month', 'Upcoming Work Calculator']
+const MAIN_REF = /'Main Sheet'!A(\d+)/
 
-const jobNumbers = process.argv.slice(2)
-if (jobNumbers.length === 0) {
-  console.error('Usage: node scripts/repair-new-job-rows.mjs <jobNumber> [...]')
-  process.exit(1)
-}
+const renames = new Map(
+  process.argv.slice(2).map((arg) => {
+    const at = arg.indexOf('=')
+    if (at === -1) throw new Error(`Expected jobNumber=Name, got "${arg}"`)
+    return [arg.slice(0, at).trim(), arg.slice(at + 1).trim()]
+  }),
+)
 
 const workbook = new ExcelJS.Workbook()
 await workbook.xlsx.readFile(WORKBOOK)
 
-let wrote = 0
+const main = workbook.getWorksheet('Main Sheet')
+const deliverables = workbook.getWorksheet('Deliverables Sheet')
+if (!main || !deliverables) throw new Error('Could not find Main Sheet / Deliverables Sheet')
 
+let changed = 0
+
+// 1. Renames, in the two sheets that hold a name as a value.
+for (const [jobNumber, name] of renames) {
+  let hits = 0
+  for (const ws of [main, deliverables]) {
+    for (let r = 1; r <= ws.rowCount; r += 1) {
+      const cell = ws.getRow(r).getCell(1)
+      if (String(cell.value ?? '').trim() !== String(jobNumber)) continue
+      const before = ws.getRow(r).getCell(2).value
+      ws.getRow(r).getCell(2).value = name
+      console.log(`${ws.name} row ${r}: ${jobNumber} renamed ${JSON.stringify(before)} -> ${JSON.stringify(name)}`)
+      hits += 1
+      changed += 1
+    }
+  }
+  if (hits === 0) console.warn(`  ! ${jobNumber}: no row found to rename`)
+}
+
+// 2. Formula rows become values, matched to their job through the Main Sheet
+//    row the formula names.
 for (const sheetName of SHEETS) {
   const ws = workbook.getWorksheet(sheetName)
   if (!ws) throw new Error(`Could not find "${sheetName}"`)
 
-  const present = new Set()
-  let lastJobRow = 0
-  for (let r = 1; r <= ws.rowCount; r++) {
-    const a = ws.getRow(r).getCell(1).value
-    if (typeof a === 'number' && a > 0) {
-      present.add(String(a))
-      lastJobRow = r
+  for (let r = 1; r <= ws.rowCount; r += 1) {
+    const cell = ws.getRow(r).getCell(1).value
+    if (!cell || typeof cell !== 'object' || !cell.formula) continue
+    const match = MAIN_REF.exec(cell.formula)
+    if (!match) continue
+
+    const mainRow = Number(match[1])
+    const jobNumber = main.getRow(mainRow).getCell(1).value
+    const jobName = main.getRow(mainRow).getCell(2).value
+    if (typeof jobNumber !== 'number' || !jobNumber) {
+      console.warn(`  ! ${sheetName} row ${r}: Main Sheet row ${mainRow} has no job number, left alone`)
+      continue
     }
-  }
 
-  const missing = jobNumbers.filter((n) => !present.has(String(n)))
-  if (missing.length === 0) {
-    console.log(`${sheetName}: all ${jobNumbers.length} already present, nothing to do`)
-    continue
-  }
-
-  // Fill the blank rows that follow the last real job row — the ones the old
-  // insert created. Refuses to touch a row holding anything, so a mistake in
-  // the row maths cannot overwrite a job.
-  let row = lastJobRow + 1
-  for (const jobNumber of missing) {
-    while (row <= ws.rowCount && !isBlankRow(ws, row)) row += 1
-    if (row > ws.rowCount) throw new Error(`${sheetName}: ran out of blank rows for ${jobNumber}`)
-    ws.getRow(row).getCell(1).value = Number(jobNumber)
-    ws.getRow(row).getCell(2).value = String(jobNumber)
-    ws.getRow(row).commit?.()
-    console.log(`${sheetName}: wrote ${jobNumber} into row ${row}`)
-    wrote += 1
-    row += 1
+    ws.getRow(r).getCell(1).value = jobNumber
+    ws.getRow(r).getCell(2).value = String(jobName ?? jobNumber)
+    console.log(`${sheetName} row ${r}: ${jobNumber} ${JSON.stringify(String(jobName ?? jobNumber))} (was a formula)`)
+    changed += 1
   }
 }
 
-function isBlankRow(ws, rowNumber) {
-  const row = ws.getRow(rowNumber)
-  for (let c = 1; c <= 20; c += 1) {
-    const v = row.getCell(c).value
-    if (v !== null && v !== undefined && String(v).trim() !== '') return false
-  }
-  return true
-}
-
-if (wrote > 0) {
-  await workbook.xlsx.writeFile(WORKBOOK)
-  console.log(`\nWrote ${wrote} cell pairs and saved the workbook.`)
+if (changed === 0) {
+  console.log('\nNothing to change; workbook untouched.')
 } else {
-  console.log('\nNothing to write; workbook untouched.')
+  await workbook.xlsx.writeFile(WORKBOOK)
+  console.log(`\nChanged ${changed} cells and saved the workbook.`)
 }
