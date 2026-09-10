@@ -416,16 +416,17 @@ export default function UpdateData({ onBack, jobs, monthlyClaimsHistory, monthly
                 type="text"
                 value={newJob.jobName}
                 onChange={(e) => setNewJob((j) => ({ ...j, jobName: e.target.value }))}
-                placeholder={newJob.jobNumber || 'Same as the job number'}
+                placeholder="Filled in from the next export"
                 className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-brand-green/50 focus:outline-none"
               />
-              {/* Left blank, the job takes its number as its name. It cannot
-                  be genuinely empty: a nameless block is treated as junk by
-                  isValidJobBlock, so it would be skipped by the dashboard,
-                  the weekly merge and the hours log alike. */}
+              {/* Blank is now genuinely fine: the job holds its number as a
+                  placeholder — it cannot be empty, since isValidJobBlock
+                  treats a nameless block as junk — and the next export fills
+                  the real name in from its Quotes description. A name typed
+                  here, or one already in the workbook, is never overwritten. */}
               <p className="mt-1 text-[11px] text-text-muted">
-                Leave blank to use the job number. You can type the real name into the workbook
-                later.
+                Leave blank and the next weekly export fills it in from the job&apos;s quote.
+                Type one here only to override that.
               </p>
             </div>
 

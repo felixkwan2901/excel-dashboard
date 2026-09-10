@@ -705,6 +705,47 @@ async function runConsistencyChecks(currentMonth) {
 // Main
 // ---------------------------------------------------------------------------
 
+
+// A job added through the dashboard with no name carries its own number as a
+// placeholder — a name cannot be left empty, because isValidJobBlock treats a
+// nameless block as junk and the whole pipeline would skip it. The real name
+// is sitting in the export all along: the Quotes sheet's Description, which
+// parseExport already reads.
+//
+// So the first export that arrives for such a job fills the name in. Only
+// ever when the current name is still exactly the job number — a name anyone
+// has actually chosen is never overwritten, and the workbook's short
+// hand-written names ("Charity Hospital") survive against the export's long
+// ones ("Christchurch Charity Hospital Clinical Skills Centre - Design &
+// Price").
+//
+// Applied to all four sheets: once a row holds a value rather than a formula
+// pointing at the Main Sheet, a rename no longer propagates on its own.
+export function fillPlaceholderName(wb, jobNumber, exportName) {
+  const name = String(exportName ?? '').trim()
+  if (!name || name === String(jobNumber)) return null
+
+  const sheets = ['Main Sheet', 'Deliverables Sheet', 'Claim Calculator By Month', 'Upcoming Work Calculator']
+  let renamed = 0
+  let sawPlaceholder = false
+
+  for (const sheetName of sheets) {
+    const ws = wb.getWorksheet(sheetName)
+    if (!ws) continue
+    for (let r = 1; r <= ws.rowCount; r += 1) {
+      const row = ws.getRow(r)
+      if (String(resolveCellValue(row.getCell(1).value) ?? '').trim() !== String(jobNumber)) continue
+      const current = String(resolveCellValue(row.getCell(2).value) ?? '').trim()
+      if (current !== String(jobNumber)) continue
+      sawPlaceholder = true
+      row.getCell(2).value = name
+      renamed += 1
+    }
+  }
+
+  return sawPlaceholder ? { jobNumber, name, cells: renamed } : null
+}
+
 async function main() {
   if (!existsSync(folder)) {
     console.log(`${folder} doesn't exist — nothing to process.`)
@@ -823,6 +864,7 @@ async function main() {
 
   const updated = []
   const unmatchedFiles = []
+  const namedFromExport = []
   const noRoomLeft = []
   const possibleDuplicates = []
   const archivedRejected = []
@@ -850,6 +892,8 @@ async function main() {
     const weekLabel = rows[targetIdx][2] || `Week ${weekOfMonth}`
     const before = { totalActualCost: rows[targetIdx][8], claimToDate: rows[targetIdx][4], marginToDate: rows[targetIdx][25] }
     const after = applyJobUpdate(worksheet, rows, targetIdx, rec)
+    const named = fillPlaceholderName(wb, rec.jobNumber, rec.jobName)
+    if (named) namedFromExport.push(named)
     const entry = { file: rec.file, jobNumber: rec.jobNumber, jobName: rec.jobName, weekLabel, before, after }
     if (unchanged) {
       possibleDuplicates.push(entry)
@@ -1051,6 +1095,13 @@ async function main() {
     )
   } catch (err) {
     console.log(`::warning::Could not persist lastProcessedMonth to ${syncMetaPath}: ${err.message}`)
+  }
+
+  if (namedFromExport.length > 0) {
+    console.log('\n=== Names filled in from the export ===')
+    for (const n of namedFromExport) {
+      console.log(`  ${n.jobNumber} was unnamed -> "${n.name}" (${n.cells} cells)`)
+    }
   }
 
   console.log('\n=== Summary ===')
