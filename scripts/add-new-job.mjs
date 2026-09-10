@@ -138,7 +138,14 @@ const DELIV_COL = {
 // ---------------------------------------------------------------------------
 
 async function addNewJobToWorkbook(workbook, input) {
-  const { jobNumber, jobName, jobOwner, quotedPrice, quotedMaterialCost, quotedLabourCost, quotedLabourHours } = input
+  const { jobNumber, jobOwner, quotedPrice, quotedMaterialCost, quotedLabourCost, quotedLabourHours } = input
+  // Same fallback the worker applies, repeated here because this script also
+  // runs against payloads staged before that change. A block with no name is
+  // skipped by isValidJobBlock and therefore by everything downstream.
+  const jobName =
+    typeof input.jobName === 'string' && input.jobName.trim()
+      ? input.jobName.trim()
+      : String(jobNumber)
   const jobNum = Number(jobNumber)
 
   // -------------------------------------------------------------------

@@ -43,6 +43,20 @@ function EditableCell({ value, saving, numeric, onChange }) {
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
+// Ways to order the job rows. "Sheet order" is first and is the default,
+// because it matches the workbook — anyone cross-checking against the
+// spreadsheet needs the rows in the same sequence, and quietly reordering
+// them by default would make that comparison miserable.
+//
+// The sort is a view, not a change: it never writes, so the workbook keeps
+// its own order whatever is picked here.
+const SORT_OPTIONS = [
+  { key: 'sheet', label: 'Sheet order' },
+  { key: 'number', label: 'Job #' },
+  { key: 'planned', label: 'Most planned' },
+  { key: 'remaining', label: 'Most hours left' },
+]
+
 // Which column is "now". Twelve near-identical columns of numbers give the eye
 // nothing to anchor on, and the month header scrolls out of sight on a long
 // page — so the month you actually care about is tinted and its header kept
@@ -290,6 +304,26 @@ export default function UpcomingWorkTab({ upcomingWork, onBack }) {
   })
   const [savingKeys, setSavingKeys] = useState(() => new Set())
   const [status, setStatus] = useState({ kind: 'idle', message: '' })
+  const [sort, setSort] = useState('sheet')
+
+  // Sorted from the editable values rather than the parsed workbook, so
+  // "most planned" reflects what is on screen right now, including an edit
+  // made a moment ago.
+  const plannedForJob = (job) =>
+    MONTH_FIELDS.reduce((total, f) => {
+      const n = Number(values[job.jobNumber]?.[f.key])
+      return total + (Number.isFinite(n) ? n : 0)
+    }, 0)
+
+  const sortedJobs =
+    sort === 'sheet'
+      ? jobs
+      : [...jobs].sort((a, b) => {
+          if (sort === 'number') return Number(a.jobNumber) - Number(b.jobNumber)
+          if (sort === 'planned') return plannedForJob(b) - plannedForJob(a)
+          return (b.remainingHours ?? 0) - (a.remainingHours ?? 0)
+        })
+
 
   // Summed from the editable values rather than the parsed workbook, so
   // committing an edit to a job below (cells save on blur) moves Total hours
@@ -366,6 +400,30 @@ export default function UpcomingWorkTab({ upcomingWork, onBack }) {
         className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6"
         storageKey="upcoming-work.jobs"
         title="Planned hours by job"
+        actions={
+          <div className="flex flex-wrap items-center gap-1.5">
+            {SORT_OPTIONS.map((option) => (
+              <button
+                key={option.key}
+                type="button"
+                onClick={() => setSort(option.key)}
+                aria-pressed={sort === option.key}
+                title={
+                  option.key === 'sheet'
+                    ? 'The order the rows sit in the workbook'
+                    : `Sort by ${option.label.toLowerCase()} — changes what you see, not the workbook`
+                }
+                className={`rounded-md border px-2.5 py-1.5 text-[12px] font-medium transition-colors ${
+                  sort === option.key
+                    ? 'border-brand-green/50 bg-brand-green/10 text-brand-green'
+                    : 'border-white/10 text-neutral-300 hover:border-brand-green/50 hover:text-brand-green'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        }
       >
         <div className="table-scroll mt-4">
           <table className="data-table">
@@ -395,7 +453,7 @@ export default function UpcomingWorkTab({ upcomingWork, onBack }) {
               </tr>
             </thead>
             <tbody>
-              {jobs.map((job) => (
+              {sortedJobs.map((job) => (
                 <tr key={job.jobNumber}>
                   <td
                     className="sticky-col whitespace-nowrap"

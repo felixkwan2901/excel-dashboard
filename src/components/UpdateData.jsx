@@ -267,7 +267,7 @@ export default function UpdateData({ onBack, jobs, monthlyClaimsHistory, monthly
       setNewJobMessage(payload.message)
       const result = await pollStagedStatus(payload.staged)
       if (result.status === 'done') {
-        setNewJobMessage(`Added ${newJob.jobNumber} ${newJob.jobName} to every linked sheet — the site will redeploy in about a minute before it shows up here.`)
+        setNewJobMessage(`Added ${newJob.jobNumber} ${newJob.jobName || newJob.jobNumber} to every linked sheet — the site will redeploy in about a minute before it shows up here.`)
         setNewJobStatus('done')
         // Nothing in the workbook records when a job first showed up on
         // the site — this is the only place that moment is knowable, and
@@ -409,16 +409,24 @@ export default function UpdateData({ onBack, jobs, monthlyClaimsHistory, monthly
 
             <div>
               <label htmlFor="new-job-name" className="mb-1.5 block text-xs text-text-muted">
-                Job name
+                Job name <span className="text-text-muted">— optional</span>
               </label>
               <input
                 id="new-job-name"
                 type="text"
                 value={newJob.jobName}
                 onChange={(e) => setNewJob((j) => ({ ...j, jobName: e.target.value }))}
-                required
+                placeholder={newJob.jobNumber || 'Same as the job number'}
                 className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-brand-green/50 focus:outline-none"
               />
+              {/* Left blank, the job takes its number as its name. It cannot
+                  be genuinely empty: a nameless block is treated as junk by
+                  isValidJobBlock, so it would be skipped by the dashboard,
+                  the weekly merge and the hours log alike. */}
+              <p className="mt-1 text-[11px] text-text-muted">
+                Leave blank to use the job number. You can type the real name into the workbook
+                later.
+              </p>
             </div>
 
             <Button

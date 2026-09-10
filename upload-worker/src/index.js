@@ -515,15 +515,21 @@ async function handleNewJob(request, env) {
   if (!jobNumber || !Number.isFinite(Number(jobNumber)) || Number(jobNumber) <= 0) {
     return respond(request, 400, { htmlMessage: `<div class="result err">Job number must be a positive number.</div>`, data: { error: 'bad_request', message: 'Job number must be a positive number.' } })
   }
-  if (!jobName || typeof jobName !== 'string') {
-    return respond(request, 400, { htmlMessage: `<div class="result err">Job name is required.</div>`, data: { error: 'bad_request', message: 'Job name is required.' } })
-  }
+  // A name is not asked for on the form any more, so a blank one falls back
+  // to the job number. It cannot simply be left empty: isValidJobBlock (see
+  // scripts/lib/job-blocks.mjs) treats a nameless block as junk, so such a
+  // job would be silently skipped by the dashboard, the weekly merge AND the
+  // monthly hours log — present in the workbook and invisible everywhere
+  // else. "8386" is a poor name and a working one; it can be typed over in
+  // the workbook whenever someone knows the real one.
+  const resolvedName =
+    typeof jobName === 'string' && jobName.trim() ? jobName.trim() : String(jobNumber)
 
   const stagedPath = `pending-updates/new-job/${stagedId()}.json`
   const putRes = await putFileWithRetry(stagedPath, env, {
     contentBase64: textToBase64(JSON.stringify({
       jobNumber: String(jobNumber),
-      jobName: String(jobName),
+      jobName: resolvedName,
       jobOwner: String(jobOwner ?? ''),
       quotedPrice: Number(quotedPrice) || 0,
       quotedMaterialCost: Number(quotedMaterialCost) || 0,
