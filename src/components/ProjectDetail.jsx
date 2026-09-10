@@ -440,7 +440,14 @@ export default function ProjectDetail({ job, mainSheet, onBack }) {
             </Section>
           )}
 
-          {tab === 'field' && <FieldProgressTab state={fieldState} onRefresh={refreshField} />}
+          {tab === 'field' && (
+            <FieldProgressTab
+              state={fieldState}
+              onRefresh={refreshField}
+              jobNumber={job.jobNumber}
+              jobName={job.jobName}
+            />
+          )}
         </div>
 
         <div className="mt-6 border-t border-white/10 pt-6">

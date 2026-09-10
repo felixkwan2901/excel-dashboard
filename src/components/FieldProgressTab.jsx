@@ -1,4 +1,5 @@
 import { RefreshCw } from 'lucide-react'
+import SiteQrCode from './SiteQrCode'
 import { fieldProgress, isStale, toTaskRows } from '../lib/fieldProgress'
 import { formatRelativeTime } from '../lib/relativeTime'
 
@@ -10,7 +11,7 @@ import { formatRelativeTime } from '../lib/relativeTime'
 // into that would quietly move every projected cost and margin in the app.
 // The interesting output here is the *gap* between what has been claimed and
 // what has been built, and that is for a person to read, not for a formula.
-export default function FieldProgressTab({ state, onRefresh }) {
+export default function FieldProgressTab({ state, onRefresh, jobNumber, jobName }) {
   if (state.status === 'loading') {
     return <p className="py-6 text-[13px] text-neutral-400">Loading field progress…</p>
   }
@@ -34,6 +35,7 @@ export default function FieldProgressTab({ state, onRefresh }) {
           someone on site starts.
         </p>
         <RefreshButton onRefresh={onRefresh} asAt={state.asAt} />
+        <SiteQrCode jobNumber={jobNumber} jobName={jobName} />
       </div>
     )
   }
@@ -92,6 +94,7 @@ export default function FieldProgressTab({ state, onRefresh }) {
       </ul>
 
       <RefreshButton onRefresh={onRefresh} asAt={state.asAt} />
+      <SiteQrCode jobNumber={jobNumber} jobName={jobName} />
     </div>
   )
 }

@@ -504,8 +504,17 @@
 @media print {
   .side-nav,
   .top-strip,
-  .site-footer {
+  .site-footer,
+  .no-print {
     display: none;
+  }
+
+  /* A site code is printed to be stuck on a door, so it prints on its own —
+     nobody wants four pages of margin tables behind it. */
+  .site-qr {
+    border: 0;
+    padding: 0;
+    margin: 0;
   }
 
   .dashboard {
