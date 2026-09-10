@@ -51,10 +51,17 @@ if (!main || !deliverables) throw new Error('Could not find Main Sheet / Deliver
 
 let changed = 0
 
-// 1. Renames, in the two sheets that hold a name as a value.
+// 1. Renames.
+//
+// Applied to all four sheets, not just the two that "own" the name. Once the
+// derived rows hold values rather than formulas — which is the whole point of
+// this script — a rename no longer propagates on its own, so leaving it at
+// the Main Sheet would put the new name in two places and the old one in two
+// others.
 for (const [jobNumber, name] of renames) {
   let hits = 0
-  for (const ws of [main, deliverables]) {
+  const targets = [main, deliverables, ...SHEETS.map((n) => workbook.getWorksheet(n))]
+  for (const ws of targets) {
     for (let r = 1; r <= ws.rowCount; r += 1) {
       const cell = ws.getRow(r).getCell(1)
       if (String(cell.value ?? '').trim() !== String(jobNumber)) continue
