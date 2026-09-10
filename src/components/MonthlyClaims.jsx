@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { money, percent } from '../lib/format'
 import { saveEdit } from '../lib/saveEdit'
 import { useSharedState } from '../lib/useSharedState'
+import { useLocalStorageState } from '../lib/useLocalStorageState'
 import CollapsibleSection from './CollapsibleSection'
 
 // Claim and Costs used to be here too, but they're now auto-computed by
@@ -83,9 +84,8 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
 
   // The Claim Calculator sheet's own "Hours this month" cell is hand-typed
   // and drifts out of date/goes negative when it isn't kept in sync — the
-  // hours log (same source "Hours by month" uses) derives this month's
-  // hours from each week's real cumulative-hours upload instead, so it's
-  // never manually stale.
+  // hours log derives this month's hours from each week's real
+  // cumulative-hours upload instead, so it's never manually stale.
   const hoursThisMonthByJob = useMemo(() => {
     const map = new Map()
     const monthKey = currentMonthKey()
@@ -97,6 +97,15 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
   // (best first) — for a full per-job table, "which jobs are underperforming"
   // is the more actionable starting question than "which job made the most".
   const [tableSort, setTableSort] = useState({ key: 'margin', dir: 1 })
+
+  // A job with no claim and no cost this month is hidden by default (see
+  // below), which is right for reading the month but wrong for entering it:
+  // a job added mid-month has nothing against it yet, so it was hidden, so
+  // there was nowhere to type its first figures — and it stayed hidden. This
+  // toggle is the way out of that. Remembered per browser because whoever is
+  // doing data entry wants it on for the whole session, and whoever is
+  // reading the month wants it off.
+  const [showAllJobs, setShowAllJobs] = useLocalStorageState('monthlyClaims.showAllJobs', false)
 
   // In-session optimistic edits to the four manual fields, applied straight
   // in the table the instant you type — saveEdit() itself also writes an
@@ -177,7 +186,7 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
   const activeJobs = useMemo(
     () =>
       jobs
-        .filter((j) => j.claim !== 0 || j.costs !== 0)
+        .filter((j) => showAllJobs || j.claim !== 0 || j.costs !== 0)
         .map((j) => {
           const override = fieldOverrides[j.jobNumber]
           const retention = override?.retention !== undefined ? Number(override.retention) || 0 : j.retention
@@ -219,9 +228,9 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
             total,
           }
         }),
-    [jobs, quotedGpPerHourByJob, hoursThisMonthByJob, rate, fieldOverrides]
+    [jobs, quotedGpPerHourByJob, hoursThisMonthByJob, rate, fieldOverrides, showAllJobs]
   )
-  const inactiveCount = jobs.length - activeJobs.length
+  const inactiveCount = jobs.filter((j) => j.claim === 0 && j.costs === 0).length
 
   const tableRows = useMemo(() => {
     return [...activeJobs].sort((a, b) => {
@@ -275,23 +284,41 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
             cost of month if set. Cost excl. GP is that same total with the gross profit
             taken back out, so Cost excl. GP + GP to add = Total cost.
             {inactiveCount > 0 && (
-              <> {inactiveCount} other job{inactiveCount === 1 ? '' : 's'} with no claim this month {inactiveCount === 1 ? 'is' : 'are'} hidden.</>
+              <>
+                {' '}
+                {inactiveCount} job{inactiveCount === 1 ? '' : 's'}{' '}
+                {inactiveCount === 1 ? 'has' : 'have'} nothing claimed or costed this
+                month, {showAllJobs ? 'shown below' : 'hidden'} — use the button above to
+                switch, which is how a job added mid-month gets its first figures typed in.
+              </>
             )}
           </>
         }
         actions={
-          <div>
-            <label htmlFor="avg-hourly-rate" className="mb-1 block text-[12px] text-neutral-400">
-              Average $/hr rate (reviewed every 6 months)
-            </label>
-            <input
-              id="avg-hourly-rate"
-              type="number"
-              value={avgHourlyRate}
-              onChange={(e) => setAvgHourlyRate(e.target.value)}
-              placeholder="e.g. 65"
-              className="w-36 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1.5 text-sm text-neutral-200 focus:border-brand-green/50 focus:outline-none"
-            />
+          <div className="flex flex-wrap items-end gap-3">
+            {inactiveCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowAllJobs(!showAllJobs)}
+                aria-pressed={showAllJobs}
+                className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm text-neutral-200 transition-colors hover:border-brand-green/50 hover:text-white"
+              >
+                {showAllJobs ? 'Show only claimed jobs' : `Show all ${jobs.length} jobs`}
+              </button>
+            )}
+            <div>
+              <label htmlFor="avg-hourly-rate" className="mb-1 block text-[12px] text-neutral-400">
+                Average $/hr rate (reviewed every 6 months)
+              </label>
+              <input
+                id="avg-hourly-rate"
+                type="number"
+                value={avgHourlyRate}
+                onChange={(e) => setAvgHourlyRate(e.target.value)}
+                placeholder="e.g. 65"
+                className="w-36 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1.5 text-sm text-neutral-200 focus:border-brand-green/50 focus:outline-none"
+              />
+            </div>
           </div>
         }
       >

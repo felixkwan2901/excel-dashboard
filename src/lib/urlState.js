@@ -11,10 +11,29 @@ const DEFAULTS = {
   dashboardFilter: 'all',
 }
 
+// Every view App.jsx can render. A `v=` it doesn't recognise falls back to
+// the default rather than rendering an empty page — which is what a
+// bookmark or a shared link to a view that has since been removed would
+// otherwise do (the "Hours by month" tab was one; its figures now live in
+// the Monthly claims table and the Tableau export).
+const KNOWN_VIEWS = new Set([
+  'dashboard',
+  'project',
+  'review',
+  'update',
+  'monthly-claims',
+  'main-sheet',
+  'upcoming-work',
+  'charts',
+  'weekly-check-sheet',
+  'job-completion-checklist',
+])
+
 export function parseUrlState() {
   const params = new URLSearchParams(window.location.search)
+  const view = params.get('v')
   return {
-    view: params.get('v') || DEFAULTS.view,
+    view: view && KNOWN_VIEWS.has(view) ? view : DEFAULTS.view,
     selectedJobId: params.get('j') || DEFAULTS.selectedJobId,
     dashboardQuery: params.get('dq') || DEFAULTS.dashboardQuery,
     dashboardFilter: params.get('df') || DEFAULTS.dashboardFilter,

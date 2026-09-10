@@ -11,7 +11,6 @@ import ProjectDetail from './components/ProjectDetail'
 import ReviewReport from './components/ReviewReport'
 import UpdateData from './components/UpdateData'
 import MonthlyClaims from './components/MonthlyClaims'
-import MonthlyHours from './components/MonthlyHours'
 import MainSheetTab from './components/MainSheetTab'
 import ArchivedJobsPanel from './components/ArchivedJobsPanel'
 import UpcomingWorkTab from './components/UpcomingWorkTab'
@@ -173,11 +172,6 @@ export default function App() {
     pushUrlState({ view: 'monthly-claims', selectedJobId, dashboardQuery, dashboardFilter })
   }
 
-  function goMonthlyHours() {
-    setView('monthly-hours')
-    pushUrlState({ view: 'monthly-hours', selectedJobId, dashboardQuery, dashboardFilter })
-  }
-
   function goMainSheet() {
     setView('main-sheet')
     pushUrlState({ view: 'main-sheet', selectedJobId, dashboardQuery, dashboardFilter })
@@ -246,7 +240,6 @@ export default function App() {
     onPrintReport: goReviewReport,
     onGoUpdateData: goUpdateData,
     onGoMonthlyClaims: goMonthlyClaims,
-    onGoMonthlyHours: goMonthlyHours,
     onGoMainSheet: goMainSheet,
     onGoUpcomingWork: goUpcomingWork,
     onGoCharts: goCharts,
@@ -314,18 +307,6 @@ export default function App() {
           ) : (
             <Reveal index={0}>
               <MonthlyClaims monthlyClaims={monthlyClaims} jobs={jobs} monthlyHours={monthlyHours} onBack={goHome} />
-            </Reveal>
-          )}
-        </main>
-      )}
-
-      {view === 'monthly-hours' && (
-        <main className="dashboard">
-          {state.status !== 'ready' ? (
-            <LoadStatus status={state.status} error={state.error} onRetry={retryLoad} />
-          ) : (
-            <Reveal index={0}>
-              <MonthlyHours monthlyHours={monthlyHours} jobs={jobs} onBack={goHome} />
             </Reveal>
           )}
         </main>

@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import {
-  BarChart3,
   CalendarClock,
   ChartColumn,
   ClipboardCheck,
@@ -22,7 +21,7 @@ import WeatherWidget from './WeatherWidget'
 import DateTimeWidget from './DateTimeWidget'
 import { applySidebarCollapsed, applyTheme, readSidebarCollapsed } from '../lib/theme'
 
-// The app's navigation: six destinations in a left column, with the
+// The app's navigation: a left column of destinations, with the
 // glanceable widgets (search, clock, weather, alerts) in a strip above the
 // content.
 //
@@ -37,7 +36,6 @@ const LINKS = [
   { view: 'main-sheet', label: 'Job checklist', icon: ClipboardCheck, handler: 'onGoMainSheet' },
   { view: 'dashboard', label: 'Projects', icon: FolderKanban, handler: 'onGoDashboard' },
   { view: 'monthly-claims', label: 'Monthly claims', icon: Receipt, handler: 'onGoMonthlyClaims' },
-  { view: 'monthly-hours', label: 'Hours by month', icon: BarChart3, handler: 'onGoMonthlyHours' },
   { view: 'upcoming-work', label: 'Upcoming work', icon: CalendarClock, handler: 'onGoUpcomingWork' },
   { view: 'update', label: 'Update data', icon: Upload, handler: 'onGoUpdateData' },
 ]
