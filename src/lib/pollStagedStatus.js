@@ -1,4 +1,4 @@
-import { workerFetch } from './workerClient'
+import { workerFetch } from './workerClient.js'
 
 // The upload worker only stages requests (commits them under
 // pending-updates/) — a GitHub Actions workflow does the actual Excel

@@ -17,7 +17,9 @@ const FILE_NAME = 'Cassidy_Davies_Electrical_BPMN_Data.xlsx'
 const FILE_PATH = `public/${FILE_NAME}`
 const BRANCH = 'main'
 const MAX_FILE_BYTES = 8 * 1024 * 1024 // 8MB per file
-const MAX_FILES = 60
+// Keeps a batch's GitHub writes (1 subrequest/file in the common case, see
+// putNewFile) comfortably under Workers' free-plan 50-subrequest cap.
+const MAX_FILES = 40
 
 // ---------------------------------------------------------------------------
 // GitHub helpers
@@ -82,6 +84,24 @@ async function putFileWithRetry(path, env, { contentBase64, message, attempts = 
     if (lastRes.ok || lastRes.status !== 409) return lastRes
   }
   return lastRes
+}
+
+// Writes a brand-new file at a path that's never been written before (every
+// call site below uses a stagedId()-prefixed path, so a collision is
+// practically impossible) — skips the current-sha GET that putFileWithRetry
+// does for updates, halving the GitHub subrequests per file. That matters
+// because Workers' plan caps a single invocation's subrequests (free plan:
+// 50), and /upload does one write per file in the batch: at 2 requests/file
+// a batch of ~25+ files blew the limit outright ("Too many subrequests").
+// Falls back to the sha-fetch-and-retry path only if GitHub reports the file
+// already exists.
+async function putNewFile(path, env, { contentBase64, message }) {
+  const res = await githubRequest(`contents/${path}`, env, {
+    method: 'PUT',
+    body: JSON.stringify({ message, content: contentBase64, branch: BRANCH }),
+  })
+  if (res.ok) return res
+  return putFileWithRetry(path, env, { contentBase64, message })
 }
 
 function safeFileName(name) {
@@ -315,7 +335,7 @@ async function handleUpload(request, env) {
     seenHashes.add(hash)
 
     const stagedPath = `pending-updates/exports/${stagedId()}-${safeFileName(f.name)}`
-    const putRes = await putFileWithRetry(stagedPath, env, {
+    const putRes = await putNewFile(stagedPath, env, {
       contentBase64: arrayBufferToBase64(buffer),
       message: `Stage job export: ${f.name}`,
     })
@@ -386,7 +406,7 @@ async function handleUploadFromUrl(request, env) {
   }
 
   const stagedPath = `pending-updates/exports/${stagedId()}-${resolvedName}`
-  const putRes = await putFileWithRetry(stagedPath, env, {
+  const putRes = await putNewFile(stagedPath, env, {
     contentBase64: arrayBufferToBase64(buffer),
     message: `Stage job export (via automation): ${resolvedName}`,
   })
@@ -420,7 +440,7 @@ async function handleReplace(request, env) {
   const buffer = await file.arrayBuffer()
   const stagedPath = `pending-updates/replace/${stagedId()}-${safeFileName(file.name)}`
 
-  const putRes = await putFileWithRetry(stagedPath, env, {
+  const putRes = await putNewFile(stagedPath, env, {
     contentBase64: arrayBufferToBase64(buffer),
     message: `Stage workbook replacement: ${file.name}`,
   })
@@ -452,7 +472,7 @@ async function handleMainSheetUpdate(request, env) {
   }
 
   const stagedPath = `pending-updates/main-sheet/${stagedId()}.json`
-  const putRes = await putFileWithRetry(stagedPath, env, {
+  const putRes = await putNewFile(stagedPath, env, {
     contentBase64: textToBase64(JSON.stringify({ edits, stagedAt: new Date().toISOString() }, null, 2)),
     message: `Stage checklist edit(s) (${edits.length})`,
   })
@@ -485,7 +505,7 @@ async function handleArchiveJob(request, env) {
   }
 
   const stagedPath = `pending-updates/archived-jobs/${stagedId()}.json`
-  const putRes = await putFileWithRetry(stagedPath, env, {
+  const putRes = await putNewFile(stagedPath, env, {
     contentBase64: textToBase64(JSON.stringify({ jobNumber: String(jobNumber), action, stagedAt: new Date().toISOString() }, null, 2)),
     message: `Stage ${action}: ${jobNumber}`,
   })
@@ -526,7 +546,7 @@ async function handleNewJob(request, env) {
     typeof jobName === 'string' && jobName.trim() ? jobName.trim() : String(jobNumber)
 
   const stagedPath = `pending-updates/new-job/${stagedId()}.json`
-  const putRes = await putFileWithRetry(stagedPath, env, {
+  const putRes = await putNewFile(stagedPath, env, {
     contentBase64: textToBase64(JSON.stringify({
       jobNumber: String(jobNumber),
       jobName: resolvedName,
@@ -568,7 +588,7 @@ async function handleClaimCalculatorUpdate(request, env) {
   }
 
   const stagedPath = `pending-updates/claim-calculator/${stagedId()}.json`
-  const putRes = await putFileWithRetry(stagedPath, env, {
+  const putRes = await putNewFile(stagedPath, env, {
     contentBase64: textToBase64(JSON.stringify({ edits, stagedAt: new Date().toISOString() }, null, 2)),
     message: `Stage Claim Calculator edit(s) (${edits.length})`,
   })
@@ -601,7 +621,7 @@ async function handleUpcomingWorkUpdate(request, env) {
   }
 
   const stagedPath = `pending-updates/upcoming-work/${stagedId()}.json`
-  const putRes = await putFileWithRetry(stagedPath, env, {
+  const putRes = await putNewFile(stagedPath, env, {
     contentBase64: textToBase64(JSON.stringify({ edits, stagedAt: new Date().toISOString() }, null, 2)),
     message: `Stage Upcoming Work edit(s) (${edits.length})`,
   })
