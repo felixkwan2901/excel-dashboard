@@ -373,8 +373,8 @@
     "7428": {
       "jobName": "FAB Pegasus Lakeside",
       "claim": 0,
-      "costs": 2773.090000000011,
-      "profit": -2773.090000000011
+      "costs": 2775.6800000000076,
+      "profit": -2775.6800000000076
     },
     "7429": {
       "jobName": "Taggart House",
@@ -382,11 +382,17 @@
       "costs": 0,
       "profit": 0
     },
+    "7480": {
+      "jobName": "New Build",
+      "claim": 0,
+      "costs": 0,
+      "profit": 0
+    },
     "7658": {
       "jobName": "Charity Hospital",
       "claim": 0,
-      "costs": 403.9200000000128,
-      "profit": -403.9200000000128
+      "costs": 35.10000000000582,
+      "profit": -35.10000000000582
     },
     "7864": {
       "jobName": "Ryans House",
@@ -397,8 +403,8 @@
     "7901": {
       "jobName": "St Albans Street",
       "claim": 52040.560000000005,
-      "costs": 576.9800000000032,
-      "profit": 51463.58
+      "costs": 577.7200000000012,
+      "profit": 51462.840000000004
     },
     "7912": {
       "jobName": "71A Fendalton Road ",
@@ -415,14 +421,14 @@
     "8142": {
       "jobName": "Fisher Developements",
       "claim": 0,
-      "costs": 5716.309999999998,
-      "profit": -5716.309999999998
+      "costs": 3846.6199999999953,
+      "profit": -3846.6199999999953
     },
     "8183": {
       "jobName": "Murney Custodian - 1 Freight Drive",
       "claim": 0,
-      "costs": 8195.619999999995,
-      "profit": -8195.619999999995
+      "costs": 11748.359999999986,
+      "profit": -11748.359999999986
     },
     "8214": {
       "jobName": "6 Tiroroa Lane",
@@ -439,20 +445,20 @@
     "8308": {
       "jobName": "Roydvale",
       "claim": 34650.399999999965,
-      "costs": 14857.690000000002,
-      "profit": 19792.709999999963
+      "costs": 16579.28,
+      "profit": 18071.119999999966
     },
     "8337": {
       "jobName": "Waimak Dairys ",
       "claim": 0,
-      "costs": 0,
-      "profit": 0
+      "costs": 1728.0999999999985,
+      "profit": -1728.0999999999985
     },
     "8352": {
       "jobName": "5 Sanscrit Place",
       "claim": 0,
-      "costs": -1125.8799999999992,
-      "profit": 1125.8799999999992
+      "costs": -440.2600000000002,
+      "profit": 440.2600000000002
     },
     "8360": {
       "jobName": "Dixon House",
@@ -460,11 +466,23 @@
       "costs": 0,
       "profit": 0
     },
+    "8386": {
+      "jobName": "Bach in Kaikoura",
+      "claim": 0,
+      "costs": 0,
+      "profit": 0
+    },
+    "8530": {
+      "jobName": "224 Cashel St - Eastern WC Block Reno",
+      "claim": 0,
+      "costs": 0,
+      "profit": 0
+    },
     "8670": {
       "jobName": "Studio DB - tautara fit out",
       "claim": 0,
-      "costs": 3516.810000000012,
-      "profit": -3516.810000000012
+      "costs": 5440.75,
+      "profit": -5440.75
     },
     "8769": {
       "jobName": "Percival Bach",
@@ -478,6 +496,12 @@
       "costs": 300,
       "profit": -300
     },
+    "8829": {
+      "jobName": "Resi Reno at 124 Chapter Street",
+      "claim": 0,
+      "costs": 0,
+      "profit": 0
+    },
     "8840": {
       "jobName": "Inline Architecture",
       "claim": 0,
@@ -487,14 +511,14 @@
     "8886": {
       "jobName": "Monkey Toe - Fisher fit out",
       "claim": 0,
-      "costs": 7982.0899999999965,
-      "profit": -7982.0899999999965
+      "costs": 9389.019999999997,
+      "profit": -9389.019999999997
     },
     "8887": {
       "jobName": "Tenancy 2 - Fisher Fit out",
       "claim": 0,
-      "costs": -15.220000000001164,
-      "profit": 15.220000000001164
+      "costs": 552.5999999999985,
+      "profit": -552.5999999999985
     },
     "8907": {
       "jobName": "35 Mania",
@@ -517,8 +541,8 @@
     "9065": {
       "jobName": "Cooltranz stage 4",
       "claim": 0,
-      "costs": 6826.489999999998,
-      "profit": -6826.489999999998
+      "costs": 7755.09,
+      "profit": -7755.09
     },
     "9240": {
       "jobName": "Daves Twizel Shack",
@@ -537,6 +561,12 @@
       "claim": 0,
       "costs": 0,
       "profit": 0
+    },
+    "9437": {
+      "jobName": "65A Belfast Road (Revised)",
+      "claim": 10598.48,
+      "costs": 18229.7,
+      "profit": -7631.220000000001
     },
     "9508": {
       "jobName": "St Barnabas Church",
