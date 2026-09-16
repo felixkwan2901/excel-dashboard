@@ -164,6 +164,31 @@ export default function MainSheetTab({
   // Selecting a filter that excludes the currently open job would leave the
   // picker showing something the filter says isn't there — move to the first
   // job that does belong.
+  // Owner groups for the picker, in the order a person would look: named
+  // owners alphabetically, then the unowned jobs last. Built from whichever
+  // list the progress filter has left visible, so the two controls compose
+  // rather than fight — filtering to "Not started" then opening the picker
+  // shows only the not-started jobs, still grouped by who owns them.
+  // Plain derived value, not a useMemo: sortedJobs is rebuilt and sorted in
+  // place on each render, so the compiler cannot prove a manual memo here is
+  // safe — and it optimises this for us once we stop asking.
+  const ownerGroups = (() => {
+    const source = visibleJobs.length > 0 ? visibleJobs : sortedJobs
+    const byOwner = new Map()
+    for (const job of source) {
+      const owner = (job.jobOwner || '').trim()
+      if (!byOwner.has(owner)) byOwner.set(owner, [])
+      byOwner.get(owner).push(job)
+    }
+    return [...byOwner.entries()]
+      .map(([owner, list]) => ({ owner, jobs: list }))
+      .sort((a, b) => {
+        if (!a.owner) return 1
+        if (!b.owner) return -1
+        return a.owner.localeCompare(b.owner)
+      })
+  })()
+
   function applyFilter(key) {
     setProgressFilter(key)
     const next = key === 'all' ? sortedJobs : sortedJobs.filter((j) => bucketOf(j.jobNumber) === key)
@@ -374,10 +399,21 @@ export default function MainSheetTab({
                list is open. */
             className="min-w-0 max-w-full rounded-md border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm text-neutral-200 focus:border-brand-green/50 focus:outline-none"
           >
-            {(visibleJobs.length > 0 ? visibleJobs : sortedJobs).map((job) => (
-              <option key={job.jobNumber} value={job.jobNumber} className="bg-[#11161c] text-neutral-200">
-                {job.jobNumber} — {job.jobName} · {progressByJob.get(job.jobNumber)}/{columns.length}
-              </option>
+            {/* Grouped by owner. Twenty-eight jobs in one flat list means
+                scanning all of them to find the three that are yours; the
+                owner is already on this sheet, so the grouping costs nothing
+                but reading it. Jobs with nobody in the owner column go in a
+                group that says so rather than being quietly dropped — there
+                are ten of them, and a list that hid a third of the work
+                would be worse than an ungrouped one. */}
+            {ownerGroups.map(({ owner, jobs: groupJobs }) => (
+              <optgroup key={owner || '_none'} label={owner || 'No owner set'}>
+                {groupJobs.map((job) => (
+                  <option key={job.jobNumber} value={job.jobNumber} className="bg-[#11161c] text-neutral-200">
+                    {job.jobNumber} — {job.jobName} · {progressByJob.get(job.jobNumber)}/{columns.length}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
         </div>
