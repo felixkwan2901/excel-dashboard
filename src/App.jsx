@@ -306,13 +306,7 @@ export default function App() {
             <LoadStatus status={state.status} error={state.error} onRetry={retryLoad} />
           ) : (
             <Reveal index={0}>
-              <MonthlyClaims
-                monthlyClaims={monthlyClaims}
-                monthlyClaimsHistory={monthlyClaimsHistory}
-                jobs={jobs}
-                monthlyHours={monthlyHours}
-                onBack={goHome}
-              />
+              <MonthlyClaims monthlyClaims={monthlyClaims} jobs={jobs} monthlyHours={monthlyHours} onBack={goHome} />
             </Reveal>
           )}
         </main>

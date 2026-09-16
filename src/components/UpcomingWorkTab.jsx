@@ -1,8 +1,4 @@
-import { useMemo, useState } from 'react'
-import ChartCard from './charts/ChartCard'
-import BarChart from './charts/BarChart'
-import { compactHours } from './charts/chartScale'
-import { capacityByMonthSeries } from '../lib/chartSeries'
+import { useState } from 'react'
 import { saveEdit } from '../lib/saveEdit'
 import { roundHours } from '../lib/format'
 import { useSharedState } from '../lib/useSharedState'
@@ -298,8 +294,6 @@ function CapacityPanel({ capacity, plannedByJobFor }) {
 export default function UpcomingWorkTab({ upcomingWork, onBack }) {
   const { jobs, capacity } = upcomingWork
 
-  const capacitySeries = useMemo(() => capacityByMonthSeries(upcomingWork), [upcomingWork])
-
   const [values, setValues] = useState(() => {
     const map = {}
     for (const job of jobs) {
@@ -393,42 +387,6 @@ export default function UpcomingWorkTab({ upcomingWork, onBack }) {
           Quoted/Used/Remaining hours are calculated; every month is a manual plan you can edit.
         </p>
       </div>
-
-      {/* The capacity picture on the page it describes. Planned is summed from
-          the per-job rows below rather than read off the sheet's own Total
-          Hours row, which is typed and lags — and it comes from
-          lib/chartSeries, the same function the Dashboard tab uses, so this
-          chart and the table under it cannot disagree about a month. */}
-      {capacitySeries.length > 0 && (
-        <ChartCard
-          title="Planned hours against capacity"
-          question="Which months are the crew already oversold in?"
-          series={[{ name: 'Hours planned', color: 'var(--viz-1)' }, { name: 'Hours available', color: 'var(--viz-2)' }]}
-          footnote="Planned is servicing plus every hour booked against a job in the table below, so the two always agree. A month where planned overtops available is a month that needs more people or a moved date."
-          table={
-            <table>
-              <caption>Planned hours and available hours by month</caption>
-              <tbody>
-                {capacitySeries.map((d) => (
-                  <tr key={d.label}>
-                    <th scope="row">{d.label}</th>
-                    <td>Planned {d.values[0] ?? '—'}</td>
-                    <td>Available {d.values[1] ?? '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          }
-        >
-          <BarChart
-            data={capacitySeries}
-            series={[{ name: 'Hours planned', color: 'var(--viz-1)' }, { name: 'Hours available', color: 'var(--viz-2)' }]}
-            valueFormat={(v) => `${roundHours(v)} hrs`}
-            axisFormat={compactHours}
-            emptyMessage="No planned hours yet."
-          />
-        </ChartCard>
-      )}
 
       {status.message && (
         <p className={`text-sm ${status.kind === 'error' ? 'text-red-400' : 'text-brand-green'}`}>

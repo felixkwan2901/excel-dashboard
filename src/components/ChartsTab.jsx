@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import { money, percent, roundHours } from '../lib/format'
 import ChartCard from './charts/ChartCard'
 import BarChart from './charts/BarChart'
@@ -6,7 +6,6 @@ import HBarChart from './charts/HBarChart'
 import LineChart from './charts/LineChart'
 import ScatterChart from './charts/ScatterChart'
 import { compactHours, compactMoney } from './charts/chartScale'
-import { balanceByMonthSeries, capacityByMonthSeries, claimsByMonthSeries, plannedByJobMonth } from '../lib/chartSeries'
 
 // Every figure on this page already exists somewhere in the dashboard. The
 // point of drawing them is that a table answers "what is this number" and a
@@ -26,6 +25,11 @@ const SERIES_4 = 'var(--viz-4)'
 const CRITICAL = 'var(--viz-critical)'
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+function monthShort(key) {
+  const [y, m] = key.split('-')
+  return `${MONTH_LABELS[Number(m) - 1]} ${y.slice(2)}`
+}
 
 function monthLong(key) {
   const [y, m] = key.split('-')
@@ -85,18 +89,56 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, on
   // 1718. Jan-Sep agree exactly, which is what makes the rule clear —
   // servicing plus everything booked against a job IS the total, and the
   // stored row is just the last time someone recalculated it.
-  // The series come from lib/chartSeries, because the Monthly claims and
-  // Upcoming work pages now draw the same two charts above their own tables,
-  // and a second copy of the arithmetic is how they would start disagreeing.
-  // Only the workload mix stays local: it needs the per-job hours WITHOUT
-  // servicing, because servicing is a band of its own in that chart.
-  const plannedByJob = useMemo(() => plannedByJobMonth(upcomingWork), [upcomingWork])
+  const plannedByJob = useMemo(() => {
+    const totals = {}
+    for (const m of MONTH_LABELS) {
+      totals[m] = (upcomingWork?.jobs ?? []).reduce((sum, job) => {
+        const v = job.months?.[m]
+        return sum + (typeof v === 'number' ? v : 0)
+      }, 0)
+    }
+    return totals
+  }, [upcomingWork])
 
-  const moneyByMonth = useMemo(() => claimsByMonthSeries(monthlyClaimsHistory), [monthlyClaimsHistory])
+  const plannedTotalFor = useCallback(
+    (m) => (capacity?.servicingHours?.[m] ?? 0) + (plannedByJob[m] ?? 0),
+    [capacity, plannedByJob],
+  )
+
+  const moneyByMonth = useMemo(
+    () =>
+      (monthlyClaimsHistory?.totalsByMonth ?? []).map((t) => ({
+        label: monthShort(t.month),
+        fullLabel: monthLong(t.month),
+        values: [t.totalClaim, t.totalCosts],
+        note:
+          t.totalClaim - t.totalCosts < 0
+            ? `${money(t.totalCosts - t.totalClaim)} more spent than claimed`
+            : `${money(t.totalClaim - t.totalCosts)} ahead`,
+      })),
+    [monthlyClaimsHistory],
+  )
 
   // Planned is servicing plus the per-job rows, exactly as the Upcoming work
   // table now computes it, so the two can never disagree about a month.
-  const capacityByMonth = useMemo(() => capacityByMonthSeries(upcomingWork), [upcomingWork])
+  const capacityByMonth = useMemo(() => {
+    if (!capacity) return []
+    return MONTH_LABELS.map((m) => {
+      const planned = plannedTotalFor(m)
+      const available = capacity.hoursAvailable?.[m] ?? null
+      const short = planned !== null && available !== null && planned > available
+      return {
+        label: m,
+        fullLabel: m,
+        values: [planned, available],
+        note: short
+          ? `Short by ${roundHours(planned - available)} hrs`
+          : planned !== null && available !== null
+            ? `${roundHours(available - planned)} hrs spare`
+            : null,
+      }
+    }).filter((d) => d.values.some((v) => v !== null && v !== 0))
+  }, [capacity, plannedTotalFor])
 
   const marginSpread = useMemo(() => {
     const withMargin = jobs.filter((j) => j.marginToDate !== null)
@@ -162,7 +204,25 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, on
   // Planned minus available, computed from the corrected planned figure
   // rather than read off the sheet's Balance row, which inherits the same lag
   // as the Total Hours row it is derived from.
-  const balanceByMonth = useMemo(() => balanceByMonthSeries(upcomingWork), [upcomingWork])
+  const balanceByMonth = useMemo(() => {
+    if (!capacity) return []
+    return MONTH_LABELS.map((m) => {
+      const available = capacity.hoursAvailable?.[m]
+      const balance =
+        available === null || available === undefined ? null : plannedTotalFor(m) - available
+      return {
+        label: m,
+        fullLabel: m,
+        values: [balance],
+        note:
+          balance === null
+            ? null
+            : balance > 0
+              ? 'More work planned than crew to do it'
+              : 'Room to take on more',
+      }
+    }).filter((d) => d.values[0] !== null)
+  }, [capacity, plannedTotalFor])
 
   // How much of a month's billing comes from how few jobs. Plotted as a
   // cumulative share against job rank: the faster the line climbs, the more

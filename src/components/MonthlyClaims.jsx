@@ -1,8 +1,4 @@
 import { useMemo, useState } from 'react'
-import ChartCard from './charts/ChartCard'
-import BarChart from './charts/BarChart'
-import { compactMoney } from './charts/chartScale'
-import { claimsByMonthSeries } from '../lib/chartSeries'
 import { money, percent } from '../lib/format'
 import { saveEdit } from '../lib/saveEdit'
 import { useSharedState } from '../lib/useSharedState'
@@ -83,10 +79,8 @@ function currentMonthKey() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
-export default function MonthlyClaims({ monthlyClaims, monthlyClaimsHistory, jobs: allJobs, monthlyHours, onBack }) {
+export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHours, onBack }) {
   const { jobs } = monthlyClaims
-
-  const claimsSeries = useMemo(() => claimsByMonthSeries(monthlyClaimsHistory), [monthlyClaimsHistory])
 
   // The Claim Calculator sheet's own "Hours this month" cell is hand-typed
   // and drifts out of date/goes negative when it isn't kept in sync — the
@@ -271,42 +265,6 @@ export default function MonthlyClaims({ monthlyClaims, monthlyClaimsHistory, job
           month — from the workbook&apos;s Claim Calculator By Month sheet.
         </p>
       </div>
-
-      {/* The same chart the Dashboard tab draws, on the page whose numbers it
-          is about. It answers the question the table underneath cannot —
-          "is this month normal" — and it reads from lib/chartSeries, the one
-          definition both places share, so the picture and the table can never
-          disagree about a month. */}
-      {claimsSeries.length > 0 && (
-        <ChartCard
-          title="Claimed against costs, by month"
-          question="Is the business billing more than it is spending?"
-          series={[{ name: 'Claimed', color: 'var(--viz-1)' }, { name: 'Costs', color: 'var(--viz-2)' }]}
-          footnote={`Only the months since this logging began are shown — ${claimsSeries.length} so far. A month where the orange bar is taller was a month that cost more than it billed.`}
-          table={
-            <table>
-              <caption>Claimed and costs by month</caption>
-              <tbody>
-                {claimsSeries.map((d) => (
-                  <tr key={d.fullLabel}>
-                    <th scope="row">{d.fullLabel}</th>
-                    <td>Claimed {money(d.values[0])}</td>
-                    <td>Costs {money(d.values[1])}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          }
-        >
-          <BarChart
-            data={claimsSeries}
-            series={[{ name: 'Claimed', color: 'var(--viz-1)' }, { name: 'Costs', color: 'var(--viz-2)' }]}
-            valueFormat={money}
-            axisFormat={compactMoney}
-            emptyMessage="No months logged yet."
-          />
-        </ChartCard>
-      )}
 
       {status.message && (
         <p className={`text-sm ${status.kind === 'error' ? 'text-red-400' : 'text-brand-green'}`}>
