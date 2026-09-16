@@ -1,11 +1,10 @@
 import { useState } from 'react'
-import * as XLSX from 'xlsx'
 import { Download } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card'
 import { Button } from './ui/button'
 import { pollStagedStatus } from '../lib/pollStagedStatus'
 import { recordJobCreated } from '../lib/onboardingChecklist'
-import { readOwnerRows, planOwnerEdits, ownerEditsPayload, JOB_OWNERS } from '../lib/ownerImport'
+import { planOwnerEdits, ownerEditsPayload, selectedOwner, JOB_OWNERS } from '../lib/jobOwners'
 
 import { workerFetch, workerDownload } from '@/lib/workerClient'
 import LastSynced from './LastSynced'
@@ -167,45 +166,25 @@ export default function UpdateData({ onBack, jobs, monthlyClaimsHistory, monthly
   const [newJobStatus, setNewJobStatus] = useState('idle') // idle | staging | processing | done | error
   const [newJobMessage, setNewJobMessage] = useState('')
 
-  // Owner import. The plan is held in state between reading the file and
-  // writing anything, because this is the one action here that edits cells
-  // the office filled in by hand — it shows exactly what it would change and
-  // waits to be told to go ahead.
-  const [ownerPlan, setOwnerPlan] = useState(null)
-  const [ownerError, setOwnerError] = useState('')
+  // Owner. Column C of the Main Sheet, which the weekly export never writes,
+  // so this is the only way it gets filled in. Choices are collected and sent
+  // in one batch rather than saved per row: each save stages a merge, and
+  // twenty-eight of them would be twenty-eight merges.
+  const [ownerDraft, setOwnerDraft] = useState({})
   const [ownerStatus, setOwnerStatus] = useState('idle') // idle | staging | processing | done | error
   const [ownerMessage, setOwnerMessage] = useState('')
 
-  async function handleOwnerFile(file) {
-    setOwnerPlan(null)
-    setOwnerError('')
-    setOwnerMessage('')
-    setOwnerStatus('idle')
-    if (!file) return
-    try {
-      const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' })
-      const sheet = wb.Sheets[wb.SheetNames[0]]
-      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, defval: '' })
-      const read = readOwnerRows(rows)
-      if (!read.ok) {
-        setOwnerError(read.error)
-        return
-      }
-      setOwnerPlan({ ...planOwnerEdits(read.entries, jobs), ownerHeader: read.ownerHeader })
-    } catch (err) {
-      setOwnerError(`Could not read that file: ${String(err.message ?? err)}`)
-    }
-  }
+  const ownerChanges = planOwnerEdits(ownerDraft, jobs)
 
-  async function applyOwnerChanges() {
-    if (!ownerPlan?.changes?.length) return
+  async function saveOwners() {
+    if (ownerChanges.length === 0) return
     setOwnerStatus('staging')
     setOwnerMessage('')
     try {
       const res = await workerFetch(`/main-sheet`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ edits: ownerEditsPayload(ownerPlan.changes) }),
+        body: JSON.stringify({ edits: ownerEditsPayload(ownerChanges) }),
       })
       const payload = await res.json()
       if (!res.ok) {
@@ -216,12 +195,16 @@ export default function UpdateData({ onBack, jobs, monthlyClaimsHistory, monthly
       setOwnerStatus('processing')
       setOwnerMessage(payload.message)
       const result = await pollStagedStatus(payload.staged)
-      setOwnerStatus(result.status === 'done' ? 'done' : 'error')
-      setOwnerMessage(
-        result.status === 'done'
-          ? `${ownerPlan.changes.length} owner(s) written to the workbook. The site shows them after the next redeploy, about a minute.`
-          : result.message ?? 'The merge did not finish.',
-      )
+      if (result.status === 'done') {
+        setOwnerStatus('done')
+        setOwnerMessage(
+          `${ownerChanges.length} owner(s) saved. The site shows them after the redeploy, about a minute.`,
+        )
+        setOwnerDraft({})
+      } else {
+        setOwnerStatus('error')
+        setOwnerMessage(result.message ?? 'The merge did not finish.')
+      }
     } catch (err) {
       setOwnerMessage(`Could not reach the upload service: ${String(err.message ?? err)}`)
       setOwnerStatus('error')
@@ -446,95 +429,88 @@ export default function UpdateData({ onBack, jobs, monthlyClaimsHistory, monthly
 
       <Card className="mt-4">
         <CardHeader>
-          <CardTitle className="text-sm">Import job owners from Katipolt</CardTitle>
+          <CardTitle className="text-sm">Job owners</CardTitle>
           <p className="text-xs text-text-muted">
-            The weekly Profit and Loss export carries no owner, which is why this column has
-            always been typed in by hand. Export the Jobs list from Katipolt with the Owner
-            column shown, drop it here, and check what it would change before anything is
-            written. Only {JOB_OWNERS.join(', ')} are written as owners.
+            Nothing else writes this column — the weekly export has no owner in it — so it is set
+            here. Pick from the list, then save once at the bottom. Jobs showing no owner include
+            the ones that were set to a first name only.
           </p>
         </CardHeader>
         <CardContent>
-          <input
-            id="owner-file"
-            type="file"
-            accept=".xlsx"
-            onChange={(e) => handleOwnerFile(e.target.files?.[0])}
-            className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white file:mr-3 file:rounded-md file:border-0 file:bg-white/[0.08] file:px-2.5 file:py-1 file:text-xs file:text-white"
-          />
-
-          {ownerError && <p className="mt-3 text-sm text-red-400">{ownerError}</p>}
-
-          {ownerPlan && (
-            <div className="mt-4 flex flex-col gap-3">
-              <p className="text-xs text-text-muted">
-                Read from the &ldquo;{ownerPlan.ownerHeader}&rdquo; column.{' '}
-                {ownerPlan.changes.length} to change, {ownerPlan.unchanged.length} already correct
-                {ownerPlan.unrecognisedName.length > 0 &&
-                  `, ${ownerPlan.unrecognisedName.length} with a name that isn't one of the three`}
-                {ownerPlan.notOnDashboard.length > 0 &&
-                  `, ${ownerPlan.notOnDashboard.length} not on the dashboard`}
-                .
-              </p>
-
-              {ownerPlan.changes.length > 0 && (
-                <div className="max-h-64 overflow-auto rounded-lg border border-white/[0.08]">
-                  <table className="w-full text-left text-[13px]">
-                    <thead className="sticky top-0 bg-[#11161c] text-[11px] tracking-wide text-neutral-400 uppercase">
-                      <tr>
-                        <th className="px-3 py-2">Job</th>
-                        <th className="px-3 py-2">Now</th>
-                        <th className="px-3 py-2">Becomes</th>
+          <div className="max-h-[420px] overflow-auto rounded-lg border border-white/[0.08]">
+            <table className="w-full text-left text-[13px]">
+              <tbody>
+                {[...(jobs ?? [])]
+                  .sort((a, b) => Number(a.jobNumber) - Number(b.jobNumber))
+                  .map((job) => {
+                    const value = job.jobNumber in ownerDraft
+                      ? ownerDraft[job.jobNumber]
+                      : selectedOwner(job)
+                    const dirty = ownerChanges.some((c) => c.jobNumber === String(job.jobNumber))
+                    return (
+                      <tr
+                        key={job.jobNumber}
+                        className={`border-t border-white/[0.06] first:border-t-0 ${dirty ? 'bg-brand-green/[0.07]' : ''}`}
+                      >
+                        <td className="px-3 py-2">
+                          <span className="tabular-nums text-neutral-400">{job.jobNumber}</span>{' '}
+                          <span className="text-neutral-100">{job.jobName}</span>
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          <select
+                            value={value}
+                            aria-label={`Owner for job ${job.jobNumber}`}
+                            onChange={(e) =>
+                              setOwnerDraft((prev) => ({ ...prev, [job.jobNumber]: e.target.value }))
+                            }
+                            className="w-44 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[13px] text-neutral-100 focus:border-brand-green/50 focus:outline-none"
+                          >
+                            <option value="">No owner</option>
+                            {JOB_OWNERS.map((name) => (
+                              <option key={name} value={name}>
+                                {name}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {ownerPlan.changes.map((c) => (
-                        <tr key={c.jobNumber} className="border-t border-white/[0.06]">
-                          <td className="px-3 py-1.5 tabular-nums">
-                            {c.jobNumber} {c.jobName}
-                          </td>
-                          <td className="px-3 py-1.5 text-neutral-400">{c.from || '\u2014'}</td>
-                          <td className="px-3 py-1.5 text-brand-green">{c.to}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                    )
+                  })}
+              </tbody>
+            </table>
+          </div>
 
-              {ownerPlan.unrecognisedName.length > 0 && (
-                <p className="text-xs text-amber-400">
-                  Not written, because the name is not one of the three:{' '}
-                  {ownerPlan.unrecognisedName
-                    .map((u) => `${u.jobNumber} (${u.owner})`)
-                    .join(', ')}
-                  .
-                </p>
-              )}
-
-              <Button
+          <div className="mt-3 flex items-center gap-3">
+            <Button
+              type="button"
+              onClick={saveOwners}
+              disabled={
+                ownerChanges.length === 0 ||
+                ownerStatus === 'staging' ||
+                ownerStatus === 'processing'
+              }
+            >
+              {ownerStatus === 'staging'
+                ? 'Saving\u2026'
+                : ownerStatus === 'processing'
+                  ? 'Merging\u2026'
+                  : ownerChanges.length === 0
+                    ? 'No changes to save'
+                    : `Save ${ownerChanges.length} change(s)`}
+            </Button>
+            {ownerChanges.length > 0 && (
+              <button
                 type="button"
-                onClick={applyOwnerChanges}
-                disabled={
-                  ownerPlan.changes.length === 0 ||
-                  ownerStatus === 'staging' ||
-                  ownerStatus === 'processing'
-                }
-                className="self-start"
+                onClick={() => setOwnerDraft({})}
+                className="text-xs text-text-muted underline underline-offset-2 hover:text-neutral-200"
               >
-                {ownerStatus === 'staging'
-                  ? 'Saving\u2026'
-                  : ownerStatus === 'processing'
-                    ? 'Merging\u2026'
-                    : `Write ${ownerPlan.changes.length} owner(s) to the workbook`}
-              </Button>
-            </div>
-          )}
+                Undo all
+              </button>
+            )}
+          </div>
 
           {ownerMessage && (
-            <p
-              className={`mt-3 text-sm ${ownerStatus === 'error' ? 'text-red-400' : 'text-brand-green'}`}
-            >
+            <p className={`mt-3 text-sm ${ownerStatus === 'error' ? 'text-red-400' : 'text-brand-green'}`}>
               {ownerMessage}
             </p>
           )}
