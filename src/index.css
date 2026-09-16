@@ -824,3 +824,86 @@ input:focus-visible {
   border: 1px solid var(--gridline);
   border-radius: 10px;
 }
+
+/* ---------- job checklist filter row ---------- */
+
+/* The three buckets on the Job checklist page, as a filter rather than three
+   headline cards. The shared StatCard is 152px tall with a 42px figure,
+   which is correct on Projects where three of them are the whole page — and
+   wrong here, where the page is the checklist underneath and the cards were
+   pushing it off the bottom of the screen. Same counts, same behaviour, a
+   third of the height. */
+.checklist-filter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  text-align: left;
+  transition: border-color 150ms ease, background 150ms ease;
+}
+
+.checklist-filter:hover {
+  border-color: var(--text-muted);
+}
+
+.checklist-filter.is-active {
+  border-color: var(--brand-green);
+  background: var(--surface-2);
+}
+
+.checklist-filter__icon {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+
+.checklist-filter.is-active .checklist-filter__icon {
+  background: var(--surface-1);
+  color: var(--text-primary);
+}
+
+/* Still the biggest thing in the row — it is the number you came for — just
+   not a headline competing with the page title. */
+.checklist-filter__count {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.checklist-filter__count.is-alert {
+  color: var(--status-critical);
+}
+
+.checklist-filter__label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.checklist-filter__hint {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* Below about 420px the hint is the first thing to go: the count and the
+   label are the row's job, and three rows of wrapped help text is the
+   crowding this change exists to remove. */
+@media (max-width: 420px) {
+  .checklist-filter__hint {
+    display: none;
+  }
+}

@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { CircleDashed, CircleDot, CircleCheck } from 'lucide-react'
-import StatCard from './StatCard'
 import { pollStagedStatus } from '../lib/pollStagedStatus'
 import { saveEdit } from '../lib/saveEdit'
 import {
@@ -377,30 +376,38 @@ export default function MainSheetTab({
           </select>
         </div>
 
-        {/* Three big cards rather than a row of small chips: this is the first
-            thing you want off this page — how many jobs nobody has started —
-            and a subtle pill was easy to scroll straight past. Clicking one
-            filters the picker below; clicking the active one again clears it. */}
-        <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        {/* A compact filter row, not three 152px cards.
+            Those cards are right on Projects, where three of them ARE the
+            page. Here they are a control: the page is the checklist
+            underneath, and the cards pushed it below the fold so the first
+            thing you came to read needed a scroll to reach. The counts still
+            lead — they are the number you want off this page — but at a size
+            that suits a filter rather than a headline. Clicking one filters
+            the picker below; clicking the active one again clears it. */}
+        <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-3">
           {PROGRESS_CARDS.map((card) => {
             const active = progressFilter === card.key
             const count = filterCounts[card.key]
+            const alert = card.key === 'notStarted' && count > 0
+            const Icon = card.icon
             return (
-              <div
+              <button
                 key={card.key}
-                className={`rounded-[18px] transition-shadow ${
-                  active ? `ring-2 ${card.ring}` : ''
-                }`}
+                type="button"
+                onClick={() => applyFilter(active ? 'all' : card.key)}
+                aria-pressed={active}
+                className={`checklist-filter ${active ? 'is-active' : ''}`}
               >
-                <StatCard
-                  icon={card.icon}
-                  label={card.label}
-                  value={count}
-                  context={active ? 'Showing these — click to clear' : card.context}
-                  tone={card.key === 'notStarted' && count > 0 ? 'critical' : 'neutral'}
-                  onClick={() => applyFilter(active ? 'all' : card.key)}
-                />
-              </div>
+                <span className="checklist-filter__icon" aria-hidden="true">
+                  <Icon size={15} strokeWidth={1.75} />
+                </span>
+                <span className={`checklist-filter__count ${alert ? 'is-alert' : ''}`}>{count}</span>
+                <span className="checklist-filter__label">{card.label}</span>
+                {/* The explanation only appears on the one you have chosen —
+                    three of them at rest was three lines of text nobody was
+                    reading, for the same reason the cards were too tall. */}
+                {active && <span className="checklist-filter__hint">Showing these · click to clear</span>}
+              </button>
             )
           })}
         </div>
