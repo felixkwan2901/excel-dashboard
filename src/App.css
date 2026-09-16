@@ -510,7 +510,99 @@
   }
 
   /* A site code is printed to be stuck on a door, so it prints on its own —
-     nobody wants four pages of margin tables behind it. */
+     nobody wants four pages of margin tables behind it.
+
+     That was the intent; stripping the card's border never delivered it.
+     `window.print()` prints the page, and this card sits at the bottom of a
+     job page, so the sheet came out carrying whichever tab was open behind
+     it: claim percentages, projected cost, margin, client name. That sheet
+     leaves the office and goes up on a site other trades walk past. The
+     Print button now flags the page and everything outside this card is
+     hidden for the duration.
+
+     `visibility`, not `display`: the card's ancestors are the page, so
+     hiding them with `display: none` takes the card down with them.
+     visibility:hidden leaves the boxes standing and lets a descendant opt
+     back in. */
+  :root[data-printing='qr'] body * {
+    visibility: hidden;
+  }
+
+  :root[data-printing='qr'] .site-qr,
+  :root[data-printing='qr'] .site-qr * {
+    visibility: visible;
+  }
+
+  /* Re-hide the on-screen furniture: "put it on the switchboard door" is an
+     instruction for whoever is printing, not for the door. */
+  :root[data-printing='qr'] .no-print,
+  :root[data-printing='qr'] .no-print * {
+    visibility: hidden;
+  }
+
+  /* The theme paints the page surface on :root itself, at a specificity a
+     plain `html, body` rule can't reach — without this the sheet comes out
+     with a pale grey wash over the whole page. */
+  :root[data-printing='qr'],
+  :root[data-printing='qr'] body {
+    background: #fff !important;
+  }
+
+  /* The dashboard prints landscape because its tables are wide. A sheet that
+     gets taped to a switchboard door is portrait, like every other A4 notice
+     on a site. */
+  @page qr {
+    size: portrait;
+    margin: 16mm;
+  }
+
+  :root[data-printing='qr'] body {
+    page: qr;
+  }
+
+  :root[data-printing='qr'] .site-qr {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+  }
+
+  :root[data-printing='qr'] .site-qr__row {
+    display: block;
+    text-align: center;
+  }
+
+  /* On paper the card's palette is a dark-UI artifact — white text on white
+     paper, and a hairline border that isn't meant to be there. */
+  :root[data-printing='qr'] .site-qr,
+  :root[data-printing='qr'] .site-qr * {
+    color: #000;
+    border-color: transparent;
+  }
+
+  :root[data-printing='qr'] .site-qr__print-title {
+    display: block;
+    margin: 8mm 0 3mm;
+    font-size: 18pt;
+    font-weight: 600;
+  }
+
+  :root[data-printing='qr'] .site-qr__plate {
+    display: inline-block;
+    padding: 0;
+  }
+
+  /* Sized for a phone camera at about a metre, which is where someone stands
+     when they scan a switchboard door. 132px is a screen thumbnail; on paper
+     that is a 35mm square nobody can read at arm's length. */
+  :root[data-printing='qr'] .site-qr__code {
+    width: 90mm;
+    height: 90mm;
+  }
+
+  :root[data-printing='qr'] .site-qr__url {
+    font-size: 9pt;
+  }
+
   .site-qr {
     border: 0;
     padding: 0;
