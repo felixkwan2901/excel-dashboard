@@ -1,9 +1,11 @@
 import { useState } from 'react'
+import * as XLSX from 'xlsx'
 import { Download } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card'
 import { Button } from './ui/button'
 import { pollStagedStatus } from '../lib/pollStagedStatus'
 import { recordJobCreated } from '../lib/onboardingChecklist'
+import { readOwnerRows, planOwnerEdits, ownerEditsPayload, JOB_OWNERS } from '../lib/ownerImport'
 
 import { workerFetch, workerDownload } from '@/lib/workerClient'
 import LastSynced from './LastSynced'
@@ -164,6 +166,67 @@ export default function UpdateData({ onBack, jobs, monthlyClaimsHistory, monthly
   })
   const [newJobStatus, setNewJobStatus] = useState('idle') // idle | staging | processing | done | error
   const [newJobMessage, setNewJobMessage] = useState('')
+
+  // Owner import. The plan is held in state between reading the file and
+  // writing anything, because this is the one action here that edits cells
+  // the office filled in by hand — it shows exactly what it would change and
+  // waits to be told to go ahead.
+  const [ownerPlan, setOwnerPlan] = useState(null)
+  const [ownerError, setOwnerError] = useState('')
+  const [ownerStatus, setOwnerStatus] = useState('idle') // idle | staging | processing | done | error
+  const [ownerMessage, setOwnerMessage] = useState('')
+
+  async function handleOwnerFile(file) {
+    setOwnerPlan(null)
+    setOwnerError('')
+    setOwnerMessage('')
+    setOwnerStatus('idle')
+    if (!file) return
+    try {
+      const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' })
+      const sheet = wb.Sheets[wb.SheetNames[0]]
+      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, defval: '' })
+      const read = readOwnerRows(rows)
+      if (!read.ok) {
+        setOwnerError(read.error)
+        return
+      }
+      setOwnerPlan({ ...planOwnerEdits(read.entries, jobs), ownerHeader: read.ownerHeader })
+    } catch (err) {
+      setOwnerError(`Could not read that file: ${String(err.message ?? err)}`)
+    }
+  }
+
+  async function applyOwnerChanges() {
+    if (!ownerPlan?.changes?.length) return
+    setOwnerStatus('staging')
+    setOwnerMessage('')
+    try {
+      const res = await workerFetch(`/main-sheet`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ edits: ownerEditsPayload(ownerPlan.changes) }),
+      })
+      const payload = await res.json()
+      if (!res.ok) {
+        setOwnerMessage(payload.message ?? `Request failed (${res.status}).`)
+        setOwnerStatus('error')
+        return
+      }
+      setOwnerStatus('processing')
+      setOwnerMessage(payload.message)
+      const result = await pollStagedStatus(payload.staged)
+      setOwnerStatus(result.status === 'done' ? 'done' : 'error')
+      setOwnerMessage(
+        result.status === 'done'
+          ? `${ownerPlan.changes.length} owner(s) written to the workbook. The site shows them after the next redeploy, about a minute.`
+          : result.message ?? 'The merge did not finish.',
+      )
+    } catch (err) {
+      setOwnerMessage(`Could not reach the upload service: ${String(err.message ?? err)}`)
+      setOwnerStatus('error')
+    }
+  }
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -378,6 +441,103 @@ export default function UpdateData({ onBack, jobs, monthlyClaimsHistory, monthly
               {status === 'staging' ? 'Uploading…' : status === 'processing' ? 'Processing…' : 'Upload & merge'}
             </Button>
           </form>
+        </CardContent>
+      </Card>
+
+      <Card className="mt-4">
+        <CardHeader>
+          <CardTitle className="text-sm">Import job owners from Katipolt</CardTitle>
+          <p className="text-xs text-text-muted">
+            The weekly Profit and Loss export carries no owner, which is why this column has
+            always been typed in by hand. Export the Jobs list from Katipolt with the Owner
+            column shown, drop it here, and check what it would change before anything is
+            written. Only {JOB_OWNERS.join(', ')} are written as owners.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <input
+            id="owner-file"
+            type="file"
+            accept=".xlsx"
+            onChange={(e) => handleOwnerFile(e.target.files?.[0])}
+            className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white file:mr-3 file:rounded-md file:border-0 file:bg-white/[0.08] file:px-2.5 file:py-1 file:text-xs file:text-white"
+          />
+
+          {ownerError && <p className="mt-3 text-sm text-red-400">{ownerError}</p>}
+
+          {ownerPlan && (
+            <div className="mt-4 flex flex-col gap-3">
+              <p className="text-xs text-text-muted">
+                Read from the &ldquo;{ownerPlan.ownerHeader}&rdquo; column.{' '}
+                {ownerPlan.changes.length} to change, {ownerPlan.unchanged.length} already correct
+                {ownerPlan.unrecognisedName.length > 0 &&
+                  `, ${ownerPlan.unrecognisedName.length} with a name that isn't one of the three`}
+                {ownerPlan.notOnDashboard.length > 0 &&
+                  `, ${ownerPlan.notOnDashboard.length} not on the dashboard`}
+                .
+              </p>
+
+              {ownerPlan.changes.length > 0 && (
+                <div className="max-h-64 overflow-auto rounded-lg border border-white/[0.08]">
+                  <table className="w-full text-left text-[13px]">
+                    <thead className="sticky top-0 bg-[#11161c] text-[11px] tracking-wide text-neutral-400 uppercase">
+                      <tr>
+                        <th className="px-3 py-2">Job</th>
+                        <th className="px-3 py-2">Now</th>
+                        <th className="px-3 py-2">Becomes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ownerPlan.changes.map((c) => (
+                        <tr key={c.jobNumber} className="border-t border-white/[0.06]">
+                          <td className="px-3 py-1.5 tabular-nums">
+                            {c.jobNumber} {c.jobName}
+                          </td>
+                          <td className="px-3 py-1.5 text-neutral-400">{c.from || '\u2014'}</td>
+                          <td className="px-3 py-1.5 text-brand-green">{c.to}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {ownerPlan.unrecognisedName.length > 0 && (
+                <p className="text-xs text-amber-400">
+                  Not written, because the name is not one of the three:{' '}
+                  {ownerPlan.unrecognisedName
+                    .map((u) => `${u.jobNumber} (${u.owner})`)
+                    .join(', ')}
+                  .
+                </p>
+              )}
+
+              <Button
+                type="button"
+                onClick={applyOwnerChanges}
+                disabled={
+                  ownerPlan.changes.length === 0 ||
+                  ownerStatus === 'staging' ||
+                  ownerStatus === 'processing'
+                }
+                className="self-start"
+              >
+                {ownerStatus === 'staging'
+                  ? 'Saving\u2026'
+                  : ownerStatus === 'processing'
+                    ? 'Merging\u2026'
+                    : `Write ${ownerPlan.changes.length} owner(s) to the workbook`}
+              </Button>
+            </div>
+          )}
+
+          {ownerMessage && (
+            <p
+              className={`mt-3 text-sm ${ownerStatus === 'error' ? 'text-red-400' : 'text-brand-green'}`}
+            >
+              {ownerMessage}
+            </p>
+          )}
         </CardContent>
       </Card>
 
