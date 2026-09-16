@@ -33,6 +33,11 @@ export const ONBOARDING_ITEMS = [
 
 export const LINK_ITEM_COUNTS = { weekly: 9, completion: 11 }
 
+// Which item is the one tied to the Weekly Job Check Sheet. Derived from the
+// list rather than written as `17` so reordering or inserting an item can't
+// quietly point the week-expiry rule below at the wrong row.
+export const WEEKLY_ITEM_INDEX = ONBOARDING_ITEMS.findIndex((i) => i.link === 'weekly')
+
 // KV key prefixes for the linked checklists — "weekly:<jobNumber>" /
 // "completion:<jobNumber>", the same prefixes the Worker's /app-data route
 // accepts (see upload-worker/src/index.js's APP_DATA_KEY_RE).
@@ -86,4 +91,29 @@ export async function fetchJobCreatedAt(jobNumber) {
 export function isTwoWeeksOverdueFromStamp(stamp) {
   if (!stamp) return false
   return Date.now() - new Date(stamp).getTime() >= TWO_WEEKS_MS
+}
+
+
+// Whether an item counts as settled *today*.
+//
+// For eighteen of the nineteen items this is just "is it ticked". Item 18 is
+// different: the Weekly Job Check Sheet is a per-week thing, so its tick only
+// ever meant "done this week". Setting that tick is already gated on the
+// linked sheet being complete for the current week (MainSheetTab's
+// handleChange refuses otherwise) — but nothing ever cleared it again. A tick
+// set one Thursday sat there through every following Saturday, so the row
+// showed a green tick and the red overdue flash at the same time and gave you
+// no way to tell which one was lying. Job 8824 carried a tick from 3
+// September through two week-rollovers.
+//
+// The tick is derived rather than unset: writing a blank back would mean the
+// app editing the client's workbook on a timer, unattended, across every job.
+// The stored column keeps whatever it holds; this decides what it means now.
+export function isItemSettledNow(item, storedValue, weeklyRecord) {
+  const stored = storedValue === 'Yes' || storedValue === 'N/A'
+  if (!stored) return false
+  // Only the weekly item expires. A job completion checklist doesn't reset
+  // every Saturday, so item 19's tick stands on its own.
+  if (item?.link !== 'weekly') return true
+  return isLinkedChecklistCompleteFromRecord('weekly', weeklyRecord)
 }

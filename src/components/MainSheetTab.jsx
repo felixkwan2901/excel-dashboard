@@ -9,9 +9,12 @@ import {
   fetchLinkedChecklistRecord,
   fetchJobCreatedAt,
   isTwoWeeksOverdueFromStamp,
+  isItemSettledNow,
+  WEEKLY_ITEM_INDEX,
 } from '../lib/onboardingChecklist'
 
 import { workerFetch } from '@/lib/workerClient'
+import { isCurrentWeek } from '../lib/weekStart'
 
 // Thursday morning is when the Weekly job check sheet is supposed to be
 // done for the week (see its "Notes for the meeting" field) — if it isn't
@@ -20,6 +23,18 @@ import { workerFetch } from '@/lib/workerClient'
 function isThursdayMorning() {
   const now = new Date()
   return now.getDay() === 4 && now.getHours() < 12
+}
+
+// "2026-09-05" -> "5 Sept". Parsed from the parts rather than through
+// new Date("2026-09-05"), which JS reads as UTC midnight and renders as the
+// 4th anywhere west of Greenwich — and as a date that reads one day early is
+// exactly the bug weekStart.js already had to fix once, it isn't worth
+// reintroducing here.
+function formatWeekOf(weekOf) {
+  if (!weekOf) return ''
+  const [y, m, d] = weekOf.split('-').map(Number)
+  if (!y || !m || !d) return ''
+  return new Date(y, m - 1, d).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short' })
 }
 
 // A local `text` state separate from the committed `value` prop — needed
@@ -109,13 +124,53 @@ export default function MainSheetTab({
   const [retentionSaving, setRetentionSaving] = useState(() => new Set())
 
   const columnByKey = new Map(columns.map((c) => [c.key, c]))
-  // Ticked, or holding a legacy 'N/A' from before the N/A option was removed
-  // — both mean the item needs no further action.
-  const settledCount = (jobNumber) =>
-    columns.filter((c) => {
-      const v = values[jobNumber]?.[c.key]
+  const weeklyColKey = columns[WEEKLY_ITEM_INDEX]?.key
+
+  // The Weekly Job Check Sheet record for every job whose item 18 is ticked
+  // — needed because that tick expires when the week rolls over (see
+  // isItemSettledNow), and the counts below cover all 28 jobs, not just the
+  // selected one. Only ticked jobs are fetched: where the item is already
+  // unticked no weekly record can change the answer, so asking would be 28
+  // requests to learn nothing.
+  const [weeklyByJob, setWeeklyByJob] = useState(() => new Map())
+  const weeklyTickedJobs = jobs
+    .filter((j) => {
+      const v = values[j.jobNumber]?.[weeklyColKey]
       return v === 'Yes' || v === 'N/A'
-    }).length
+    })
+    .map((j) => j.jobNumber)
+  // A string, not the array — the array is rebuilt every render and would
+  // re-fire the effect forever.
+  const weeklyFetchKey = weeklyTickedJobs.join(',')
+  // Derived rather than a `loaded` flag, which would mean setting state
+  // synchronously inside the effect for the nothing-to-fetch case. An empty
+  // list is vacuously loaded, which is the right answer anyway.
+  const weeklyLoaded = weeklyTickedJobs.every((n) => weeklyByJob.has(n))
+  useEffect(() => {
+    if (!weeklyFetchKey) return
+    let cancelled = false
+    Promise.all(
+      weeklyFetchKey
+        .split(',')
+        .map((n) => fetchLinkedChecklistRecord('weekly', n).then((r) => [n, r])),
+    ).then((entries) => {
+      if (!cancelled) setWeeklyByJob(new Map(entries))
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [weeklyFetchKey])
+
+  // Ticked, or holding a legacy 'N/A' from before the N/A option was removed
+  // — both mean the item needs no further action. Item 18 additionally has to
+  // still be true *this week*; until its records land, fall back to the raw
+  // value so the list doesn't paint ticks off and then back on.
+  const isSettled = (jobNumber, colKey) => {
+    const v = values[jobNumber]?.[colKey]
+    if (colKey !== weeklyColKey || !weeklyLoaded) return v === 'Yes' || v === 'N/A'
+    return isItemSettledNow(ONBOARDING_ITEMS[WEEKLY_ITEM_INDEX], v, weeklyByJob.get(jobNumber) ?? null)
+  }
+  const settledCount = (jobNumber) => columns.filter((c) => isSettled(jobNumber, c.key)).length
 
   const selectedJob = sortedJobs.find((j) => j.jobNumber === selectedJobNumber) ?? sortedJobs[0] ?? null
   const selectedJobDone = selectedJob ? settledCount(selectedJob.jobNumber) : 0
@@ -256,8 +311,11 @@ export default function MainSheetTab({
   async function handleChange(job, colKey, newValue, item) {
     const cellKey = `${job.jobNumber}:${colKey}`
     const previousValue = values[job.jobNumber][colKey]
-    if (newValue === previousValue) return
 
+    // The gate runs before the no-op check on purpose. Item 18's tick expires
+    // when the week rolls over while the stored column still says 'Yes', so
+    // clicking it sends 'Yes' over 'Yes' — an early return there would make
+    // the click do nothing at all, with no hint why.
     if (item?.link && newValue === 'Yes') {
       const record = await fetchLinkedChecklistRecord(item.link, job.jobNumber)
       if (!isLinkedChecklistCompleteFromRecord(item.link, record)) {
@@ -270,6 +328,8 @@ export default function MainSheetTab({
         return
       }
     }
+
+    if (newValue === previousValue) return
 
     setValues((prev) => ({ ...prev, [job.jobNumber]: { ...prev[job.jobNumber], [colKey]: newValue } }))
     setSavingKeys((prev) => new Set(prev).add(cellKey))
@@ -477,10 +537,30 @@ export default function MainSheetTab({
                 const item = ONBOARDING_ITEMS[i]
                 const label = item?.label ?? c.label
                 const itemValue = values[selectedJob.jobNumber][c.key]
-                const isDone = itemValue === 'Yes' || itemValue === 'N/A'
+                const isDone = isSettled(selectedJob.jobNumber, c.key)
                 const pending = !isDone
+                // Item 18 ticked in the workbook, but for a week that has
+                // since ended — worth saying out loud, because otherwise the
+                // row just quietly reads as never done.
+                const weeklyExpired =
+                  c.key === weeklyColKey && pending && (itemValue === 'Yes' || itemValue === 'N/A')
+                // Two different reasons an expired item 18 can be outstanding,
+                // and saying the wrong one is worse than saying nothing: the
+                // sheet may be this week's and unfinished, or it may be a
+                // completed sheet from a week that has since ended.
+                const weeklyNote = !weeklyExpired
+                  ? ''
+                  : isCurrentWeek(linkedRecords.weekly?.weekOf)
+                    ? `This week's sheet is ${(linkedRecords.weekly?.items ?? []).filter((it) => it.done || it.na).length} of ${LINK_ITEM_COUNTS.weekly} done.`
+                    : formatWeekOf(linkedRecords.weekly?.weekOf)
+                      ? `Last done for the week of ${formatWeekOf(linkedRecords.weekly.weekOf)} — this week's sheet isn't started.`
+                      : "This week's sheet isn't started."
+                // Both branches require the item to still be outstanding. The
+                // weekly one used to skip that check, which is how a ticked
+                // row ended up flashing red.
                 const overdue =
                   (item?.link === 'weekly' &&
+                    pending &&
                     isThursdayMorning() &&
                     !isLinkedChecklistCompleteFromRecord('weekly', linkedRecords.weekly)) ||
                   (item?.twoWeek && pending && isTwoWeeksOverdueFromStamp(jobCreatedAt))
@@ -521,18 +601,23 @@ export default function MainSheetTab({
                     }`}
                   >
                     {item?.link ? (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          item.link === 'weekly'
-                            ? onOpenWeeklyCheckSheet(selectedJob)
-                            : onOpenJobCompletionChecklist(selectedJob)
-                        }
-                        className="flex-1 text-left text-[13.5px] leading-snug text-brand-green underline decoration-brand-green/40 underline-offset-2 hover:text-white"
-                      >
-                        <span className="mr-2 font-semibold tabular-nums text-neutral-400">{i + 1}.</span>
-                        {label}
-                      </button>
+                      <div className="flex-1">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            item.link === 'weekly'
+                              ? onOpenWeeklyCheckSheet(selectedJob)
+                              : onOpenJobCompletionChecklist(selectedJob)
+                          }
+                          className="text-left text-[13.5px] leading-snug text-brand-green underline decoration-brand-green/40 underline-offset-2 hover:text-white"
+                        >
+                          <span className="mr-2 font-semibold tabular-nums text-neutral-400">{i + 1}.</span>
+                          {label}
+                        </button>
+                        {weeklyNote && (
+                          <p className="mt-1 text-[11.5px] text-neutral-400">{weeklyNote}</p>
+                        )}
+                      </div>
                     ) : (
                       // Settled items step back so the eye lands on what is left.
                       <span
@@ -572,7 +657,7 @@ export default function MainSheetTab({
                     )}
                     <div className="shrink-0">
                       <ChecklistCell
-                        value={values[selectedJob.jobNumber][c.key]}
+                        value={isDone ? 'Yes' : ''}
                         saving={savingKeys.has(`${selectedJob.jobNumber}:${c.key}`)}
                         onChange={(newValue) => handleChange(selectedJob, c.key, newValue, item)}
                       />
