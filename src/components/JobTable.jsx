@@ -18,12 +18,16 @@ const WIDE_MOBILE_KEYS = new Set(['costProgress', 'materialCostProgress', 'labou
 
 // Shown by default but still toggleable — the compact "at a glance" set
 // this table originally shipped with.
-const DEFAULT_OPTIONAL_KEYS = ['costProgress', 'gpPerHour', 'marginToDate']
+const DEFAULT_OPTIONAL_KEYS = ['jobOwner', 'costProgress', 'gpPerHour', 'marginToDate']
 
 // Every other optional column: derived/calculated figures the workbook
 // carries that the table doesn't show unless turned on, so the table stays
 // uncluttered by default but nothing is permanently hidden.
 const OPTIONAL_COLUMNS = [
+  // Grouped on its own rather than under a figure heading: it is the only
+  // column here that is a person rather than a number.
+  { key: 'jobOwner', label: 'Owner', group: 'Job' },
+
   { key: 'costProgress', label: 'Cost', group: 'Cost' },
   { key: 'totalQuotedCost', label: 'Total quoted cost', num: true, format: money, group: 'Cost' },
   { key: 'totalActualCost', label: 'Total actual cost', num: true, format: money, group: 'Cost' },
@@ -65,7 +69,7 @@ const OPTIONAL_COLUMNS = [
 // alphabetical, roughly matching how a job's figures get discussed in
 // practice (claim first, then what it cost, then the two things that make
 // up cost, then how that nets out, then overall progress).
-const COLUMN_GROUP_ORDER = ['Claim', 'Cost', 'Material', 'Labour', 'Margin', 'Progress']
+const COLUMN_GROUP_ORDER = ['Job', 'Claim', 'Cost', 'Material', 'Labour', 'Margin', 'Progress']
 
 // Replaces the old separate Quoted Price / Actual Cost / Remaining to
 // Claim columns with one compact element: a bar showing actual cost as a
@@ -206,6 +210,9 @@ export default function JobTable({
   onSelectJob,
 }) {
   const [sort, setSort] = useState({ key: 'jobNumber', dir: 1 })
+  // Remembered, because the person using it is nearly always the same person
+  // asking the same question: "which of these are mine?"
+  const [owner, setOwner] = useLocalStorageState('jobTable.owner', 'all')
   const [visibleKeys, setVisibleKeys] = useLocalStorageState(
     'jobTable.visibleColumns',
     new Set(DEFAULT_OPTIONAL_KEYS),
@@ -233,6 +240,7 @@ export default function JobTable({
     return jobs
       .filter((job) => (statusFilter === 'needsReview' ? job.flagged : true))
       .filter((job) => (statusFilter === 'stale' ? job.isStale : true))
+      .filter((job) => (owner === 'all' ? true : (job.jobOwner || '') === owner))
       .filter(
         (job) =>
           !q ||
@@ -248,7 +256,7 @@ export default function JobTable({
         if (typeof av === 'number') return (av - bv) * sort.dir
         return String(av).localeCompare(String(bv)) * sort.dir
       })
-  }, [jobs, query, statusFilter, sort])
+  }, [jobs, query, statusFilter, owner, sort])
 
   const statusCounts = useMemo(
     () => ({
@@ -258,6 +266,22 @@ export default function JobTable({
     }),
     [jobs]
   )
+
+  // Built from the jobs themselves rather than a roster: the owner column is
+  // free text in the workbook, so the only honest list of owners is the set
+  // of names actually in it. Counted, so an owner sees how many are theirs
+  // before choosing — and so a name that only appears once (usually a typo
+  // of another one) is visible as such.
+  const owners = useMemo(() => {
+    const counts = new Map()
+    for (const job of jobs) {
+      const name = (job.jobOwner || '').trim()
+      if (name) counts.set(name, (counts.get(name) ?? 0) + 1)
+    }
+    return [...counts.entries()].sort((a, b) => a[0].localeCompare(b[0]))
+  }, [jobs])
+
+  const unowned = useMemo(() => jobs.filter((j) => !(j.jobOwner || '').trim()).length, [jobs])
 
   function toggleSort(key) {
     setSort((prev) => (prev.key === key ? { key, dir: -prev.dir } : { key, dir: 1 }))
@@ -280,6 +304,32 @@ export default function JobTable({
               {chip.label} ({statusCounts[chip.key]})
             </button>
           ))}
+
+          {/* A select, not a chip each: there are as many owners as there are
+              people, and a row of eight name chips would push the table down
+              for a control most people use once. */}
+          {owners.length > 0 && (
+            <label className="flex items-center gap-2 text-sm text-neutral-400">
+              <span className="sr-only">Filter by job owner</span>
+              <select
+                value={owner}
+                onChange={(e) => setOwner(e.target.value)}
+                className={`rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                  owner === 'all'
+                    ? 'border-white/10 bg-transparent text-neutral-400 hover:border-white/20 hover:text-white'
+                    : 'border-brand-green/50 bg-brand-green/10 text-brand-green'
+                }`}
+              >
+                <option value="all">All owners ({jobs.length})</option>
+                {owners.map(([name, count]) => (
+                  <option key={name} value={name}>
+                    {name} ({count})
+                  </option>
+                ))}
+                {unowned > 0 && <option value="">No owner set ({unowned})</option>}
+              </select>
+            </label>
+          )}
         </div>
 
         <button

@@ -108,9 +108,19 @@ export default function App() {
     return () => window.removeEventListener('popstate', onPopState)
   }, [])
 
-  const jobs = state.status === 'ready' ? state.jobs : []
+  const rawJobs = state.status === 'ready' ? state.jobs : []
   const monthlyClaims = state.status === 'ready' ? state.monthlyClaims : { jobs: [], totals: [] }
   const mainSheet = state.status === 'ready' ? state.mainSheet : { jobs: [], columns: [] }
+
+  // The owner is typed into column C of the Main Sheet, which is a different
+  // sheet from the one the job figures come from — so it is joined on here,
+  // once, rather than looked up per row. Until now it was read only on a
+  // job's own page, which meant "which jobs are mine?" could only be
+  // answered by opening jobs one at a time.
+  const jobs = useMemo(() => {
+    const ownerOf = new Map((mainSheet.jobs ?? []).map((j) => [j.jobNumber, j.jobOwner]))
+    return rawJobs.map((j) => ({ ...j, jobOwner: ownerOf.get(j.jobNumber) || '' }))
+  }, [rawJobs, mainSheet])
   const monthlyHours = state.status === 'ready' ? state.monthlyHours : { months: [], totalsByMonth: [], jobs: [] }
   const upcomingWork = state.status === 'ready' ? state.upcomingWork : { jobs: [] }
   const monthlyClaimsHistory =
