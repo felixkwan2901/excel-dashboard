@@ -460,6 +460,29 @@ input:focus-visible {
   color: var(--baseline);
 }
 
+/* ...except inside a chart tooltip, which is a dark card in BOTH themes.
+   The inversion above is right for the app's white surfaces and exactly
+   wrong here: it turned every figure in every tooltip to #17212b on a
+   #161c24 ground — 1.05:1, which is not "hard to read", it is invisible.
+   Reported as "the charts don't show any value", and true of all four
+   chart types, since they share this one component.
+
+   The greys are lifted at the same time. The muted token is 3.62:1 on this
+   ground, which is under the 4.5:1 floor for the size it is set at; #a5aeb6
+   is 7.61:1 and the white is 15.96:1. */
+:root[data-theme='light'] .chart-tip,
+:root[data-theme='light'] .chart-tip .text-white,
+:root[data-theme='light'] .chart-tip .text-neutral-100,
+:root[data-theme='light'] .chart-tip .text-neutral-200,
+:root[data-theme='light'] .chart-tip .text-neutral-300 {
+  color: #f5f7fa;
+}
+
+:root[data-theme='light'] .chart-tip .text-neutral-400,
+:root[data-theme='light'] .chart-tip .text-neutral-500 {
+  color: #a5aeb6;
+}
+
 /* Status colours picked for a dark ground fail on white — red-400 is 3.1:1,
    amber-400 barely 2:1. These are the AA-passing equivalents. */
 :root[data-theme='light'] .text-red-400 {

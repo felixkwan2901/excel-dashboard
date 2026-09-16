@@ -43,7 +43,7 @@ export function ChartTooltip({ x, y, width, children }) {
   const flip = x > width * 0.6
   return (
     <div
-      className="pointer-events-none absolute z-10 min-w-[132px] rounded-lg border border-white/10 bg-[#161c24] px-3 py-2 text-[12px] text-neutral-200 shadow-lg"
+      className="chart-tip pointer-events-none absolute z-10 min-w-[132px] rounded-lg border border-white/10 bg-[#161c24] px-3 py-2 text-[12px] text-neutral-200 shadow-lg"
       style={{
         left: flip ? undefined : x + 12,
         right: flip ? width - x + 12 : undefined,
