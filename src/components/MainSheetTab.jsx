@@ -333,7 +333,13 @@ export default function MainSheetTab({
       )}
 
       <div className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+        {/* Sticks to the top while the list scrolls. Nineteen items is more
+            than a screen, and once the header had gone there was nothing on
+            the page saying which job you were ticking — on a checklist that
+            writes straight through to the workbook, that is not a cosmetic
+            problem. The job picker rides along with it, so switching job no
+            longer means scrolling back up either. */}
+        <div className="checklist-jobbar flex flex-wrap items-center justify-between gap-4">
           <div>
             <h2 className="text-[15px] font-semibold text-white">Job onboarding checklist</h2>
             {selectedJob && (

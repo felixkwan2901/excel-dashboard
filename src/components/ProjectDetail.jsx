@@ -350,8 +350,19 @@ export default function ProjectDetail({ job, mainSheet, onBack }) {
         </div>
 
         {/* Tab bar. Underline rather than pills: it reads as "these are parts
-            of the thing above", which a row of buttons doesn't. */}
-        <div className="mt-7 flex gap-1 overflow-x-auto border-b border-white/10">
+            of the thing above", which a row of buttons doesn't.
+
+            It sticks, and it carries the job number with it. Some of these
+            tabs run well past a screen — the claims table, the cost
+            breakdown — and once the heading had scrolled away there was
+            nothing left saying which job, or even which tab, you were
+            reading. The number rather than the name, because it is the short
+            unambiguous one and this strip has to share its width with six
+            tabs. */}
+        <div className="project-tabbar mt-7 flex items-center gap-1 overflow-x-auto border-b border-white/10">
+          <span className="project-tabbar__job shrink-0 pr-3 text-[13px] tabular-nums">
+            Job {job.jobNumber}
+          </span>
           {TABS.map(({ key, label }) => (
             <button
               key={key}

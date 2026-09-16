@@ -907,3 +907,67 @@ input:focus-visible {
     display: none;
   }
 }
+
+/* ---------- job checklist: the sticky job bar ---------- */
+
+/* Which job you are ticking, kept on screen while the list scrolls.
+   The negative margins pull the background out over the card's own 24px
+   padding so it covers edge to edge rather than leaving a strip of list
+   showing through on either side. */
+.checklist-jobbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  margin: -24px -24px 0;
+  padding: 18px 24px 14px;
+  background: var(--surface-1);
+  border-bottom: 1px solid var(--border);
+  border-radius: 18px 18px 0 0;
+}
+
+/* The card is the scroll container's child, not the page's, so on a short
+   viewport the bar would otherwise eat a third of what is left. Below that
+   height it goes back to scrolling with the content — a checklist you cannot
+   see is worse than one whose heading has gone. */
+@media (max-height: 560px) {
+  .checklist-jobbar {
+    position: static;
+    margin: -24px -24px 0;
+  }
+}
+
+/* ---------- project detail: the sticky tab bar ---------- */
+
+/* The tab bar stays put while a tab's content scrolls, and carries the job
+   number with it. Several of these tabs are longer than a screen, and once
+   the heading had gone there was nothing saying which job you were looking
+   at — on a page of costs and margins that is a real way to misread a
+   figure. */
+.project-tabbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  margin: 28px -28px 0;
+  padding: 10px 28px 0;
+  background: var(--surface-1);
+}
+
+.project-tabbar__job {
+  color: var(--text-muted);
+  border-right: 1px solid var(--border);
+}
+
+/* Under about 640px the six tabs already need their horizontal scroll; the
+   job number would take a third of the width they have left. The heading
+   above is close by at that size anyway. */
+@media (max-width: 640px) {
+  .project-tabbar__job {
+    display: none;
+  }
+}
+
+@media (max-height: 560px) {
+  .project-tabbar {
+    position: static;
+  }
+}
