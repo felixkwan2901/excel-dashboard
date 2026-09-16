@@ -142,7 +142,11 @@ export default function StatsRow({ kpis, onSelectFilter, onPrintReport }) {
           .map((key) => (
             <div
               key={key}
-              className="relative"
+              /* h-full so the card fills the grid row. Without it each card
+                 sized to its own content and the three ended up different
+                 heights — the margin one carries a bar and a second line, so
+                 it ran 30px taller than its neighbours. */
+              className="relative h-full"
               onDragOver={(e) => {
                 if (dragKey) e.preventDefault()
               }}

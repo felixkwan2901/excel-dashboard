@@ -87,17 +87,23 @@ export default function HBarChart({
                     opacity={hover === null || hover === i ? 1 : 0.45}
                   />
                 ))}
-                {/* The spend figure sits at the end of its own bar. On a
-                    phone there is no hover, so the chart has to carry at
-                    least the number it is ranked by. */}
-                {r.values[0] !== null && r.values[0] !== undefined && (
-                  <text
-                    x={Math.min(gutter + wOf(r.values[0]) + 6, width - 2)}
-                    y={top + barH - 1}
-                    className="fill-[var(--text-secondary)] text-[10.5px] tabular-nums"
-                  >
-                    {axisFormat(r.values[0])}
-                  </text>
+                {/* Every bar says its figure, not just the one the rows are
+                    ranked by. Labelling only the first series meant a row
+                    showed what a job had spent and left what it was quoted
+                    to a hover — so the comparison the chart exists to make
+                    was the half you could not read. On a phone there is no
+                    hover at all. */}
+                {r.values.map((v, s2) =>
+                  v === null || v === undefined ? null : (
+                    <text
+                      key={`v-${series[s2].name}`}
+                      x={Math.min(gutter + wOf(v) + 6, width - 2)}
+                      y={top + s2 * (barH + BAR_GAP) + barH - 1}
+                      className="fill-[var(--text-secondary)] text-[10.5px] tabular-nums"
+                    >
+                      {axisFormat(v)}
+                    </text>
+                  ),
                 )}
                 <rect
                   x={0}

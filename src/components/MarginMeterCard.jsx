@@ -25,21 +25,24 @@ export default function MarginMeterCard({ actual, target, simpleAvg }) {
   const onTrack = targetPct === null || actualPct >= targetPct
 
   return (
-    <div className="relative flex min-h-[152px] w-full flex-col justify-between gap-5 rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6 text-left shadow-[0_1px_2px_rgba(0,0,0,0.3)] transition-colors duration-300 hover:border-white/10">
-      <span className="flex h-8 w-8 items-center justify-center rounded-md bg-white/[0.06] text-neutral-400">
-        <TrendingUp size={16} strokeWidth={1.75} aria-hidden="true" />
+    /* Matches StatCard's height exactly — it shares a row with two of them,
+       and a card that stays 152px while its neighbours drop to 104 is the
+       inconsistency, not a feature. */
+    <div className="relative flex h-full min-h-[104px] w-full flex-col justify-between gap-3 rounded-[18px] border border-white/[0.06] bg-[#11161c] p-5 text-left shadow-[0_1px_2px_rgba(0,0,0,0.3)] transition-colors duration-300 hover:border-white/10">
+      <span className="flex h-7 w-7 items-center justify-center rounded-md bg-white/[0.06] text-neutral-400">
+        <TrendingUp size={15} strokeWidth={1.75} aria-hidden="true" />
       </span>
 
       <div>
-        <p className="text-[15px] font-medium text-neutral-200">Overall margin</p>
+        <p className="text-[14px] font-medium text-neutral-200">Overall margin</p>
 
         {!hasData ? (
           <p className="mt-3 text-[13px] text-neutral-400">No margin data yet</p>
         ) : (
           <>
-            <div className="mt-3 flex items-baseline justify-between">
+            <div className="mt-1.5 flex items-baseline justify-between">
               <span
-                className={`text-[28px] leading-none font-semibold tabular-nums ${
+                className={`text-[26px] leading-none font-semibold tabular-nums ${
                   onTrack ? 'text-brand-green' : 'text-amber-400'
                 }`}
               >
@@ -53,7 +56,7 @@ export default function MarginMeterCard({ actual, target, simpleAvg }) {
             </div>
 
             <div
-              className="relative mt-2.5 h-2 w-full rounded-full bg-white/[0.08]"
+              className="relative mt-2 h-1.5 w-full rounded-full bg-white/[0.08]"
               role="img"
               aria-label={`$-weighted average margin ${Math.round(actualPct)}%${
                 targetPct !== null ? `, quoted target ${Math.round(targetPct)}%` : ''

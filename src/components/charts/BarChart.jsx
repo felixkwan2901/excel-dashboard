@@ -92,11 +92,18 @@ export default function BarChart({
                   const value = v ?? 0
                   const y = yOf(value)
                   const x = startX + s * (barW + GROUP_GAP)
-                  // Selective direct labels, not a number on every bar. A
-                  // phone has no hover at all, so anything the chart is
-                  // actually making a point about has to say its figure on
-                  // the face of it; the rest stay in the tooltip and table.
-                  const label = barLabel ? barLabel(d, s, v) : null
+                  // Every bar says its figure where there is room for one.
+                  // Labelling only the bars a chart was "making a point
+                  // about" read as inconsistency rather than emphasis: on the
+                  // capacity chart exactly one month in twelve carried a
+                  // number and the other eleven looked broken. A caller can
+                  // still override with barLabel; barWidth is the guard, so
+                  // labels drop out on a phone rather than overprinting.
+                  const label = barLabel
+                    ? barLabel(d, s, v)
+                    : barW >= 22 && value !== null && value !== undefined
+                      ? axisFormat(value)
+                      : null
                   return (
                     <g key={series[s].name}>
                       <path
