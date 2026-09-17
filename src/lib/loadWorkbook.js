@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx'
 import { fetchOverrides } from './overrides'
+import { OWNER_COL } from './jobOwners'
 import { findRowByLabel } from './findSheetRow'
 
 // Lives in public/ as a stable, unhashed path (not a Vite `?url` import) so
@@ -623,7 +624,14 @@ function applyMainSheetOverrides(mainSheet, overrides) {
     const jobOverrides = overrides[job.jobNumber]
     if (!jobOverrides) continue
     for (const [col, entry] of Object.entries(jobOverrides)) {
-      job.checklist[`col${col}`] = entry.value
+      // Column C is the owner, and it is read into its own field above
+      // rather than into the checklist — so overlaying it as checklist
+      // col2 put the saved value somewhere nothing reads. A changed owner
+      // was written to KV in about a second and then ignored on every load
+      // until the Excel merge and redeploy caught up three minutes later,
+      // which looked exactly like a save that had not worked.
+      if (Number(col) === OWNER_COL) job.jobOwner = entry.value
+      else job.checklist[`col${col}`] = entry.value
     }
   }
 }
