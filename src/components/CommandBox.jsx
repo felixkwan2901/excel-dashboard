@@ -9,6 +9,7 @@ import {
 } from '../lib/onboardingChecklist'
 
 import { workerFetch } from '@/lib/workerClient'
+import { saveChecklistItem } from '../lib/checklistStore'
 
 // Same col numbers MonthlyClaims.jsx's EDITABLE_FIELDS already uses —
 // duplicated here rather than imported since that array is local to that
@@ -108,6 +109,25 @@ export default function CommandBox({ jobs, mainSheetColumns }) {
     }
 
     setSaveStatus({ kind: 'idle', message: 'Saving…' })
+    // Checklist ticks no longer go through the workbook — they are stored in
+    // KV by item id. Everything else still stages a real Excel edit, so this
+    // is the one fork, kept here rather than hidden inside saveEdit so the
+    // two destinations stay visible at the call site.
+    if (action.target === 'main-sheet') {
+      const colIndex = mainSheetColumns.findIndex((c) => c.col === action.col)
+      const item = colIndex >= 0 ? ONBOARDING_ITEMS[colIndex] : null
+      if (!item) {
+        setSaveStatus({ kind: 'error', message: 'That checklist item no longer exists.' })
+        return
+      }
+      const saved = await saveChecklistItem(action.jobNumber, item.id, action.value)
+      setSaveStatus(
+        saved
+          ? { kind: 'ok', message: 'Saved.' }
+          : { kind: 'error', message: 'Could not save — nothing was changed.' }
+      )
+      return
+    }
     const saveResult = await saveEdit(action.target, action.jobNumber, action.col, action.value)
     if (saveResult.status === 'done') {
       setSaveStatus({ kind: 'ok', message: `${saveResult.message ?? 'Saved.'}` })

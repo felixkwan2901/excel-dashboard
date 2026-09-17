@@ -1,6 +1,8 @@
 import * as XLSX from 'xlsx'
 import { fetchOverrides } from './overrides'
 import { fetchJobOwners } from './jobOwnerStore'
+import { fetchJobChecklists } from './checklistStore'
+import { ONBOARDING_ITEMS } from './onboardingChecklist'
 import { findRowByLabel } from './findSheetRow'
 
 // Lives in public/ as a stable, unhashed path (not a Vite `?url` import) so
@@ -629,6 +631,23 @@ function applyJobOwners(mainSheet, owners) {
   }
 }
 
+// Ticks stored in KV, keyed by item id, laid over whatever the workbook's
+// own columns still say. The Nth item is the Nth column — that mapping only
+// exists here, at the boundary, so the rest of the app never has to know the
+// checklist was ever positional.
+function applyJobChecklists(mainSheet, stored) {
+  if (!stored) return
+  for (const job of mainSheet.jobs) {
+    const saved = stored[job.jobNumber]
+    if (!saved) continue
+    for (const [itemId, value] of Object.entries(saved)) {
+      const index = ONBOARDING_ITEMS.findIndex((i) => i.id === itemId)
+      const column = index >= 0 ? mainSheet.columns[index] : null
+      if (column) job.checklist[column.key] = value
+    }
+  }
+}
+
 function applyMainSheetOverrides(mainSheet, overrides) {
   for (const job of mainSheet.jobs) {
     const jobOverrides = overrides[job.jobNumber]
@@ -690,9 +709,9 @@ export async function loadWorkbook() {
   // — this bounds it so an error state (with a retry) shows up instead.
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 20_000)
-  let res, hoursRes, claimsLogRes, archivedRes, mainSheetOverrides, claimCalcOverrides, upcomingWorkOverrides, jobOwners
+  let res, hoursRes, claimsLogRes, archivedRes, mainSheetOverrides, claimCalcOverrides, upcomingWorkOverrides, jobOwners, jobChecklists
   try {
-    ;[res, hoursRes, claimsLogRes, archivedRes, mainSheetOverrides, claimCalcOverrides, upcomingWorkOverrides, jobOwners] =
+    ;[res, hoursRes, claimsLogRes, archivedRes, mainSheetOverrides, claimCalcOverrides, upcomingWorkOverrides, jobOwners, jobChecklists] =
       await Promise.all([
         fetch(workbookUrl, { signal: controller.signal, cache: 'no-store' }),
         fetch(monthlyHoursLogUrl, { signal: controller.signal, cache: 'no-store' }),
@@ -702,6 +721,7 @@ export async function loadWorkbook() {
         fetchOverrides('claim-calculator'),
         fetchOverrides('upcoming-work'),
         fetchJobOwners(),
+        fetchJobChecklists(),
       ])
   } finally {
     clearTimeout(timeout)
@@ -717,6 +737,7 @@ export async function loadWorkbook() {
   const upcomingWork = parseUpcomingWork(workbook)
   applyMainSheetOverrides(mainSheet, mainSheetOverrides)
   applyJobOwners(mainSheet, jobOwners)
+  applyJobChecklists(mainSheet, jobChecklists)
   applyClaimCalcOverrides(monthlyClaims, claimCalcOverrides)
   applyUpcomingWorkOverrides(upcomingWork, upcomingWorkOverrides)
   // The hours log is a nice-to-have on top of the core workbook data — if

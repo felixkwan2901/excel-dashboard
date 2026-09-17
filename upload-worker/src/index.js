@@ -892,8 +892,15 @@ async function handleCommand(request, env) {
 // per job for the same reason override:* is — there is no list endpoint, so
 // per-job keys could not be read back without knowing every job number in
 // advance.
+//
+// "planning:job-checklist" is the nineteen-item job onboarding checklist,
+// { jobNumber: { itemId: value } }. Same reasoning as job-owners: no formula
+// anywhere in the workbook reads those columns, so writing a tick there cost
+// an Excel merge and a redeploy for a checkbox. Keyed by item id rather than
+// by column number so that reordering the list cannot re-point a recorded
+// tick at a different question.
 const APP_DATA_KEY_RE =
-  /^(weekly|completion|jobCreated|field):[A-Za-z0-9]{1,20}$|^override:(main-sheet|claim-calculator|upcoming-work)$|^planning:(staff-roster|servicing|working-days|staff-on-tools|avg-hourly-rate|job-owners)$|^fieldTasks:(commercial|residential)$/
+  /^(weekly|completion|jobCreated|field):[A-Za-z0-9]{1,20}$|^override:(main-sheet|claim-calculator|upcoming-work)$|^planning:(staff-roster|servicing|working-days|staff-on-tools|avg-hourly-rate|job-owners|job-checklist)$|^fieldTasks:(commercial|residential)$/
 
 async function handleAppDataGet(request, env) {
   const url = new URL(request.url)

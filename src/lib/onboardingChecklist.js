@@ -3,32 +3,34 @@ import { getAppData, setAppData } from './appData'
 
 // The exact 19 items from the paper "Job Onboarding Checklist" — in order,
 // replacing whatever the workbook's own Main Sheet column headers happen to
-// say. Each item still saves to the Nth Main Sheet column positionally
-// (columns[i]), so no workbook/pipeline change was needed for the wording
-// swap. `twoWeek` marks the items the paper form annotates with a 2-week
+// say. `id` is how a tick is stored and must never be reused or renamed: the
+// values used to be saved to the Nth Main Sheet column positionally, which
+// meant reordering this list would silently re-point every recorded tick at a
+// different question. They now live in KV keyed by id instead, so the order
+// here is presentation only. `twoWeek` marks the items the paper form annotates with a 2-week
 // target from job start (1, 11, 15, 16). Shared between MainSheetTab (the
 // manual UI) and CommandBox (the AI command box) so both enforce the same
 // item 4 / 18 / 19 special cases from one place.
 export const ONBOARDING_ITEMS = [
-  { label: 'Get job handover from Estimating / Design', twoWeek: true },
-  { label: 'Do we require any PS1 or PS3 work' },
-  { label: 'Accept job in Katipult' },
-  { label: 'Load retentions (if required)', retentionInput: true },
-  { label: 'Load purchase order number' },
-  { label: 'Load job contact details correctly' },
-  { label: "Add job to Procore (or project's tracking platform)" },
-  { label: 'Create WhatsApp group' },
-  { label: 'Load contract and programme to job files' },
-  { label: 'Check drawings are the current revision, not a superseded set' },
-  { label: 'Confirm supply authority / ICP application lodged', twoWeek: true },
-  { label: 'SSSP paperwork done and ready for the job' },
-  { label: 'Organise handover meeting with tradesman, print and load paperwork (plans, spec sheets etc.)' },
-  { label: "Confirm with builder's PM whether progress claims apply" },
-  { label: 'Order long lead time materials', twoWeek: true },
-  { label: 'Send away subcontractor PO', twoWeek: true },
-  { label: 'O&M Manual started — completed as far as possible' },
-  { label: 'Weekly Job Checklist completed', link: 'weekly' },
-  { label: 'Job completion checklist completed', link: 'completion' },
+  { id: 'handover-from-estimating', label: 'Get job handover from Estimating / Design', twoWeek: true },
+  { id: 'ps1-ps3-required', label: 'Do we require any PS1 or PS3 work' },
+  { id: 'accept-in-katipult', label: 'Accept job in Katipult' },
+  { id: 'load-retentions', label: 'Load retentions (if required)', retentionInput: true },
+  { id: 'load-po-number', label: 'Load purchase order number' },
+  { id: 'load-contact-details', label: 'Load job contact details correctly' },
+  { id: 'add-to-procore', label: "Add job to Procore (or project's tracking platform)" },
+  { id: 'create-whatsapp-group', label: 'Create WhatsApp group' },
+  { id: 'load-contract-programme', label: 'Load contract and programme to job files' },
+  { id: 'check-drawing-revision', label: 'Check drawings are the current revision, not a superseded set' },
+  { id: 'confirm-icp-lodged', label: 'Confirm supply authority / ICP application lodged', twoWeek: true },
+  { id: 'sssp-paperwork', label: 'SSSP paperwork done and ready for the job' },
+  { id: 'organise-handover-meeting', label: 'Organise handover meeting with tradesman, print and load paperwork (plans, spec sheets etc.)' },
+  { id: 'confirm-progress-claims', label: "Confirm with builder's PM whether progress claims apply" },
+  { id: 'order-long-lead-materials', label: 'Order long lead time materials', twoWeek: true },
+  { id: 'send-subcontractor-po', label: 'Send away subcontractor PO', twoWeek: true },
+  { id: 'om-manual-started', label: 'O&M Manual started — completed as far as possible' },
+  { id: 'weekly-check-sheet', label: 'Weekly Job Checklist completed', link: 'weekly' },
+  { id: 'job-completion-checklist', label: 'Job completion checklist completed', link: 'completion' },
 ]
 
 export const LINK_ITEM_COUNTS = { weekly: 9, completion: 11 }

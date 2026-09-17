@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { CircleDashed, CircleDot, CircleCheck } from 'lucide-react'
 import { pollStagedStatus } from '../lib/pollStagedStatus'
 import { saveEdit } from '../lib/saveEdit'
+import { saveChecklistItem } from '../lib/checklistStore'
 import {
   ONBOARDING_ITEMS,
   LINK_ITEM_COUNTS,
@@ -341,19 +342,18 @@ export default function MainSheetTab({
       setStatus({ kind: 'error', message })
     }
 
-    setStatus({ kind: 'idle', message: `Processing "${column.label}" for ${job.jobNumber} ${job.jobName}…` })
-    const result = await saveEdit('main-sheet', job.jobNumber, column.col, newValue)
-    if (result.status === 'done') {
-      setStatus({ kind: 'ok', message: `Saved "${column.label}" for ${job.jobNumber} ${job.jobName} — synced everywhere already; the workbook catches up in the background.` })
+    setStatus({ kind: 'idle', message: `Saving "${column.label}" for ${job.jobNumber} ${job.jobName}…` })
+    // Straight to KV, keyed by the item's own id. This used to stage an Excel
+    // edit and wait on a merge, which is why a checkbox took minutes; nothing
+    // in the workbook reads these columns.
+    const saved = await saveChecklistItem(job.jobNumber, item.id, newValue)
+    if (saved) {
+      setStatus({ kind: 'ok', message: `Saved "${column.label}" for ${job.jobNumber} ${job.jobName}.` })
       // Item 19 ("Job completion checklist completed") archives the job
       // the moment it's marked Yes — that's the whole point of the item.
       if (item?.link === 'completion' && newValue === 'Yes') archiveJob(job)
-    } else if (result.status === 'failed' || result.status === 'error') {
-      revert(`${result.message} — reverted.`)
     } else {
-      // Timed out waiting — the workflow may still finish it later, so
-      // don't revert (that could fight a save that lands right after).
-      setStatus({ kind: 'error', message: result.message })
+      revert('Could not save — nothing was changed.')
     }
     setSavingKeys((prev) => {
       const next = new Set(prev)
