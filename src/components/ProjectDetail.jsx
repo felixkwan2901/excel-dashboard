@@ -192,7 +192,7 @@ function readTab() {
   }
 }
 
-export default function ProjectDetail({ job, mainSheet, onBack }) {
+export default function ProjectDetail({ job, onBack }) {
   const reasons = statusReasons(job)
   // Remembered, because whoever spends their morning checking margins wants
   // the margin tab on the next job too, not to pick it again each time.
@@ -261,7 +261,12 @@ export default function ProjectDetail({ job, mainSheet, onBack }) {
       // Preference won't persist; the tab still switches.
     }
   }
-  const jobOwner = mainSheet?.jobs?.find((j) => j.jobNumber === job.jobNumber)?.jobOwner
+  // Taken from the job App handed down, not looked up in mainSheet again.
+  // App folds owner changes made this session into `jobs`, and a second
+  // lookup here went straight past them: the Owner column in the directory
+  // showed the new name while this pill still showed the old one, so a change
+  // that had saved correctly looked like it had not saved at all.
+  const jobOwner = (job.jobOwner || '').trim()
 
   const costRatio = job.totalQuotedCost ? job.totalActualCost / job.totalQuotedCost : null
   const hoursRatio = job.quotedLabourHours ? job.actualLabourHours / job.quotedLabourHours : null

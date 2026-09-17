@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { loadWorkbook } from './lib/loadWorkbook'
 import { computeKpis } from './lib/deriveMetrics'
 import { parseUrlState, pushUrlState, replaceUrlState } from './lib/urlState'
@@ -117,10 +117,24 @@ export default function App() {
   // once, rather than looked up per row. Until now it was read only on a
   // job's own page, which meant "which jobs are mine?" could only be
   // answered by opening jobs one at a time.
+  // Owners changed in this session, held here rather than inside JobTable so
+  // that every view sees them at once. saveEdit writes the change to the
+  // server immediately, but nothing re-reads the workbook afterwards, so
+  // without this a job's own page would keep showing the owner it had when
+  // the page was loaded — which reads as the change not having saved at all.
+  const [ownerEdits, setOwnerEdits] = useState(() => new Map())
+  const applyOwnerEdit = useCallback(
+    (jobNumber, value) => setOwnerEdits((prev) => new Map(prev).set(String(jobNumber), value)),
+    []
+  )
+
   const jobs = useMemo(() => {
     const ownerOf = new Map((mainSheet.jobs ?? []).map((j) => [j.jobNumber, j.jobOwner]))
-    return rawJobs.map((j) => ({ ...j, jobOwner: ownerOf.get(j.jobNumber) || '' }))
-  }, [rawJobs, mainSheet])
+    return rawJobs.map((j) => ({
+      ...j,
+      jobOwner: ownerEdits.has(j.jobNumber) ? ownerEdits.get(j.jobNumber) : ownerOf.get(j.jobNumber) || '',
+    }))
+  }, [rawJobs, mainSheet, ownerEdits])
   const monthlyHours = state.status === 'ready' ? state.monthlyHours : { months: [], totalsByMonth: [], jobs: [] }
   const upcomingWork = state.status === 'ready' ? state.upcomingWork : { jobs: [] }
   const monthlyClaimsHistory =
@@ -276,7 +290,7 @@ export default function App() {
             <LoadStatus status={state.status} error={state.error} onRetry={retryLoad} />
           ) : selectedJob ? (
             <Reveal index={0}>
-              <ProjectDetail job={selectedJob} mainSheet={mainSheet} onBack={goBack} />
+              <ProjectDetail job={selectedJob} onBack={goBack} />
             </Reveal>
           ) : (
             <p className="dashboard__status">That job couldn&apos;t be found.</p>
@@ -419,6 +433,7 @@ export default function App() {
               <h2>Job directory</h2>
               <JobTable
                 jobs={jobs}
+                onOwnerSaved={applyOwnerEdit}
                 query={dashboardQuery}
                 onQueryChange={updateDashboardQuery}
                 statusFilter={dashboardFilter}

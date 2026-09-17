@@ -259,6 +259,7 @@ export default function JobTable({
   statusFilter,
   onStatusFilterChange,
   onSelectJob,
+  onOwnerSaved,
 }) {
   const [sort, setSort] = useState({ key: 'jobNumber', dir: 1 })
   // Remembered, because the person using it is nearly always the same person
@@ -272,22 +273,19 @@ export default function JobTable({
   const [showTrend, setShowTrend] = useLocalStorageState('jobTable.showTrend', true)
   const [panelOpen, setPanelOpen] = useState(false)
 
-  // Owner edits made in this table. Held locally as well as saved, because
-  // saveEdit's override reaches the rest of the site in about a second but
-  // this component's `jobs` prop only changes when the workbook is re-read.
-  // Without this the dropdown would snap back to its old value under the
-  // cursor of whoever just changed it.
-  const [ownerEdits, setOwnerEdits] = useState(() => new Map())
   const [ownerSaving, setOwnerSaving] = useState(() => new Set())
   const [ownerError, setOwnerError] = useState('')
 
-  const ownerOf = (job) =>
-    ownerEdits.has(job.jobNumber) ? ownerEdits.get(job.jobNumber) : (job.jobOwner || '').trim()
+  // The displayed owner comes straight from the prop. App holds the edits
+  // made this session and folds them into `jobs`, so the table, the job page
+  // and the checklist all move together — keeping a second copy here was what
+  // made a change look like it had not saved once you left this view.
+  const ownerOf = (job) => (job.jobOwner || '').trim()
 
   async function handleOwnerChange(job, value) {
     const previous = ownerOf(job)
     if (value === previous) return
-    setOwnerEdits((prev) => new Map(prev).set(job.jobNumber, value))
+    onOwnerSaved?.(job.jobNumber, value)
     setOwnerSaving((prev) => new Set(prev).add(job.jobNumber))
     setOwnerError('')
     const result = await saveEdit('main-sheet', job.jobNumber, OWNER_COL, value)
@@ -298,7 +296,7 @@ export default function JobTable({
     })
     if (result.status !== 'done') {
       // Put it back rather than leave a value on screen that was never saved.
-      setOwnerEdits((prev) => new Map(prev).set(job.jobNumber, previous))
+      onOwnerSaved?.(job.jobNumber, previous)
       setOwnerError(result.message ?? `Could not save the owner for ${job.jobNumber}.`)
     }
   }
@@ -338,8 +336,7 @@ export default function JobTable({
         if (typeof av === 'number') return (av - bv) * sort.dir
         return String(av).localeCompare(String(bv)) * sort.dir
       })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jobs, query, statusFilter, owner, sort, ownerEdits])
+  }, [jobs, query, statusFilter, owner, sort])
 
   const statusCounts = useMemo(
     () => ({
@@ -362,11 +359,9 @@ export default function JobTable({
       if (name) counts.set(name, (counts.get(name) ?? 0) + 1)
     }
     return [...counts.entries()].sort((a, b) => a[0].localeCompare(b[0]))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jobs, ownerEdits])
+  }, [jobs])
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const unowned = useMemo(() => jobs.filter((j) => !ownerOf(j)).length, [jobs, ownerEdits])
+  const unowned = useMemo(() => jobs.filter((j) => !(j.jobOwner || '').trim()).length, [jobs])
 
   const cellCtx = { ownerOf, ownerSaving, onOwnerChange: handleOwnerChange }
 
