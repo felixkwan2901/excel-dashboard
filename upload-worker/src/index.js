@@ -899,8 +899,14 @@ async function handleCommand(request, env) {
 // an Excel merge and a redeploy for a checkbox. Keyed by item id rather than
 // by column number so that reordering the list cannot re-point a recorded
 // tick at a different question.
+//
+// "planning:claim-fields" is the four figures on the Monthly Claims page that
+// a person types rather than the export supplying — retention, hours and
+// costs still to come before end of month, and the note. Same reasoning
+// again: nothing in the workbook calculates from them, the projections are
+// worked out in the page itself.
 const APP_DATA_KEY_RE =
-  /^(weekly|completion|jobCreated|field):[A-Za-z0-9]{1,20}$|^override:(main-sheet|claim-calculator|upcoming-work)$|^planning:(staff-roster|servicing|working-days|staff-on-tools|avg-hourly-rate|job-owners|job-checklist)$|^fieldTasks:(commercial|residential)$/
+  /^(weekly|completion|jobCreated|field):[A-Za-z0-9]{1,20}$|^override:(main-sheet|claim-calculator|upcoming-work)$|^planning:(staff-roster|servicing|working-days|staff-on-tools|avg-hourly-rate|job-owners|job-checklist|claim-fields)$|^fieldTasks:(commercial|residential)$/
 
 async function handleAppDataGet(request, env) {
   const url = new URL(request.url)

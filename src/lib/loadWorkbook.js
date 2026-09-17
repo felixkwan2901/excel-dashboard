@@ -2,6 +2,7 @@ import * as XLSX from 'xlsx'
 import { fetchOverrides } from './overrides'
 import { fetchJobOwners } from './jobOwnerStore'
 import { fetchJobChecklists } from './checklistStore'
+import { fetchClaimFields, NUMERIC_CLAIM_FIELDS } from './claimFieldsStore'
 import { ONBOARDING_ITEMS } from './onboardingChecklist'
 import { findRowByLabel } from './findSheetRow'
 
@@ -668,6 +669,19 @@ const CLAIM_CALC_OVERRIDE_FIELDS = {
   16: ['notes', false],
 }
 
+// The hand-typed claim figures, stored in KV by field name, laid over
+// whatever the Claim Calculator sheet still holds.
+function applyClaimFields(monthlyClaims, stored) {
+  if (!stored) return
+  for (const job of monthlyClaims.jobs) {
+    const saved = stored[job.jobNumber]
+    if (!saved) continue
+    for (const [field, value] of Object.entries(saved)) {
+      job[field] = NUMERIC_CLAIM_FIELDS.has(field) ? Number(value) || 0 : value
+    }
+  }
+}
+
 function applyClaimCalcOverrides(monthlyClaims, overrides) {
   for (const job of monthlyClaims.jobs) {
     const jobOverrides = overrides[job.jobNumber]
@@ -709,9 +723,9 @@ export async function loadWorkbook() {
   // — this bounds it so an error state (with a retry) shows up instead.
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 20_000)
-  let res, hoursRes, claimsLogRes, archivedRes, mainSheetOverrides, claimCalcOverrides, upcomingWorkOverrides, jobOwners, jobChecklists
+  let res, hoursRes, claimsLogRes, archivedRes, mainSheetOverrides, claimCalcOverrides, upcomingWorkOverrides, jobOwners, jobChecklists, claimFields
   try {
-    ;[res, hoursRes, claimsLogRes, archivedRes, mainSheetOverrides, claimCalcOverrides, upcomingWorkOverrides, jobOwners, jobChecklists] =
+    ;[res, hoursRes, claimsLogRes, archivedRes, mainSheetOverrides, claimCalcOverrides, upcomingWorkOverrides, jobOwners, jobChecklists, claimFields] =
       await Promise.all([
         fetch(workbookUrl, { signal: controller.signal, cache: 'no-store' }),
         fetch(monthlyHoursLogUrl, { signal: controller.signal, cache: 'no-store' }),
@@ -722,6 +736,7 @@ export async function loadWorkbook() {
         fetchOverrides('upcoming-work'),
         fetchJobOwners(),
         fetchJobChecklists(),
+        fetchClaimFields(),
       ])
   } finally {
     clearTimeout(timeout)
@@ -739,6 +754,7 @@ export async function loadWorkbook() {
   applyJobOwners(mainSheet, jobOwners)
   applyJobChecklists(mainSheet, jobChecklists)
   applyClaimCalcOverrides(monthlyClaims, claimCalcOverrides)
+  applyClaimFields(monthlyClaims, claimFields)
   applyUpcomingWorkOverrides(upcomingWork, upcomingWorkOverrides)
   // The hours log is a nice-to-have on top of the core workbook data — if
   // it's missing or unreadable for any reason, degrade to an empty history

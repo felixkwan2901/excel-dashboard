@@ -54,34 +54,71 @@ test('a tick is not written to the workbook any more', () => {
   )
 })
 
-import { nextChecklist } from '../../src/lib/checklistMerge.js'
+import { setJobField } from '../../src/lib/jobFieldMerge.js'
 
 // The workbook is still the fallback for anything not in this blob. Deleting
 // an unticked item therefore hands it back to the spreadsheet, and for the
 // 187 ticks already recorded there an untick undoes itself on the next
 // reload. Confirmed against job 9259 before this was fixed.
 test('an untick is stored, not deleted', () => {
-  const after = nextChecklist({}, '9259', 'create-whatsapp-group', '')
+  const after = setJobField({}, '9259', 'create-whatsapp-group', '')
   assert.deepEqual(after, { '9259': { 'create-whatsapp-group': '' } })
   assert.ok('create-whatsapp-group' in after['9259'], 'the key must survive an untick')
 })
 
 test('ticking and unticking round-trips without touching other items', () => {
-  let s = nextChecklist({}, '9259', 'sssp-paperwork', 'Yes')
-  s = nextChecklist(s, '9259', 'create-whatsapp-group', 'Yes')
-  s = nextChecklist(s, '9259', 'create-whatsapp-group', '')
+  let s = setJobField({}, '9259', 'sssp-paperwork', 'Yes')
+  s = setJobField(s, '9259', 'create-whatsapp-group', 'Yes')
+  s = setJobField(s, '9259', 'create-whatsapp-group', '')
   assert.deepEqual(s['9259'], { 'sssp-paperwork': 'Yes', 'create-whatsapp-group': '' })
 })
 
 test('other jobs are left alone', () => {
-  const s = nextChecklist({ '8824': { 'sssp-paperwork': 'Yes' } }, '9259', 'sssp-paperwork', 'Yes')
+  const s = setJobField({ '8824': { 'sssp-paperwork': 'Yes' } }, '9259', 'sssp-paperwork', 'Yes')
   assert.deepEqual(s['8824'], { 'sssp-paperwork': 'Yes' })
 })
 
 test('a job number is keyed as a string either way', () => {
-  assert.deepEqual(nextChecklist({}, 9259, 'sssp-paperwork', 'Yes'), { '9259': { 'sssp-paperwork': 'Yes' } })
+  assert.deepEqual(setJobField({}, 9259, 'sssp-paperwork', 'Yes'), { '9259': { 'sssp-paperwork': 'Yes' } })
 })
 
 test('a legacy N/A is kept as-is, not coerced to a tick', () => {
-  assert.equal(nextChecklist({}, '1', 'sssp-paperwork', 'N/A')['1']['sssp-paperwork'], 'N/A')
+  assert.equal(setJobField({}, '1', 'sssp-paperwork', 'N/A')['1']['sssp-paperwork'], 'N/A')
+})
+
+// ---- Monthly Claims hand-typed figures ----
+
+const claimStore = readFileSync('src/lib/claimFieldsStore.js', 'utf8')
+
+test('the claim-fields key is one the deployed Worker allows', () => {
+  const key = claimStore.match(/CLAIM_FIELDS_KEY = '([^']+)'/)[1]
+  assert.equal(key, 'planning:claim-fields')
+  const re = eval(worker.match(/const APP_DATA_KEY_RE =\s*(\/.+\/)/)[1])
+  assert.ok(re.test(key), `${key} must match the Worker's allowlist`)
+})
+
+// The page reads these back by name, and loadWorkbook decides which to coerce
+// to a number by the same names. A rename in one place and not the other puts
+// a string where a figure is expected, or silently drops the value.
+test('the claim field names match what the page and the loader use', () => {
+  const names = claimStore.match(/CLAIM_FIELDS = \[([^\]]+)\]/)[1]
+  for (const f of ['retention', 'hoursToCompleteBeforeEom', 'costsToComeBeforeEom', 'notes']) {
+    assert.ok(names.includes(`'${f}'`), `${f} must be a stored claim field`)
+  }
+  const claims = readFileSync('src/components/MonthlyClaims.jsx', 'utf8')
+  for (const f of ['retention', 'hoursToCompleteBeforeEom', 'costsToComeBeforeEom', 'notes']) {
+    assert.ok(claims.includes(`key: '${f}'`), `${f} must still be the page's field key`)
+  }
+})
+
+test('the notes field is not coerced to a number', () => {
+  const numeric = claimStore.match(/NUMERIC_CLAIM_FIELDS = new Set\(\[([^\]]+)\]\)/)[1]
+  assert.ok(!numeric.includes("'notes'"), 'a note is text; Number() would turn it into 0')
+  assert.ok(numeric.includes("'retention'"))
+})
+
+test('the Monthly Claims page no longer writes to the workbook', () => {
+  const claims = readFileSync('src/components/MonthlyClaims.jsx', 'utf8')
+  assert.ok(claims.includes('saveClaimField('))
+  assert.ok(!/await saveEdit\(/.test(claims), 'no claim figure should still stage an Excel edit')
 })

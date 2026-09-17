@@ -1,6 +1,6 @@
 import { getAppData, setAppData } from './appData'
 import { ONBOARDING_ITEMS } from './onboardingChecklist'
-import { nextChecklist } from './checklistMerge'
+import { setJobField } from './jobFieldMerge'
 
 // The job onboarding checklist, stored in KV rather than the workbook.
 //
@@ -34,7 +34,7 @@ export async function saveChecklistItem(jobNumber, itemId, value) {
   }
   const job = String(jobNumber)
   const current = await fetchJobChecklists()
-  const next = nextChecklist(current, job, itemId, value)
+  const next = setJobField(current, job, itemId, value)
   const ok = await setAppData(CHECKLIST_KEY, next)
   return ok ? next : null
 }

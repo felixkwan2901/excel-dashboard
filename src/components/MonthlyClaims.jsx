@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { money, percent } from '../lib/format'
-import { saveEdit } from '../lib/saveEdit'
+import { saveClaimField } from '../lib/claimFieldsStore'
 import { useSharedState } from '../lib/useSharedState'
 import { useLocalStorageState } from '../lib/useLocalStorageState'
 import CollapsibleSection from './CollapsibleSection'
@@ -133,16 +133,17 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
       setStatus({ kind: 'error', message })
     }
 
-    const result = await saveEdit('claim-calculator', job.jobNumber, field.col, newValue)
-    if (result.status === 'done') {
+    // Straight to KV. These four are typed in rather than exported, and
+    // nothing in the workbook calculates from them — the projections below
+    // are worked out from whatever value this page holds.
+    const saved = await saveClaimField(job.jobNumber, field.key, newValue)
+    if (saved) {
       setStatus({
         kind: 'ok',
-        message: `Saved "${field.label}" for ${job.jobNumber} ${job.jobName} — synced everywhere already; the workbook catches up in the background.`,
+        message: `Saved "${field.label}" for ${job.jobNumber} ${job.jobName}.`,
       })
-    } else if (result.status === 'failed' || result.status === 'error') {
-      revert(`${result.message} — reverted.`)
     } else {
-      setStatus({ kind: 'error', message: result.message })
+      revert('Could not save — nothing was changed.')
     }
     setSavingKeys((prev) => {
       const next = new Set(prev)

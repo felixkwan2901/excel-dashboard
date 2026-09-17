@@ -10,15 +10,16 @@ import {
 
 import { workerFetch } from '@/lib/workerClient'
 import { saveChecklistItem } from '../lib/checklistStore'
+import { saveClaimField } from '../lib/claimFieldsStore'
 
 // Same col numbers MonthlyClaims.jsx's EDITABLE_FIELDS already uses —
 // duplicated here rather than imported since that array is local to that
 // component; kept in sync manually (these columns essentially never change).
 const CLAIM_CALC_FIELDS = [
-  { col: 5, label: 'Retention %' },
-  { col: 8, label: 'Hours to complete before E.O.M' },
-  { col: 9, label: 'Costs to come before E.O.M' },
-  { col: 16, label: 'Notes' },
+  { col: 5, key: 'retention', label: 'Retention %' },
+  { col: 8, key: 'hoursToCompleteBeforeEom', label: 'Hours to complete before E.O.M' },
+  { col: 9, key: 'costsToComeBeforeEom', label: 'Costs to come before E.O.M' },
+  { col: 16, key: 'notes', label: 'Notes' },
 ]
 
 // Same col numbers UpcomingWorkTab.jsx's MONTH_FIELDS/NOTES_COL use.
@@ -121,6 +122,16 @@ export default function CommandBox({ jobs, mainSheetColumns }) {
         return
       }
       const saved = await saveChecklistItem(action.jobNumber, item.id, action.value)
+      setSaveStatus(
+        saved
+          ? { kind: 'ok', message: 'Saved.' }
+          : { kind: 'error', message: 'Could not save — nothing was changed.' }
+      )
+      return
+    }
+    if (action.target === 'claim-calculator') {
+      const field = CLAIM_CALC_FIELDS.find((f) => f.col === action.col)
+      const saved = field ? await saveClaimField(action.jobNumber, field.key, action.value) : null
       setSaveStatus(
         saved
           ? { kind: 'ok', message: 'Saved.' }

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { CircleDashed, CircleDot, CircleCheck } from 'lucide-react'
 import { pollStagedStatus } from '../lib/pollStagedStatus'
-import { saveEdit } from '../lib/saveEdit'
 import { saveChecklistItem } from '../lib/checklistStore'
+import { saveClaimField } from '../lib/claimFieldsStore'
 import {
   ONBOARDING_ITEMS,
   LINK_ITEM_COUNTS,
@@ -375,16 +375,14 @@ export default function MainSheetTab({
       setStatus({ kind: 'error', message })
     }
 
-    const result = await saveEdit('claim-calculator', job.jobNumber, 5, newValue)
-    if (result.status === 'done') {
+    const saved = await saveClaimField(job.jobNumber, 'retention', newValue)
+    if (saved) {
       setStatus({
         kind: 'ok',
         message: `Saved retention % for ${job.jobNumber} ${job.jobName} — synced to Monthly claims too.`,
       })
-    } else if (result.status === 'failed' || result.status === 'error') {
-      revert(`${result.message} — reverted.`)
     } else {
-      setStatus({ kind: 'error', message: result.message })
+      revert('Could not save — nothing was changed.')
     }
     setRetentionSaving((prev) => {
       const next = new Set(prev)
