@@ -5,6 +5,9 @@ import { money, percent } from '../lib/format'
 import { useLocalStorageState } from '../lib/useLocalStorageState'
 
 // Always shown, not part of the toggle panel.
+import { saveEdit } from '../lib/saveEdit'
+import { JOB_OWNERS, OWNER_COL } from '../lib/jobOwners'
+
 const FIXED_COLUMNS = [{ key: 'jobNumber', label: 'Job Number' }, { key: 'jobName', label: 'Job Name' }]
 
 // On the mobile card, the *Bar columns render a full-width progress bar
@@ -131,8 +134,56 @@ function MarginBar({ value }) {
   )
 }
 
-function renderCell(job, col) {
+// The owner is the one column here that is typed in rather than exported, so
+// it is the one that can be edited in place. Everything else on this table
+// comes from the workbook's own figures and changing it here would mean
+// nothing.
+function OwnerCell({ job, value, saving, onChange }) {
+  return (
+    <select
+      value={value}
+      disabled={saving}
+      aria-label={`Owner for job ${job.jobNumber}`}
+      // The row opens the job on click, so both have to be stopped: the click
+      // that opens the dropdown, and the change that follows it.
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => e.stopPropagation()}
+      onChange={(e) => {
+        e.stopPropagation()
+        onChange(job, e.target.value)
+      }}
+      className={`w-full min-w-[142px] rounded-md border border-white/10 bg-white/[0.04] px-1.5 py-1 text-[12px] text-neutral-200 focus:border-brand-green/50 focus:outline-none ${
+        saving ? 'opacity-50' : ''
+      } ${value ? '' : 'text-neutral-500'}`}
+    >
+      <option value="">No owner</option>
+      {JOB_OWNERS.map((name) => (
+        <option key={name} value={name}>
+          {name}
+        </option>
+      ))}
+      {/* Whatever the workbook actually holds, when it isn't one of the three
+          — the older "Tom" and "Cameron". Listed so the cell shows what is
+          stored rather than reading as unowned, and marked so it still looks
+          like something to replace. */}
+      {value && !JOB_OWNERS.includes(value) && (
+        <option value={value}>{value} (old)</option>
+      )}
+    </select>
+  )
+}
+
+function renderCell(job, col, ctx) {
   switch (col.key) {
+    case 'jobOwner':
+      return (
+        <OwnerCell
+          job={job}
+          value={ctx?.ownerOf ? ctx.ownerOf(job) : job.jobOwner || ''}
+          saving={ctx?.ownerSaving?.has(job.jobNumber) ?? false}
+          onChange={ctx?.onOwnerChange ?? (() => {})}
+        />
+      )
     case 'costProgress':
       return <CostBar actual={job.totalActualCost} quoted={job.quotedPrice} />
     case 'labourCostProgress':
@@ -221,6 +272,37 @@ export default function JobTable({
   const [showTrend, setShowTrend] = useLocalStorageState('jobTable.showTrend', true)
   const [panelOpen, setPanelOpen] = useState(false)
 
+  // Owner edits made in this table. Held locally as well as saved, because
+  // saveEdit's override reaches the rest of the site in about a second but
+  // this component's `jobs` prop only changes when the workbook is re-read.
+  // Without this the dropdown would snap back to its old value under the
+  // cursor of whoever just changed it.
+  const [ownerEdits, setOwnerEdits] = useState(() => new Map())
+  const [ownerSaving, setOwnerSaving] = useState(() => new Set())
+  const [ownerError, setOwnerError] = useState('')
+
+  const ownerOf = (job) =>
+    ownerEdits.has(job.jobNumber) ? ownerEdits.get(job.jobNumber) : (job.jobOwner || '').trim()
+
+  async function handleOwnerChange(job, value) {
+    const previous = ownerOf(job)
+    if (value === previous) return
+    setOwnerEdits((prev) => new Map(prev).set(job.jobNumber, value))
+    setOwnerSaving((prev) => new Set(prev).add(job.jobNumber))
+    setOwnerError('')
+    const result = await saveEdit('main-sheet', job.jobNumber, OWNER_COL, value)
+    setOwnerSaving((prev) => {
+      const next = new Set(prev)
+      next.delete(job.jobNumber)
+      return next
+    })
+    if (result.status !== 'done') {
+      // Put it back rather than leave a value on screen that was never saved.
+      setOwnerEdits((prev) => new Map(prev).set(job.jobNumber, previous))
+      setOwnerError(result.message ?? `Could not save the owner for ${job.jobNumber}.`)
+    }
+  }
+
   const columns = useMemo(
     () => [...FIXED_COLUMNS, ...OPTIONAL_COLUMNS.filter((c) => visibleKeys.has(c.key))],
     [visibleKeys]
@@ -240,7 +322,7 @@ export default function JobTable({
     return jobs
       .filter((job) => (statusFilter === 'needsReview' ? job.flagged : true))
       .filter((job) => (statusFilter === 'stale' ? job.isStale : true))
-      .filter((job) => (owner === 'all' ? true : (job.jobOwner || '') === owner))
+      .filter((job) => (owner === 'all' ? true : ownerOf(job) === owner))
       .filter(
         (job) =>
           !q ||
@@ -256,7 +338,8 @@ export default function JobTable({
         if (typeof av === 'number') return (av - bv) * sort.dir
         return String(av).localeCompare(String(bv)) * sort.dir
       })
-  }, [jobs, query, statusFilter, owner, sort])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobs, query, statusFilter, owner, sort, ownerEdits])
 
   const statusCounts = useMemo(
     () => ({
@@ -275,13 +358,17 @@ export default function JobTable({
   const owners = useMemo(() => {
     const counts = new Map()
     for (const job of jobs) {
-      const name = (job.jobOwner || '').trim()
+      const name = ownerOf(job)
       if (name) counts.set(name, (counts.get(name) ?? 0) + 1)
     }
     return [...counts.entries()].sort((a, b) => a[0].localeCompare(b[0]))
-  }, [jobs])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobs, ownerEdits])
 
-  const unowned = useMemo(() => jobs.filter((j) => !(j.jobOwner || '').trim()).length, [jobs])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const unowned = useMemo(() => jobs.filter((j) => !ownerOf(j)).length, [jobs, ownerEdits])
+
+  const cellCtx = { ownerOf, ownerSaving, onOwnerChange: handleOwnerChange }
 
   function toggleSort(key) {
     setSort((prev) => (prev.key === key ? { key, dir: -prev.dir } : { key, dir: 1 }))
@@ -289,6 +376,11 @@ export default function JobTable({
 
   return (
     <div>
+      {ownerError && (
+        <p className="mb-2 text-[13px] text-red-400" role="status">
+          {ownerError}
+        </p>
+      )}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap gap-2">
           {STATUS_FILTERS.map((chip) => (
@@ -422,7 +514,7 @@ export default function JobTable({
                 {wideCols.map((c) => (
                   <div key={c.key} className="flex flex-col gap-1">
                     <span className="text-[11px] text-neutral-400">{c.label}</span>
-                    {renderCell(job, c)}
+                    {renderCell(job, c, cellCtx)}
                   </div>
                 ))}
                 {compactCols.length > 0 && (
@@ -430,7 +522,7 @@ export default function JobTable({
                     {compactCols.map((c) => (
                       <div key={c.key} className="flex flex-col gap-1">
                         <span className="text-[11px] text-neutral-400">{c.label}</span>
-                        {renderCell(job, c)}
+                        {renderCell(job, c, cellCtx)}
                       </div>
                     ))}
                   </div>
@@ -486,7 +578,7 @@ export default function JobTable({
                 >
                   {columns.map((col) => (
                     <td key={col.key} className={col.num ? 'num tabular' : undefined}>
-                      {renderCell(job, col)}
+                      {renderCell(job, col, cellCtx)}
                     </td>
                   ))}
                   <td>

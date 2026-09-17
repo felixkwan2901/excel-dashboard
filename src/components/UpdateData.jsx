@@ -4,7 +4,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Button } from './ui/button'
 import { pollStagedStatus } from '../lib/pollStagedStatus'
 import { recordJobCreated } from '../lib/onboardingChecklist'
-import { planOwnerEdits, ownerEditsPayload, selectedOwner, JOB_OWNERS } from '../lib/jobOwners'
 
 import { workerFetch, workerDownload } from '@/lib/workerClient'
 import LastSynced from './LastSynced'
@@ -165,51 +164,6 @@ export default function UpdateData({ onBack, jobs, monthlyClaimsHistory, monthly
   })
   const [newJobStatus, setNewJobStatus] = useState('idle') // idle | staging | processing | done | error
   const [newJobMessage, setNewJobMessage] = useState('')
-
-  // Owner. Column C of the Main Sheet, which the weekly export never writes,
-  // so this is the only way it gets filled in. Choices are collected and sent
-  // in one batch rather than saved per row: each save stages a merge, and
-  // twenty-eight of them would be twenty-eight merges.
-  const [ownerDraft, setOwnerDraft] = useState({})
-  const [ownerStatus, setOwnerStatus] = useState('idle') // idle | staging | processing | done | error
-  const [ownerMessage, setOwnerMessage] = useState('')
-
-  const ownerChanges = planOwnerEdits(ownerDraft, jobs)
-
-  async function saveOwners() {
-    if (ownerChanges.length === 0) return
-    setOwnerStatus('staging')
-    setOwnerMessage('')
-    try {
-      const res = await workerFetch(`/main-sheet`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ edits: ownerEditsPayload(ownerChanges) }),
-      })
-      const payload = await res.json()
-      if (!res.ok) {
-        setOwnerMessage(payload.message ?? `Request failed (${res.status}).`)
-        setOwnerStatus('error')
-        return
-      }
-      setOwnerStatus('processing')
-      setOwnerMessage(payload.message)
-      const result = await pollStagedStatus(payload.staged)
-      if (result.status === 'done') {
-        setOwnerStatus('done')
-        setOwnerMessage(
-          `${ownerChanges.length} owner(s) saved. The site shows them after the redeploy, about a minute.`,
-        )
-        setOwnerDraft({})
-      } else {
-        setOwnerStatus('error')
-        setOwnerMessage(result.message ?? 'The merge did not finish.')
-      }
-    } catch (err) {
-      setOwnerMessage(`Could not reach the upload service: ${String(err.message ?? err)}`)
-      setOwnerStatus('error')
-    }
-  }
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -424,96 +378,6 @@ export default function UpdateData({ onBack, jobs, monthlyClaimsHistory, monthly
               {status === 'staging' ? 'Uploading…' : status === 'processing' ? 'Processing…' : 'Upload & merge'}
             </Button>
           </form>
-        </CardContent>
-      </Card>
-
-      <Card className="mt-4">
-        <CardHeader>
-          <CardTitle className="text-sm">Job owners</CardTitle>
-          <p className="text-xs text-text-muted">
-            Nothing else writes this column — the weekly export has no owner in it — so it is set
-            here. Pick from the list, then save once at the bottom. Jobs showing no owner include
-            the ones that were set to a first name only.
-          </p>
-        </CardHeader>
-        <CardContent>
-          <div className="max-h-[420px] overflow-auto rounded-lg border border-white/[0.08]">
-            <table className="w-full text-left text-[13px]">
-              <tbody>
-                {[...(jobs ?? [])]
-                  .sort((a, b) => Number(a.jobNumber) - Number(b.jobNumber))
-                  .map((job) => {
-                    const value = job.jobNumber in ownerDraft
-                      ? ownerDraft[job.jobNumber]
-                      : selectedOwner(job)
-                    const dirty = ownerChanges.some((c) => c.jobNumber === String(job.jobNumber))
-                    return (
-                      <tr
-                        key={job.jobNumber}
-                        className={`border-t border-white/[0.06] first:border-t-0 ${dirty ? 'bg-brand-green/[0.07]' : ''}`}
-                      >
-                        <td className="px-3 py-2">
-                          <span className="tabular-nums text-neutral-400">{job.jobNumber}</span>{' '}
-                          <span className="text-neutral-100">{job.jobName}</span>
-                        </td>
-                        <td className="px-3 py-2 text-right">
-                          <select
-                            value={value}
-                            aria-label={`Owner for job ${job.jobNumber}`}
-                            onChange={(e) =>
-                              setOwnerDraft((prev) => ({ ...prev, [job.jobNumber]: e.target.value }))
-                            }
-                            className="w-44 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[13px] text-neutral-100 focus:border-brand-green/50 focus:outline-none"
-                          >
-                            <option value="">No owner</option>
-                            {JOB_OWNERS.map((name) => (
-                              <option key={name} value={name}>
-                                {name}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-                      </tr>
-                    )
-                  })}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="mt-3 flex items-center gap-3">
-            <Button
-              type="button"
-              onClick={saveOwners}
-              disabled={
-                ownerChanges.length === 0 ||
-                ownerStatus === 'staging' ||
-                ownerStatus === 'processing'
-              }
-            >
-              {ownerStatus === 'staging'
-                ? 'Saving\u2026'
-                : ownerStatus === 'processing'
-                  ? 'Merging\u2026'
-                  : ownerChanges.length === 0
-                    ? 'No changes to save'
-                    : `Save ${ownerChanges.length} change(s)`}
-            </Button>
-            {ownerChanges.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setOwnerDraft({})}
-                className="text-xs text-text-muted underline underline-offset-2 hover:text-neutral-200"
-              >
-                Undo all
-              </button>
-            )}
-          </div>
-
-          {ownerMessage && (
-            <p className={`mt-3 text-sm ${ownerStatus === 'error' ? 'text-red-400' : 'text-brand-green'}`}>
-              {ownerMessage}
-            </p>
-          )}
         </CardContent>
       </Card>
 
