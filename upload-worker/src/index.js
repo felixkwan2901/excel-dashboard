@@ -883,8 +883,17 @@ async function handleCommand(request, env) {
 // catalogues those records point at: the labels live there once, so renaming
 // a task is a data change rather than a redeploy of two apps. Both are
 // enumerated by name, same reasoning as planning:* above.
+//
+// "planning:job-owners" is which of the three estimators owns each job, as
+// one { jobNumber: name } blob. It sits here rather than in the workbook
+// because nothing in the workbook uses it: no formula on any sheet
+// references Main Sheet column C, so writing it there bought a three-minute
+// merge and a redeploy for a label. Kept as a single blob rather than a key
+// per job for the same reason override:* is — there is no list endpoint, so
+// per-job keys could not be read back without knowing every job number in
+// advance.
 const APP_DATA_KEY_RE =
-  /^(weekly|completion|jobCreated|field):[A-Za-z0-9]{1,20}$|^override:(main-sheet|claim-calculator|upcoming-work)$|^planning:(staff-roster|servicing|working-days|staff-on-tools|avg-hourly-rate)$|^fieldTasks:(commercial|residential)$/
+  /^(weekly|completion|jobCreated|field):[A-Za-z0-9]{1,20}$|^override:(main-sheet|claim-calculator|upcoming-work)$|^planning:(staff-roster|servicing|working-days|staff-on-tools|avg-hourly-rate|job-owners)$|^fieldTasks:(commercial|residential)$/
 
 async function handleAppDataGet(request, env) {
   const url = new URL(request.url)

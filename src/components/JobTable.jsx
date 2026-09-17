@@ -5,8 +5,8 @@ import { money, percent } from '../lib/format'
 import { useLocalStorageState } from '../lib/useLocalStorageState'
 
 // Always shown, not part of the toggle panel.
-import { saveEdit } from '../lib/saveEdit'
-import { JOB_OWNERS, OWNER_COL } from '../lib/jobOwners'
+import { JOB_OWNERS } from '../lib/jobOwners'
+import { saveJobOwner } from '../lib/jobOwnerStore'
 
 const FIXED_COLUMNS = [{ key: 'jobNumber', label: 'Job Number' }, { key: 'jobName', label: 'Job Name' }]
 
@@ -288,16 +288,16 @@ export default function JobTable({
     onOwnerSaved?.(job.jobNumber, value)
     setOwnerSaving((prev) => new Set(prev).add(job.jobNumber))
     setOwnerError('')
-    const result = await saveEdit('main-sheet', job.jobNumber, OWNER_COL, value)
+    const saved = await saveJobOwner(job.jobNumber, value)
     setOwnerSaving((prev) => {
       const next = new Set(prev)
       next.delete(job.jobNumber)
       return next
     })
-    if (result.status !== 'done') {
+    if (!saved) {
       // Put it back rather than leave a value on screen that was never saved.
       onOwnerSaved?.(job.jobNumber, previous)
-      setOwnerError(result.message ?? `Could not save the owner for ${job.jobNumber}.`)
+      setOwnerError(`Could not save the owner for job ${job.jobNumber}. Nothing was changed.`)
     }
   }
 

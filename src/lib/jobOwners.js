@@ -1,19 +1,21 @@
-// Who owns a job, and where that is stored.
+// Who owns a job — the names and where the answer is stored.
 //
-// The owner lives in Main Sheet column C and nothing has ever written it: the
-// weekly Profit and Loss export from Katipolt carries no owner at all — its
-// sheets are Quotes, Summary, Budgeted and Non-Budgeted, and none of them
-// names a person. So the column was filled in by hand when a job was created,
-// or not at all, and ten of twenty-eight jobs had no owner. The Owner column
-// in the job directory is editable for that reason, and is the only column
-// there that is: every other one comes from the workbook's own figures, where
-// typing over the top would mean nothing.
+// Constants only, and deliberately free of imports: scripts/__tests__ runs
+// under plain node, which cannot resolve this project's extensionless Vite
+// imports. The reading and writing lives in jobOwnerStore.js.
 
-// A fixed list rather than free text. The column already held "Tom" and
-// "Cameron" against "Tom Price" and "Cameron Skilton", and two spellings of
-// one person are two owners to every filter, group and count in the app.
+// A fixed list rather than free text. The workbook column already held "Tom"
+// and "Cameron" against "Tom Price" and "Cameron Skilton", and two spellings
+// of one person are two owners to every filter, group and count in the app.
 export const JOB_OWNERS = ['Cameron Skilton', 'Charles Roselier', 'Tom Price']
 
-// Main Sheet column C, 0-based — the index loadWorkbook.js reads the owner
-// from, and the shape /main-sheet already accepts for checklist edits.
-export const OWNER_COL = 2
+// The owner lives in the KV store rather than in the workbook. It used to be
+// written to Main Sheet column C, which cost an Excel merge and a redeploy —
+// about three minutes — every time somebody picked a name from a dropdown,
+// and bought nothing: no formula on any sheet references that column. It is a
+// label. The workbook is still read as the fallback, so owners already
+// recorded there keep showing without a migration.
+//
+// This exact string has to be in the Worker's APP_DATA_KEY_RE allowlist
+// (upload-worker/src/index.js) or every save is rejected with a 400.
+export const OWNERS_KEY = 'planning:job-owners'

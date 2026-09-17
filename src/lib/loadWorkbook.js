@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx'
 import { fetchOverrides } from './overrides'
-import { OWNER_COL } from './jobOwners'
+import { fetchJobOwners } from './jobOwnerStore'
 import { findRowByLabel } from './findSheetRow'
 
 // Lives in public/ as a stable, unhashed path (not a Vite `?url` import) so
@@ -619,19 +619,22 @@ function parseMonthlyClaimsLog(log) {
 // merge+redeploy (~1-2 minutes). Each function maps a saved "col" back to
 // the field name the parsed job object actually uses.
 
+// The owner lives in KV, with whatever Main Sheet column C holds as the
+// fallback — so the owners already recorded in the workbook keep showing
+// without a migration, and anything set since is picked up here.
+function applyJobOwners(mainSheet, owners) {
+  for (const job of mainSheet.jobs) {
+    const name = owners?.[job.jobNumber]
+    if (name !== undefined) job.jobOwner = name
+  }
+}
+
 function applyMainSheetOverrides(mainSheet, overrides) {
   for (const job of mainSheet.jobs) {
     const jobOverrides = overrides[job.jobNumber]
     if (!jobOverrides) continue
     for (const [col, entry] of Object.entries(jobOverrides)) {
-      // Column C is the owner, and it is read into its own field above
-      // rather than into the checklist — so overlaying it as checklist
-      // col2 put the saved value somewhere nothing reads. A changed owner
-      // was written to KV in about a second and then ignored on every load
-      // until the Excel merge and redeploy caught up three minutes later,
-      // which looked exactly like a save that had not worked.
-      if (Number(col) === OWNER_COL) job.jobOwner = entry.value
-      else job.checklist[`col${col}`] = entry.value
+      job.checklist[`col${col}`] = entry.value
     }
   }
 }
@@ -687,9 +690,9 @@ export async function loadWorkbook() {
   // — this bounds it so an error state (with a retry) shows up instead.
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 20_000)
-  let res, hoursRes, claimsLogRes, archivedRes, mainSheetOverrides, claimCalcOverrides, upcomingWorkOverrides
+  let res, hoursRes, claimsLogRes, archivedRes, mainSheetOverrides, claimCalcOverrides, upcomingWorkOverrides, jobOwners
   try {
-    ;[res, hoursRes, claimsLogRes, archivedRes, mainSheetOverrides, claimCalcOverrides, upcomingWorkOverrides] =
+    ;[res, hoursRes, claimsLogRes, archivedRes, mainSheetOverrides, claimCalcOverrides, upcomingWorkOverrides, jobOwners] =
       await Promise.all([
         fetch(workbookUrl, { signal: controller.signal, cache: 'no-store' }),
         fetch(monthlyHoursLogUrl, { signal: controller.signal, cache: 'no-store' }),
@@ -698,6 +701,7 @@ export async function loadWorkbook() {
         fetchOverrides('main-sheet'),
         fetchOverrides('claim-calculator'),
         fetchOverrides('upcoming-work'),
+        fetchJobOwners(),
       ])
   } finally {
     clearTimeout(timeout)
@@ -712,6 +716,7 @@ export async function loadWorkbook() {
   const mainSheet = parseMainSheet(workbook)
   const upcomingWork = parseUpcomingWork(workbook)
   applyMainSheetOverrides(mainSheet, mainSheetOverrides)
+  applyJobOwners(mainSheet, jobOwners)
   applyClaimCalcOverrides(monthlyClaims, claimCalcOverrides)
   applyUpcomingWorkOverrides(upcomingWork, upcomingWorkOverrides)
   // The hours log is a nice-to-have on top of the core workbook data — if
