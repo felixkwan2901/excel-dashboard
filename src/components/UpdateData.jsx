@@ -3,6 +3,7 @@ import { Download } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card'
 import { Button } from './ui/button'
 import { pollStagedStatus } from '../lib/pollStagedStatus'
+import { useLocalStorageState } from '../lib/useLocalStorageState'
 import { recordJobCreated } from '../lib/onboardingChecklist'
 
 import { workerFetch, workerDownload } from '@/lib/workerClient'
@@ -16,7 +17,7 @@ import {
   plannedHoursCsv,
 } from '../lib/tableauExport'
 
-const TABLEAU_EXPORTS = [
+const DATA_EXPORTS = [
   { file: 'cde-jobs.csv', label: 'Jobs — one row per job', build: ({ jobs }) => jobsCsv(jobs) },
   {
     file: 'cde-claims-by-month.csv',
@@ -164,6 +165,7 @@ export default function UpdateData({ onBack, jobs, monthlyClaimsHistory, monthly
   })
   const [newJobStatus, setNewJobStatus] = useState('idle') // idle | staging | processing | done | error
   const [newJobMessage, setNewJobMessage] = useState('')
+  const [exportsOpen, setExportsOpen] = useLocalStorageState('updateData.exportsOpen', false)
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -485,31 +487,50 @@ export default function UpdateData({ onBack, jobs, monthlyClaimsHistory, monthly
           costs, are written to this machine and go nowhere near a server. */}
       <Card className="mt-6">
         <CardHeader>
-          <CardTitle className="text-sm">Export for Tableau</CardTitle>
-          <CardDescription>
-            One row per job per month, not a column per month — Tableau wants the date to be a
-            field it can put on an axis. Months are written as real dates so they sort properly.
-            These files hold client names and costs: they download to this computer and are not
-            uploaded anywhere.
-          </CardDescription>
+          {/* Named for what it does, not for one tool. It was "Export for
+              Tableau", which read as a feature for software nobody here opens
+              — but as the workbook stops being written, this becomes the only
+              way to get the data out of the system at all, which matters to
+              anyone inheriting it. Collapsed because it is needed rarely and
+              sits on a page used weekly. TABLEAU.md still covers the Tableau
+              set-up for whoever wants the deeper analysis. */}
+          <button
+            type="button"
+            onClick={() => setExportsOpen((v) => !v)}
+            aria-expanded={exportsOpen}
+            className="flex w-full items-center justify-between gap-2 text-left"
+          >
+            <CardTitle className="text-sm">Download data (CSV)</CardTitle>
+            <span className="shrink-0 text-xs text-text-muted">{exportsOpen ? 'Hide' : 'Show'}</span>
+          </button>
+          {exportsOpen && (
+            <CardDescription>
+              Five files, one row per job per month rather than a column per month, with months
+              written as real dates so they sort properly — the shape Tableau, Excel and Power BI
+              all want. They hold client names and costs: they download to this computer and are
+              not uploaded anywhere.
+            </CardDescription>
+          )}
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            {TABLEAU_EXPORTS.map(({ file, label, build }) => (
-              <Button
-                key={file}
-                variant="outline"
-                className="w-full justify-start"
-                onClick={() =>
-                  downloadCsv(file, build({ jobs, monthlyClaimsHistory, monthlyHours, upcomingWork }))
-                }
-              >
-                <Download size={14} aria-hidden="true" />
-                {label}
-              </Button>
-            ))}
-          </div>
-        </CardContent>
+        {exportsOpen && (
+          <CardContent>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {DATA_EXPORTS.map(({ file, label, build }) => (
+                <Button
+                  key={file}
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() =>
+                    downloadCsv(file, build({ jobs, monthlyClaimsHistory, monthlyHours, upcomingWork }))
+                  }
+                >
+                  <Download size={14} aria-hidden="true" />
+                  {label}
+                </Button>
+              ))}
+            </div>
+          </CardContent>
+        )}
       </Card>
 
       <Card className="mt-4">

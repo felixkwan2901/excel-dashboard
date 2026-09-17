@@ -5,7 +5,7 @@ questions worth sitting down with rather than glancing at.
 
 ## Getting the data
 
-**Update data → Export for Tableau.** Five CSVs, generated in the browser from
+**Update data → Download data (CSV).** Five CSVs, generated in the browser from
 what the dashboard has already parsed and saved to your machine. Re-export
 whenever you want fresh figures; it takes a click and there is nothing to
 schedule.
