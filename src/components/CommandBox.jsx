@@ -1,6 +1,5 @@
 import { useRef, useState } from 'react'
 import { Sparkles } from 'lucide-react'
-import { saveEdit } from '../lib/saveEdit'
 import {
   ONBOARDING_ITEMS,
   LINK_ITEM_COUNTS,
@@ -11,6 +10,7 @@ import {
 import { workerFetch } from '@/lib/workerClient'
 import { saveChecklistItem } from '../lib/checklistStore'
 import { saveClaimField } from '../lib/claimFieldsStore'
+import { saveUpcomingWorkField } from '../lib/upcomingWorkStore'
 
 // Same col numbers MonthlyClaims.jsx's EDITABLE_FIELDS already uses —
 // duplicated here rather than imported since that array is local to that
@@ -24,11 +24,11 @@ const CLAIM_CALC_FIELDS = [
 
 // Same col numbers UpcomingWorkTab.jsx's MONTH_FIELDS/NOTES_COL use.
 const UPCOMING_WORK_FIELDS = [
-  { col: 5, label: 'Jan' }, { col: 6, label: 'Feb' }, { col: 7, label: 'Mar' },
-  { col: 8, label: 'Apr' }, { col: 9, label: 'May' }, { col: 10, label: 'Jun' },
-  { col: 11, label: 'Jul' }, { col: 12, label: 'Aug' }, { col: 13, label: 'Sep' },
-  { col: 14, label: 'Oct' }, { col: 15, label: 'Nov' }, { col: 16, label: 'Dec' },
-  { col: 18, label: 'Notes' },
+  { col: 5, key: 'Jan', label: 'Jan' }, { col: 6, key: 'Feb', label: 'Feb' }, { col: 7, key: 'Mar', label: 'Mar' },
+  { col: 8, key: 'Apr', label: 'Apr' }, { col: 9, key: 'May', label: 'May' }, { col: 10, key: 'Jun', label: 'Jun' },
+  { col: 11, key: 'Jul', label: 'Jul' }, { col: 12, key: 'Aug', label: 'Aug' }, { col: 13, key: 'Sep', label: 'Sep' },
+  { col: 14, key: 'Oct', label: 'Oct' }, { col: 15, key: 'Nov', label: 'Nov' }, { col: 16, key: 'Dec', label: 'Dec' },
+  { col: 18, key: 'notes', label: 'Notes' },
 ]
 
 // Only ever proposes an action for the user to confirm — the actual save
@@ -139,12 +139,15 @@ export default function CommandBox({ jobs, mainSheetColumns }) {
       )
       return
     }
-    const saveResult = await saveEdit(action.target, action.jobNumber, action.col, action.value)
-    if (saveResult.status === 'done') {
-      setSaveStatus({ kind: 'ok', message: `${saveResult.message ?? 'Saved.'}` })
-    } else {
-      setSaveStatus({ kind: 'error', message: saveResult.message })
-    }
+    // Upcoming work is the last of the hand-typed groups; nothing the command
+    // box can do reaches the workbook any more.
+    const field = UPCOMING_WORK_FIELDS.find((f) => f.col === action.col)
+    const saved = field ? await saveUpcomingWorkField(action.jobNumber, field.key, action.value) : null
+    setSaveStatus(
+      saved
+        ? { kind: 'ok', message: 'Saved.' }
+        : { kind: 'error', message: 'Could not save — nothing was changed.' }
+    )
   }
 
   return (

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { saveEdit } from '../lib/saveEdit'
+import { saveUpcomingWorkField } from '../lib/upcomingWorkStore'
 import { roundHours } from '../lib/format'
 import { useSharedState } from '../lib/useSharedState'
 import CollapsibleSection from './CollapsibleSection'
@@ -352,16 +352,13 @@ export default function UpcomingWorkTab({ upcomingWork, onBack }) {
       setStatus({ kind: 'error', message })
     }
 
-    const result = await saveEdit('upcoming-work', job.jobNumber, col, newValue)
-    if (result.status === 'done') {
-      setStatus({
-        kind: 'ok',
-        message: `Saved "${key}" for ${job.jobNumber} ${job.jobName} — synced everywhere already; the workbook catches up in the background.`,
-      })
-    } else if (result.status === 'failed' || result.status === 'error') {
-      revert(`${result.message} — reverted.`)
+    // `key` is already the month name, or 'notes' — the same names the store
+    // uses, so the sheet column this used to be written to is not needed.
+    const saved = await saveUpcomingWorkField(job.jobNumber, key, newValue)
+    if (saved) {
+      setStatus({ kind: 'ok', message: `Saved "${key}" for ${job.jobNumber} ${job.jobName}.` })
     } else {
-      setStatus({ kind: 'error', message: result.message })
+      revert('Could not save — nothing was changed.')
     }
     setSavingKeys((prev) => {
       const next = new Set(prev)

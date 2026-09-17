@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { CircleDashed, CircleDot, CircleCheck } from 'lucide-react'
 import { pollStagedStatus } from '../lib/pollStagedStatus'
+import { useLocalStorageState } from '../lib/useLocalStorageState'
 import { saveChecklistItem } from '../lib/checklistStore'
 import { saveClaimField } from '../lib/claimFieldsStore'
 import {
@@ -101,7 +102,10 @@ export default function MainSheetTab({
   const { jobs, columns } = mainSheet
 
   const sortedJobs = [...jobs].sort((a, b) => Number(a.jobNumber) - Number(b.jobNumber))
-  const [selectedJobNumber, setSelectedJobNumber] = useState('')
+  // Remembered across reloads. Working through a job's nineteen items means
+  // reloading — a tick, a look at the weekly sheet, a refresh — and landing
+  // back on 7428 every time meant finding your place again each go.
+  const [selectedJobNumber, setSelectedJobNumber] = useLocalStorageState('mainSheet.selectedJob', '')
   const [progressFilter, setProgressFilter] = useState('all')
   const [values, setValues] = useState(() => {
     const map = {}
@@ -173,6 +177,8 @@ export default function MainSheetTab({
   }
   const settledCount = (jobNumber) => columns.filter((c) => isSettled(jobNumber, c.key)).length
 
+  // Falls back to the first job when the remembered one has gone — archived,
+  // or renumbered — rather than showing an empty page.
   const selectedJob = sortedJobs.find((j) => j.jobNumber === selectedJobNumber) ?? sortedJobs[0] ?? null
   const selectedJobDone = selectedJob ? settledCount(selectedJob.jobNumber) : 0
 

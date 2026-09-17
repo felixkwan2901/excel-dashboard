@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 
 // checklistStore.js and onboardingChecklist.js both reach the Vite-only
 // module graph, so this reads the sources rather than importing them: the
@@ -121,4 +121,40 @@ test('the Monthly Claims page no longer writes to the workbook', () => {
   const claims = readFileSync('src/components/MonthlyClaims.jsx', 'utf8')
   assert.ok(claims.includes('saveClaimField('))
   assert.ok(!/await saveEdit\(/.test(claims), 'no claim figure should still stage an Excel edit')
+})
+
+// ---- Upcoming Work planned hours ----
+
+const upcomingStore = readFileSync('src/lib/upcomingWorkStore.js', 'utf8')
+
+test('the upcoming-work key is one the deployed Worker allows', () => {
+  const key = upcomingStore.match(/UPCOMING_WORK_KEY = '([^']+)'/)[1]
+  assert.equal(key, 'planning:upcoming-work')
+  const re = eval(worker.match(/const APP_DATA_KEY_RE =\s*(\/.+\/)/)[1])
+  assert.ok(re.test(key), `${key} must match the Worker's allowlist`)
+})
+
+// The page passes the month name straight through as the field id, and
+// loadWorkbook writes it back into job.months by the same name. A mismatch
+// puts planned hours into a month nobody looks at.
+test('the month keys are the ones the page and the loader use', () => {
+  const keys = upcomingStore.match(/MONTH_KEYS = \[([^\]]+)\]/)[1]
+  for (const m of ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']) {
+    assert.ok(keys.includes(`'${m}'`), `${m} must be a stored month`)
+  }
+  const tab = readFileSync('src/components/UpcomingWorkTab.jsx', 'utf8')
+  for (const m of ['Jan', 'Dec']) assert.ok(tab.includes(`key: '${m}'`), `${m} must still be the page's key`)
+})
+
+// ---- the whole point of the exercise ----
+
+test('nothing on the site writes to the workbook any more', () => {
+  const dir = 'src/components'
+  const files = readdirSync(dir).filter((f) => f.endsWith('.jsx'))
+  const offenders = files.filter((f) => /await saveEdit\(/.test(readFileSync(`${dir}/${f}`, 'utf8')))
+  assert.deepEqual(
+    offenders,
+    [],
+    `these still stage an Excel edit: ${offenders.join(', ')} — every hand-typed field should go to KV`,
+  )
 })

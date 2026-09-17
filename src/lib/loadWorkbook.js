@@ -3,6 +3,7 @@ import { fetchOverrides } from './overrides'
 import { fetchJobOwners } from './jobOwnerStore'
 import { fetchJobChecklists } from './checklistStore'
 import { fetchClaimFields, NUMERIC_CLAIM_FIELDS } from './claimFieldsStore'
+import { fetchUpcomingWork, NOTES_FIELD } from './upcomingWorkStore'
 import { ONBOARDING_ITEMS } from './onboardingChecklist'
 import { findRowByLabel } from './findSheetRow'
 
@@ -702,6 +703,23 @@ const UPCOMING_WORK_OVERRIDE_MONTHS = {
   11: 'Jul', 12: 'Aug', 13: 'Sep', 14: 'Oct', 15: 'Nov', 16: 'Dec',
 }
 
+// Planned hours stored in KV by month name, laid over whatever the Upcoming
+// Work Calculator sheet still holds.
+function applyUpcomingWorkFields(upcomingWork, stored) {
+  if (!stored) return
+  for (const job of upcomingWork.jobs) {
+    const saved = stored[job.jobNumber]
+    if (!saved) continue
+    for (const [field, value] of Object.entries(saved)) {
+      if (field === NOTES_FIELD) job.notes = value
+      // An empty month means no hours planned, which is 0 — not "leave
+      // whatever the spreadsheet said", or clearing a month would never
+      // stick.
+      else if (field in job.months) job.months[field] = Number(value) || 0
+    }
+  }
+}
+
 function applyUpcomingWorkOverrides(upcomingWork, overrides) {
   for (const job of upcomingWork.jobs) {
     const jobOverrides = overrides[job.jobNumber]
@@ -723,9 +741,9 @@ export async function loadWorkbook() {
   // — this bounds it so an error state (with a retry) shows up instead.
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 20_000)
-  let res, hoursRes, claimsLogRes, archivedRes, mainSheetOverrides, claimCalcOverrides, upcomingWorkOverrides, jobOwners, jobChecklists, claimFields
+  let res, hoursRes, claimsLogRes, archivedRes, mainSheetOverrides, claimCalcOverrides, upcomingWorkOverrides, jobOwners, jobChecklists, claimFields, upcomingWorkFields
   try {
-    ;[res, hoursRes, claimsLogRes, archivedRes, mainSheetOverrides, claimCalcOverrides, upcomingWorkOverrides, jobOwners, jobChecklists, claimFields] =
+    ;[res, hoursRes, claimsLogRes, archivedRes, mainSheetOverrides, claimCalcOverrides, upcomingWorkOverrides, jobOwners, jobChecklists, claimFields, upcomingWorkFields] =
       await Promise.all([
         fetch(workbookUrl, { signal: controller.signal, cache: 'no-store' }),
         fetch(monthlyHoursLogUrl, { signal: controller.signal, cache: 'no-store' }),
@@ -737,6 +755,7 @@ export async function loadWorkbook() {
         fetchJobOwners(),
         fetchJobChecklists(),
         fetchClaimFields(),
+        fetchUpcomingWork(),
       ])
   } finally {
     clearTimeout(timeout)
@@ -756,6 +775,7 @@ export async function loadWorkbook() {
   applyClaimCalcOverrides(monthlyClaims, claimCalcOverrides)
   applyClaimFields(monthlyClaims, claimFields)
   applyUpcomingWorkOverrides(upcomingWork, upcomingWorkOverrides)
+  applyUpcomingWorkFields(upcomingWork, upcomingWorkFields)
   // The hours log is a nice-to-have on top of the core workbook data — if
   // it's missing or unreadable for any reason, degrade to an empty history
   // rather than failing the whole page load over it.

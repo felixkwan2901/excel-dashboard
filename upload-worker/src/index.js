@@ -905,8 +905,13 @@ async function handleCommand(request, env) {
 // costs still to come before end of month, and the note. Same reasoning
 // again: nothing in the workbook calculates from them, the projections are
 // worked out in the page itself.
+//
+// "planning:upcoming-work" is the months of planned hours per job and the
+// note beside them — the last thing a person typed into the workbook. With
+// this one moved, nothing anybody does on the site writes to that file any
+// more; it holds only the weekly Katipolt figures.
 const APP_DATA_KEY_RE =
-  /^(weekly|completion|jobCreated|field):[A-Za-z0-9]{1,20}$|^override:(main-sheet|claim-calculator|upcoming-work)$|^planning:(staff-roster|servicing|working-days|staff-on-tools|avg-hourly-rate|job-owners|job-checklist|claim-fields)$|^fieldTasks:(commercial|residential)$/
+  /^(weekly|completion|jobCreated|field):[A-Za-z0-9]{1,20}$|^override:(main-sheet|claim-calculator|upcoming-work)$|^planning:(staff-roster|servicing|working-days|staff-on-tools|avg-hourly-rate|job-owners|job-checklist|claim-fields|upcoming-work)$|^fieldTasks:(commercial|residential)$/
 
 async function handleAppDataGet(request, env) {
   const url = new URL(request.url)
