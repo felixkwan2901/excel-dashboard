@@ -194,16 +194,45 @@ async function extractJobExport(filePath) {
       rec.quotedProfit = parseMoney(row[5])
       rec.quotedMargin = parsePercent(row[7])
     }
+    // Historically the Labour row's cost cells were themselves text like
+    // "$4,533.98 (90.88 hours)", carrying both figures in one string. A
+    // report-format change (first seen ~2026-09-22) instead puts a plain
+    // number in each cost cell and drops the embedded hours entirely — the
+    // regex below simply stops matching for those exports, and every single
+    // one silently failed as "missing fields", with nothing written to the
+    // workbook. When that happens, the cost is read as a plain number
+    // instead, and the matching hours are picked up afterwards from the
+    // Budgeted sheet's own "Labour" line (see below) rather than left blank.
     if (label === 'Labour') {
       const qm = String(row[1]).match(/\$?([0-9,.]+)\s*\(([0-9.]+)\s*hours\)/)
       const am = String(row[2]).match(/\$?([0-9,.]+)\s*\(([0-9.]+)\s*hours\)/)
       if (qm) {
         rec.quotedLabourCost = parseMoney(qm[1])
         rec.quotedLabourHours = Number(qm[2])
+      } else {
+        rec.quotedLabourCost = parseMoney(row[1])
       }
       if (am) {
         rec.actualLabourCost = parseMoney(am[1])
         rec.actualLabourHours = Number(am[2])
+      } else {
+        rec.actualLabourCost = parseMoney(row[2])
+      }
+    }
+  }
+
+  // Newer-format exports carry an extra "Budgeted" sheet with a
+  // Code/Source/Description/Actual Cost/Actual Quantity/Quoted
+  // Cost/Quoted Quantity/... breakdown — its own "Labour" row's Quantity
+  // columns are hours, and is the only place left to find them once the
+  // Summary sheet's Labour row stopped including them (see above).
+  if (rec.quotedLabourHours == null || rec.actualLabourHours == null) {
+    const budgetedSheet = wb.getWorksheet('Budgeted')
+    if (budgetedSheet) {
+      const labourRow = worksheetToRows(budgetedSheet).find((r) => String(r[2]).trim() === 'Labour')
+      if (labourRow) {
+        if (rec.actualLabourHours == null) rec.actualLabourHours = Number(labourRow[4])
+        if (rec.quotedLabourHours == null) rec.quotedLabourHours = Number(labourRow[6])
       }
     }
   }
@@ -213,7 +242,7 @@ async function extractJobExport(filePath) {
     'quotedLabourCost', 'actualLabourCost', 'quotedLabourHours', 'actualLabourHours',
     'quotedProfit', 'quotedMargin', 'profitToDate', 'marginToDate',
   ]
-  const missing = required.filter((f) => rec[f] === undefined || rec[f] === null)
+  const missing = required.filter((f) => rec[f] === undefined || rec[f] === null || Number.isNaN(rec[f]))
   if (missing.length > 0) {
     return { file: filePath, jobNumber, jobName, error: `missing fields in Summary sheet: ${missing.join(', ')}` }
   }
