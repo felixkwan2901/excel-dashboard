@@ -28,7 +28,7 @@ export default function ReviewReport({ jobs, onBack }) {
   const losingMarginCount = jobs.filter((j) => j.losingMargin).length
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-6 print:max-w-none">
+    <div className="mx-auto flex w-full max-w-[1800px] flex-col gap-6 print:max-w-none">
       <div className="flex items-center justify-between print:hidden">
         <button
           onClick={onBack}

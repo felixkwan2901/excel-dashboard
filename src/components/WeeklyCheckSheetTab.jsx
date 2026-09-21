@@ -98,7 +98,7 @@ export default function WeeklyCheckSheetTab({ job, onBack }) {
 
   if (!state) {
     return (
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
+      <div className="mx-auto flex w-full max-w-[1800px] flex-col gap-6">
         <p className="text-sm text-neutral-400">Loading…</p>
       </div>
     )
@@ -107,7 +107,7 @@ export default function WeeklyCheckSheetTab({ job, onBack }) {
   const doneCount = state.items.filter((i) => i.done || i.na).length
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-[1800px] flex-col gap-6">
       <nav className="flex items-center gap-1.5 text-sm text-text-muted">
         <button className="transition-colors hover:text-text-primary" onClick={onBack}>
           Job checklist

@@ -273,7 +273,7 @@ export default function ProjectDetail({ job, onBack }) {
   const marginRatio = job.quotedMargin ? job.marginToDate / job.quotedMargin : null
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-[1800px] flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <button
           onClick={onBack}
