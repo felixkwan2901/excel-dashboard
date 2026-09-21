@@ -19,7 +19,7 @@ import { isValidJobBlock } from './lib/job-blocks.mjs'
 const STAGING_DIR = resolve('pending-updates/new-job')
 const FAILED_DIR = resolve('pending-updates/failed')
 const WORKBOOK_PATH = resolve('public/Cassidy_Davies_Electrical_BPMN_Data.xlsx')
-const SYNC_META_PATH = resolve('sync-meta.json')
+const SYNC_META_PATH = resolve('public/sync-meta.json')
 
 // ---------------------------------------------------------------------------
 // Shared helpers

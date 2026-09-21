@@ -16,7 +16,7 @@ import { join, resolve } from 'node:path'
 const STAGING_DIR = resolve('pending-updates/archived-jobs')
 const FAILED_DIR = resolve('pending-updates/failed')
 const ARCHIVED_JOBS_PATH = resolve('public/archived-jobs.json')
-const SYNC_META_PATH = resolve('sync-meta.json')
+const SYNC_META_PATH = resolve('public/sync-meta.json')
 
 async function main() {
   if (!existsSync(STAGING_DIR)) {

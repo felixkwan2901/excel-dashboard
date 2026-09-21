@@ -112,11 +112,11 @@ jobs:
   # A push made with the default GITHUB_TOKEN (as the commit above is)
   # deliberately does NOT cascade into triggering other workflows — GitHub's
   # built-in loop guard — so deploy.yml's own `on: push` trigger never fires
-  # for this commit. Every edit here is one of four plain data files
+  # for this commit. Every edit here is one of five plain data files
   # (public/Cassidy_Davies_Electrical_BPMN_Data.xlsx, monthly-hours-log.json,
-  # monthly-claims-log.json, archived-jobs.json), all fetched by the site at
-  # a stable, unhashed URL (no Vite-generated content hash to update) — so
-  # getting the change live only needs those four files copied onto the
+  # monthly-claims-log.json, archived-jobs.json, sync-meta.json), all fetched
+  # by the site at a stable, unhashed URL (no Vite-generated content hash to update) — so
+  # getting the change live only needs those five files copied onto the
   # gh-pages branch, not a full `npm ci` + `vite build` + Pages redeploy.
   # That full pipeline (deploy.yml) still exists and still runs for real
   # frontend code changes (those come from a human push, which triggers it
@@ -150,9 +150,10 @@ jobs:
           cp public/monthly-hours-log.json /tmp/gh-pages/monthly-hours-log.json
           cp public/monthly-claims-log.json /tmp/gh-pages/monthly-claims-log.json
           cp public/archived-jobs.json /tmp/gh-pages/archived-jobs.json
+          cp public/sync-meta.json /tmp/gh-pages/sync-meta.json
 
           cd /tmp/gh-pages
-          git add Cassidy_Davies_Electrical_BPMN_Data.xlsx monthly-hours-log.json monthly-claims-log.json archived-jobs.json
+          git add Cassidy_Davies_Electrical_BPMN_Data.xlsx monthly-hours-log.json monthly-claims-log.json archived-jobs.json sync-meta.json
           if git diff --cached --quiet; then
             echo "Data files unchanged on gh-pages — nothing to sync."
             exit 0

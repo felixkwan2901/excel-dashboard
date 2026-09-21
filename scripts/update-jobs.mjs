@@ -39,7 +39,7 @@
 // free tier silently drops all of that on write.
 //
 // It does NOT commit or push — review the printed summary, then
-// `git add public/Cassidy_Davies_Electrical_BPMN_Data.xlsx sync-meta.json`,
+// `git add public/Cassidy_Davies_Electrical_BPMN_Data.xlsx public/sync-meta.json`,
 // commit, and push yourself (or ask Claude to).
 
 import { createHash } from 'node:crypto'
@@ -54,7 +54,7 @@ import { findJobsMissingFromSheets, formatMissingJobsReport } from './lib/job-pr
 
 const folder = resolve(process.argv[2] ?? 'imports')
 const workbookPath = resolve('public/Cassidy_Davies_Electrical_BPMN_Data.xlsx')
-const syncMetaPath = resolve('sync-meta.json')
+const syncMetaPath = resolve('public/sync-meta.json')
 // Same file scripts/log-monthly-hours.mjs writes its own periodic
 // snapshots to — see recordClosingMonthHours below for why rollover also
 // writes here directly instead of leaving it entirely to that script.
@@ -1208,7 +1208,7 @@ async function main() {
   }
 
   console.log('\nWorkbook updated. Review the numbers above, then:')
-  console.log('  git add public/Cassidy_Davies_Electrical_BPMN_Data.xlsx sync-meta.json')
+  console.log('  git add public/Cassidy_Davies_Electrical_BPMN_Data.xlsx public/sync-meta.json')
   console.log('  git commit -m "Update job data"')
   console.log('  git push')
 

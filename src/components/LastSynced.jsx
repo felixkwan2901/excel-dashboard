@@ -1,6 +1,14 @@
 import { useEffect, useState } from 'react'
-import syncMetaUrl from '../../sync-meta.json?url'
 import { formatRelativeTime } from '../lib/relativeTime'
+
+// A plain runtime fetch against the same stable, unhashed public/ path the
+// workbook and the other data JSON files use (see loadWorkbook.js) — NOT a
+// bundled `?url` import. That used to resolve to a base64 data: URI baked
+// into the JS bundle at build time, so this label stayed frozen at whatever
+// sync-meta.json said during the last full `npm run build` and never
+// advanced on the fast data-only path (process-pending-updates.yml's
+// sync-pages job, which updates gh-pages directly without rebuilding).
+const syncMetaUrl = `${import.meta.env.BASE_URL}sync-meta.json`
 
 const REFRESH_MS = 60 * 1000 // keep the relative label ("2 minutes ago") fresh
 
@@ -14,7 +22,7 @@ export default function LastSynced({ detailed = false }) {
 
   useEffect(() => {
     let cancelled = false
-    fetch(syncMetaUrl)
+    fetch(syncMetaUrl, { cache: 'no-store' })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (!cancelled && data?.updatedAt) setUpdatedAt(data.updatedAt)

@@ -19,7 +19,7 @@ import ExcelJS from 'exceljs'
 const STAGING_DIR = resolve('pending-updates/upcoming-work')
 const FAILED_DIR = resolve('pending-updates/failed')
 const WORKBOOK_PATH = resolve('public/Cassidy_Davies_Electrical_BPMN_Data.xlsx')
-const SYNC_META_PATH = resolve('sync-meta.json')
+const SYNC_META_PATH = resolve('public/sync-meta.json')
 
 const NOTES_COL = 18
 const EDITABLE_COLUMNS = new Set([5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, NOTES_COL])
