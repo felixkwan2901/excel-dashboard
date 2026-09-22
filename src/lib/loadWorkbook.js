@@ -282,9 +282,32 @@ function withDerivedFields(job) {
     hasReliablePace && totalActualCost !== null ? totalActualCost / estimatedPctJobComplete : null
   const projectedOverrun =
     projectedTotalCost !== null && totalQuotedCost !== null ? projectedTotalCost - totalQuotedCost : null
-  const overBudget = hasReliablePace
-    ? projectedOverrun !== null && projectedOverrun > 0
-    : totalActualCost !== null && totalQuotedCost !== null && totalActualCost > totalQuotedCost
+
+  // Cost against quote, and nothing else. Spent more than it was sold for.
+  //
+  // This used to flag on the projection above instead, wherever a percentage
+  // existed: cost divided by % complete, compared to the quote, so a job could
+  // be flagged while still well under budget because it looked to be heading
+  // that way. Two things are wrong with that.
+  //
+  // "Estimated % of job complete" is typed into the workbook by hand — there
+  // is no formula behind it — and at the time of writing 8 of 28 jobs have a
+  // number at all. So the projection never applied to most of the list, and
+  // where it did it divided real money by somebody's round-number guess
+  // (0.25, 0.3, 0.4, 0.6). A quarter either way on that guess moves the
+  // projected total by tens of thousands.
+  //
+  // And it produced exactly the noise the margin rule did: a job flagged for
+  // something that had not happened and might not. A review list only works
+  // if everything on it is real.
+  //
+  // The projection is still computed, still shown on the job and still
+  // exported. It is a useful thing to look at. It is not a reliable enough
+  // thing to raise an alarm on — not until the percentage comes from the
+  // field app, where the crew tap it per task, rather than from a cell
+  // somebody fills in when they remember.
+  const overBudget =
+    totalActualCost !== null && totalQuotedCost !== null && totalActualCost > totalQuotedCost
   // Still computed, still shown per job, and still exported — but no longer a
   // reason to flag anything.
   //
