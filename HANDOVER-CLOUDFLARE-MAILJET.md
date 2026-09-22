@@ -19,6 +19,47 @@
 <w:p><w:r><w:br w:type="page"/></w:r></w:p>
 ```
 
+# The short version
+
+Tick these off in order. Everything after the first group is detailed later in
+this guide.
+
+**Blocked on the company — ask for these first, nothing can start without them**
+
+- [ ] A Cloudflare account (free plan)
+- [ ] A GitHub account or organisation (free plan is enough)
+- [ ] A Mailjet account (free plan)
+- [ ] An email address someone can open, to verify as the Mailjet sender
+
+**Do before the move**
+
+- [ ] Make both repositories private
+- [ ] Take a KV backup
+
+**The move, in this order**
+
+- [ ] `wrangler logout`, then `login` as the company, confirm with `whoami`
+- [ ] Create the KV namespace; put its ID in `wrangler.jsonc` **and**
+      `scripts/manage-users.mjs`
+- [ ] Recreate the upload Worker; set a company `GITHUB_TOKEN`
+- [ ] Deploy the dashboard Worker and set its four secrets
+- [ ] Deploy the field Worker
+- [ ] Restore the KV data (dry run first)
+- [ ] Transfer both repositories, private in the same sitting
+- [ ] Test: both sign-in routes, the data, the field app
+
+**After it is confirmed working**
+
+- [ ] Repoint the weekly uploader on the office computer
+- [ ] Turn off GitHub Pages
+- [ ] Delete the old Workers; revoke the old tokens and keys
+- [ ] Add the remaining people
+- [ ] Take a fresh backup from the new account
+
+```{=openxml}
+<w:p><w:r><w:br w:type="page"/></w:r></w:p>
+```
+
 # Before anything else
 
 **Read this page first.** Two facts shape everything below.
@@ -199,7 +240,39 @@ updates stop, and the symptom will look like "the site stopped updating"
 rather than "a token expired". Issue a company token, set it here, and revoke
 the old one.
 
-## A7. Repoint the dashboard
+## A7. Deploy the field app Worker
+
+A second Worker, from the `cde-field` repository. It serves the field app and
+answers `/api/app-data` against the same KV namespace.
+
+```
+cd ~/cde-field
+```
+
+Put the new KV namespace ID in its `wrangler.jsonc`, then:
+
+```
+APP_BASE=/ VITE_API_BASE=/api npm run build
+npx wrangler deploy
+```
+
+No `PWA_SELF_DESTROY` here, and no secrets. There is no login on this one, so
+nothing contradicts the service worker and there is nothing to sign.
+
+It has no login on purpose: it runs on personal phones belonging to
+electricians who have no accounts. What protects it is a narrow surface rather
+than a password — it accepts **writes to `field:<job>` and nothing else**, so
+the worst anyone with the address can do is change a percentage. Check that
+after deploying:
+
+```
+curl "https://cd-field.<company>.workers.dev/api/app-data?key=override:main-sheet"
+```
+
+That must answer `bad_key`. If it answers with data, stop and check the
+allowlists in `site-worker/index.js`.
+
+## A8. Repoint the dashboard
 
 `UPLOAD_WORKER` near the top of `site-worker/index.js` still names the old
 upload Worker. Change it to the new URL and deploy again.
