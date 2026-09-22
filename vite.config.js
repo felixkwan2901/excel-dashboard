@@ -15,6 +15,24 @@ import tailwindcss from '@tailwindcss/vite'
 //
 const base = process.env.APP_BASE ?? '/excel-dashboard/'
 
+// The login-gated Cloudflare copy ships a service worker whose only job is to
+// remove itself.
+//
+// A precaching service worker and a login gate cannot both be right about the
+// same request. The service worker answered navigations from its cache, so a
+// signed-out browser got the app shell instead of the login page — and then
+// the app's own 401 handler reloaded, the cache answered again, and the page
+// sat there blinking. Data was never exposed (every /api call still 401s) but
+// the site was unusable and the gate was cosmetic for anything precached.
+//
+// selfDestroying builds a service worker that unregisters itself and deletes
+// its caches, which is the only way to reach browsers that already installed
+// the old one. Not shipping a service worker at all would have left them on it
+// forever.
+//
+// GitHub Pages keeps its PWA: no gate there, nothing to contradict.
+const selfDestroying = process.env.PWA_SELF_DESTROY === '1'
+
 export default defineConfig({
   base,
   // Baked into the JS bundle so a loaded page can tell whether a newer
@@ -33,6 +51,7 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
+      selfDestroying,
       registerType: 'autoUpdate',
       injectRegister: false,
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],

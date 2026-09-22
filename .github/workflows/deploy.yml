@@ -93,6 +93,11 @@ jobs:
         env:
           APP_BASE: /
           VITE_API_BASE: /api
+          # A precaching service worker answers navigations from its cache, so
+          # on this build it served the app shell to signed-out browsers and the
+          # login page never rendered. Ships one that unregisters itself instead.
+          # Leave this set: without it the next deploy puts the loop back.
+          PWA_SELF_DESTROY: '1'
 
       - name: Deploy
         if: steps.gate.outputs.ready == 'true'

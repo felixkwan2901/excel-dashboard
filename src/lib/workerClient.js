@@ -20,6 +20,29 @@ export const UPLOAD_WORKER_URL =
   import.meta.env.VITE_API_BASE ?? 'https://cde-data-upload.fkw24.workers.dev'
 
 const STORAGE_KEY = 'cde-access-key'
+const RELOAD_KEY = 'cde-signin-reload-at'
+const RELOAD_COOLDOWN_MS = 60_000
+
+// sessionStorage rather than a module variable: the whole problem is that the
+// page is being torn down and rebuilt, so anything held in memory is reset by
+// the very reload it is meant to be counting.
+function reloadedRecently() {
+  try {
+    const at = Number(sessionStorage.getItem(RELOAD_KEY) ?? 0)
+    return Date.now() - at < RELOAD_COOLDOWN_MS
+  } catch {
+    // Storage disabled — better to skip the reload than to risk the loop.
+    return true
+  }
+}
+
+function markReloaded() {
+  try {
+    sessionStorage.setItem(RELOAD_KEY, String(Date.now()))
+  } catch {
+    // Nothing to do; reloadedRecently() fails closed.
+  }
+}
 
 export function getAccessKey() {
   try {
@@ -59,11 +82,22 @@ export async function workerFetch(path, init = {}, { retry = true, promptIfMissi
 
   // Session expired or signed out in another tab: reload so the gate can show
   // the login form, rather than leaving a half-dead page behind.
+  //
+  // Guarded, because this reload is only correct if the reload actually reaches
+  // the server. It did not: a precaching service worker answered the navigation
+  // from its cache, the signed-out app booted again, called here again, and
+  // reloaded again — a page that sat blinking with no way to sign in. The
+  // service worker is gone now, but an unconditional reload driven by a server
+  // response is a loop waiting for its next cache, so it reloads at most once a
+  // minute and otherwise surfaces as an ordinary error.
   if (res.status === 401) {
     const body = await res.clone().json().catch(() => null)
     if (body?.error === 'not_signed_in') {
-      window.location.reload()
-      throw new Error('Your session expired. Signing in again.')
+      if (!reloadedRecently()) {
+        markReloaded()
+        window.location.reload()
+      }
+      throw new Error('Your session has expired. Reload the page to sign in again.')
     }
   }
 

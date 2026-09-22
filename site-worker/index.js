@@ -39,6 +39,19 @@ const APP_DATA_KEY_RE =
 const UPLOAD_WORKER = 'https://cde-data-upload.fkw24.workers.dev'
 const PROXY_PATHS = new Set(['/upload', '/replace', '/new-job', '/command', '/status', '/archive-job', '/download'])
 
+// The only files served without a session, and they are served without one for
+// a specific reason: a browser that installed the old precaching service
+// worker can only be rescued by fetching the new one that unregisters itself,
+// and a signed-out browser is exactly the browser that is stuck. Gating these
+// left no way out of the loop at all — the service worker answered navigations
+// from its cache, so the login page never rendered, and its own update check
+// was refused because it was not signed in.
+//
+// None of them carry data. sw.js and the manifest list asset filenames that
+// are in a public repo anyway.
+const PUBLIC_PATHS = new Set(['/sw.js', '/registerSW.js', '/manifest.webmanifest'])
+const isPublicAsset = (path) => PUBLIC_PATHS.has(path) || /^\/workbox-[\w-]+\.js$/.test(path)
+
 const MAX_FAILURES = 10
 const LOCKOUT_SECONDS = 900
 
@@ -332,6 +345,8 @@ export default {
     if (path === '/auth/logout') {
       return seeOther('/', sessionCookie(null))
     }
+
+    if (isPublicAsset(path)) return env.ASSETS.fetch(request)
 
     const user = await currentUser(request, env)
 
