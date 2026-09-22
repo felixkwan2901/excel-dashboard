@@ -43,18 +43,49 @@ const seeOther = (location, cookie) => {
   return new Response(null, { status: 303, headers })
 }
 
-async function currentUser(request, env) {
-  return readSession(readCookie(request, SESSION_COOKIE), env.SESSION_SECRET)
+// run_worker_first means every request reaches this Worker, including each JS,
+// CSS and image file. Reading the user list from KV on all of them would add a
+// round trip to every asset and burn the free tier's read budget, so it is
+// memoised per isolate and the KV read is edge-cached for the same window.
+//
+// The cost is that revoking a session takes up to USERS_TTL_MS to bite. That is
+// the trade: a minute of staleness in exchange for not paying a KV read per
+// image. Rotating SESSION_SECRET is still the instant, everyone-out option.
+const USERS_TTL_MS = 60_000
+let usersCache = { at: 0, value: null }
+
+// `fresh` skips both caches. Sign-in uses it, because an admin who has just
+// added a user or changed a password will try it immediately and a stale
+// answer looks exactly like a wrong password. Sign-ins are rare; asset
+// requests are not, which is why only this path pays for it.
+async function loadUsers(env, { fresh = false } = {}) {
+  const now = Date.now()
+  if (!fresh && usersCache.value && now - usersCache.at < USERS_TTL_MS) return usersCache.value
+  const raw = await env.APP_DATA.get('auth:users', fresh ? {} : { cacheTtl: 60 })
+  let value = null
+  if (raw) {
+    try {
+      value = JSON.parse(raw)
+    } catch {
+      value = null
+    }
+  }
+  usersCache = { at: now, value }
+  return value
 }
 
-async function loadUsers(env) {
-  const raw = await env.APP_DATA.get('auth:users')
-  if (!raw) return null
-  try {
-    return JSON.parse(raw)
-  } catch {
-    return null
-  }
+// A valid signature is not enough on its own: the session also has to match the
+// version currently stored against that user, and the user has to still exist.
+// That is what lets one person be signed out — or deleted — without disturbing
+// anybody else's session.
+async function currentUser(request, env) {
+  const session = await readSession(readCookie(request, SESSION_COOKIE), env.SESSION_SECRET)
+  if (!session) return null
+  const users = await loadUsers(env)
+  const record = users?.[session.user]
+  if (!record) return null
+  if ((record.v ?? 1) !== session.version) return null
+  return session.user
 }
 
 // Throttle per username. Only written on failure, so it costs nothing in the
@@ -95,7 +126,7 @@ async function handleLogin(request, env) {
     return fail('Too many attempts. Wait fifteen minutes and try again.', 429)
   }
 
-  const users = await loadUsers(env)
+  const users = await loadUsers(env, { fresh: true })
   const record = users?.[username]
 
   // Verify even when the user does not exist, against a throwaway record, so a
@@ -114,7 +145,7 @@ async function handleLogin(request, env) {
   }
 
   await env.APP_DATA.delete(`auth:fail:${username}`)
-  const token = await signSession(username, env.SESSION_SECRET)
+  const token = await signSession(username, env.SESSION_SECRET, record.v ?? 1)
   // Only ever redirect within this site — an open redirect here would let a
   // phishing link bounce off a trusted hostname.
   const safeNext = next.startsWith('/') && !next.startsWith('//') ? next : '/'

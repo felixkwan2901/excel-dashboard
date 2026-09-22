@@ -67,15 +67,18 @@ async function hmacKey(secret) {
   )
 }
 
-export async function signSession(username, secret, days = SESSION_DAYS) {
-  const payload = { u: username, exp: Math.floor(Date.now() / 1000) + days * 86400 }
+// `version` is the user's session version. It is stamped into the cookie and
+// compared against the stored one on every request, so bumping a user's
+// version signs that person out everywhere without touching anyone else.
+export async function signSession(username, secret, version = 1, days = SESSION_DAYS) {
+  const payload = { u: username, v: version, exp: Math.floor(Date.now() / 1000) + days * 86400 }
   const body = b64url(enc.encode(JSON.stringify(payload)))
   const sig = await crypto.subtle.sign('HMAC', await hmacKey(secret), enc.encode(body))
   return `${body}.${b64url(sig)}`
 }
 
-// Returns the username, or null. Any malformed, unsigned, re-signed or expired
-// token is simply "not logged in" — never a partial trust.
+// Returns { user, version }, or null. Any malformed, unsigned, re-signed or
+// expired token is simply "not logged in" — never a partial trust.
 export async function readSession(token, secret) {
   if (!token || !secret) return null
   const [body, sig] = token.split('.')
@@ -90,7 +93,10 @@ export async function readSession(token, secret) {
   try {
     const payload = JSON.parse(new TextDecoder().decode(unb64url(body)))
     if (typeof payload.exp !== 'number' || payload.exp <= Math.floor(Date.now() / 1000)) return null
-    return typeof payload.u === 'string' ? payload.u : null
+    if (typeof payload.u !== 'string') return null
+    // Cookies issued before versioning existed count as version 1, so adding
+    // this does not sign everyone out on deploy.
+    return { user: payload.u, version: typeof payload.v === 'number' ? payload.v : 1 }
   } catch {
     return null
   }

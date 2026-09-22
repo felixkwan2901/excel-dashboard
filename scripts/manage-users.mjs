@@ -3,6 +3,7 @@
 //
 //   node scripts/manage-users.mjs add <username> "Display Name"
 //   node scripts/manage-users.mjs passwd <username>     # change password only
+//   node scripts/manage-users.mjs revoke <username>     # sign them out everywhere
 //   node scripts/manage-users.mjs list
 //   node scripts/manage-users.mjs remove <username>
 //
@@ -150,7 +151,9 @@ const users = readUsers()
 
 if (cmd === 'list') {
   const names = Object.keys(users)
-  console.log(names.length ? names.map((u) => `  ${u}  (${users[u].name ?? '—'})`).join('\n') : '  (no users yet)')
+  console.log(names.length
+    ? names.map((u) => `  ${u.padEnd(14)} ${users[u].name ?? '—'}   (session v${users[u].v ?? 1})`).join('\n')
+    : '  (no users yet)')
 } else if (cmd === 'add') {
   if (!username) { console.error('usage: add <username> "Display Name"'); process.exit(64) }
   const password = await newPassword(username)
@@ -161,9 +164,16 @@ if (cmd === 'list') {
   }
   const key = username.toLowerCase()
   const existing = users[key]
-  users[key] = { ...(await hashPassword(password)), name: displayName ?? existing?.name ?? username }
+  // Bump the session version so a password change also ends sessions that are
+  // already signed in — otherwise changing it after a leak achieves nothing.
+  users[key] = {
+    ...(await hashPassword(password)),
+    name: displayName ?? existing?.name ?? username,
+    v: (existing?.v ?? 0) + 1,
+  }
   writeUsers(users)
   console.log(`${existing ? 'Updated' : 'Added'} ${key}. ${Object.keys(users).length} user(s) total.`)
+  if (existing) console.log('Any sessions they had are now signed out (within a minute).')
 } else if (cmd === 'passwd') {
   const key = String(username ?? '').toLowerCase()
   if (!users[key]) { console.error(`No such user: ${username}`); process.exit(66) }
@@ -171,15 +181,26 @@ if (cmd === 'list') {
   if (!password || password.length < 12) {
     console.error('Password must be at least 12 characters.'); process.exit(65)
   }
-  users[key] = { ...(await hashPassword(password)), name: users[key].name }
+  users[key] = {
+    ...(await hashPassword(password)),
+    name: users[key].name,
+    v: (users[key].v ?? 1) + 1,
+  }
   writeUsers(users)
-  console.log(`Password changed for ${key}. Existing sessions stay valid until they expire.`)
+  console.log(`Password changed for ${key}, and every session they had is signed out (within a minute).`)
+} else if (cmd === 'revoke') {
+  const key = String(username ?? '').toLowerCase()
+  if (!users[key]) { console.error(`No such user: ${username}`); process.exit(66) }
+  users[key] = { ...users[key], v: (users[key].v ?? 1) + 1 }
+  writeUsers(users)
+  console.log(`Signed ${key} out everywhere (within a minute). Their password still works.`)
 } else if (cmd === 'remove') {
   if (!users[username]) { console.error(`No such user: ${username}`); process.exit(66) }
   delete users[username]
   writeUsers(users)
   console.log(`Removed ${username}. ${Object.keys(users).length} user(s) left.`)
+  console.log('Their sessions stop working within a minute — the gate checks the user still exists.')
 } else {
-  console.error('usage: manage-users.mjs <add|passwd|list|remove> [username] ["Display Name"]')
+  console.error('usage: manage-users.mjs <add|passwd|revoke|list|remove> [username] ["Display Name"]')
   process.exit(64)
 }
