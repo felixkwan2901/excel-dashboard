@@ -285,6 +285,15 @@ function withDerivedFields(job) {
   const overBudget = hasReliablePace
     ? projectedOverrun !== null && projectedOverrun > 0
     : totalActualCost !== null && totalQuotedCost !== null && totalActualCost > totalQuotedCost
+  // Still computed, still shown per job, and still exported — but no longer a
+  // reason to flag anything.
+  //
+  // Margin to date lags reality: it only catches up when a payment is
+  // received, so a job can sit at a negative margin for weeks purely because
+  // the money has not landed yet. Flagging on it put jobs in front of someone
+  // every week that needed no action, and a review list that is mostly noise
+  // stops being read. Cost against quote is the number that means something is
+  // actually wrong.
   const losingMargin = marginToDate !== null && marginToDate < 0
 
   // Whether this job's last recorded week has actually caught up to
@@ -330,7 +339,7 @@ function withDerivedFields(job) {
     projectedOverrun,
     overBudget,
     losingMargin,
-    flagged: overBudget || losingMargin,
+    flagged: overBudget,
     lastUpdatedLabel: job.lastUpdatedLabel ?? 'Start of month',
     weeksBehind,
     isStale,

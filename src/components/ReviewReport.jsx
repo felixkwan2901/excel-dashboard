@@ -25,7 +25,6 @@ export default function ReviewReport({ jobs, onBack }) {
     (sum, j) => sum + (j.totalActualCost - j.totalQuotedCost),
     0
   )
-  const losingMarginCount = jobs.filter((j) => j.losingMargin).length
 
   return (
     <div className="mx-auto flex w-full max-w-[1800px] flex-col gap-6 print:max-w-none">
@@ -56,8 +55,7 @@ export default function ReviewReport({ jobs, onBack }) {
             </p>
             {jobs.length > 0 && (
               <p className="mt-1 text-sm text-neutral-400 print:text-neutral-600">
-                {overBudgetJobs.length} over budget by {money(totalOverBudgetAmount)} combined ·{' '}
-                {losingMarginCount} losing margin
+                {overBudgetJobs.length} over budget by {money(totalOverBudgetAmount)} combined
               </p>
             )}
           </div>

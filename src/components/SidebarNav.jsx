@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   CalendarClock,
   ChartColumn,
@@ -6,6 +6,7 @@ import {
   ExternalLink,
   FolderKanban,
   HardHat,
+  LogOut,
   Moon,
   PanelLeftClose,
   PanelLeftOpen,
@@ -20,6 +21,7 @@ import NotificationsBell from './NotificationsBell'
 import WeatherWidget from './WeatherWidget'
 import DateTimeWidget from './DateTimeWidget'
 import { applySidebarCollapsed, applyTheme, readSidebarCollapsed } from '../lib/theme'
+import { UPLOAD_WORKER_URL } from '../lib/workerClient'
 
 // The app's navigation: a left column of destinations, with the
 // glanceable widgets (search, clock, weather, alerts) in a strip above the
@@ -86,6 +88,7 @@ export function Sidebar({ view, onGoHome, ...handlers }) {
       </a>
 
       <div className="side-nav__spacer" />
+      <AccountFooter />
       <button
         type="button"
         className="side-nav__rail-toggle"
@@ -101,6 +104,49 @@ export function Sidebar({ view, onGoHome, ...handlers }) {
         <span className="side-nav__label">Collapse</span>
       </button>
     </aside>
+  )
+}
+
+// Who you are signed in as, and the way out.
+//
+// There was no way out at all before this: /auth/logout existed on the Worker
+// and nothing in the app ever linked to it, so signing in was a one-way door
+// and the only way to stop being signed in was to clear cookies. On a shared
+// office computer that is the whole point of having a login.
+//
+// It renders nothing when /whoami does not answer, which is how the same
+// bundle serves both builds — the GitHub Pages copy has no gate in front of
+// it, so there is nobody to be signed in as and nothing to sign out of.
+function AccountFooter() {
+  const [user, setUser] = useState(null)
+
+  useEffect(() => {
+    let live = true
+    // Plain fetch rather than workerFetch: a 401 here means "no login on this
+    // build", which is an answer, not a problem, and must not trip the
+    // signed-out reload.
+    fetch(`${UPLOAD_WORKER_URL}/whoami`, { credentials: 'same-origin' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (live && d?.ok && d.user) setUser(d.user) })
+      .catch(() => {})
+    return () => { live = false }
+  }, [])
+
+  if (!user) return null
+
+  return (
+    <div className="side-nav__account">
+      <p className="side-nav__account-name side-nav__label" title={`Signed in as ${user}`}>
+        {user}
+      </p>
+      {/* A real link, not a fetch: signing out is the Worker clearing the
+          cookie and redirecting, and doing it in JavaScript would leave the
+          page holding data it is no longer entitled to. */}
+      <a href="/auth/logout" className="side-nav__link" title={`Sign out of ${user}`}>
+        <LogOut size={15} aria-hidden="true" />
+        <span className="side-nav__label">Sign out</span>
+      </a>
+    </div>
   )
 }
 

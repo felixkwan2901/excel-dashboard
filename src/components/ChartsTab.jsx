@@ -321,7 +321,7 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, on
           label="Needs review"
           value={flaggedCount}
           tone={flaggedCount > 0 ? 'critical' : 'neutral'}
-          context="Over budget or losing margin"
+          context="Cost projected over quote"
         />
         <KpiTile
           label="Behind quote"

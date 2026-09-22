@@ -58,7 +58,7 @@ export default function StatsRow({ kpis, onSelectFilter, onPrintReport }) {
 
   const needsReviewContext =
     kpis.needsReviewCount > 0
-      ? `${kpis.overBudgetCount} over budget, ${kpis.losingMarginCount} losing margin`
+      ? `${kpis.overBudgetCount} over budget`
       : 'Nothing flagged'
 
   const widgetContent = {
