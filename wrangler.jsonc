@@ -19,5 +19,15 @@
     { "binding": "APP_DATA", "id": "1bed6e14dbf047ac8616ae21ed09a9f6" }
   ],
 
+  // Email sign-in. The address codes are sent FROM; its domain has to be
+  // verified in Resend. Set it here or in the Cloudflare dashboard, and put
+  // the key beside it with:
+  //
+  //     npx wrangler secret put RESEND_API_KEY
+  //
+  // With either one missing the login page simply does not offer the email
+  // route, so this is safe to deploy before the domain is verified.
+  // "vars": { "MAIL_FROM": "Cassidy-Davies Dashboard <dashboard@example.com>" },
+
   "observability": { "enabled": true }
 }

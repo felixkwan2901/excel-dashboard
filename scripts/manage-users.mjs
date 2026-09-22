@@ -3,9 +3,14 @@
 //
 //   node scripts/manage-users.mjs add <username> "Display Name"
 //   node scripts/manage-users.mjs passwd <username>     # change password only
+//   node scripts/manage-users.mjs email <username> <address>   # or "" to clear
 //   node scripts/manage-users.mjs revoke <username>     # sign them out everywhere
 //   node scripts/manage-users.mjs list
 //   node scripts/manage-users.mjs remove <username>
+//
+// An address is what lets someone sign in with an emailed code instead of a
+// password. It is optional per person: an account without one can still sign
+// in the usual way.
 //
 // The prompt is hidden and asks twice. $PASSWORD is honoured for scripting,
 // but avoid it interactively — it lands in your shell history.
@@ -152,7 +157,7 @@ const users = readUsers()
 if (cmd === 'list') {
   const names = Object.keys(users)
   console.log(names.length
-    ? names.map((u) => `  ${u.padEnd(14)} ${users[u].name ?? '—'}   (session v${users[u].v ?? 1})`).join('\n')
+    ? names.map((u) => `  ${u.padEnd(14)} ${(users[u].name ?? '—').padEnd(20)} ${(users[u].email ?? '(no email)').padEnd(30)} (session v${users[u].v ?? 1})`).join('\n')
     : '  (no users yet)')
 } else if (cmd === 'add') {
   if (!username) { console.error('usage: add <username> "Display Name"'); process.exit(64) }
@@ -166,7 +171,12 @@ if (cmd === 'list') {
   const existing = users[key]
   // Bump the session version so a password change also ends sessions that are
   // already signed in — otherwise changing it after a leak achieves nothing.
+  // Spread the existing record first: the hash fields are being replaced, but
+  // the email is not, and rebuilding the object from scratch silently dropped
+  // it — which would have taken away someone's email sign-in every time their
+  // password was changed.
   users[key] = {
+    ...existing,
     ...(await hashPassword(password)),
     name: displayName ?? existing?.name ?? username,
     v: (existing?.v ?? 0) + 1,
@@ -182,12 +192,35 @@ if (cmd === 'list') {
     console.error('Password must be at least 12 characters.'); process.exit(65)
   }
   users[key] = {
+    ...users[key],
     ...(await hashPassword(password)),
-    name: users[key].name,
     v: (users[key].v ?? 1) + 1,
   }
   writeUsers(users)
   console.log(`Password changed for ${key}, and every session they had is signed out (within a minute).`)
+} else if (cmd === 'email') {
+  const key = String(username ?? '').toLowerCase()
+  if (!users[key]) { console.error(`No such user: ${username}`); process.exit(66) }
+  // displayName is the third positional argument, which for this command is
+  // the address.
+  const address = String(displayName ?? '').trim().toLowerCase()
+
+  if (address && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(address)) {
+    console.error(`That does not look like an email address: ${address}`); process.exit(65)
+  }
+  // The gate finds the account by address, so two accounts sharing one would
+  // make which of them you signed in as depend on object key order.
+  const clash = Object.entries(users)
+    .find(([u, r]) => u !== key && String(r.email ?? '').toLowerCase() === address && address)
+  if (clash) { console.error(`${clash[0]} already uses ${address}.`); process.exit(65) }
+
+  users[key] = { ...users[key], email: address || undefined }
+  if (!address) delete users[key].email
+  writeUsers(users)
+  console.log(address
+    ? `${key} can now sign in with a code sent to ${address}.`
+    : `Removed the address from ${key}. They sign in with their password only.`)
+
 } else if (cmd === 'revoke') {
   const key = String(username ?? '').toLowerCase()
   if (!users[key]) { console.error(`No such user: ${username}`); process.exit(66) }
@@ -201,6 +234,6 @@ if (cmd === 'list') {
   console.log(`Removed ${username}. ${Object.keys(users).length} user(s) left.`)
   console.log('Their sessions stop working within a minute — the gate checks the user still exists.')
 } else {
-  console.error('usage: manage-users.mjs <add|passwd|revoke|list|remove> [username] ["Display Name"]')
+  console.error('usage: manage-users.mjs <add|passwd|email|revoke|list|remove> [username] ["Display Name" | address]')
   process.exit(64)
 }

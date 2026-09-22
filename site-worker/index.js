@@ -11,12 +11,23 @@
 //      (upload, replace, new-job, command, status, archive-job), attaching
 //      UPLOAD_SECRET server-side — the browser never sees it
 //
+// Two ways in, and the second one is optional:
+//
+//   a name and a password          always available
+//   a code emailed to your address  only when RESEND_API_KEY and MAIL_FROM are
+//                                   set; the page does not offer it otherwise
+//
 // Bindings: ASSETS (the built site), APP_DATA (KV).
-// Secrets:  SESSION_SECRET (required), UPLOAD_SECRET (optional, for the proxy).
+// Secrets:  SESSION_SECRET (required), UPLOAD_SECRET (optional, for the proxy),
+//           RESEND_API_KEY (optional, turns on email sign-in).
+// Vars:     MAIL_FROM (required by email sign-in, e.g. "CDE <no-reply@example.com>").
 
 import {
-  SESSION_COOKIE, readCookie, readSession, sessionCookie, signSession, verifyPassword,
+  SESSION_COOKIE, CODE_TTL_SECONDS, generateCode, normaliseEmail, readChallenge,
+  readCookie, readSession, sessionCookie, signChallenge, signSession, userByEmail,
+  verifyPassword,
 } from './auth.js'
+import { emailEnabled, sendLoginCode } from './mail.js'
 import { renderLogin } from './login-page.js'
 
 // Same allowlist as upload-worker/src/index.js. It deliberately cannot match
@@ -31,11 +42,25 @@ const PROXY_PATHS = new Set(['/upload', '/replace', '/new-job', '/command', '/st
 const MAX_FAILURES = 10
 const LOCKOUT_SECONDS = 900
 
+// Asking for a code is free to the requester and not free to us: every request
+// is an email, and the free tier is 100 a day. This is the cap per address.
+const MAX_CODE_REQUESTS = 5
+const CODE_REQUEST_WINDOW = 900
+
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
     headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
   })
+
+// Only ever redirect within this site. An open redirect here would let a
+// phishing link bounce off a hostname the recipient has learned to trust, and
+// `next` arrives from a form field or a query string on every route that uses
+// it — so this is applied at the point of use, not at the point of parsing.
+const safeNext = (next) => {
+  const n = String(next ?? '/')
+  return n.startsWith('/') && !n.startsWith('//') ? n : '/'
+}
 
 const seeOther = (location, cookie) => {
   const headers = new Headers({ Location: location, 'Cache-Control': 'no-store' })
@@ -102,11 +127,24 @@ async function recordFailure(env, username, count) {
   })
 }
 
+// Every render of the gate goes through here, so no route can forget to tell
+// the page whether the email route exists. Without that the page would offer
+// "email me a code" on a Worker with no API key, and the link would lead to a
+// form that silently never sends anything.
+const loginResponse = (env, opts, status = 401) =>
+  new Response(renderLogin({ ...opts, emailEnabled: emailEnabled(env) }), {
+    status,
+    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' },
+  })
+
+// Which form a signed-out visitor meets first. Email when it is configured,
+// because it is the one that needs nothing remembered; the password form is
+// always one link away.
+const defaultMode = (env) => (emailEnabled(env) ? 'email' : 'password')
+
 async function handleLogin(request, env) {
   if (!env.SESSION_SECRET) {
-    return new Response(renderLogin({ error: 'The site is not finished being set up (no SESSION_SECRET).' }), {
-      status: 500, headers: { 'Content-Type': 'text/html; charset=utf-8' },
-    })
+    return loginResponse(env, { error: 'The site is not finished being set up (no SESSION_SECRET).' }, 500)
   }
 
   const form = await request.formData().catch(() => null)
@@ -115,9 +153,7 @@ async function handleLogin(request, env) {
   const next = String(form?.get('next') ?? '/')
 
   const fail = (error, status = 401) =>
-    new Response(renderLogin({ error, username, next }), {
-      status, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' },
-    })
+    loginResponse(env, { mode: 'password', error, username, next }, status)
 
   if (!username || !password) return fail('Enter your name and password.')
 
@@ -146,10 +182,100 @@ async function handleLogin(request, env) {
 
   await env.APP_DATA.delete(`auth:fail:${username}`)
   const token = await signSession(username, env.SESSION_SECRET, record.v ?? 1)
-  // Only ever redirect within this site — an open redirect here would let a
-  // phishing link bounce off a trusted hostname.
-  const safeNext = next.startsWith('/') && !next.startsWith('//') ? next : '/'
-  return seeOther(safeNext, sessionCookie(token))
+  return seeOther(safeNext(next), sessionCookie(token))
+}
+
+// Step one of email sign-in: work out who this address belongs to, send them
+// six digits, and hand the browser a signed challenge to submit them against.
+async function handleCodeRequest(request, env) {
+  const form = await request.formData().catch(() => null)
+  const email = normaliseEmail(form?.get('email'))
+  const next = String(form?.get('next') ?? '/')
+
+  if (!emailEnabled(env) || !env.SESSION_SECRET) {
+    return loginResponse(env, { mode: 'password', next, error: 'Email sign-in is not set up. Use your password.' })
+  }
+  if (!email) return loginResponse(env, { mode: 'email', next, error: 'Enter your work email.' })
+
+  const requests = await failureCount(env, `code:${email}`)
+  if (requests >= MAX_CODE_REQUESTS) {
+    return loginResponse(env, {
+      mode: 'email', email, next,
+      error: 'Too many codes requested. Wait fifteen minutes and try again.',
+    }, 429)
+  }
+  await env.APP_DATA.put(`auth:fail:code:${email}`, String(requests + 1), {
+    expirationTtl: CODE_REQUEST_WINDOW,
+  })
+
+  const users = await loadUsers(env, { fresh: true })
+  const match = userByEmail(users, email)
+
+  // An unknown address gets the same page as a known one, and no email. Saying
+  // "no account here" would turn this form into a way to test which of a
+  // company's addresses have dashboard access.
+  //
+  // The challenge is still signed, over a code nobody was sent, so the second
+  // step fails the way a wrong code fails rather than the way a broken page
+  // does.
+  const code = generateCode()
+  const challenge = await signChallenge(
+    match?.username ?? '', email, code, env.SESSION_SECRET,
+  )
+
+  if (match) {
+    const sent = await sendLoginCode(env, { to: email, code, minutes: Math.round(CODE_TTL_SECONDS / 60) })
+    if (!sent.ok) {
+      return loginResponse(env, {
+        mode: 'email', email, next,
+        error: 'The code could not be sent just now. Try your password instead.',
+      }, 502)
+    }
+  }
+
+  return loginResponse(env, { mode: 'code', email, challenge, next }, 200)
+}
+
+// Step two: the six digits, checked against the challenge. Nothing was stored
+// between the two steps, so there is no expired-or-missing-record case here —
+// a code either recomputes the signature or it does not.
+async function handleCodeVerify(request, env) {
+  const form = await request.formData().catch(() => null)
+  const code = String(form?.get('code') ?? '').replace(/\D/g, '')
+  const challenge = String(form?.get('challenge') ?? '')
+  const email = normaliseEmail(form?.get('email'))
+  const next = String(form?.get('next') ?? '/')
+
+  const again = (error, status = 401) =>
+    loginResponse(env, { mode: 'code', email, challenge, next, error }, status)
+
+  if (!env.SESSION_SECRET) return again('The site is not finished being set up.', 500)
+  if (!challenge) return loginResponse(env, { mode: 'email', email, next, error: 'Start again.' })
+
+  const failures = await failureCount(env, `verify:${email}`)
+  if (failures >= MAX_FAILURES) {
+    return again('Too many attempts. Wait fifteen minutes and try again.', 429)
+  }
+
+  const claim = await readChallenge(challenge, code, env.SESSION_SECRET)
+  if (!claim || !claim.user) {
+    await recordFailure(env, `verify:${email}`, failures)
+    return again('That code is wrong or has expired.')
+  }
+
+  // The account has to still exist, and the address on it has to still be the
+  // one the code went to. Both can have changed in the ten minutes the
+  // challenge is good for, and a challenge is not a licence to outlive them.
+  const users = await loadUsers(env, { fresh: true })
+  const record = users?.[claim.user]
+  if (!record || normaliseEmail(record.email) !== claim.email) {
+    return again('That code is no longer valid. Ask for a new one.')
+  }
+
+  await env.APP_DATA.delete(`auth:fail:verify:${email}`)
+  await env.APP_DATA.delete(`auth:fail:code:${email}`)
+  const token = await signSession(claim.user, env.SESSION_SECRET, record.v ?? 1)
+  return seeOther(safeNext(next), sessionCookie(token))
 }
 
 async function handleAppData(request, env) {
@@ -200,6 +326,8 @@ export default {
     const path = url.pathname
 
     if (path === '/auth/login' && request.method === 'POST') return handleLogin(request, env)
+    if (path === '/auth/code' && request.method === 'POST') return handleCodeRequest(request, env)
+    if (path === '/auth/verify' && request.method === 'POST') return handleCodeVerify(request, env)
 
     if (path === '/auth/logout') {
       return seeOther('/', sessionCookie(null))
@@ -213,10 +341,13 @@ export default {
       if (path.startsWith('/api/')) {
         return json({ ok: false, error: 'not_signed_in' }, 401)
       }
-      return new Response(renderLogin({ next: path + url.search }), {
-        status: 401,
-        headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' },
-      })
+      // `?signin=` is how the two forms link to each other, and it only means
+      // anything on the root — anywhere else it is just part of the URL the
+      // visitor was trying to reach, and belongs in `next` untouched.
+      const asked = path === '/' ? url.searchParams.get('signin') : null
+      const mode = asked === 'password' || asked === 'email' ? asked : defaultMode(env)
+      const next = asked ? safeNext(url.searchParams.get('next')) : path + url.search
+      return loginResponse(env, { mode, next })
     }
 
     if (path === '/api/whoami') return json({ ok: true, user })

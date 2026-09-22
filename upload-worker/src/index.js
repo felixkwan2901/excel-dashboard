@@ -224,6 +224,159 @@ const CORS_HEADERS = {
 // Set the key with:  npx wrangler secret put UPLOAD_SECRET
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Cloudflare Access
+//
+// Access sits in front of a hostname and refuses any request that does not
+// carry a valid session, redirecting people to a login page instead. When it
+// lets a request through it adds a signed JWT in Cf-Access-Jwt-Assertion,
+// naming who they are.
+//
+// Verifying that JWT here matters, because Access only guards the hostname it
+// is attached to. This Worker also answers on *.workers.dev, and that
+// hostname cannot be put behind Access — it is not on a zone. Without the
+// check below, Access would be a front door with the back door still open.
+//
+// Off until configured. With ACCESS_TEAM and ACCESS_AUD unset this is a
+// no-op, so deploying it changes nothing. Set both and every route starts
+// requiring a valid Access session, including requests arriving at
+// workers.dev, which have no JWT and are therefore refused.
+//
+//     npx wrangler secret put ACCESS_TEAM   # e.g. cassidydavies
+//     npx wrangler secret put ACCESS_AUD    # the app's Audience tag
+//
+// Service tokens work through the same path: Access mints a JWT carrying
+// common_name instead of email, so the unattended weekly upload authenticates
+// without anyone typing anything. That is what makes this workable where a
+// shared key was not.
+// ---------------------------------------------------------------------------
+
+const ACCESS_JWT_HEADER = 'Cf-Access-Jwt-Assertion'
+const JWKS_TTL_MS = 60 * 60 * 1000
+
+// Module scope, so a warm isolate reuses the keys instead of fetching them on
+// every request. Cold starts pay for one fetch.
+let jwksCache = { team: null, keys: null, fetchedAt: 0 }
+
+function base64UrlToBytes(value) {
+  const padded = value + '='.repeat((4 - (value.length % 4)) % 4)
+  const raw = atob(padded.replace(/-/g, '+').replace(/_/g, '/'))
+  const out = new Uint8Array(raw.length)
+  for (let i = 0; i < raw.length; i += 1) out[i] = raw.charCodeAt(i)
+  return out
+}
+
+function decodeJwtPart(value) {
+  return JSON.parse(new TextDecoder().decode(base64UrlToBytes(value)))
+}
+
+async function accessSigningKeys(team) {
+  const now = Date.now()
+  if (jwksCache.team === team && jwksCache.keys && now - jwksCache.fetchedAt < JWKS_TTL_MS) {
+    return jwksCache.keys
+  }
+  const res = await fetch(`https://${team}.cloudflareaccess.com/cdn-cgi/access/certs`)
+  if (!res.ok) throw new Error(`Access JWKS fetch failed: ${res.status}`)
+  const body = await res.json()
+  const keys = Array.isArray(body.keys) ? body.keys : []
+  if (!keys.length) throw new Error('Access JWKS returned no keys')
+  jwksCache = { team, keys, fetchedAt: now }
+  return keys
+}
+
+// Returns { enforced:false } when Access is not configured, otherwise
+// { enforced:true, ok, reason?, identity? }. Any error while checking is a
+// refusal, not a pass — a Worker that cannot verify serves nobody.
+async function verifyAccessJwt(request, env) {
+  const team = env.ACCESS_TEAM
+  const aud = env.ACCESS_AUD
+  if (!team || !aud) return { enforced: false }
+
+  const token = request.headers.get(ACCESS_JWT_HEADER)
+  if (!token) return { enforced: true, ok: false, reason: 'no_session' }
+
+  const parts = token.split('.')
+  if (parts.length !== 3) return { enforced: true, ok: false, reason: 'malformed' }
+  const [headerPart, payloadPart, signaturePart] = parts
+
+  let header
+  let payload
+  try {
+    header = decodeJwtPart(headerPart)
+    payload = decodeJwtPart(payloadPart)
+  } catch {
+    return { enforced: true, ok: false, reason: 'malformed' }
+  }
+
+  // Pin the algorithm. Accepting whatever the token names is how "alg: none"
+  // and HMAC-with-the-public-key forgeries get through.
+  if (header.alg !== 'RS256') return { enforced: true, ok: false, reason: 'bad_alg' }
+
+  let verified = false
+  try {
+    const keys = await accessSigningKeys(team)
+    const jwk = keys.find((k) => k.kid === header.kid)
+    if (!jwk) return { enforced: true, ok: false, reason: 'unknown_key' }
+    const key = await crypto.subtle.importKey(
+      'jwk',
+      { kty: jwk.kty, n: jwk.n, e: jwk.e, alg: 'RS256', ext: true },
+      { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+      false,
+      ['verify'],
+    )
+    verified = await crypto.subtle.verify(
+      'RSASSA-PKCS1-v1_5',
+      key,
+      base64UrlToBytes(signaturePart),
+      new TextEncoder().encode(`${headerPart}.${payloadPart}`),
+    )
+  } catch {
+    return { enforced: true, ok: false, reason: 'verify_failed' }
+  }
+  if (!verified) return { enforced: true, ok: false, reason: 'bad_signature' }
+
+  // A valid signature only proves Access issued the token. These three checks
+  // prove it was issued for this application, by this team, and is current —
+  // without them a token minted for any other Access app would be accepted.
+  const nowSec = Math.floor(Date.now() / 1000)
+  if (typeof payload.exp !== 'number' || payload.exp <= nowSec) {
+    return { enforced: true, ok: false, reason: 'expired' }
+  }
+  if (typeof payload.nbf === 'number' && payload.nbf > nowSec + 60) {
+    return { enforced: true, ok: false, reason: 'not_yet_valid' }
+  }
+  const auds = Array.isArray(payload.aud) ? payload.aud : [payload.aud]
+  if (!auds.includes(aud)) return { enforced: true, ok: false, reason: 'wrong_audience' }
+  if (payload.iss !== `https://${team}.cloudflareaccess.com`) {
+    return { enforced: true, ok: false, reason: 'wrong_issuer'  }
+  }
+
+  return {
+    enforced: true,
+    ok: true,
+    // email for a person, common_name for a service token.
+    identity: payload.email ?? payload.common_name ?? null,
+  }
+}
+
+// Exported for scripts/__tests__/access-jwt.test.mjs. Workers ignore named
+// exports other than the default one, so this changes nothing at runtime.
+export { verifyAccessJwt }
+
+function accessDenied(reason) {
+  return json(
+    {
+      ok: false,
+      error: 'access_denied',
+      reason,
+      message:
+        'This endpoint is behind Cloudflare Access. Open it through the protected ' +
+        'hostname and sign in, or send a service token.',
+    },
+    403,
+  )
+}
+
 function isAuthorized(request, env) {
   const expected = env.UPLOAD_SECRET
   // Fail closed. A worker deployed without the secret set serves nobody
@@ -954,14 +1107,24 @@ export default {
       return new Response(null, { status: 204, headers: CORS_HEADERS })
     }
 
-    // The access-key gate is deliberately switched off: the weekly upload runs
-    // unattended from the office machine and cannot be prompted for a key.
-    // isAuthorized()/unauthorized() are kept below — restore protection by
-    // putting this back, with UPLOAD_SECRET already set on the Worker:
+    // Cloudflare Access, when it is configured. A no-op while ACCESS_TEAM and
+    // ACCESS_AUD are unset, so today this changes nothing; set both and every
+    // route below requires a valid Access session or service token. Runs
+    // after the OPTIONS branch because a CORS preflight carries no session
+    // and blocking it would break the browser before the real request.
+    const access = await verifyAccessJwt(request, env)
+    if (access.enforced && !access.ok) return accessDenied(access.reason)
+
+    // The shared-key gate is deliberately switched off, and stays off: the
+    // weekly upload runs unattended from the office machine and cannot be
+    // prompted for a key. Access replaces it rather than joining it — a
+    // service token does the same job without a human typing anything.
+    // isAuthorized()/unauthorized() are kept for reference:
     //
     //     if (!isAuthorized(request, env)) return unauthorized(env)
     //
-    // Until then every route here is open to anyone who has the URL.
+    // Until Access is configured, every route here is open to anyone with the
+    // URL. That is stated in the README and in the report's limitations.
 
     if (request.method === 'GET' && url.pathname === '/') {
       return html(renderForm())

@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s -o /dev/null -w \"5174: %{http_code}\\\\n\" http://localhost:5174/excel-dashboard/)",
+      "Bash(curl -s -o /dev/null -w \"5173: %{http_code}\\\\n\" http://localhost:5173/excel-dashboard/)",
+      "Bash(git status *)",
+      "Bash(git commit -m ' *)",
+      "Bash(npm view *)",
+      "Bash(npm install *)",
+      "Bash(npm uninstall *)",
+      "Bash(rm /Users/felixkwan/excel-dashboard/src/assets/fonts/inter-*.woff2 *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:5175/excel-dashboard/)",
+      "Bash(find /Users/felixkwan -maxdepth 4 -iname \"*cassidy*\" -newer /Users/felixkwan/excel-dashboard/package.json 2>/dev/null *)",
+      "Read(//Users/felixkwan/**)",
+      "Read(//Users/felixkwan/Downloads/**)",
+      "Bash(find /Users/felixkwan -maxdepth 6 \\\\\\( -iname \"*.png\" -o -iname \"*.jpg\" -o -iname \"*.jpeg\" \\\\\\) -mmin -30 2>/dev/null | grep -v node_modules | grep -v \"/Library/\")",
+      "Bash(python3 -c ' *)",
+      "Bash(git fetch *)",
+      "Bash(git rebase *)",
+      "Bash(curl -s http://www.kwanfelix.me/excel-dashboard/assets/index-a8_xJLjm.js -o /tmp/live.js)",
+      "Bash(curl -s http://www.kwanfelix.me/excel-dashboard/assets/Cassidy_Davies_Electrical_BPMN_Data-EpKHgCWq.xlsx -o /tmp/live.xlsx)",
+      "Bash(node -e ' *)",
+      "Bash(gh repo *)",
+      "Bash(dig +short kwanfelix.me)",
+      "Bash(dig +short www.kwanfelix.me)",
+      "Bash(dig +short CNAME www.kwanfelix.me)",
+      "Bash(curl -vI https://kwanfelix.me/)",
+      "Bash(curl -vI https://www.kwanfelix.me/)",
+      "Bash(dig +short CAA kwanfelix.me)",
+      "Bash(dig +short CAA me)",
+      "Bash(dig +short A kwanfelix.me)",
+      "Bash(dig +short AAAA kwanfelix.me)",
+      "Bash(dig +short TXT _github-pages-challenge-felixkwan2901.kwanfelix.me)",
+      "Bash(echo \"exit code: $?\")"
+    ],
+    "additionalDirectories": [
+      "/Users/felixkwan/excel-dashboard/src/assets/fonts"
+    ]
+  }
+}
