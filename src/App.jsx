@@ -128,13 +128,24 @@ export default function App() {
     []
   )
 
+  // Categories changed in this session, for the same reason as the owner
+  // edits above: the write reaches the server immediately but nothing
+  // re-reads the workbook, so without this the job's own page keeps showing
+  // the category it had when the page loaded.
+  const [categoryEdits, setCategoryEdits] = useState(() => new Map())
+  const applyCategoryEdit = useCallback(
+    (jobNumber, value) => setCategoryEdits((prev) => new Map(prev).set(String(jobNumber), value)),
+    []
+  )
+
   const jobs = useMemo(() => {
     const ownerOf = new Map((mainSheet.jobs ?? []).map((j) => [j.jobNumber, j.jobOwner]))
     return rawJobs.map((j) => ({
       ...j,
       jobOwner: ownerEdits.has(j.jobNumber) ? ownerEdits.get(j.jobNumber) : ownerOf.get(j.jobNumber) || '',
+      jobCategory: categoryEdits.has(j.jobNumber) ? categoryEdits.get(j.jobNumber) : j.jobCategory || '',
     }))
-  }, [rawJobs, mainSheet, ownerEdits])
+  }, [rawJobs, mainSheet, ownerEdits, categoryEdits])
   const monthlyHours = state.status === 'ready' ? state.monthlyHours : { months: [], totalsByMonth: [], jobs: [] }
   const upcomingWork = state.status === 'ready' ? state.upcomingWork : { jobs: [] }
   const monthlyClaimsHistory =
@@ -434,6 +445,7 @@ export default function App() {
               <JobTable
                 jobs={jobs}
                 onOwnerSaved={applyOwnerEdit}
+                onCategorySaved={applyCategoryEdit}
                 query={dashboardQuery}
                 onQueryChange={updateDashboardQuery}
                 statusFilter={dashboardFilter}

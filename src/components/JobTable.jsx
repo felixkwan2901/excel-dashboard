@@ -7,6 +7,8 @@ import { useLocalStorageState } from '../lib/useLocalStorageState'
 // Always shown, not part of the toggle panel.
 import { JOB_OWNERS } from '../lib/jobOwners'
 import { saveJobOwner } from '../lib/jobOwnerStore'
+import { JOB_CATEGORIES } from '../lib/jobCategories'
+import { saveJobCategory } from '../lib/jobCategoryStore'
 
 const FIXED_COLUMNS = [{ key: 'jobNumber', label: 'Job Number' }, { key: 'jobName', label: 'Job Name' }]
 
@@ -21,7 +23,7 @@ const WIDE_MOBILE_KEYS = new Set(['costProgress', 'materialCostProgress', 'labou
 
 // Shown by default but still toggleable — the compact "at a glance" set
 // this table originally shipped with.
-const DEFAULT_OPTIONAL_KEYS = ['jobOwner', 'costProgress', 'gpPerHour', 'marginToDate']
+const DEFAULT_OPTIONAL_KEYS = ['jobOwner', 'jobCategory', 'costProgress', 'gpPerHour', 'marginToDate']
 
 // Every other optional column: derived/calculated figures the workbook
 // carries that the table doesn't show unless turned on, so the table stays
@@ -30,6 +32,7 @@ const OPTIONAL_COLUMNS = [
   // Grouped on its own rather than under a figure heading: it is the only
   // column here that is a person rather than a number.
   { key: 'jobOwner', label: 'Owner', group: 'Job' },
+  { key: 'jobCategory', label: 'Type of work', group: 'Job' },
 
   { key: 'costProgress', label: 'Cost', group: 'Cost' },
   { key: 'totalQuotedCost', label: 'Total quoted cost', num: true, format: money, group: 'Cost' },
@@ -173,8 +176,54 @@ function OwnerCell({ job, value, saving, onChange }) {
   )
 }
 
+// Same shape as OwnerCell and for the same reason: nothing in the workbook
+// records what kind of work a job is, so this is the only place it can be
+// set. Kept as its own component rather than generalising the two — they read
+// the same today and there is no reason they must stay that way.
+function CategoryCell({ job, value, saving, onChange }) {
+  return (
+    <select
+      value={value}
+      disabled={saving}
+      aria-label={`Type of work for job ${job.jobNumber}`}
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => e.stopPropagation()}
+      onChange={(e) => {
+        e.stopPropagation()
+        onChange(job, e.target.value)
+      }}
+      className={`w-full min-w-[168px] rounded-md border border-white/10 bg-white/[0.04] px-1.5 py-1 text-[12px] text-neutral-200 focus:border-brand-green/50 focus:outline-none ${
+        saving ? 'opacity-50' : ''
+      } ${value ? '' : 'text-neutral-500'}`}
+    >
+      <option value="">Not set</option>
+      {JOB_CATEGORIES.map((name) => (
+        <option key={name} value={name}>
+          {name}
+        </option>
+      ))}
+      {/* Anything stored that is no longer on the list — a category renamed
+          or dropped. Shown so the cell reflects what is saved rather than
+          reading as unset, and marked so it still looks like something to
+          replace. */}
+      {value && !JOB_CATEGORIES.includes(value) && (
+        <option value={value}>{value} (old)</option>
+      )}
+    </select>
+  )
+}
+
 function renderCell(job, col, ctx) {
   switch (col.key) {
+    case 'jobCategory':
+      return (
+        <CategoryCell
+          job={job}
+          value={ctx?.categoryOf ? ctx.categoryOf(job) : job.jobCategory || ''}
+          saving={ctx?.categorySaving?.has(job.jobNumber) ?? false}
+          onChange={ctx?.onCategoryChange ?? (() => {})}
+        />
+      )
     case 'jobOwner':
       return (
         <OwnerCell
@@ -260,6 +309,7 @@ export default function JobTable({
   onStatusFilterChange,
   onSelectJob,
   onOwnerSaved,
+  onCategorySaved,
 }) {
   const [sort, setSort] = useState({ key: 'jobNumber', dir: 1 })
   // Remembered, because the person using it is nearly always the same person
@@ -275,6 +325,7 @@ export default function JobTable({
 
   const [ownerSaving, setOwnerSaving] = useState(() => new Set())
   const [ownerError, setOwnerError] = useState('')
+  const [categorySaving, setCategorySaving] = useState(() => new Set())
 
   // The displayed owner comes straight from the prop. App holds the edits
   // made this session and folds them into `jobs`, so the table, the job page
@@ -298,6 +349,31 @@ export default function JobTable({
       // Put it back rather than leave a value on screen that was never saved.
       onOwnerSaved?.(job.jobNumber, previous)
       setOwnerError(`Could not save the owner for job ${job.jobNumber}. Nothing was changed.`)
+    }
+  }
+
+  const categoryOf = (job) => (job.jobCategory || '').trim()
+
+  // Same optimistic write as the owner, and the same rollback: the dropdown
+  // shows the new value immediately because waiting on a round trip to move a
+  // dropdown feels broken, and puts it back if the write did not land. A cell
+  // showing a category the server never stored is the one outcome worth
+  // ruling out.
+  async function handleCategoryChange(job, value) {
+    const previous = categoryOf(job)
+    if (value === previous) return
+    onCategorySaved?.(job.jobNumber, value)
+    setCategorySaving((prev) => new Set(prev).add(job.jobNumber))
+    setOwnerError('')
+    const saved = await saveJobCategory(job.jobNumber, value)
+    setCategorySaving((prev) => {
+      const next = new Set(prev)
+      next.delete(job.jobNumber)
+      return next
+    })
+    if (!saved) {
+      onCategorySaved?.(job.jobNumber, previous)
+      setOwnerError(`Could not save the type of work for job ${job.jobNumber}. Nothing was changed.`)
     }
   }
 
@@ -363,7 +439,10 @@ export default function JobTable({
 
   const unowned = useMemo(() => jobs.filter((j) => !(j.jobOwner || '').trim()).length, [jobs])
 
-  const cellCtx = { ownerOf, ownerSaving, onOwnerChange: handleOwnerChange }
+  const cellCtx = {
+    ownerOf, ownerSaving, onOwnerChange: handleOwnerChange,
+    categoryOf, categorySaving, onCategoryChange: handleCategoryChange,
+  }
 
   function toggleSort(key) {
     setSort((prev) => (prev.key === key ? { key, dir: -prev.dir } : { key, dir: 1 }))

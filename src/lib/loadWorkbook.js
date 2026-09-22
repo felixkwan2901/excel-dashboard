@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx'
 import { fetchOverrides } from './overrides'
 import { fetchJobOwners } from './jobOwnerStore'
+import { fetchJobCategories } from './jobCategoryStore'
 import { fetchJobChecklists } from './checklistStore'
 import { fetchClaimFields, NUMERIC_CLAIM_FIELDS } from './claimFieldsStore'
 import { fetchUpcomingWork, NOTES_FIELD } from './upcomingWorkStore'
@@ -669,6 +670,17 @@ function applyJobOwners(mainSheet, owners) {
 // own columns still say. The Nth item is the Nth column — that mapping only
 // exists here, at the boundary, so the rest of the app never has to know the
 // checklist was ever positional.
+// The category has no workbook column at all, unlike the owner — there is
+// nothing to fall back to, so a job with no entry here simply has none.
+// Applied to the job rows rather than to Main Sheet, because that is where
+// every view reads its jobs from.
+function applyJobCategories(jobs, categories) {
+  for (const job of jobs) {
+    const category = categories?.[job.jobNumber]
+    job.jobCategory = typeof category === 'string' ? category : ''
+  }
+}
+
 function applyJobChecklists(mainSheet, stored) {
   if (!stored) return
   for (const job of mainSheet.jobs) {
@@ -773,9 +785,9 @@ export async function loadWorkbook() {
   // — this bounds it so an error state (with a retry) shows up instead.
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 20_000)
-  let res, hoursRes, claimsLogRes, archivedRes, mainSheetOverrides, claimCalcOverrides, upcomingWorkOverrides, jobOwners, jobChecklists, claimFields, upcomingWorkFields
+  let res, hoursRes, claimsLogRes, archivedRes, mainSheetOverrides, claimCalcOverrides, upcomingWorkOverrides, jobOwners, jobCategories, jobChecklists, claimFields, upcomingWorkFields
   try {
-    ;[res, hoursRes, claimsLogRes, archivedRes, mainSheetOverrides, claimCalcOverrides, upcomingWorkOverrides, jobOwners, jobChecklists, claimFields, upcomingWorkFields] =
+    ;[res, hoursRes, claimsLogRes, archivedRes, mainSheetOverrides, claimCalcOverrides, upcomingWorkOverrides, jobOwners, jobCategories, jobChecklists, claimFields, upcomingWorkFields] =
       await Promise.all([
         fetch(workbookUrl, { signal: controller.signal, cache: 'no-store' }),
         fetch(monthlyHoursLogUrl, { signal: controller.signal, cache: 'no-store' }),
@@ -785,6 +797,7 @@ export async function loadWorkbook() {
         fetchOverrides('claim-calculator'),
         fetchOverrides('upcoming-work'),
         fetchJobOwners(),
+        fetchJobCategories(),
         fetchJobChecklists(),
         fetchClaimFields(),
         fetchUpcomingWork(),
@@ -803,6 +816,7 @@ export async function loadWorkbook() {
   const upcomingWork = parseUpcomingWork(workbook)
   applyMainSheetOverrides(mainSheet, mainSheetOverrides)
   applyJobOwners(mainSheet, jobOwners)
+  applyJobCategories(jobs, jobCategories)
   applyJobChecklists(mainSheet, jobChecklists)
   applyClaimCalcOverrides(monthlyClaims, claimCalcOverrides)
   applyClaimFields(monthlyClaims, claimFields)
