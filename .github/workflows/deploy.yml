@@ -98,6 +98,11 @@ jobs:
           # login page never rendered. Ships one that unregisters itself instead.
           # Leave this set: without it the next deploy puts the loop back.
           PWA_SELF_DESTROY: '1'
+          # The sidebar link and, more importantly, the printed QR codes. Left
+          # unset they point at the GitHub Pages copy of the field app, so a
+          # code stuck on a switchboard door sends the crew to a different app
+          # writing progress this dashboard is not reading.
+          VITE_FIELD_APP_URL: https://cd-field.fkw24.workers.dev/
 
       - name: Deploy
         if: steps.gate.outputs.ready == 'true'

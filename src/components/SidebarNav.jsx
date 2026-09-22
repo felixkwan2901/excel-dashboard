@@ -21,6 +21,7 @@ import NotificationsBell from './NotificationsBell'
 import WeatherWidget from './WeatherWidget'
 import DateTimeWidget from './DateTimeWidget'
 import { applySidebarCollapsed, applyTheme, readSidebarCollapsed } from '../lib/theme'
+import { FIELD_APP_URL } from '../lib/links'
 import { UPLOAD_WORKER_URL } from '../lib/workerClient'
 
 // The app's navigation: a left column of destinations, with the
@@ -74,7 +75,7 @@ export function Sidebar({ view, onGoHome, ...handlers }) {
           new tab: nothing is more disorienting than a sidebar item that
           silently replaces the dashboard you were working in. */}
       <a
-        href="https://www.kwanfelix.me/cde-field/"
+        href={FIELD_APP_URL}
         target="_blank"
         rel="noreferrer"
         className="side-nav__link"

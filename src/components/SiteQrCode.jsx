@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
 import { Printer } from 'lucide-react'
+import { FIELD_APP_URL as FIELD_APP } from '../lib/links'
 
 // A code to print and stick on the switchboard door.
 //
@@ -12,8 +13,6 @@ import { Printer } from 'lucide-react'
 // Rendered as SVG rather than a canvas because this is made to be printed:
 // a canvas prints at screen resolution and comes out fuzzy at the size a
 // phone camera needs to read it from a metre away.
-const FIELD_APP = 'https://www.kwanfelix.me/cde-field/'
-
 export default function SiteQrCode({ jobNumber, jobName }) {
   const [svg, setSvg] = useState(null)
   const [error, setError] = useState(false)
