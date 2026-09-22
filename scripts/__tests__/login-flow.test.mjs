@@ -355,3 +355,63 @@ test('but a code does sign them in', async () => {
     assert.match(cookieFrom(res), new RegExp(`^${SESSION_COOKIE}=`))
   } finally { mail.restore() }
 })
+
+// Adding a user was visibly broken: sign-in worked, because the login path
+// reads fresh, and then the next minute of asset requests was refused by a
+// memoised user list from before the account existed. The page arrived with
+// no CSS, which reads as a broken site rather than as a cache catching up.
+test('a session for a user the cache has not seen yet is not refused', async () => {
+  const env = await makeEnv()
+
+  // Sign in, which populates the cache with the list as it is now.
+  const first = await worker.fetch(
+    post('/auth/login', { username: 'felix', password: 'a-long-enough-password' }), env,
+  )
+  const cookie = cookieFrom(first).split(';')[0]
+  assert.equal((await worker.fetch(new Request(`${ORIGIN}/`, { headers: { Cookie: cookie } }), env)).status, 200)
+
+  // Now a user appears that the cached list predates, and signs in.
+  const users = JSON.parse(await env.APP_DATA.get('auth:users'))
+  users.newbie = { ...(await hashPassword('a-long-enough-password')), name: 'New Bie', v: 1 }
+  await env.APP_DATA.put('auth:users', JSON.stringify(users))
+
+  const login = await worker.fetch(
+    post('/auth/login', { username: 'newbie', password: 'a-long-enough-password' }), env,
+  )
+  assert.equal(login.status, 303, 'sign-in itself always worked')
+
+  const newCookie = cookieFrom(login).split(';')[0]
+  const page = await worker.fetch(new Request(`${ORIGIN}/`, { headers: { Cookie: newCookie } }), env)
+  assert.equal(page.status, 200, 'the page after signing in must not 401')
+  assert.equal(await page.text(), 'THE DASHBOARD')
+})
+
+// The retry must not become a way to keep a deleted account alive.
+//
+// Loaded as a separate module instance so its user cache starts cold. With a
+// warm cache a deleted user survives until the cache expires — that is the
+// documented trade for not paying a KV read per image, and it was true before
+// this retry existed too. Asserting instant revocation here would be asserting
+// something the system has never promised.
+test('a deleted user is refused once the cache is not covering for them', async () => {
+  const cold = (await import(`../../site-worker/index.js?cold=${Date.now()}`)).default
+  const env = await makeEnv()
+
+  const login = await cold.fetch(
+    post('/auth/login', { username: 'felix', password: 'a-long-enough-password' }), env,
+  )
+  const cookie = cookieFrom(login).split(';')[0]
+
+  const users = JSON.parse(await env.APP_DATA.get('auth:users'))
+  delete users.felix
+  await env.APP_DATA.put('auth:users', JSON.stringify(users))
+
+  // A fresh instance again: the signature is still valid and the account is
+  // gone, which is exactly the case the retry must not rescue.
+  const colder = (await import(`../../site-worker/index.js?cold=${Date.now()}b`)).default
+  const res = await colder.fetch(
+    new Request(`${ORIGIN}/api/whoami`, { headers: { Cookie: cookie } }), env,
+  )
+  assert.equal(res.status, 401)
+  assert.deepEqual(await res.json(), { ok: false, error: 'not_signed_in' })
+})

@@ -119,9 +119,32 @@ async function loadUsers(env, { fresh = false } = {}) {
 async function currentUser(request, env) {
   const session = await readSession(readCookie(request, SESSION_COOKIE), env.SESSION_SECRET)
   if (!session) return null
-  const users = await loadUsers(env)
-  const record = users?.[session.user]
-  if (!record) return null
+
+  let users = await loadUsers(env)
+  let record = users?.[session.user]
+
+  // A validly signed session naming somebody the cached list has never heard
+  // of means the list is stale, not that the session is forged — the
+  // signature cannot be produced without SESSION_SECRET. So check once
+  // against a fresh read before refusing.
+  //
+  // Without this, adding a user was visibly broken: sign-in succeeded,
+  // because the login path already reads fresh, and then every asset request
+  // for the next minute was refused by isolates still holding the list from
+  // before the account existed. The page arrived with no CSS and half its
+  // data missing, which reads as the site being broken rather than as a
+  // cache catching up. It was doing this to every new account.
+  //
+  // The extra KV read only happens for a session whose user is missing from
+  // the cache — a brand new account, or one just deleted. Both are rare, and
+  // the second is the case where paying a read to get the answer right is
+  // exactly what you want.
+  if (!record) {
+    users = await loadUsers(env, { fresh: true })
+    record = users?.[session.user]
+    if (!record) return null
+  }
+
   if ((record.v ?? 1) !== session.version) return null
   return session.user
 }

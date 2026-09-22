@@ -160,6 +160,135 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, on
     })
   }, [jobs])
 
+  // ---------------------------------------------------------------------
+  // The four charts built on what Cassidy-Davies type in themselves — the
+  // type of work and the owner. Nothing in the workbook records either, so
+  // these are the only questions on this page that the spreadsheet cannot
+  // already answer by being read down a column.
+  //
+  // They sit first because they are the ones that were asked for. The
+  // workbook charts below still work; they answer "is this month normal",
+  // which is a different question from "which kind of work should we be
+  // chasing".
+  // ---------------------------------------------------------------------
+
+  const UNSET = 'Not set'
+
+  // Grouped once, used by three of the four. A job with no category is kept
+  // rather than dropped — "how much of this is uncategorised" is itself worth
+  // seeing, and silently excluding it would make every total quietly wrong.
+  const byCategory = useMemo(() => {
+    const groups = new Map()
+    for (const job of jobs) {
+      const key = (job.jobCategory || '').trim() || UNSET
+      if (!groups.has(key)) groups.set(key, [])
+      groups.get(key).push(job)
+    }
+    return [...groups].map(([label, list]) => ({ label, list }))
+  }, [jobs])
+
+  const sum = (list, field) =>
+    list.reduce((total, job) => total + (typeof job[field] === 'number' ? job[field] : 0), 0)
+
+  // A mean weighted by hours, not a mean of means: averaging each job's rate
+  // lets a two-hour callout count the same as a nine-month build, which is
+  // how a category with one good tiny job ends up looking like the most
+  // profitable work the company does.
+  const weightedRate = (list, rateField, hoursField) => {
+    let hours = 0
+    let value = 0
+    for (const job of list) {
+      const h = typeof job[hoursField] === 'number' ? job[hoursField] : 0
+      const r = typeof job[rateField] === 'number' ? job[rateField] : null
+      if (!h || r === null) continue
+      hours += h
+      value += r * h
+    }
+    return hours ? value / hours : null
+  }
+
+  const earningsByType = useMemo(
+    () =>
+      byCategory
+        .map(({ label, list }) => ({
+          label,
+          fullLabel: label,
+          jobs: list.length,
+          values: [
+            weightedRate(list, 'quotedGpPerHour', 'quotedLabourHours'),
+            weightedRate(list, 'gpPerHour', 'actualLabourHours'),
+          ],
+        }))
+        .filter((r) => r.values.some((v) => v !== null))
+        .map((r) => ({ ...r, values: r.values.map((v) => v ?? 0) }))
+        .sort((a, b) => b.values[0] - a.values[0]),
+    [byCategory],
+  )
+
+  const costByType = useMemo(
+    () =>
+      byCategory
+        .map(({ label, list }) => {
+          const quoted = sum(list, 'totalQuotedCost')
+          const actual = sum(list, 'totalActualCost')
+          return {
+            label,
+            fullLabel: label,
+            jobs: list.length,
+            values: [actual, quoted],
+            colors: [actual > quoted ? CRITICAL : SERIES_1, SERIES_2],
+            note: actual > quoted ? 'Spent more than quoted' : null,
+            ratio: quoted ? actual / quoted : null,
+          }
+        })
+        .filter((r) => r.values[1] > 0)
+        .sort((a, b) => (b.ratio ?? 0) - (a.ratio ?? 0)),
+    [byCategory],
+  )
+
+  const byOwner = useMemo(() => {
+    const groups = new Map()
+    for (const job of jobs) {
+      const key = (job.jobOwner || '').trim() || 'No owner'
+      if (!groups.has(key)) groups.set(key, [])
+      groups.get(key).push(job)
+    }
+    return [...groups]
+      .map(([label, list]) => ({
+        label,
+        fullLabel: label,
+        jobs: list.length,
+        values: [sum(list, 'quotedPrice')],
+        // Unowned is a gap, not a person, so it reads as a state rather than
+        // as one more name in the list.
+        colors: [label === 'No owner' ? CRITICAL : SERIES_1],
+        note: label === 'No owner' ? 'Nobody is named on these' : null,
+      }))
+      .sort((a, b) => b.values[0] - a.values[0])
+  }, [jobs])
+
+  const valueConcentration = useMemo(() => {
+    const ranked = [...jobs]
+      .filter((j) => typeof j.quotedPrice === 'number' && j.quotedPrice > 0)
+      .sort((a, b) => b.quotedPrice - a.quotedPrice)
+    const total = ranked.reduce((t, j) => t + j.quotedPrice, 0)
+    const shareOf = (n) =>
+      total ? ranked.slice(0, n).reduce((t, j) => t + j.quotedPrice, 0) / total : 0
+    return {
+      total,
+      count: ranked.length,
+      topThree: shareOf(3),
+      topTen: shareOf(10),
+      rows: ranked.slice(0, 10).map((j) => ({
+        jobNumber: j.jobNumber,
+        label: j.jobName.length > 20 ? `${j.jobName.slice(0, 19)}…` : j.jobName,
+        fullLabel: `${j.jobNumber} ${j.jobName}`,
+        values: [j.quotedPrice],
+        note: (j.jobCategory || '').trim() || 'No type set',
+      })),
+    }
+  }, [jobs])
+
   const biggestJobs = useMemo(
     () =>
       [...jobs]
@@ -343,6 +472,142 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, on
           }
         />
       </div>
+
+      <SectionHeading>Type of work and ownership</SectionHeading>
+
+      <ChartCard
+        title="What each kind of work earns an hour"
+        question="Which work should we be chasing?"
+        series={[
+          { name: 'Quoted GP/hr', color: SERIES_2 },
+          { name: 'Actual GP/hr', color: SERIES_1 },
+        ]}
+        footnote="Gross profit per labour hour, which is the one measure that compares a two-hour callout with a nine-month build. Both figures are weighted by hours rather than averaged per job, so one small very profitable job cannot make a whole category look like the best work in the company. A shorter actual bar than quoted means that kind of work is not delivering what it was priced at. Type of work is typed in on the Projects tab — it is not in the workbook."
+        table={
+          <table>
+            <caption>Quoted and actual gross profit per hour, by type of work</caption>
+            <tbody>
+              {earningsByType.map((r) => (
+                <tr key={r.label}>
+                  <th scope="row">{r.label}</th>
+                  <td>{r.jobs} job{r.jobs === 1 ? '' : 's'}</td>
+                  <td>Quoted {money(r.values[0])}/hr</td>
+                  <td>Actual {money(r.values[1])}/hr</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        }
+      >
+        <HBarChart
+          rows={earningsByType}
+          series={[
+            { name: 'Quoted GP/hr', color: SERIES_2 },
+            { name: 'Actual GP/hr', color: SERIES_1 },
+          ]}
+          labelWidth={170}
+          valueFormat={(v) => `${money(v)}/hr`}
+          axisFormat={compactMoney}
+          emptyMessage="No jobs have a type of work set yet. Set one on the Projects tab."
+        />
+      </ChartCard>
+
+      <ChartCard
+        title="Which kind of work runs over"
+        question="Do we underprice a whole category, or just the odd job?"
+        series={[
+          { name: 'Actual cost', color: SERIES_1 },
+          { name: 'Quoted cost', color: SERIES_2 },
+        ]}
+        footnote="Every job of that type added together. A longer actual bar than quoted means the category as a whole is spending more than it was priced at — which is a pricing problem, not a bad week on one site. Sorted by how far over each type is running."
+        table={
+          <table>
+            <caption>Actual against quoted cost, by type of work</caption>
+            <tbody>
+              {costByType.map((r) => (
+                <tr key={r.label}>
+                  <th scope="row">{r.label}</th>
+                  <td>{r.jobs} job{r.jobs === 1 ? '' : 's'}</td>
+                  <td>Actual {money(r.values[0])}</td>
+                  <td>Quoted {money(r.values[1])}</td>
+                  <td>{r.ratio === null ? '—' : `${Math.round(r.ratio * 100)}% of quote`}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        }
+      >
+        <HBarChart
+          rows={costByType}
+          series={[
+            { name: 'Actual cost', color: SERIES_1 },
+            { name: 'Quoted cost', color: SERIES_2 },
+          ]}
+          labelWidth={170}
+          valueFormat={money}
+          axisFormat={compactMoney}
+          emptyMessage="No jobs have a type of work set yet."
+        />
+      </ChartCard>
+
+      <ChartCard
+        title="Who is carrying what"
+        question="Is one person holding most of the money?"
+        footnote="Quoted value of the jobs each person is named on. The owner is typed in on the Projects tab, so anything nobody has been named on shows as “No owner” rather than being left out — on this data that band is usually the largest one, which is the finding rather than a gap in the chart."
+        table={
+          <table>
+            <caption>Quoted value by job owner</caption>
+            <tbody>
+              {byOwner.map((r) => (
+                <tr key={r.label}>
+                  <th scope="row">{r.label}</th>
+                  <td>{r.jobs} job{r.jobs === 1 ? '' : 's'}</td>
+                  <td>{money(r.values[0])}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        }
+      >
+        <HBarChart
+          rows={byOwner}
+          series={[{ name: 'Quoted value', color: SERIES_1 }]}
+          labelWidth={150}
+          valueFormat={money}
+          axisFormat={compactMoney}
+          emptyMessage="No jobs to group."
+        />
+      </ChartCard>
+
+      <ChartCard
+        title="Where the money sits"
+        question="How exposed are we if one job goes wrong?"
+        footnote={`The ten biggest jobs by quoted value. The top three are ${percent(valueConcentration.topThree)} of everything quoted and the top ten are ${percent(valueConcentration.topTen)}, across ${valueConcentration.count} jobs — so a problem on one of these is not the same size of problem as one anywhere else. Each bar is labelled with its type of work. Click a bar to open the job.`}
+        table={
+          <table>
+            <caption>The ten biggest jobs by quoted value</caption>
+            <tbody>
+              {valueConcentration.rows.map((r) => (
+                <tr key={r.fullLabel}>
+                  <th scope="row">{r.fullLabel}</th>
+                  <td>{r.note}</td>
+                  <td>{money(r.values[0])}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        }
+      >
+        <HBarChart
+          rows={valueConcentration.rows}
+          series={[{ name: 'Quoted value', color: SERIES_1 }]}
+          labelWidth={150}
+          valueFormat={money}
+          axisFormat={compactMoney}
+          onSelect={(r) => openJob(r.jobNumber)}
+          emptyMessage="No jobs with a quoted value."
+        />
+      </ChartCard>
 
       <SectionHeading>Billing</SectionHeading>
 
