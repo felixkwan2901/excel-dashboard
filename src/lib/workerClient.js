@@ -1,16 +1,23 @@
-// Single place that knows how to reach the upload worker.
+// Single place that knows how to reach the API.
 //
-// The worker now requires an access key on every request (see
-// upload-worker/src/index.js). The key is NOT baked into this bundle — the
-// bundle is public, so anything in it is public too. Instead the operator
-// types it once per browser session and it lives in sessionStorage, which
-// dies with the tab.
-//
-// Once the dashboard is behind Cloudflare Access (MIGRATION.md step 3b) the
-// prompt can go away: Access will carry identity via cookie and the worker
-// can trust the request instead.
+// On the Cloudflare build the site is served by site-worker/index.js, which
+// gates every request behind a login and answers /api/* itself — reading and
+// writing KV directly, and forwarding the upload endpoints to the old worker
+// with the shared secret attached server-side. There the browser holds no
+// secret at all: the HttpOnly session cookie is the whole credential.
 
-export const UPLOAD_WORKER_URL = 'https://cde-data-upload.fkw24.workers.dev'
+// Build-time switch, because the same source builds two different sites:
+//
+//   GitHub Pages (kwanfelix.me)  — no VITE_API_BASE set, so this stays the
+//     public worker URL and that site behaves exactly as it always has.
+//   Cloudflare (cd-dashboard)    — built with VITE_API_BASE=/api, so calls go
+//     to the same origin and ride the login cookie.
+//
+// Defaulting to the old URL is deliberate: a build that forgets the variable
+// degrades to the current behaviour rather than to a site that cannot reach
+// its data at all.
+export const UPLOAD_WORKER_URL =
+  import.meta.env.VITE_API_BASE ?? 'https://cde-data-upload.fkw24.workers.dev'
 
 const STORAGE_KEY = 'cde-access-key'
 
@@ -38,21 +45,29 @@ function askForKey(message = 'Enter the dashboard access key') {
   return entered ? entered.trim() : ''
 }
 
-// fetch() against the worker.
+// fetch() against the API, same origin, cookie carried automatically.
 //
-// The worker's access-key gate is currently switched off, so no key is
-// required and nobody is prompted for one. A key is still sent if one
-// happens to be stored, and a 401 still triggers a re-prompt — so turning
-// the gate back on in upload-worker/src/index.js needs no change here.
+// A 401 now means the session expired rather than a bad key, and the only
+// sensible response is to let the gate render the login page again.
 export async function workerFetch(path, init = {}, { retry = true, promptIfMissing = true } = {}) {
   const key = getAccessKey()
 
   const headers = new Headers(init.headers || {})
   if (key) headers.set('X-Upload-Secret', key)
 
-  const res = await fetch(`${UPLOAD_WORKER_URL}${path}`, { ...init, headers })
+  const res = await fetch(`${UPLOAD_WORKER_URL}${path}`, { ...init, headers, credentials: 'same-origin' })
 
-  // Only reached if the gate is re-enabled on the worker.
+  // Session expired or signed out in another tab: reload so the gate can show
+  // the login form, rather than leaving a half-dead page behind.
+  if (res.status === 401) {
+    const body = await res.clone().json().catch(() => null)
+    if (body?.error === 'not_signed_in') {
+      window.location.reload()
+      throw new Error('Your session expired. Signing in again.')
+    }
+  }
+
+  // Legacy path: only reached if the old typed-key gate is ever re-enabled.
   if (res.status === 401 && retry && promptIfMissing) {
     setAccessKey('')
     const again = askForKey(key ? 'That key was not accepted. Try again' : 'Enter the dashboard access key')

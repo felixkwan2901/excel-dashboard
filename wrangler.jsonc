@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "cd-dashboard",
+  "main": "site-worker/index.js",
+  "compatibility_date": "2026-09-22",
+
+  // run_worker_first is the whole point: without it Cloudflare serves a
+  // matching static file before the Worker ever runs, so index.html and the
+  // workbook would still be downloadable by anyone.
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "run_worker_first": true
+  },
+
+  // The same namespace the upload worker writes to, so the dashboard reads one
+  // set of data whichever way it was written.
+  "kv_namespaces": [
+    { "binding": "APP_DATA", "id": "1bed6e14dbf047ac8616ae21ed09a9f6" }
+  ],
+
+  "observability": { "enabled": true }
+}
