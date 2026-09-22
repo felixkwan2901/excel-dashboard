@@ -3,8 +3,6 @@ import { money, percent, roundHours } from '../lib/format'
 import ChartCard from './charts/ChartCard'
 import BarChart from './charts/BarChart'
 import HBarChart from './charts/HBarChart'
-import LineChart from './charts/LineChart'
-import ScatterChart from './charts/ScatterChart'
 import { compactHours, compactMoney } from './charts/chartScale'
 
 // Every figure on this page already exists somewhere in the dashboard. The
@@ -20,8 +18,6 @@ import { compactHours, compactMoney } from './charts/chartScale'
 // step rather than one hex being reused on both grounds.
 const SERIES_1 = 'var(--viz-1)'
 const SERIES_2 = 'var(--viz-2)'
-const SERIES_3 = 'var(--viz-3)'
-const SERIES_4 = 'var(--viz-4)'
 const CRITICAL = 'var(--viz-critical)'
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -39,33 +35,11 @@ function monthLong(key) {
 // Margin buckets. The edges are business thresholds, not round numbers: below
 // zero is losing money, 0-10% is thin enough to be wiped out by one variation,
 // and the quoted margins on this book sit around 20-26%, so 20%+ is "as sold".
-const MARGIN_BUCKETS = [
-  { label: '< 0%', short: '<0', test: (m) => m < 0, critical: true },
-  { label: '0–10%', short: '0–10', test: (m) => m >= 0 && m < 0.1 },
-  { label: '10–20%', short: '10–20', test: (m) => m >= 0.1 && m < 0.2 },
-  { label: '20–30%', short: '20–30', test: (m) => m >= 0.2 && m < 0.3 },
-  { label: '30%+', short: '30+', test: (m) => m >= 0.3 },
-]
 
 // Compact headline figures above the charts. Deliberately not the StatCard
 // used on Projects: that one is 152px tall with a progress bar, which is
 // right when three of them are the whole page and wrong when they are a strip
 // above eight charts.
-function KpiTile({ label, value, context, tone = 'neutral' }) {
-  return (
-    <div className="rounded-[14px] border border-white/[0.06] bg-[#11161c] p-4">
-      <p className="text-[11px] font-medium tracking-wide text-neutral-400 uppercase">{label}</p>
-      <p
-        className={`mt-1 text-[24px] font-semibold tabular-nums ${
-          tone === 'critical' ? 'text-red-400' : 'text-white'
-        }`}
-      >
-        {value}
-      </p>
-      {context && <p className="mt-0.5 text-[12px] leading-snug text-neutral-400">{context}</p>}
-    </div>
-  )
-}
 
 // A quiet divider between the three questions this page answers: what the
 // business billed, what the crew is committed to, and how the book is doing.
@@ -139,26 +113,6 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, on
       }
     }).filter((d) => d.values.some((v) => v !== null && v !== 0))
   }, [capacity, plannedTotalFor])
-
-  const marginSpread = useMemo(() => {
-    const withMargin = jobs.filter((j) => j.marginToDate !== null)
-    return MARGIN_BUCKETS.map((b) => {
-      const inBucket = withMargin.filter((j) => b.test(j.marginToDate))
-      return {
-        label: b.label,
-        shortLabel: b.short,
-        fullLabel: `Margin ${b.label}`,
-        critical: b.critical,
-        values: [inBucket.length],
-        note: inBucket.length
-          ? inBucket
-              .slice(0, 4)
-              .map((j) => j.jobName)
-              .join(', ') + (inBucket.length > 4 ? `, +${inBucket.length - 4} more` : '')
-          : null,
-      }
-    })
-  }, [jobs])
 
   // ---------------------------------------------------------------------
   // The four charts built on what Cassidy-Davies type in themselves — the
@@ -289,25 +243,6 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, on
     }
   }, [jobs])
 
-  const biggestJobs = useMemo(
-    () =>
-      [...jobs]
-        .filter((j) => j.totalActualCost)
-        .sort((a, b) => b.totalActualCost - a.totalActualCost)
-        .slice(0, 10)
-        .map((j) => ({
-          jobNumber: j.jobNumber,
-          label: j.jobName.length > 20 ? `${j.jobName.slice(0, 19)}…` : j.jobName,
-          fullLabel: `${j.jobNumber} ${j.jobName}`,
-          values: [j.totalActualCost, j.totalQuotedCost],
-          // Over quote is a state, not a series, so it gets the status colour
-          // and the tooltip says so in words — never colour on its own.
-          colors: [j.overBudget ? CRITICAL : SERIES_1, SERIES_2],
-          note: j.overBudget ? 'Over quoted cost' : null,
-        })),
-    [jobs],
-  )
-
   // The bands add up to the same planned total the capacity chart plots,
   // which is what makes a stacked area honest here rather than decorative.
   //
@@ -316,111 +251,23 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, on
   // 616 of 1018 planned hours. Rather than quietly show a short total, the
   // remainder is its own band: the work is planned, nobody has said which
   // kind it is yet.
-  const workloadMix = useMemo(() => {
-    if (!capacity) return []
-    return MONTH_LABELS.map((m) => {
-      const residential = capacity.residentialHours?.[m] ?? 0
-      const commercial = capacity.commercialHours?.[m] ?? 0
-      const unsplit = Math.max(0, (plannedByJob[m] ?? 0) - residential - commercial)
-      return {
-        label: m,
-        fullLabel: m,
-        values: [capacity.servicingHours?.[m] ?? 0, residential, commercial, unsplit],
-      }
-    })
-  }, [capacity, plannedByJob])
 
   // Planned minus available, computed from the corrected planned figure
   // rather than read off the sheet's Balance row, which inherits the same lag
   // as the Total Hours row it is derived from.
-  const balanceByMonth = useMemo(() => {
-    if (!capacity) return []
-    return MONTH_LABELS.map((m) => {
-      const available = capacity.hoursAvailable?.[m]
-      const balance =
-        available === null || available === undefined ? null : plannedTotalFor(m) - available
-      return {
-        label: m,
-        fullLabel: m,
-        values: [balance],
-        note:
-          balance === null
-            ? null
-            : balance > 0
-              ? 'More work planned than crew to do it'
-              : 'Room to take on more',
-      }
-    }).filter((d) => d.values[0] !== null)
-  }, [capacity, plannedTotalFor])
 
   // How much of a month's billing comes from how few jobs. Plotted as a
   // cumulative share against job rank: the faster the line climbs, the more
   // the month depends on a handful of jobs going right.
-  const concentration = useMemo(() => {
-    const history = monthlyClaimsHistory?.totalsByMonth ?? []
-    // The current month is deliberately excluded — it is a few days old and
-    // its two or three claims would draw a near-vertical line implying a
-    // concentration that is really just an unfinished month.
-    const months = history.slice(0, -1).map((t) => t.month)
-    if (months.length === 0) return { points: [], series: [] }
-
-    const perMonth = months.map((month) => {
-      const claims = (monthlyClaimsHistory.jobs ?? [])
-        .map((j) => j.claimByMonth[month] ?? 0)
-        .filter((c) => c > 0)
-        .sort((a, b) => b - a)
-      const total = claims.reduce((sum, c) => sum + c, 0)
-      let running = 0
-      return { month, total, curve: claims.map((c) => ((running += c) / total) * 100) }
-    })
-
-    const longest = Math.max(...perMonth.map((m) => m.curve.length))
-    const points = Array.from({ length: longest }, (_, i) => ({
-      label: String(i + 1),
-      fullLabel: `Top ${i + 1} job${i === 0 ? '' : 's'}`,
-      values: perMonth.map((m) => (i < m.curve.length ? Math.round(m.curve[i]) : 100)),
-    }))
-    return {
-      points,
-      series: perMonth.map((m, i) => ({
-        name: monthLong(m.month).split(' ')[0],
-        color: i === 0 ? SERIES_1 : SERIES_2,
-      })),
-    }
-  }, [monthlyClaimsHistory])
 
   // Quoted margin against what the job is actually returning. Same units on
   // both axes, so the dashed diagonal is "exactly as quoted" and everything
   // below it is a job earning less than it was sold for.
-  const marginVsQuoted = useMemo(
-    () =>
-      jobs
-        .filter((j) => j.marginToDate !== null && j.quotedMargin !== null && j.quotedMargin !== 0)
-        .map((j) => ({
-          jobNumber: j.jobNumber,
-          label: j.jobName,
-          fullLabel: `${j.jobNumber} ${j.jobName}`,
-          x: j.quotedMargin * 100,
-          y: j.marginToDate * 100,
-          under: j.marginToDate < j.quotedMargin,
-          note:
-            j.marginToDate < j.quotedMargin
-              ? `${percent(j.quotedMargin - j.marginToDate)} below quote`
-              : `${percent(j.marginToDate - j.quotedMargin)} above quote`,
-        })),
-    [jobs],
-  )
-
-  const behindQuote = marginVsQuoted.filter((p) => p.under).length
 
   const lastMonth = moneyByMonth[moneyByMonth.length - 1]
 
   // The last month with a full set of figures, not the current one — on the
   // 10th, "this month" is three claims and reads like a collapse.
-  const lastFullMonth = moneyByMonth.length > 1 ? moneyByMonth[moneyByMonth.length - 2] : null
-  const oversoldMonths = balanceByMonth.filter((d) => d.values[0] > 0)
-  const totalQuoted = jobs.reduce((sum, j) => sum + (j.quotedPrice ?? 0), 0)
-  const flaggedCount = jobs.filter((j) => j.flagged).length
   const openJob = (jobNumber) => {
     const job = jobs.find((j) => j.jobNumber === jobNumber)
     if (job && onSelectJob) onSelectJob(job)
@@ -439,38 +286,10 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, on
       <div>
         <h1 className="text-2xl font-semibold text-white">Dashboard</h1>
         <p className="mt-1 text-sm text-neutral-400">
-          The same figures the other tabs carry, drawn so you can see the shape of them. Hover
-          anything for the exact numbers; on a phone the figures are printed on the charts.
+          Mostly the things you type in yourselves — the type of work and the owner — which no
+          other tab can show you, because the workbook does not record them. Hover anything for
+          the exact numbers; on a phone the figures are printed on the charts.
         </p>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        <KpiTile label="Active jobs" value={jobs.length} context={`${money(totalQuoted)} quoted`} />
-        <KpiTile
-          label="Needs review"
-          value={flaggedCount}
-          tone={flaggedCount > 0 ? 'critical' : 'neutral'}
-          context="Cost projected over quote"
-        />
-        <KpiTile
-          label="Behind quote"
-          value={`${behindQuote} of ${marginVsQuoted.length}`}
-          context="Jobs earning less than sold for"
-        />
-        <KpiTile
-          label={lastFullMonth ? `${lastFullMonth.fullLabel.split(' ')[0]} profit` : 'Last month'}
-          value={lastFullMonth ? money(lastFullMonth.values[0] - lastFullMonth.values[1]) : '—'}
-          tone={lastFullMonth && lastFullMonth.values[0] < lastFullMonth.values[1] ? 'critical' : 'neutral'}
-          context={lastFullMonth ? `${money(lastFullMonth.values[0])} claimed` : undefined}
-        />
-        <KpiTile
-          label="Months oversold"
-          value={oversoldMonths.length}
-          tone={oversoldMonths.length > 0 ? 'critical' : 'neutral'}
-          context={
-            oversoldMonths.length ? oversoldMonths.map((m) => m.label).join(', ') : 'Capacity is fine'
-          }
-        />
       </div>
 
       <SectionHeading>Type of work and ownership</SectionHeading>
@@ -644,40 +463,6 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, on
         />
       </ChartCard>
 
-      <ChartCard
-        title="How much of a month rides on a few jobs"
-        question="If one big job slips, how much of the month goes with it?"
-        series={concentration.series}
-        footnote="Jobs ranked biggest claim first, then added up. The steeper the climb, the more of that month's billing sat with a handful of jobs. The current month is left out — it is only a few days old."
-        table={
-          <table>
-            <caption>Cumulative share of each month&apos;s claim by job rank</caption>
-            <tbody>
-              {concentration.points.map((d) => (
-                <tr key={d.label}>
-                  <th scope="row">{d.fullLabel}</th>
-                  {d.values.map((v, i) => (
-                    <td key={i}>
-                      {concentration.series[i].name} {v}%
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        }
-      >
-        <LineChart
-          points={concentration.points}
-          series={concentration.series}
-          mode="line"
-          valueFormat={(v) => `${v}% of the month`}
-          axisFormat={(v) => `${v}%`}
-          height={230}
-          emptyMessage="Needs a completed month of claims before this means anything."
-        />
-      </ChartCard>
-
       <SectionHeading>The year ahead</SectionHeading>
 
       <ChartCard
@@ -709,173 +494,6 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, on
         />
       </ChartCard>
 
-      <ChartCard
-        title="What the hours are actually for"
-        question="Is the year commercial work, houses, or servicing?"
-        series={[
-          { name: 'Servicing', color: SERIES_1 },
-          { name: 'Residential', color: SERIES_2 },
-          { name: 'Commercial', color: SERIES_3 },
-          { name: 'Not yet split', color: SERIES_4 },
-        ]}
-        footnote="The bands add up to the same planned total the capacity chart plots. Servicing is the sheet's flat monthly allowance for small jobs, which is why it is the one band that never stops. “Not yet split” is work booked against a job that the sheet's residential/commercial rows haven't caught up with — those rows are typed by hand, so they lag the per-job plan."
-        table={
-          <table>
-            <caption>Servicing, residential and commercial hours by month</caption>
-            <tbody>
-              {workloadMix.map((d) => (
-                <tr key={d.label}>
-                  <th scope="row">{d.label}</th>
-                  <td>Servicing {d.values[0]}</td>
-                  <td>Residential {d.values[1]}</td>
-                  <td>Commercial {d.values[2]}</td>
-                  <td>Not yet split {d.values[3]}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        }
-      >
-        <LineChart
-          points={workloadMix}
-          series={[
-            { name: 'Servicing', color: SERIES_1 },
-            { name: 'Residential', color: SERIES_2 },
-            { name: 'Commercial', color: SERIES_3 },
-            { name: 'Not yet split', color: SERIES_4 },
-          ]}
-          mode="stack"
-          valueFormat={(v) => `${roundHours(v)} hrs`}
-          axisFormat={compactHours}
-          emptyMessage="No workload split on the Upcoming Work sheet."
-        />
-      </ChartCard>
-
-      <ChartCard
-        title="Short or spare, month by month"
-        question="Which way is each month leaning?"
-        series={[{ name: 'Balance', aboveColor: CRITICAL, belowColor: SERIES_1 }]}
-        footnote="Planned hours minus available hours, straight off the sheet's Balance row. Above the line the month needs more people than the crew has; below it there is room to sell more work."
-        table={
-          <table>
-            <caption>Capacity balance by month, planned hours minus available</caption>
-            <tbody>
-              {balanceByMonth.map((d) => (
-                <tr key={d.label}>
-                  <th scope="row">{d.label}</th>
-                  <td>
-                    {d.values[0] > 0 ? 'Short by ' : 'Spare '}
-                    {roundHours(Math.abs(d.values[0]))} hrs
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        }
-      >
-        <LineChart
-          points={balanceByMonth}
-          series={[{ name: 'Balance', aboveColor: CRITICAL, belowColor: SERIES_1 }]}
-          mode="zero"
-          aboveLabel="Short by"
-          belowLabel="Spare"
-          valueFormat={(v) => `${roundHours(Math.abs(v))} hrs`}
-          axisFormat={compactHours}
-          height={220}
-          emptyMessage="No balance row on the Upcoming Work sheet."
-        />
-      </ChartCard>
-
-      <SectionHeading>The book</SectionHeading>
-
-      <ChartCard
-        title="Where the jobs sit on margin"
-        question="Is the book healthy, or is it one or two good jobs carrying the rest?"
-        series={[{ name: 'Jobs', color: SERIES_1 }]}
-        footnote="One bar per band, counting active jobs by margin to date. Red is the band that is losing money."
-        table={
-          <table>
-            <caption>Number of active jobs in each margin band</caption>
-            <tbody>
-              {marginSpread.map((d) => (
-                <tr key={d.label}>
-                  <th scope="row">{d.label}</th>
-                  <td>{d.values[0]} jobs</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        }
-      >
-        <BarChart
-          data={marginSpread}
-          series={[{ name: 'Jobs', color: SERIES_1 }]}
-          valueFormat={(v) => `${v} job${v === 1 ? '' : 's'}`}
-          axisFormat={(v) => String(v)}
-          colorFor={(d) => (d.critical ? CRITICAL : SERIES_1)}
-          height={200}
-        />
-      </ChartCard>
-
-      <ChartCard
-        title="The ten biggest jobs, spend against quote"
-        question="Where is the money actually going, and is it staying inside the quote?"
-        series={[{ name: 'Actual cost', color: SERIES_1 }, { name: 'Quoted cost', color: SERIES_2 }]}
-        footnote="Ranked by what has been spent. A job whose actual bar is red has passed its quoted cost — the same test the Needs review count uses. Click a row to open the job."
-        table={
-          <table>
-            <caption>Actual cost against quoted cost for the ten biggest jobs</caption>
-            <tbody>
-              {biggestJobs.map((d) => (
-                <tr key={d.fullLabel}>
-                  <th scope="row">{d.fullLabel}</th>
-                  <td>Actual {money(d.values[0])}</td>
-                  <td>Quoted {money(d.values[1])}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        }
-      >
-        <HBarChart
-          rows={biggestJobs}
-          series={[{ name: 'Actual cost', color: SERIES_1 }, { name: 'Quoted cost', color: SERIES_2 }]}
-          valueFormat={money}
-          axisFormat={compactMoney}
-          onSelect={(r) => openJob(r.jobNumber)}
-          emptyMessage="No job costs to rank yet."
-        />
-      </ChartCard>
-
-      <ChartCard
-        title="Delivered margin against quoted margin"
-        question="Are jobs returning what they were sold for?"
-        footnote={`Each dot is a job. The dashed line is "exactly as quoted" — anything below it is earning less than it was sold for, and ${behindQuote} of ${marginVsQuoted.length} jobs are. Both axes are the same scale, which is the only way the diagonal means anything. Click a dot to open the job.`}
-        table={
-          <table>
-            <caption>Quoted margin against margin to date, per job</caption>
-            <tbody>
-              {marginVsQuoted.map((p) => (
-                <tr key={p.fullLabel}>
-                  <th scope="row">{p.fullLabel}</th>
-                  <td>Quoted {p.x.toFixed(1)}%</td>
-                  <td>To date {p.y.toFixed(1)}%</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        }
-      >
-        <ScatterChart
-          points={marginVsQuoted}
-          xLabel="Quoted margin"
-          yLabel="Margin to date"
-          format={(v) => `${Math.round(v)}%`}
-          colorFor={(p) => (p.under ? CRITICAL : SERIES_1)}
-          onSelect={(p) => openJob(p.jobNumber)}
-          emptyMessage="No jobs with both a quoted and an actual margin."
-        />
-      </ChartCard>
     </div>
   )
 }
