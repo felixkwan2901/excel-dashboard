@@ -322,3 +322,36 @@ test('a prefilled address cannot smuggle markup into the form', async () => {
   assert.doesNotMatch(html, /<script>alert/)
   assert.match(html, /&quot;&gt;&lt;script&gt;/)
 })
+
+// An `invite` account: an address, no password. The only way in is a code, so
+// there is no password to guess and none to have to send to the person.
+test('an account with no password cannot be signed into with one', async () => {
+  const env = await makeEnv({ provider: 'mailjet' })
+  const users = JSON.parse(await env.APP_DATA.get('auth:users'))
+  users.tim = { name: 'Tim Davies', email: 'tim@cdelectrical.co.nz', v: 1 }
+  await env.APP_DATA.put('auth:users', JSON.stringify(users))
+
+  for (const attempt of ['', 'password', 'tim', 'undefined']) {
+    const res = await worker.fetch(post('/auth/login', { username: 'tim', password: attempt }), env)
+    assert.equal(res.status, 401, `"${attempt}" should not sign tim in`)
+    assert.equal(cookieFrom(res), '')
+  }
+})
+
+test('but a code does sign them in', async () => {
+  const env = await makeEnv({ provider: 'mailjet' })
+  const users = JSON.parse(await env.APP_DATA.get('auth:users'))
+  users.tim = { name: 'Tim Davies', email: 'tim@cdelectrical.co.nz', v: 1 }
+  await env.APP_DATA.put('auth:users', JSON.stringify(users))
+
+  const mail = captureMail()
+  try {
+    const page = await (await worker.fetch(post('/auth/code', { email: 'tim@cdelectrical.co.nz' }), env)).text()
+    const challenge = page.match(/name="challenge" value="([^"]+)"/)[1]
+    const res = await worker.fetch(post('/auth/verify', {
+      email: 'tim@cdelectrical.co.nz', challenge, code: codeFrom(mail.sent[0]),
+    }), env)
+    assert.equal(res.status, 303)
+    assert.match(cookieFrom(res), new RegExp(`^${SESSION_COOKIE}=`))
+  } finally { mail.restore() }
+})

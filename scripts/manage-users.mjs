@@ -2,6 +2,7 @@
 // Add, list and remove dashboard logins.
 //
 //   node scripts/manage-users.mjs add <username> "Display Name"
+//   node scripts/manage-users.mjs invite <username> <address>   # no password
 //   node scripts/manage-users.mjs passwd <username>     # change password only
 //   node scripts/manage-users.mjs email <username> <address>   # or "" to clear
 //   node scripts/manage-users.mjs revoke <username>     # sign them out everywhere
@@ -11,6 +12,13 @@
 // An address is what lets someone sign in with an emailed code instead of a
 // password. It is optional per person: an account without one can still sign
 // in the usual way.
+//
+// `invite` goes the other way: an account with an address and no password at
+// all. Prefer it for anyone who has an email address, because it is the only
+// way to add someone without inventing a password and then having to send it
+// to them — and a password in a text message or an email is a worse secret
+// than no password. They can add one later with `passwd` if they ever want
+// one.
 //
 // The prompt is hidden and asks twice. $PASSWORD is honoured for scripting,
 // but avoid it interactively — it lands in your shell history.
@@ -184,6 +192,35 @@ if (cmd === 'list') {
   writeUsers(users)
   console.log(`${existing ? 'Updated' : 'Added'} ${key}. ${Object.keys(users).length} user(s) total.`)
   if (existing) console.log('Any sessions they had are now signed out (within a minute).')
+} else if (cmd === 'invite') {
+  const key = String(username ?? '').toLowerCase()
+  const address = String(displayName ?? '').trim().toLowerCase()
+  if (!key || !address) {
+    console.error('usage: invite <username> <address> ["Display Name"]'); process.exit(64)
+  }
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(address)) {
+    console.error(`That does not look like an email address: ${address}`); process.exit(65)
+  }
+  const clash = Object.entries(users)
+    .find(([u, r]) => u !== key && String(r.email ?? '').toLowerCase() === address)
+  if (clash) { console.error(`${clash[0]} already uses ${address}.`); process.exit(65) }
+
+  const existing = users[key]
+  // No salt and no hash, deliberately. verifyPassword() refuses a record
+  // without them, so there is no password to guess and the only way in is a
+  // code sent to that address.
+  const { salt, hash, iterations, ...rest } = existing ?? {}
+  users[key] = {
+    ...rest,
+    name: process.argv[5] ?? existing?.name ?? username,
+    email: address,
+    v: (existing?.v ?? 0) + 1,
+  }
+  writeUsers(users)
+  console.log(`${existing ? 'Updated' : 'Added'} ${key} (${address}), email sign-in only.`)
+  console.log(`They sign in at the dashboard by entering ${address} and typing the code they are sent.`)
+  if (existing?.hash) console.log('Their old password no longer works.')
+
 } else if (cmd === 'passwd') {
   const key = String(username ?? '').toLowerCase()
   if (!users[key]) { console.error(`No such user: ${username}`); process.exit(66) }
@@ -234,6 +271,6 @@ if (cmd === 'list') {
   console.log(`Removed ${username}. ${Object.keys(users).length} user(s) left.`)
   console.log('Their sessions stop working within a minute — the gate checks the user still exists.')
 } else {
-  console.error('usage: manage-users.mjs <add|passwd|email|revoke|list|remove> [username] ["Display Name" | address]')
+  console.error('usage: manage-users.mjs <add|invite|passwd|email|revoke|list|remove> [username] ["Display Name" | address]')
   process.exit(64)
 }

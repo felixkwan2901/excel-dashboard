@@ -309,22 +309,45 @@ paid plan. Decide which you want before flipping it.
 
 # Part D — Adding the other five people
 
-Each person needs a username and a password. An email address is optional and
-is what lets them sign in with a code instead.
+There are two ways to add someone, and the first is almost always the one you
+want.
+
+## With an email address — no password at all
 
 ```
 cd ~/excel-dashboard
-node scripts/manage-users.mjs add jane "Jane Smith"
-node scripts/manage-users.mjs email jane jane@cdelectrical.co.nz
+node scripts/manage-users.mjs invite jane jane@cdelectrical.co.nz "Jane Smith"
 ```
 
-`add` prompts for a password twice, hidden. Minimum twelve characters.
+That account has no password. The only way in is a code sent to that address,
+which means there is nothing to invent, nothing to send them, and nothing for
+them to forget. Tell them to go to the dashboard, enter their address, and
+type the six digits.
+
+A password you have to text or email someone is a worse secret than no
+password, which is the whole reason this option exists.
+
+## With a password
+
+For anyone without a usable email address:
+
+```
+node scripts/manage-users.mjs add jane "Jane Smith"
+```
+
+It prompts twice, hidden. Minimum twelve characters. You then have to get that
+password to them somehow, which is the part with no good answer — so prefer
+`invite` when you can.
+
+Either kind can be changed later: `passwd` adds or replaces a password,
+`email` adds or removes an address.
 
 Other commands:
 
 | Command | What it does |
 |---|---|
 | `list` | Everyone, their address, and their session version |
+| `invite <user> <address>` | Add someone with an address and no password |
 | `passwd <user>` | Change a password and sign them out everywhere |
 | `email <user> <address>` | Set or change the address; `""` removes it |
 | `revoke <user>` | Sign them out everywhere; password still works |

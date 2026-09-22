@@ -181,7 +181,13 @@ async function handleLogin(request, env) {
   // Verify even when the user does not exist, against a throwaway record, so a
   // wrong name and a wrong password take the same time to answer. Otherwise the
   // response time tells an attacker which names are real.
-  const ok = record
+  //
+  // An account created by `invite` has no salt and no hash — it signs in by
+  // emailed code only. That has to take the same time as everything else too,
+  // or the delay alone says "this name exists and has no password", which is a
+  // more useful thing to learn than whether the name exists at all.
+  const hasPassword = Boolean(record?.salt && record?.hash)
+  const ok = hasPassword
     ? await verifyPassword(password, record)
     : (await verifyPassword(password, {
         salt: '00000000000000000000000000000000',
