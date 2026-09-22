@@ -20,6 +20,7 @@ export const JOB_CATEGORIES = [
   'Smart Vent',
   'E4M',
   'Contract Labour',
+  'Residential New Build',
   'Residential Renovation',
   'Residential Service',
   'Commercial New Build',
@@ -46,6 +47,7 @@ export const CATEGORIES_KEY = 'planning:job-categories'
 // front of somebody — so those map to nothing and the field app keeps saying
 // "not broken down yet", which is true.
 export const CATEGORY_SITE_TYPE = {
+  'Residential New Build': 'residential',
   'Residential Renovation': 'residential',
   'Residential Service': 'residential',
   'Commercial New Build': 'commercial',

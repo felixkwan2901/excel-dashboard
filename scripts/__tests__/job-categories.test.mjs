@@ -7,12 +7,12 @@ import { JOB_CATEGORIES, CATEGORIES_KEY, CATEGORY_SITE_TYPE } from '../../src/li
 test('every category Cassidy-Davies asked for is there', () => {
   for (const wanted of [
     'Warranty', 'Sundry', 'Design', 'Lighter', 'Rest Homes', 'Smart Vent', 'E4M',
-    'Contract Labour', 'Residential Renovation', 'Residential Service',
+    'Contract Labour', 'Residential New Build', 'Residential Renovation', 'Residential Service',
     'Commercial New Build', 'Commercial Renovation', 'Commercial Service', 'Solar',
   ]) {
     assert.ok(JOB_CATEGORIES.includes(wanted), `missing: ${wanted}`)
   }
-  assert.equal(JOB_CATEGORIES.length, 14)
+  assert.equal(JOB_CATEGORIES.length, 15)
 })
 
 // Two spellings of one category are two categories to every filter and count,
@@ -50,4 +50,16 @@ test('categories that are not a site build map to nothing', () => {
   for (const category of ['Warranty', 'Sundry', 'Design', 'Contract Labour', 'Solar']) {
     assert.equal(CATEGORY_SITE_TYPE[category], undefined, `${category} should not imply a checklist`)
   }
+})
+
+// Residential and commercial each run new build, renovation, service, in that
+// order. Appending a new one to the end of the list instead would have split
+// the residential trio around the commercial one.
+test('residential and commercial read in the same order as each other', () => {
+  const index = (name) => JOB_CATEGORIES.indexOf(name)
+  for (const side of ['Residential', 'Commercial']) {
+    assert.ok(index(`${side} New Build`) < index(`${side} Renovation`), side)
+    assert.ok(index(`${side} Renovation`) < index(`${side} Service`), side)
+  }
+  assert.ok(index('Residential Service') < index('Commercial New Build'))
 })
