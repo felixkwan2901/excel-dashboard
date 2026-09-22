@@ -20,7 +20,12 @@ function kv() {
   }
 }
 
-async function makeEnv({ email = 'felix@cdelectrical.co.nz', mail = true } = {}) {
+const PROVIDERS = {
+  resend: { RESEND_API_KEY: 'test-key' },
+  mailjet: { MAILJET_API_KEY: 'test-key', MAILJET_SECRET_KEY: 'test-secret' },
+}
+
+async function makeEnv({ email = 'felix@cdelectrical.co.nz', mail = true, provider = 'resend' } = {}) {
   const APP_DATA = kv()
   const users = {
     felix: { ...(await hashPassword('a-long-enough-password')), name: 'Felix', email, v: 3 },
@@ -30,7 +35,7 @@ async function makeEnv({ email = 'felix@cdelectrical.co.nz', mail = true } = {})
   return {
     APP_DATA,
     SESSION_SECRET: 'test-session-secret',
-    ...(mail ? { RESEND_API_KEY: 'test-key', MAIL_FROM: 'CDE <no-reply@example.com>' } : {}),
+    ...(mail ? { ...PROVIDERS[provider], MAIL_FROM: 'CDE <no-reply@example.com>' } : {}),
     ASSETS: { fetch: async () => new Response('THE DASHBOARD', { status: 200 }) },
   }
 }
@@ -41,7 +46,10 @@ function captureMail() {
   const real = globalThis.fetch
   globalThis.fetch = async (url, init) => {
     sent.push({ url: String(url), body: JSON.parse(init.body) })
-    return new Response('{"id":"stub"}', { status: 200 })
+    // Mailjet reports per-message success inside a 200; Resend just 200s.
+    return String(url).includes('mailjet')
+      ? new Response('{"Messages":[{"Status":"success"}]}', { status: 200 })
+      : new Response('{"id":"stub"}', { status: 200 })
   }
   return { sent, restore: () => { globalThis.fetch = real } }
 }
@@ -52,7 +60,8 @@ const post = (path, fields) => {
   return new Request(`${ORIGIN}${path}`, { method: 'POST', body })
 }
 
-const codeFrom = (mail) => mail.body.subject.match(/(\d{6})/)[1]
+const codeFrom = (mail) =>
+  (mail.body.subject ?? mail.body.Messages[0].Subject).match(/(\d{6})/)[1]
 const cookieFrom = (res) => res.headers.get('Set-Cookie') ?? ''
 
 test('the gate offers the email form when Resend is configured', async () => {
@@ -83,6 +92,7 @@ test('a code signs you in', async () => {
     assert.equal(mail.sent.length, 1)
     assert.match(mail.sent[0].url, /api\.resend\.com/)
     assert.deepEqual(mail.sent[0].body.to, ['felix@cdelectrical.co.nz'])
+    assert.equal(mail.sent[0].body.from, 'CDE <no-reply@example.com>')
     const code = codeFrom(mail.sent[0])
 
     const challenge = page.match(/name="challenge" value="([^"]+)"/)[1]
@@ -204,4 +214,74 @@ test('a signed-out API call still answers JSON, not a login page', async () => {
   const res = await worker.fetch(new Request(`${ORIGIN}/api/whoami`), env)
   assert.equal(res.status, 401)
   assert.deepEqual(await res.json(), { ok: false, error: 'not_signed_in' })
+})
+
+// ---------------------------------------------------------------------------
+// The Mailjet route — the one that needs no domain, and so the one actually in
+// use. Same flow, different envelope on the wire.
+// ---------------------------------------------------------------------------
+
+test('mailjet: a code signs you in', async () => {
+  const env = await makeEnv({ provider: 'mailjet' })
+  const mail = captureMail()
+  try {
+    const page = await (await worker.fetch(post('/auth/code', { email: 'felix@cdelectrical.co.nz' }), env)).text()
+    assert.match(page, /Check your email/)
+
+    assert.equal(mail.sent.length, 1)
+    assert.match(mail.sent[0].url, /api\.mailjet\.com\/v3\.1\/send/)
+    const msg = mail.sent[0].body.Messages[0]
+    assert.deepEqual(msg.To, [{ Email: 'felix@cdelectrical.co.nz' }])
+    assert.deepEqual(msg.From, { Email: 'no-reply@example.com', Name: 'CDE' })
+    assert.ok(msg.TextPart.includes(codeFrom(mail.sent[0])))
+
+    const challenge = page.match(/name="challenge" value="([^"]+)"/)[1]
+    const res = await worker.fetch(
+      post('/auth/verify', { email: 'felix@cdelectrical.co.nz', challenge, code: codeFrom(mail.sent[0]) }), env,
+    )
+    assert.equal(res.status, 303)
+    assert.match(cookieFrom(res), new RegExp(`^${SESSION_COOKIE}=.+HttpOnly`))
+  } finally { mail.restore() }
+})
+
+// Mailjet answers 200 and puts the real verdict inside the body, so treating
+// HTTP 200 as success would have silently swallowed an unverified sender —
+// the single most likely thing to go wrong on this setup.
+test('mailjet: a 200 that rejected the message is still a failure', async () => {
+  const env = await makeEnv({ provider: 'mailjet' })
+  const real = globalThis.fetch
+  globalThis.fetch = async () => new Response(JSON.stringify({
+    Messages: [{ Status: 'error', Errors: [{ ErrorMessage: 'sender not verified' }] }],
+  }), { status: 200 })
+  try {
+    const res = await worker.fetch(post('/auth/code', { email: 'felix@cdelectrical.co.nz' }), env)
+    assert.equal(res.status, 502)
+    assert.match(await res.text(), /could not be sent/)
+  } finally { globalThis.fetch = real }
+})
+
+test('mailjet: bad credentials surface as a failure, not a blank page', async () => {
+  const env = await makeEnv({ provider: 'mailjet' })
+  const real = globalThis.fetch
+  globalThis.fetch = async () => new Response('{"ErrorMessage":"unauthorized"}', { status: 401 })
+  try {
+    const res = await worker.fetch(post('/auth/code', { email: 'felix@cdelectrical.co.nz' }), env)
+    assert.equal(res.status, 502)
+  } finally { globalThis.fetch = real }
+})
+
+test('mailjet needs both halves of the key before the route appears', async () => {
+  const half = await makeEnv({ mail: false })
+  half.MAILJET_API_KEY = 'only-one'
+  half.MAIL_FROM = 'CDE <no-reply@example.com>'
+  const html = await (await worker.fetch(new Request(`${ORIGIN}/`), half)).text()
+  assert.doesNotMatch(html, /Email me a code/)
+})
+
+test('MAIL_FROM is split for Mailjet and passed whole to Resend', async () => {
+  const { parseFrom } = await import('../../site-worker/mail.js')
+  assert.deepEqual(parseFrom('CDE Dashboard <a@b.com>'), { name: 'CDE Dashboard', email: 'a@b.com' })
+  assert.deepEqual(parseFrom('"CDE" <a@b.com>'), { name: 'CDE', email: 'a@b.com' })
+  assert.deepEqual(parseFrom('a@b.com'), { name: '', email: 'a@b.com' })
+  assert.deepEqual(parseFrom('  a@b.com  '), { name: '', email: 'a@b.com' })
 })
