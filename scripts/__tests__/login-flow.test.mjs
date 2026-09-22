@@ -285,3 +285,40 @@ test('MAIL_FROM is split for Mailjet and passed whole to Resend', async () => {
   assert.deepEqual(parseFrom('a@b.com'), { name: '', email: 'a@b.com' })
   assert.deepEqual(parseFrom('  a@b.com  '), { name: '', email: 'a@b.com' })
 })
+
+// The code step used to be a dead end: its only link was labelled "Send a new
+// code", which nobody reads as "I mistyped the address". A wrong address left
+// you on a page waiting for mail that was never coming, with no way back.
+test('the code step offers a way back with the address filled in', async () => {
+  const env = await makeEnv({ provider: 'mailjet' })
+  const mail = captureMail()
+  try {
+    const page = await (await worker.fetch(
+      post('/auth/code', { email: 'typo@cdelectrical.co.nz', next: '/planning' }), env,
+    )).text()
+    assert.match(page, /Change the address/)
+
+    const href = page.match(/href="\/\?(signin=email[^"]*)"/)[1].replace(/&amp;/g, '&')
+    const q = new URLSearchParams(href)
+    assert.equal(q.get('email'), 'typo@cdelectrical.co.nz')
+    assert.equal(q.get('next'), '/planning')
+
+    // And following it really does come back prefilled, still heading for the
+    // page they were trying to reach.
+    const back = await worker.fetch(new Request(`${ORIGIN}/?${href}`), env)
+    const form = await back.text()
+    assert.match(form, /value="typo@cdelectrical\.co\.nz"/)
+    assert.match(form, /name="next" value="\/planning"/)
+  } finally { mail.restore() }
+})
+
+test('a prefilled address cannot smuggle markup into the form', async () => {
+  const env = await makeEnv({ provider: 'mailjet' })
+  const nasty = '"><script>alert(1)</script>'
+  const res = await worker.fetch(
+    new Request(`${ORIGIN}/?signin=email&email=${encodeURIComponent(nasty)}`), env,
+  )
+  const html = await res.text()
+  assert.doesNotMatch(html, /<script>alert/)
+  assert.match(html, /&quot;&gt;&lt;script&gt;/)
+})

@@ -362,7 +362,11 @@ export default {
       const asked = path === '/' ? url.searchParams.get('signin') : null
       const mode = asked === 'password' || asked === 'email' ? asked : defaultMode(env)
       const next = asked ? safeNext(url.searchParams.get('next')) : path + url.search
-      return loginResponse(env, { mode, next })
+      // Carried back from the code step so a mistyped address arrives in the
+      // box ready to correct. It is reflected into a value attribute, which
+      // renderLogin escapes, and it is never trusted for anything else.
+      const email = asked === 'email' ? (url.searchParams.get('email') ?? '').slice(0, 200) : ''
+      return loginResponse(env, { mode, next, email })
     }
 
     if (path === '/api/whoami') return json({ ok: true, user })

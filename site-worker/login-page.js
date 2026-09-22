@@ -74,8 +74,15 @@ ${inner}
 // are ordinary GETs, so the hidden field in the form they are leaving does not
 // come with them, and without this a signed-out click on a deep link would
 // always land back on the dashboard home after signing in.
-const altLink = (signin, label, next) =>
-  `<p class="alt"><a href="/?signin=${signin}&amp;next=${encodeURIComponent(next || '/')}">${escape(label)}</a></p>`
+//
+// `email` carries the address back to the form so it arrives filled in. Going
+// back to an empty box to correct one typo is the kind of small cruelty that
+// makes people give up and use the password.
+const altLink = (signin, label, next, email = '') => {
+  const q = `signin=${signin}&next=${encodeURIComponent(next || '/')}`
+    + (email ? `&email=${encodeURIComponent(email)}` : '')
+  return `<p class="alt"><a href="/?${q}">${escape(label)}</a></p>`
+}
 
 export function renderLogin({
   mode = 'password',
@@ -106,8 +113,8 @@ export function renderLogin({
              required autofocus />
       <button type="submit">Sign in</button>
     </form>
-    ${altLink('email', 'Send a new code', next)}
-    <p class="foot">Nothing arrived? Check the junk folder, then ask the office that the address on your account is right.</p>`)
+    ${altLink('email', '\u2190 Change the address, or send a new code', next, email)}
+    <p class="foot">Nothing arrived? Check your junk folder first. If that address is not set up for the dashboard no code is sent, so check it with the office \u2014 or sign in with your password instead.</p>`)
   }
 
   if (mode === 'email') {
