@@ -1,0 +1,70 @@
+name: Publish the field app job list
+
+# Keeps planning:field-jobs — the list the field app reads — in step with the
+# workbook and with the type of work set on the dashboard.
+#
+# Three triggers, because two different things can make the list stale:
+#
+#   workflow_run  the weekly upload finished, so a job may have been added,
+#                 renamed or archived
+#   schedule      somebody changed a job's type of work in the dashboard,
+#                 which nothing else here would notice. Daily, 06:00 NZ.
+#   manual        for when you have just changed something and do not want to
+#                 wait for either of the above
+#
+# Its own workflow rather than a step inside process-pending-updates, so the
+# scheduled run does not drag the whole upload pipeline along with it.
+#
+# Inert until CLOUDFLARE_API_TOKEN exists in the repo secrets — the same token
+# the Cloudflare deploy job uses. Create one at Cloudflare > Manage Account >
+# API Tokens with the "Edit Cloudflare Workers" template, then:
+#   gh secret set CLOUDFLARE_API_TOKEN
+
+on:
+  workflow_run:
+    workflows: ["Process pending data updates"]
+    types: [completed]
+  schedule:
+    - cron: '0 18 * * *'
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    # A failed upload run leaves the workbook untouched, so there is nothing
+    # new to publish from.
+    if: >-
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success'
+    steps:
+      # main, not the triggering SHA: the upload pipeline resets to latest
+      # main and re-commits on conflict, so the freshest workbook is on the
+      # branch rather than at the SHA that started this.
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Skip with a clear reason if the token is missing
+        id: gate
+        run: |
+          if [ -z "${{ secrets.CLOUDFLARE_API_TOKEN }}" ]; then
+            echo "No CLOUDFLARE_API_TOKEN secret set — skipping. The field app will"
+            echo "keep showing the job list from the last manual publish."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish the job list
+        if: steps.gate.outputs.ready == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: node scripts/publish-field-jobs.mjs
