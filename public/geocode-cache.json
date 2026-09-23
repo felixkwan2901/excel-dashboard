@@ -47,7 +47,10 @@
     "lat": -43.5002148,
     "lng": 172.6155492
   },
-  "Cnr of Browns Road and South Eyre Road": null,
+  "Cnr of Browns Road and South Eyre Road": {
+    "lat": -43.395584,
+    "lng": 172.4324546
+  },
   "53 Freda Du Faur Avenue, Twizel, Twizel 7901": {
     "lat": -44.272667,
     "lng": 170.0695378

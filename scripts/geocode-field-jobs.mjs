@@ -99,6 +99,18 @@ for (const job of list) {
     cache[address] = hit // cache the miss too, as `null` — a bad address is
     // not going to start resolving on the next run, and this stops it being
     // looked up again every single time.
+    //
+    // A miss can be fixed by hand: edit public/geocode-cache.json directly,
+    // replacing the `null` for that exact address string with { "lat": ...,
+    // "lng": ... }, then re-run this script (it will see the address already
+    // has an entry and use it as-is). This is the right move for a real site
+    // with a description instead of a postal address — "Cnr of Browns Road
+    // and South Eyre Road" is never going to geocode as a string no matter
+    // how it is rephrased, because it names two roads, not a point on one of
+    // them. Finding the actual crossing (Overpass's `node(w.eyre)(w.browns)`
+    // against the two named ways works well for this) and pasting its
+    // coordinate in is honest; inventing a plausible-looking street number
+    // for a job that has none is not.
     looked += 1
     // Nominatim's usage policy: max 1 request/second.
     await sleep(1100)
