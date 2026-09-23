@@ -2,6 +2,8 @@ import * as XLSX from 'xlsx'
 import { fetchOverrides } from './overrides'
 import { fetchJobOwners } from './jobOwnerStore'
 import { fetchJobCategories } from './jobCategoryStore'
+import { fetchJobDetails } from './jobDetailsStore'
+import { JOB_DETAIL_KEYS } from './jobDetails'
 import { fetchJobChecklists } from './checklistStore'
 import { fetchClaimFields, NUMERIC_CLAIM_FIELDS } from './claimFieldsStore'
 import { fetchUpcomingWork, NOTES_FIELD } from './upcomingWorkStore'
@@ -681,6 +683,20 @@ function applyJobCategories(jobs, categories) {
   }
 }
 
+// The typed-in site details — who to call, hazards, gate code. Flattened onto
+// the job as `detail_<field>` rather than nested, because every consumer (the
+// table cell, the column filter, the job page) reads one field at a time and
+// a nested object would have each of them guarding for its absence.
+function applyJobDetails(jobs, details) {
+  for (const job of jobs) {
+    const saved = details?.[job.jobNumber]
+    for (const key of JOB_DETAIL_KEYS) {
+      const value = saved?.[key]
+      job[`detail_${key}`] = typeof value === 'string' ? value : ''
+    }
+  }
+}
+
 function applyJobChecklists(mainSheet, stored) {
   if (!stored) return
   for (const job of mainSheet.jobs) {
@@ -785,9 +801,9 @@ export async function loadWorkbook() {
   // — this bounds it so an error state (with a retry) shows up instead.
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 20_000)
-  let res, hoursRes, claimsLogRes, archivedRes, mainSheetOverrides, claimCalcOverrides, upcomingWorkOverrides, jobOwners, jobCategories, jobChecklists, claimFields, upcomingWorkFields
+  let res, hoursRes, claimsLogRes, archivedRes, mainSheetOverrides, claimCalcOverrides, upcomingWorkOverrides, jobOwners, jobCategories, jobDetails, jobChecklists, claimFields, upcomingWorkFields
   try {
-    ;[res, hoursRes, claimsLogRes, archivedRes, mainSheetOverrides, claimCalcOverrides, upcomingWorkOverrides, jobOwners, jobCategories, jobChecklists, claimFields, upcomingWorkFields] =
+    ;[res, hoursRes, claimsLogRes, archivedRes, mainSheetOverrides, claimCalcOverrides, upcomingWorkOverrides, jobOwners, jobCategories, jobDetails, jobChecklists, claimFields, upcomingWorkFields] =
       await Promise.all([
         fetch(workbookUrl, { signal: controller.signal, cache: 'no-store' }),
         fetch(monthlyHoursLogUrl, { signal: controller.signal, cache: 'no-store' }),
@@ -798,6 +814,7 @@ export async function loadWorkbook() {
         fetchOverrides('upcoming-work'),
         fetchJobOwners(),
         fetchJobCategories(),
+        fetchJobDetails(),
         fetchJobChecklists(),
         fetchClaimFields(),
         fetchUpcomingWork(),
@@ -817,6 +834,7 @@ export async function loadWorkbook() {
   applyMainSheetOverrides(mainSheet, mainSheetOverrides)
   applyJobOwners(mainSheet, jobOwners)
   applyJobCategories(jobs, jobCategories)
+  applyJobDetails(jobs, jobDetails)
   applyJobChecklists(mainSheet, jobChecklists)
   applyClaimCalcOverrides(monthlyClaims, claimCalcOverrides)
   applyClaimFields(monthlyClaims, claimFields)

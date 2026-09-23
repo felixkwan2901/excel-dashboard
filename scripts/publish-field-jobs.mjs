@@ -24,6 +24,7 @@ import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import XLSX from 'xlsx'
 import { CATEGORY_SITE_TYPE } from '../src/lib/jobCategories.js'
+import { JOB_DETAILS_KEY, toFieldJob } from '../src/lib/jobDetails.js'
 
 const KEY = 'planning:field-jobs'
 const CATEGORIES_KEY = 'planning:job-categories'
@@ -71,11 +72,22 @@ function jobsFromWorkbook() {
   return [...found].map(([jobNumber, jobName]) => ({ jobNumber, jobName }))
 }
 
+// Copy only the named keys that actually have a value.
+function pick(source, keys) {
+  const out = {}
+  if (!source || typeof source !== 'object') return out
+  for (const key of keys) if (source[key] !== undefined && source[key] !== '') out[key] = source[key]
+  return out
+}
+
 const existing = readKv(KEY, [])
 const byNumber = new Map(
   (Array.isArray(existing) ? existing : []).map((j) => [String(j.jobNumber), j]),
 )
 const categories = readKv(CATEGORIES_KEY, {})
+// Who to call, hazards, gate code — typed into the dashboard's job table.
+// Nothing else in the company records any of it.
+const details = readKv(JOB_DETAILS_KEY, {})
 const archived = readArchived()
 
 const all = jobsFromWorkbook()
@@ -88,18 +100,33 @@ const next = live.map((job) => {
   // where the category gives no answer — otherwise the two drift and the
   // dashboard stops being the place that decides.
   const type = CATEGORY_SITE_TYPE[category] ?? before?.type
+  // Who to call, hazards, gate code, parking — typed into the dashboard.
+  // `site` is pulled out of it separately because it is the one part that has
+  // to be combined with what is already there rather than replacing it.
+  const { site: detailSite, ...detail } = toFieldJob(details?.[job.jobNumber])
+
+  // The address and the map query come from the Jobs export and are kept; the
+  // gate code, parking and hours are typed in the dashboard. Picking the kept
+  // keys out by name, rather than spreading the whole of the previous `site`,
+  // is what lets a gate code cleared in the dashboard actually disappear
+  // instead of surviving as whatever the last publish happened to write.
+  const site = { ...pick(before?.site, ['address', 'mapQuery', 'lat', 'lng']), ...(detailSite ?? {}) }
+
   return {
     ...job,
     ...(category ? { category } : {}),
     ...(type ? { type } : {}),
-    // Everything the workbook knows nothing about and something else wrote:
-    // the address and the description come from the Jobs export via
-    // import-job-details.mjs, and this run must not undo that.
-    //
-    // Listed explicitly rather than spreading `before` wholesale, so a field
-    // the workbook DOES own can never be resurrected from a stale publish.
-    ...(before?.site ? { site: before.site } : {}),
+    ...(Object.keys(site).length ? { site } : {}),
+    // The description comes from the Jobs export via import-job-details.mjs,
+    // and this run must not undo that. Listed explicitly rather than
+    // spreading `before` wholesale, so a field the workbook DOES own can
+    // never be resurrected from a stale publish.
     ...(before?.scope ? { scope: before.scope } : {}),
+    // Contacts, hazards and the rest are owned outright by the dashboard, so
+    // they replace rather than merge — clearing a phone number there has to
+    // clear it on site too. Anything left behind would be a number the office
+    // believes it deleted, still on a crew's phone.
+    ...detail,
   }
 })
 

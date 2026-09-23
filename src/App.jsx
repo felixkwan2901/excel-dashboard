@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { loadWorkbook } from './lib/loadWorkbook'
 import { computeKpis } from './lib/deriveMetrics'
 import { parseUrlState, pushUrlState, replaceUrlState } from './lib/urlState'
+import { JOB_DETAIL_KEYS } from './lib/jobDetails'
 import { Sidebar, TopStrip } from './components/SidebarNav'
 import { readTheme, applyTheme } from './lib/theme'
 import { installTableScrolling } from './lib/tableScroll'
@@ -138,14 +139,38 @@ export default function App() {
     []
   )
 
+  // Site details changed in this session, same reason as the two above: the
+  // write reaches the server immediately, but nothing re-reads the workbook,
+  // so without this the phone number goes back to blank the moment you leave
+  // the table.
+  //
+  // Keyed "<jobNumber>:<field>" rather than a map of maps: an edit is always
+  // one field on one job, and the flat key makes folding it in below a
+  // lookup rather than a merge.
+  const [detailEdits, setDetailEdits] = useState(() => new Map())
+  const applyDetailEdit = useCallback(
+    (jobNumber, field, value) =>
+      setDetailEdits((prev) => new Map(prev).set(`${String(jobNumber)}:${field}`, value)),
+    []
+  )
+
   const jobs = useMemo(() => {
     const ownerOf = new Map((mainSheet.jobs ?? []).map((j) => [j.jobNumber, j.jobOwner]))
     return rawJobs.map((j) => ({
       ...j,
       jobOwner: ownerEdits.has(j.jobNumber) ? ownerEdits.get(j.jobNumber) : ownerOf.get(j.jobNumber) || '',
       jobCategory: categoryEdits.has(j.jobNumber) ? categoryEdits.get(j.jobNumber) : j.jobCategory || '',
+      ...Object.fromEntries(
+        JOB_DETAIL_KEYS.map((key) => {
+          const edit = `${j.jobNumber}:${key}`
+          return [
+            `detail_${key}`,
+            detailEdits.has(edit) ? detailEdits.get(edit) : j[`detail_${key}`] || '',
+          ]
+        })
+      ),
     }))
-  }, [rawJobs, mainSheet, ownerEdits, categoryEdits])
+  }, [rawJobs, mainSheet, ownerEdits, categoryEdits, detailEdits])
   const monthlyHours = state.status === 'ready' ? state.monthlyHours : { months: [], totalsByMonth: [], jobs: [] }
   const upcomingWork = state.status === 'ready' ? state.upcomingWork : { jobs: [] }
   const monthlyClaimsHistory =
@@ -446,6 +471,7 @@ export default function App() {
                 jobs={jobs}
                 onOwnerSaved={applyOwnerEdit}
                 onCategorySaved={applyCategoryEdit}
+                onDetailSaved={applyDetailEdit}
                 query={dashboardQuery}
                 onQueryChange={updateDashboardQuery}
                 statusFilter={dashboardFilter}

@@ -9,6 +9,8 @@ import { JOB_OWNERS } from '../lib/jobOwners'
 import { saveJobOwner } from '../lib/jobOwnerStore'
 import { JOB_CATEGORIES } from '../lib/jobCategories'
 import { saveJobCategory } from '../lib/jobCategoryStore'
+import { JOB_DETAIL_FIELDS } from '../lib/jobDetails'
+import { saveJobDetail } from '../lib/jobDetailsStore'
 
 const FIXED_COLUMNS = [{ key: 'jobNumber', label: 'Job Number' }, { key: 'jobName', label: 'Job Name' }]
 
@@ -19,7 +21,15 @@ const FIXED_COLUMNS = [{ key: 'jobNumber', label: 'Job Number' }, { key: 'jobNam
 // enough to pair two-per-row, which is what actually fixes "too much
 // crammed into one card": same information, roughly half the vertical
 // space.
-const WIDE_MOBILE_KEYS = new Set(['costProgress', 'materialCostProgress', 'labourCostProgress', 'labourHoursProgress'])
+const WIDE_MOBILE_KEYS = new Set([
+  'costProgress',
+  'materialCostProgress',
+  'labourCostProgress',
+  'labourHoursProgress',
+  // A hazard list or a sentence about the switchboard in a half-width card
+  // cell wraps to five lines and reads as damage.
+  ...JOB_DETAIL_FIELDS.filter((f) => f.wide).map((f) => `detail_${f.key}`),
+])
 
 // Shown by default but still toggleable — the compact "at a glance" set
 // this table originally shipped with.
@@ -69,13 +79,39 @@ const OPTIONAL_COLUMNS = [
   { key: 'quotedMargin', label: 'Quoted margin', num: true, format: percent, group: 'Margin' },
 
   { key: 'estimatedPctJobComplete', label: 'Est. % job complete', num: true, format: percent, group: 'Progress' },
+
+  // Typed in by hand, and off by default: eleven extra columns in a table
+  // that is already wide would make the money harder to read for everyone
+  // who is not filling them in. They are grouped so the picker offers
+  // "Contact" and "Safety" as a set rather than eleven loose checkboxes.
+  //
+  // `detail: true` is what makes renderCell give them an editable input;
+  // `key` matches the flattened field on the job (see applyJobDetails).
+  ...JOB_DETAIL_FIELDS.map((f) => ({
+    key: `detail_${f.key}`,
+    label: f.label,
+    group: f.group,
+    detail: f,
+  })),
 ]
 
 // The order groups appear in the toggle panel — deliberately not
 // alphabetical, roughly matching how a job's figures get discussed in
 // practice (claim first, then what it cost, then the two things that make
 // up cost, then how that nets out, then overall progress).
-const COLUMN_GROUP_ORDER = ['Job', 'Claim', 'Cost', 'Material', 'Labour', 'Margin', 'Progress']
+const COLUMN_GROUP_ORDER = [
+  'Job',
+  'Claim',
+  'Cost',
+  'Material',
+  'Labour',
+  'Margin',
+  'Progress',
+  'Contact',
+  'Safety',
+  'Site',
+  'Work',
+]
 
 // Replaces the old separate Quoted Price / Actual Cost / Remaining to
 // Claim columns with one compact element: a bar showing actual cost as a
@@ -213,7 +249,63 @@ function CategoryCell({ job, value, saving, onChange }) {
   )
 }
 
+// A free-text cell for the details nothing else in the company records.
+//
+// Uncontrolled, and saved on blur rather than on every keystroke: each save
+// is a read-modify-write of the whole details blob, and firing one per
+// character would both hammer the Worker and make a slow round trip able to
+// overwrite a later one with earlier text.
+//
+// `key` (set by the caller to the stored value) is what re-syncs it when the
+// value changes from somewhere else — remounting with a fresh defaultValue,
+// rather than a state-setting effect that fights the person typing.
+function DetailCell({ job, field, value, saving, onSave }) {
+  return (
+    <input
+      type="text"
+      defaultValue={value}
+      disabled={saving}
+      placeholder={field.placeholder}
+      aria-label={`${field.label} for job ${job.jobNumber}`}
+      onClick={(e) => e.stopPropagation()}
+      // The row opens the job on click, and every key inside this input would
+      // otherwise bubble into whatever the row listens for.
+      onKeyDown={(e) => {
+        e.stopPropagation()
+        // Enter commits by leaving the field, so there is one save path
+        // rather than two that can disagree.
+        if (e.key === 'Enter') e.currentTarget.blur()
+        // Escape puts the original text back and gives up, without saving.
+        if (e.key === 'Escape') {
+          e.currentTarget.value = value
+          e.currentTarget.blur()
+        }
+      }}
+      onBlur={(e) => {
+        const next = e.target.value.trim()
+        if (next !== value) onSave(job, field.key, next)
+      }}
+      className={`w-full rounded-md border border-white/10 bg-white/[0.04] px-1.5 py-1 text-[12px] text-neutral-200 placeholder:text-neutral-600 focus:border-brand-green/50 focus:outline-none ${
+        field.wide ? 'min-w-[200px]' : 'min-w-[140px]'
+      } ${saving ? 'opacity-50' : ''}`}
+    />
+  )
+}
+
 function renderCell(job, col, ctx) {
+  if (col.detail) {
+    const value = job[col.key] || ''
+    return (
+      <DetailCell
+        key={value}
+        job={job}
+        field={col.detail}
+        value={value}
+        saving={ctx?.detailSaving?.has(`${job.jobNumber}:${col.detail.key}`) ?? false}
+        onSave={ctx?.onDetailSave ?? (() => {})}
+      />
+    )
+  }
   switch (col.key) {
     case 'jobCategory':
       return (
@@ -310,6 +402,7 @@ export default function JobTable({
   onSelectJob,
   onOwnerSaved,
   onCategorySaved,
+  onDetailSaved,
 }) {
   const [sort, setSort] = useState({ key: 'jobNumber', dir: 1 })
   // Remembered, because the person using it is nearly always the same person
@@ -326,6 +419,9 @@ export default function JobTable({
   const [ownerSaving, setOwnerSaving] = useState(() => new Set())
   const [ownerError, setOwnerError] = useState('')
   const [categorySaving, setCategorySaving] = useState(() => new Set())
+  // Keyed by "<jobNumber>:<field>", not by job: eleven fields on one row, and
+  // typing in one of them must not grey out the other ten.
+  const [detailSaving, setDetailSaving] = useState(() => new Set())
 
   // The displayed owner comes straight from the prop. App holds the edits
   // made this session and folds them into `jobs`, so the table, the job page
@@ -374,6 +470,29 @@ export default function JobTable({
     if (!saved) {
       onCategorySaved?.(job.jobNumber, previous)
       setOwnerError(`Could not save the type of work for job ${job.jobNumber}. Nothing was changed.`)
+    }
+  }
+
+  // Same optimistic write and rollback as the owner and the category: the
+  // text stays on screen immediately, and goes back to what was stored if the
+  // write did not land. A cell showing text the server never took is the one
+  // outcome worth ruling out — someone would otherwise leave believing the
+  // gate code is recorded.
+  async function handleDetailSave(job, field, value) {
+    const token = `${job.jobNumber}:${field}`
+    const previous = job[`detail_${field}`] || ''
+    onDetailSaved?.(job.jobNumber, field, value)
+    setDetailSaving((prev) => new Set(prev).add(token))
+    setOwnerError('')
+    const saved = await saveJobDetail(job.jobNumber, field, value)
+    setDetailSaving((prev) => {
+      const next = new Set(prev)
+      next.delete(token)
+      return next
+    })
+    if (!saved) {
+      onDetailSaved?.(job.jobNumber, field, previous)
+      setOwnerError(`Could not save that detail for job ${job.jobNumber}. Nothing was changed.`)
     }
   }
 
@@ -442,6 +561,7 @@ export default function JobTable({
   const cellCtx = {
     ownerOf, ownerSaving, onOwnerChange: handleOwnerChange,
     categoryOf, categorySaving, onCategoryChange: handleCategoryChange,
+    detailSaving, onDetailSave: handleDetailSave,
   }
 
   function toggleSort(key) {

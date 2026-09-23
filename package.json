@@ -11,7 +11,8 @@
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist",
     "update-jobs": "node scripts/update-jobs.mjs",
-    "test": "node --test scripts/__tests__/*.test.mjs"
+    "test": "node --test scripts/__tests__/*.test.mjs",
+    "deploy:worker": "APP_BASE=/ VITE_API_BASE=/api PWA_SELF_DESTROY=1 VITE_FIELD_APP_URL=https://cd-field.fkw24.workers.dev/ npm run build && npx wrangler deploy"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
