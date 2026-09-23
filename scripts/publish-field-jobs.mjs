@@ -92,8 +92,14 @@ const next = live.map((job) => {
     ...job,
     ...(category ? { category } : {}),
     ...(type ? { type } : {}),
-    // The workbook knows nothing about a site, so anything recorded stays.
+    // Everything the workbook knows nothing about and something else wrote:
+    // the address and the description come from the Jobs export via
+    // import-job-details.mjs, and this run must not undo that.
+    //
+    // Listed explicitly rather than spreading `before` wholesale, so a field
+    // the workbook DOES own can never be resurrected from a stale publish.
     ...(before?.site ? { site: before.site } : {}),
+    ...(before?.scope ? { scope: before.scope } : {}),
   }
 })
 
