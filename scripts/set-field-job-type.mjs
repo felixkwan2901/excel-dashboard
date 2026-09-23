@@ -4,11 +4,18 @@
 //   node scripts/set-field-job-type.mjs <jobNumber> <commercial|residential>
 //   node scripts/set-field-job-type.mjs <jobNumber> none
 //
-// Nothing in the workbook says whether a job is commercial or residential, so
-// this is the only place that decision is recorded. Until it is made the job
-// appears in the field app with no tasks and says "not broken down yet",
-// which is true — guessing the checklist would put the wrong twenty tasks in
-// front of an electrician.
+// You almost certainly do not need this any more.
+//
+// The checklist now comes from the type of work set on the dashboard's
+// Projects tab — Commercial New Build and the rest map to commercial or
+// residential, and publish-field-jobs.mjs applies that. Set it there and it
+// flows through on the next publish.
+//
+// This remains for the one case the mapping cannot answer: a category that is
+// neither a commercial nor a residential build (Warranty, Design, Solar and
+// so on) but which still needs a checklist. Anything set here is overwritten
+// the moment the job's category does map, because one source of truth beats
+// two that can disagree.
 import { execFileSync } from 'node:child_process'
 
 const KEY = 'planning:field-jobs'

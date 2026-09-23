@@ -7,22 +7,29 @@
 // job numbers and names straight out of the workbook, written to KV under
 // planning:field-jobs, where the field Worker can read them.
 //
-// What the workbook has is a number and a name. It has no address column, no
-// commercial/residential marker and no record of who is on a job, so none of
-// that is published — the field app shows those as absent rather than
-// inventing them.
+// What the workbook has is a number and a name, and no address column, so
+// site details stay absent rather than being invented.
 //
-// `type` is the one field added by hand, and it is what gives a job its
-// checklist. This script never overwrites one: whatever has already been set
-// against a job is carried through to the new list, so re-running after a
-// weekly upload adds new jobs without undoing anyone's work.
+// The checklist a job gets is NOT typed in twice. It comes from the type of
+// work already set on the Projects tab: Commercial New Build and the other
+// commercial categories get the commercial checklist, the residential ones
+// get residential. Setting it in two places is how two places end up
+// disagreeing, and the dashboard dropdown is where that decision already
+// lives.
+//
+// Archived jobs are left out entirely. They are finished — nobody is standing
+// on that site tapping percentages, and a list of thirty-five where seven are
+// dead is a list people scroll past.
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import XLSX from 'xlsx'
+import { CATEGORY_SITE_TYPE } from '../src/lib/jobCategories.js'
 
 const KEY = 'planning:field-jobs'
+const CATEGORIES_KEY = 'planning:job-categories'
 const NS = '1bed6e14dbf047ac8616ae21ed09a9f6'
 const WORKBOOK = 'public/Cassidy_Davies_Electrical_BPMN_Data.xlsx'
+const ARCHIVED = 'public/archived-jobs.json'
 const SHEET = 'Deliverables Sheet'
 
 const dryRun = process.argv.includes('--dry-run')
@@ -30,11 +37,22 @@ const dryRun = process.argv.includes('--dry-run')
 const wrangler = (args) =>
   execFileSync('npx', ['wrangler', ...args], { encoding: 'utf8', stdio: ['pipe', 'pipe', 'inherit'] })
 
-function readExisting() {
+function readKv(key, fallback) {
   try {
-    return JSON.parse(wrangler(['kv', 'key', 'get', KEY, '--namespace-id', NS, '--remote']))
+    return JSON.parse(wrangler(['kv', 'key', 'get', key, '--namespace-id', NS, '--remote']))
   } catch {
-    return []
+    return fallback
+  }
+}
+
+function readArchived() {
+  try {
+    return new Set(JSON.parse(readFileSync(ARCHIVED, 'utf8')).map(String))
+  } catch {
+    // Better to publish everything than to silently drop the whole list
+    // because one file is missing.
+    console.warn(`Could not read ${ARCHIVED} — nothing will be treated as archived.`)
+    return new Set()
   }
 }
 
@@ -53,32 +71,44 @@ function jobsFromWorkbook() {
   return [...found].map(([jobNumber, jobName]) => ({ jobNumber, jobName }))
 }
 
-const existing = readExisting()
+const existing = readKv(KEY, [])
 const byNumber = new Map(
   (Array.isArray(existing) ? existing : []).map((j) => [String(j.jobNumber), j]),
 )
+const categories = readKv(CATEGORIES_KEY, {})
+const archived = readArchived()
 
-const next = jobsFromWorkbook().map((job) => {
+const all = jobsFromWorkbook()
+const live = all.filter((job) => !archived.has(job.jobNumber))
+
+const next = live.map((job) => {
   const before = byNumber.get(job.jobNumber)
+  const category = categories?.[job.jobNumber]
+  // The category decides the checklist. A type set by hand only survives
+  // where the category gives no answer — otherwise the two drift and the
+  // dashboard stops being the place that decides.
+  const type = CATEGORY_SITE_TYPE[category] ?? before?.type
   return {
     ...job,
-    // Carried through, never regenerated. These are the fields somebody set
-    // by hand and the workbook knows nothing about.
-    ...(before?.type ? { type: before.type } : {}),
+    ...(category ? { category } : {}),
+    ...(type ? { type } : {}),
+    // The workbook knows nothing about a site, so anything recorded stays.
     ...(before?.site ? { site: before.site } : {}),
   }
 })
 
 const added = next.filter((j) => !byNumber.has(j.jobNumber))
-const typed = next.filter((j) => j.type).length
+const typed = next.filter((j) => j.type)
+const untyped = next.filter((j) => !j.type)
 
-console.log(`${next.length} job(s) from the workbook`)
+console.log(`${all.length} job(s) in the workbook, ${archived.size} archived, ${next.length} published`)
 console.log(`  ${added.length} new: ${added.map((j) => j.jobNumber).join(', ') || '—'}`)
-console.log(`  ${typed} with a checklist type set, ${next.length - typed} without`)
+console.log(`  ${typed.length} with a checklist, ${untyped.length} without`)
 
-if (next.length - typed > 0) {
-  console.log('\nJobs without a type show as "not broken down yet" and have no tasks.')
-  console.log('Set one with:  node scripts/set-field-job-type.mjs <jobNumber> <commercial|residential>')
+if (untyped.length) {
+  console.log('\nNo type of work set on the Projects tab, so these have no tasks:')
+  for (const j of untyped) console.log(`  ${j.jobNumber}  ${j.jobName}`)
+  console.log('Set the type of work in the dashboard and run this again.')
 }
 
 if (dryRun) {
