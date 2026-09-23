@@ -10,6 +10,12 @@
 // What the workbook has is a number and a name, and no address column, so
 // site details stay absent rather than being invented.
 //
+// What this does NOT publish is the site contact, the hazards, the gate code
+// and the rest of the typed-in details. The field app reads those straight
+// out of planning:job-details, so they reach a phone the moment they are
+// typed and this script never has to run for them. Anything published here
+// as well would come back from a stale run after being cleared.
+//
 // The checklist a job gets is NOT typed in twice. It comes from the type of
 // work already set on the Projects tab: Commercial New Build and the other
 // commercial categories get the commercial checklist, the residential ones
@@ -24,7 +30,6 @@ import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import XLSX from 'xlsx'
 import { CATEGORY_SITE_TYPE } from '../src/lib/jobCategories.js'
-import { JOB_DETAILS_KEY, toFieldJob } from '../src/lib/jobDetails.js'
 
 const KEY = 'planning:field-jobs'
 const CATEGORIES_KEY = 'planning:job-categories'
@@ -119,9 +124,6 @@ const byNumber = new Map(
   (Array.isArray(existing) ? existing : []).map((j) => [String(j.jobNumber), j]),
 )
 const categories = readKv(CATEGORIES_KEY, {})
-// Who to call, hazards, gate code — typed into the dashboard's job table.
-// Nothing else in the company records any of it.
-const details = readKv(JOB_DETAILS_KEY, {})
 const archived = readArchived()
 
 const all = jobsFromWorkbook()
@@ -134,17 +136,12 @@ const next = live.map((job) => {
   // where the category gives no answer — otherwise the two drift and the
   // dashboard stops being the place that decides.
   const type = CATEGORY_SITE_TYPE[category] ?? before?.type
-  // Who to call, hazards, gate code, parking — typed into the dashboard.
-  // `site` is pulled out of it separately because it is the one part that has
-  // to be combined with what is already there rather than replacing it.
-  const { site: detailSite, ...detail } = toFieldJob(details?.[job.jobNumber])
-
-  // The address and the map query come from the Jobs export and are kept; the
-  // gate code, parking and hours are typed in the dashboard. Picking the kept
-  // keys out by name, rather than spreading the whole of the previous `site`,
-  // is what lets a gate code cleared in the dashboard actually disappear
-  // instead of surviving as whatever the last publish happened to write.
-  const site = { ...pick(before?.site, ['address', 'mapQuery', 'lat', 'lng']), ...(detailSite ?? {}) }
+  // Only the address and the map query. The gate code, the contact and the
+  // hazards are NOT written here any more — the field app reads
+  // planning:job-details itself, so a number typed in the dashboard is on
+  // site without this script running at all. Writing them here as well would
+  // put a cleared field back from a stale publish.
+  const site = pick(before?.site, ['address', 'mapQuery', 'lat', 'lng'])
 
   return {
     ...job,
@@ -156,11 +153,6 @@ const next = live.map((job) => {
     // spreading `before` wholesale, so a field the workbook DOES own can
     // never be resurrected from a stale publish.
     ...(before?.scope ? { scope: before.scope } : {}),
-    // Contacts, hazards and the rest are owned outright by the dashboard, so
-    // they replace rather than merge — clearing a phone number there has to
-    // clear it on site too. Anything left behind would be a number the office
-    // believes it deleted, still on a crew's phone.
-    ...detail,
   }
 })
 

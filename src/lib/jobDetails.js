@@ -94,57 +94,12 @@ export const JOB_DETAIL_FIELDS = [
 
 export const JOB_DETAIL_KEYS = JOB_DETAIL_FIELDS.map((f) => f.key)
 
-// Hazards are one column because that is what a spreadsheet-shaped table can
-// offer, but the field app lists them one per row — so a semicolon or a new
-// line splits them. Splitting on a comma as well was considered and dropped:
-// "Live switchboard, isolated Tuesday" is one hazard, and breaking it in two
-// would show a crew the word "isolated Tuesday" with no subject.
-export function splitHazards(value) {
-  return String(value ?? '')
-    .split(/[;\n]+/)
-    .map((s) => s.trim())
-    .filter(Boolean)
-}
-
-// Turn one job's typed details into the shape the field app already expects.
+// The mapping from these columns into the field app's shape used to live
+// here and was applied by publish-field-jobs.mjs. It has moved to the field
+// app (cde-field/src/lib/jobDetails.js), which now reads this blob live —
+// so a number typed in the table is on a crew's phone the next time they
+// open the app, with no command to run.
 //
-// This mapping lives here, next to the fields, rather than in the publish
-// script: the dashboard decides what a column means, and a second copy of
-// that decision in a script is how the column and the screen end up
-// disagreeing. Returns only the keys that have a value, so publishing a job
-// with nothing typed against it adds nothing at all rather than a row of
-// empty strings the field screen would have to guard against.
-export function toFieldJob(detail) {
-  const get = (key) => String(detail?.[key] ?? '').trim()
-  const out = {}
-
-  const site = {}
-  if (get('gateCode')) site.gateCode = get('gateCode')
-  if (get('parking')) site.parking = get('parking')
-  if (get('hours')) site.hours = get('hours')
-  if (Object.keys(site).length) out.site = site
-
-  // One contact, not a list, because one column can only ever hold one — but
-  // the field app's shape is a list and stays a list, so a second contact
-  // added later needs no change on that side. The role defaults rather than
-  // being left blank: the field screen labels the row "<role> · <name>", and
-  // an empty role there reads as a rendering fault.
-  if (get('contactName') || get('contactPhone') || get('contactEmail')) {
-    out.contacts = [
-      {
-        role: get('contactRole') || 'Site contact',
-        name: get('contactName'),
-        phone: get('contactPhone'),
-        ...(get('contactEmail') ? { email: get('contactEmail') } : {}),
-      },
-    ]
-  }
-
-  const hazards = splitHazards(get('hazards'))
-  if (hazards.length) out.hazards = hazards
-  if (get('induction')) out.inductionRequired = get('induction')
-  if (get('switchboard')) out.switchboardLocation = get('switchboard')
-  if (get('supply')) out.supply = get('supply')
-
-  return out
-}
+// The key names above are the contract between the two repos. Both sides
+// have tests asserting the same shape, so a rename that breaks the pair
+// fails a test instead of quietly emptying a screen.
