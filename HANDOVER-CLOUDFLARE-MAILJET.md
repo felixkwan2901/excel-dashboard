@@ -43,7 +43,8 @@ this guide.
       `scripts/manage-users.mjs`
 - [ ] Recreate the upload Worker; set a company `GITHUB_TOKEN`
 - [ ] Deploy the dashboard Worker and set its four secrets
-- [ ] Deploy the field Worker
+- [ ] Deploy the field Worker, then publish its job list
+- [ ] Create a Cloudflare API token and put it in the GitHub repo secrets
 - [ ] Restore the KV data (dry run first)
 - [ ] Transfer both repositories, private in the same sitting
 - [ ] Test: both sign-in routes, the data, the field app
@@ -272,7 +273,66 @@ curl "https://cd-field.<company>.workers.dev/api/app-data?key=override:main-shee
 That must answer `bad_key`. If it answers with data, stop and check the
 allowlists in `site-worker/index.js`.
 
-## A8. Repoint the dashboard
+## A8. Publish the field app's job list
+
+The field app does not read the workbook. It reads a list in KV, and that list
+has to be written:
+
+```
+node scripts/publish-field-jobs.mjs
+```
+
+It takes the jobs from the workbook, drops the archived ones, and gives each a
+checklist based on the type of work set on the dashboard's Projects tab. It
+prints what it published and names anything it could not give a checklist to.
+
+Run it after the move, and after that whenever a job is added, archived, or
+has its type of work changed. A GitHub Actions workflow does this
+automatically — see A9 — but only once the token exists.
+
+## A9. The API token, and why the template will not work
+
+`publish-field-jobs.yml` keeps the job list current on its own: after every
+weekly upload, once a day, and on demand. It needs a Cloudflare API token in
+the GitHub repo secrets, and so does the Cloudflare deploy job. One token
+switches on both.
+
+At **Manage Account > API Tokens > Create Token**:
+
+**Do not use the "Edit Cloudflare Workers" template.** It includes a
+*Zone > Workers Routes* permission, which requires a zone to be selected, and
+"Continue to summary" stays disabled until one is. On an account with no
+domains on it there is nothing to select and the form cannot be completed.
+This is what it looks like when the button appears broken.
+
+Use **Create Custom Token** instead, with exactly two permissions:
+
+| | | |
+|---|---|---|
+| Account | Workers KV Storage | Edit |
+| Account | Workers Scripts | Edit |
+
+Set **Account Resources** to the company account, leave **Zone Resources**
+alone, and create it. Copy the token — it is shown once.
+
+Then, from the repository:
+
+```
+gh secret set CLOUDFLARE_API_TOKEN
+```
+
+Those two permissions are all that is needed: reading the categories and
+writing the job list, and deploying the two Workers. Nothing else. A token
+this narrow can be deleted without touching anything else on the account.
+
+**Do not use a Global API Key.** It has full access to everything and cannot
+be scoped or revoked on its own.
+
+```{=openxml}
+<w:p><w:r><w:br w:type="page"/></w:r></w:p>
+```
+
+## A10. Repoint the dashboard
 
 `UPLOAD_WORKER` near the top of `site-worker/index.js` still names the old
 upload Worker. Change it to the new URL and deploy again.
