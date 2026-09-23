@@ -15,7 +15,8 @@ name: Publish the field app job list
 # Its own workflow rather than a step inside process-pending-updates, so the
 # scheduled run does not drag the whole upload pipeline along with it.
 #
-# Inert until CLOUDFLARE_API_TOKEN exists in the repo secrets — the same token
+# The "Publish the job list" step is skipped with a clear reason if
+# CLOUDFLARE_API_TOKEN does not exist in the repo secrets — the same token
 # the Cloudflare deploy job uses. Create one at Cloudflare > Manage Account >
 # API Tokens with the "Edit Cloudflare Workers" template, then:
 #   gh secret set CLOUDFLARE_API_TOKEN
@@ -66,5 +67,14 @@ jobs:
         if: steps.gate.outputs.ready == 'true'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # Not a secret — the account id is a public identifier, already
+          # hardcoded the same way in deploy.yml's own Cloudflare job. This
+          # was a repo secret nobody had created, so the "ready" gate above
+          # (which only checks the token) let every run through to a step
+          # that then had no account to talk to. Without an id, wrangler
+          # falls back to looking one up via the Cloudflare API, and that
+          # lookup needs a broader permission than a Workers-scoped token
+          # has — which is why the failure reads as an auth error on
+          # /memberships rather than a plainly missing account id.
+          CLOUDFLARE_ACCOUNT_ID: dc836f801a754ca49cb4ea1290935614
         run: node scripts/publish-field-jobs.mjs
