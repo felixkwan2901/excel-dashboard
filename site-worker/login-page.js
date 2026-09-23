@@ -16,19 +16,87 @@ const escape = (s) =>
   String(s ?? '').replace(/[&<>"']/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
 
+// Real photos of Cassidy-Davies' own work, from their public site
+// (cdelectrical.co.nz/projects/) — a full-bleed collage behind the card, the
+// way Netflix dims a title's own backdrop behind its sign-in form rather than
+// showing a blank colour. Six is enough to tile a wide screen without an
+// obvious repeat and few enough that a slow connection still has a usable
+// page in a second or two.
+//
+// Set as CSS background-image on plain divs, not <img> tags: if
+// cdelectrical.co.nz is ever slow or down, a background-image that fails to
+// load simply shows nothing and the div's own dark fill takes over — an
+// <img> in the same situation is a broken-image icon sitting in the middle
+// of the sign-in screen. This page has one job, and it cannot depend on the
+// marketing site being up to do it.
+const PROJECT_PHOTOS = [
+  'https://www.cdelectrical.co.nz/wp-content/uploads/2025/08/Koawa-Studio-Long.png',
+  'https://www.cdelectrical.co.nz/wp-content/uploads/2024/12/IMG_6354-1536x1152.jpg',
+  'https://www.cdelectrical.co.nz/wp-content/uploads/2024/12/AquaPro-1536x1104.jpg',
+  'https://www.cdelectrical.co.nz/wp-content/uploads/2024/11/uploads1715202201060-6bgnn2aulol-c76a6241ef84e850120e165b75daabcb1-360-Montreal-Street-21-scaled-1-1536x1025.jpg',
+  'https://www.cdelectrical.co.nz/wp-content/uploads/2024/12/IMG_5047-1536x1092.jpg',
+  'https://www.cdelectrical.co.nz/wp-content/uploads/2025/04/Stairs.png',
+]
+
+// The company's own wordmark, top-left — same placement Netflix uses for its
+// logo over the backdrop. Hotlinked for the same reason as the photos above:
+// one file to keep in sync, and it degrades to the plain text mark below it
+// (kept in the markup, hidden by CSS only once the image is confirmed
+// present) rather than a broken-image box if it fails to load.
+const LOGO_URL = 'https://www.cdelectrical.co.nz/wp-content/uploads/2023/06/header-logo-cd.png'
+
 const STYLE = `
   :root { --ink:#0c1712; --card:#16261e; --line:#24382d; --brand:#41b44a;
           --text:#ffffff; --muted:#8fa398; --bad:#ef6c1f; }
   * { box-sizing: border-box; }
-  body { margin:0; min-height:100dvh; display:grid; place-items:center;
+  html, body { height:100%; }
+  body { margin:0; min-height:100dvh; position:relative; overflow-x:hidden;
          background:var(--ink); color:var(--text); padding:24px;
          font:16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }
-  .card { width:100%; max-width:380px; background:var(--card);
-          border:1px solid var(--line); border-radius:16px; padding:32px 28px; }
-  .mark { display:flex; align-items:center; gap:10px; margin-bottom:26px; }
-  .dot { width:26px; height:26px; border-radius:8px; background:var(--brand); flex:none; }
-  .mark b { font-size:15px; font-weight:600; letter-spacing:-0.01em; }
-  .mark span { display:block; font-size:12px; color:var(--muted); font-weight:400; }
+
+  /* The backdrop: a tiled grid of real project photos, dimmed and vignetted
+     so the card and the logo stay the thing your eye lands on rather than
+     competing with a bright photo behind them. Fixed, so it does not scroll
+     away on a tall page (the code-entry screen's helper text can push past
+     one viewport on a small phone). */
+  .backdrop { position:fixed; inset:0; z-index:0;
+              display:grid; grid-template-columns:repeat(3, 1fr); gap:2px;
+              filter:saturate(0.9) brightness(0.55); }
+  .backdrop div { background-size:cover; background-position:center; }
+  @media (max-width: 640px) { .backdrop { grid-template-columns:repeat(2, 1fr); } }
+  /* Netflix's own trick: a dark gradient over the photos rather than the
+     photos alone at low opacity — it darkens the edges where the eye should
+     not linger while leaving enough of the centre visible to read as "real
+     work", not wallpaper. */
+  .scrim { position:fixed; inset:0; z-index:1;
+           background:
+             radial-gradient(ellipse at center, rgba(12,23,18,0.35) 0%, rgba(12,23,18,0.88) 75%),
+             linear-gradient(180deg, rgba(12,23,18,0.75) 0%, rgba(12,23,18,0.55) 30%, rgba(12,23,18,0.85) 100%); }
+
+  .page { position:relative; z-index:2; min-height:calc(100dvh - 48px);
+          display:flex; flex-direction:column; }
+  .brand { display:flex; align-items:center; gap:10px; margin-bottom:auto;
+           padding-bottom:32px; }
+  .brand img { display:block; height:34px; width:auto; }
+  /* Shown only if the logo image fails — see the inline onerror below, the
+     one bit of "scripting" on a page that otherwise has none, and it runs
+     with no network access and no effect on the sign-in flow either way. */
+  .brand .fallback { display:none; align-items:center; gap:10px; }
+  .brand .fallback .dot { width:26px; height:26px; border-radius:8px; background:var(--brand); flex:none; }
+  .brand .fallback b { font-size:16px; font-weight:600; letter-spacing:-0.01em; }
+  .brand .fallback span { display:block; font-size:12px; color:var(--muted); font-weight:400; }
+
+  .center { flex:1; display:flex; align-items:center; justify-content:center; padding:24px 0; }
+  /* Translucent black over the photos rather than a flat opaque card — this
+     is the one deliberate borrow from Netflix's own login card, because it
+     is what makes the backdrop read as behind the form instead of behind a
+     wall in front of it. backdrop-filter is skipped: it is unsupported or
+     slow on exactly the low-end/older phones this dashboard has to keep
+     working on, and the gradient above already does most of the darkening
+     work regardless. */
+  .card { width:100%; max-width:380px; background:rgba(8,16,12,0.82);
+          border:1px solid rgba(255,255,255,0.08); border-radius:16px; padding:32px 28px;
+          box-shadow:0 24px 60px rgba(0,0,0,0.45); }
   h1 { margin:0 0 4px; font-size:22px; letter-spacing:-0.02em; }
   p.sub { margin:0 0 22px; color:var(--muted); font-size:14px; }
   p.sub b { color:var(--text); font-weight:600; }
@@ -60,13 +128,30 @@ const shell = (title, inner) => `<!doctype html>
 <style>${STYLE}</style>
 </head>
 <body>
-  <main class="card">
-    <div class="mark">
-      <div class="dot"></div>
-      <div><b>Cassidy-Davies</b><span>Electrical</span></div>
+  <div class="backdrop">
+${PROJECT_PHOTOS.map((url) => `    <div style="background-image:url('${url}')"></div>`).join('\n')}
+  </div>
+  <div class="scrim"></div>
+  <div class="page">
+    <div class="brand">
+      <!-- onerror is the one inline script on this page. It runs with no
+           network access of its own — swap to the plain text mark, nothing
+           else — so it cannot become a way for a slow or unreachable
+           marketing site to hold up the sign-in flow that depends on this
+           page rendering. -->
+      <img src="${LOGO_URL}" alt="Cassidy-Davies Electrical" height="34"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
+      <div class="fallback">
+        <div class="dot"></div>
+        <div><b>Cassidy-Davies</b><span>Electrical</span></div>
+      </div>
     </div>
+    <div class="center">
+      <main class="card">
 ${inner}
-  </main>
+      </main>
+    </div>
+  </div>
 </body>
 </html>`
 
