@@ -390,9 +390,9 @@
     },
     "7658": {
       "jobName": "Charity Hospital",
-      "claim": 0,
-      "costs": 321.320000000007,
-      "profit": -321.320000000007
+      "claim": 22202.890000000014,
+      "costs": 20645.929999999993,
+      "profit": 1556.960000000021
     },
     "7864": {
       "jobName": "Ryans House",
@@ -421,14 +421,14 @@
     "8142": {
       "jobName": "Fisher Developements",
       "claim": 0,
-      "costs": 16504.429999999993,
-      "profit": -16504.429999999993
+      "costs": 17363.759999999995,
+      "profit": -17363.759999999995
     },
     "8183": {
       "jobName": "Murney Custodian - 1 Freight Drive",
       "claim": 0,
-      "costs": 60555.25999999998,
-      "profit": -60555.25999999998
+      "costs": 60407.110000000015,
+      "profit": -60407.110000000015
     },
     "8214": {
       "jobName": "6 Tiroroa Lane",
@@ -445,8 +445,8 @@
     "8308": {
       "jobName": "Roydvale",
       "claim": 34650.399999999965,
-      "costs": 21673.070000000007,
-      "profit": 12977.329999999958
+      "costs": 21886.190000000002,
+      "profit": 12764.209999999963
     },
     "8337": {
       "jobName": "Waimak Dairys ",
@@ -481,8 +481,8 @@
     "8670": {
       "jobName": "Studio DB - tautara fit out",
       "claim": 0,
-      "costs": 14297.850000000006,
-      "profit": -14297.850000000006
+      "costs": 14851.680000000008,
+      "profit": -14851.680000000008
     },
     "8769": {
       "jobName": "Percival Bach",
@@ -511,14 +511,14 @@
     "8886": {
       "jobName": "Monkey Toe - Fisher fit out",
       "claim": 0,
-      "costs": 13833.64,
-      "profit": -13833.64
+      "costs": 14493.379999999997,
+      "profit": -14493.379999999997
     },
     "8887": {
       "jobName": "Tenancy 2 - Fisher Fit out",
       "claim": 0,
-      "costs": 4363.379999999997,
-      "profit": -4363.379999999997
+      "costs": 4389.459999999999,
+      "profit": -4389.459999999999
     },
     "8907": {
       "jobName": "35 Mania",
@@ -541,8 +541,8 @@
     "9065": {
       "jobName": "Cooltranz stage 4",
       "claim": 0,
-      "costs": 10950.11,
-      "profit": -10950.11
+      "costs": 12195.39,
+      "profit": -12195.39
     },
     "9240": {
       "jobName": "Daves Twizel Shack",
@@ -553,14 +553,14 @@
     "9259": {
       "jobName": "Andrew Reeve Stage 2",
       "claim": 0,
-      "costs": 9478.690000000002,
-      "profit": -9478.690000000002
+      "costs": 9681.120000000003,
+      "profit": -9681.120000000003
     },
     "9351": {
       "jobName": "Harewood Golf Club",
       "claim": 0,
-      "costs": 1024.2599999999998,
-      "profit": -1024.2599999999998
+      "costs": 1718.2499999999995,
+      "profit": -1718.2499999999995
     },
     "9437": {
       "jobName": "65A Belfast Road (Revised)",
