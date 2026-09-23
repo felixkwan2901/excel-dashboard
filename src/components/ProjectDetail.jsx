@@ -2,7 +2,15 @@ import { useCallback, useEffect, useState } from 'react'
 import { ArrowLeft, AlertTriangle, Archive } from 'lucide-react'
 import StatusPills from './StatusPills'
 import FieldProgressTab from './FieldProgressTab'
+import FieldChecklistOverridesTab from './FieldChecklistOverridesTab'
 import { getAppData } from '../lib/appData'
+import { CATEGORY_SITE_TYPE } from '../lib/jobCategories'
+import {
+  fetchFieldChecklistOverrides,
+  saveTaskLabelOverride,
+  saveExtraTask,
+  removeExtraTask,
+} from '../lib/fieldChecklistOverridesStore'
 import { fieldProgress, isStale, toTaskRows } from '../lib/fieldProgress'
 import { money, percent, roundHours } from '../lib/format'
 import { statusReasons } from '../lib/statusReasons'
@@ -212,6 +220,11 @@ export default function ProjectDetail({ job, onBack }) {
   const [field, setField] = useState({ status: 'loading', jobNumber: null })
   const [fieldReload, setFieldReload] = useState(0)
 
+  // What kind of checklist this job gets — the same mapping the field app
+  // itself uses (see cde-field's buildJob), so this section shows exactly
+  // the list a phone on site would see, not a guess at it.
+  const fieldType = CATEGORY_SITE_TYPE[job.jobCategory] ?? null
+
   useEffect(() => {
     let cancelled = false
     Promise.all([
@@ -221,11 +234,23 @@ export default function ProjectDetail({ job, onBack }) {
       // historical record needing a rewrite.
       getAppData('fieldTasks:commercial'),
       getAppData('fieldTasks:residential'),
+      fetchFieldChecklistOverrides(),
     ])
-      .then(([record, commercial, residential]) => {
+      .then(([record, commercial, residential, allOverrides]) => {
         if (cancelled) return
-        const catalogue = record?.template === 'residential' ? residential : commercial
-        setField({ status: 'ready', jobNumber: job.jobNumber, record, catalogue: catalogue ?? [], asAt: new Date() })
+        // The type of work decides the catalogue, matching the field app —
+        // record?.template is a field nothing has ever written and is kept
+        // only so an old stored record with one doesn't get contradicted.
+        const catalogue =
+          (record?.template ?? fieldType) === 'residential' ? residential : commercial
+        setField({
+          status: 'ready',
+          jobNumber: job.jobNumber,
+          record,
+          catalogue: catalogue ?? [],
+          overrides: allOverrides?.[job.jobNumber] ?? null,
+          asAt: new Date(),
+        })
       })
       .catch(() => {
         if (!cancelled) setField({ status: 'error', jobNumber: job.jobNumber })
@@ -233,11 +258,59 @@ export default function ProjectDetail({ job, onBack }) {
     return () => {
       cancelled = true
     }
-  }, [job.jobNumber, fieldReload])
+  }, [job.jobNumber, fieldReload, fieldType])
 
   const refreshField = useCallback(() => setFieldReload((n) => n + 1), [])
 
   const fieldState = field.jobNumber === job.jobNumber ? field : { status: 'loading' }
+
+  // Checklist overrides changed this session, held here for the same reason
+  // owner/category/detail edits are held in App.jsx: the write reaches the
+  // server immediately but this component does not re-fetch after every
+  // keystroke, so without this a save would look like it had not landed
+  // until the next time the job was opened.
+  const [checklistOverrides, setChecklistOverrides] = useState(null)
+  const [checklistSaving, setChecklistSaving] = useState(() => new Set())
+  const effectiveOverrides =
+    checklistOverrides !== null ? checklistOverrides : fieldState.overrides
+
+  function markSaving(token, on) {
+    setChecklistSaving((prev) => {
+      const next = new Set(prev)
+      if (on) next.add(token)
+      else next.delete(token)
+      return next
+    })
+  }
+
+  async function handleSaveOverride(taskId, label) {
+    const token = `override:${taskId}`
+    markSaving(token, true)
+    const saved = await saveTaskLabelOverride(job.jobNumber, taskId, label)
+    markSaving(token, false)
+    if (saved) setChecklistOverrides(saved[job.jobNumber] ?? { overrides: {}, extra: [] })
+  }
+
+  // Handles both adding a new extra task (no id yet) and rewording an
+  // existing one (id already assigned) — AddExtraTask and the per-row
+  // OverrideField both call this, distinguished only by whether they pass
+  // an id.
+  async function handleSaveExtra({ id, label }) {
+    const taskId = id ?? `office-${crypto.randomUUID()}`
+    const token = id ? `extra:${id}` : 'newExtra'
+    markSaving(token, true)
+    const saved = await saveExtraTask(job.jobNumber, { id: taskId, label })
+    markSaving(token, false)
+    if (saved) setChecklistOverrides(saved[job.jobNumber] ?? { overrides: {}, extra: [] })
+  }
+
+  async function handleRemoveExtra(id) {
+    const token = `extra:${id}`
+    markSaving(token, true)
+    const saved = await removeExtraTask(job.jobNumber, id)
+    markSaving(token, false)
+    if (saved) setChecklistOverrides(saved[job.jobNumber] ?? { overrides: {}, extra: [] })
+  }
 
   // Only summarised once there is something to summarise. While it is
   // loading the pill shows nothing at all rather than a placeholder zero —
@@ -457,12 +530,30 @@ export default function ProjectDetail({ job, onBack }) {
           )}
 
           {tab === 'field' && (
-            <FieldProgressTab
-              state={fieldState}
-              onRefresh={refreshField}
-              jobNumber={job.jobNumber}
-              jobName={job.jobName}
-            />
+            <>
+              <FieldProgressTab
+                state={fieldState}
+                onRefresh={refreshField}
+                jobNumber={job.jobNumber}
+                jobName={job.jobName}
+              />
+              <div className="mt-6 border-t border-white/[0.06] pt-6">
+                <p className="mb-2 text-[13px] font-medium text-white">Checklist for this job</p>
+                {fieldState.status === 'ready' ? (
+                  <FieldChecklistOverridesTab
+                    type={fieldType}
+                    catalogue={fieldState.catalogue}
+                    overrides={effectiveOverrides}
+                    saving={checklistSaving}
+                    onSaveOverride={handleSaveOverride}
+                    onSaveExtra={handleSaveExtra}
+                    onRemoveExtra={handleRemoveExtra}
+                  />
+                ) : (
+                  <p className="py-6 text-[13px] text-neutral-400">Loading…</p>
+                )}
+              </div>
+            </>
           )}
         </div>
 
