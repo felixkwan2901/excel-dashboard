@@ -35,15 +35,49 @@ const SHEET = 'Deliverables Sheet'
 
 const dryRun = process.argv.includes('--dry-run')
 
-const wrangler = (args) =>
-  execFileSync('npx', ['wrangler', ...args], { encoding: 'utf8', stdio: ['pipe', 'pipe', 'inherit'] })
+// `quiet` swallows wrangler's stderr instead of letting it through to the
+// terminal. Only the reads use it, and only because a key that has never been
+// written is an ordinary state here, not a fault: wrangler reports it as a
+// red "ERROR ... 404: Not Found", the fallback below then handles it, and the
+// run succeeds — but anyone watching has just been told something failed.
+const wrangler = (args, { quiet = false } = {}) =>
+  execFileSync('npx', ['wrangler', ...args], {
+    encoding: 'utf8',
+    stdio: ['pipe', 'pipe', quiet ? 'pipe' : 'inherit'],
+  })
 
-function readKv(key, fallback) {
+// Which planning: keys actually exist, asked once.
+//
+// This is not an optimisation. Cloudflare answers a key that was never
+// written and a namespace id that does not exist with the same 404, so a
+// reader that treats 404 as "nothing stored yet" would, on a typo'd
+// namespace, quietly publish every job with its contacts and hazards
+// stripped and report success. Listing first removes the ambiguity: a
+// failure here is fatal and says so, and after it a key's absence is a fact
+// rather than a guess.
+//
+// Everything read below is under planning:, so one prefixed list covers it
+// and stays small.
+function existingKeys() {
   try {
-    return JSON.parse(wrangler(['kv', 'key', 'get', key, '--namespace-id', NS, '--remote']))
-  } catch {
-    return fallback
+    const raw = wrangler(['kv', 'key', 'list', '--namespace-id', NS, '--remote', '--prefix', 'planning:'], {
+      quiet: true,
+    })
+    return new Set(JSON.parse(raw).map((k) => k.name))
+  } catch (err) {
+    console.error(`Could not read the KV namespace ${NS}. Nothing was published.`)
+    console.error(`${err?.stderr ?? err?.message ?? ''}`.trim().split('\n').slice(0, 4).join('\n'))
+    process.exit(1)
   }
+}
+
+const present = existingKeys()
+
+// A key nobody has written yet is an ordinary state — nobody has typed any
+// site details — so it falls back without a word and without a round trip.
+function readKv(key, fallback) {
+  if (!present.has(key)) return fallback
+  return JSON.parse(wrangler(['kv', 'key', 'get', key, '--namespace-id', NS, '--remote'], { quiet: true }))
 }
 
 function readArchived() {
