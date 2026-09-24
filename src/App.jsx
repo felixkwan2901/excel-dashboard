@@ -15,6 +15,7 @@ import MonthlyClaims from './components/MonthlyClaims'
 import MainSheetTab from './components/MainSheetTab'
 import ArchivedJobsPanel from './components/ArchivedJobsPanel'
 import UpcomingWorkTab from './components/UpcomingWorkTab'
+import CompletedJobsTab from './components/CompletedJobsTab'
 import ChartsTab from './components/ChartsTab'
 import WeeklyCheckSheetTab from './components/WeeklyCheckSheetTab'
 import JobCompletionChecklistTab from './components/JobCompletionChecklistTab'
@@ -67,17 +68,19 @@ export default function App() {
   // it's firing from an event handler, not mount.
   function fetchWorkbook() {
     loadWorkbook()
-      .then(({ jobs, monthlyClaims, mainSheet, monthlyHours, monthlyClaimsHistory, upcomingWork, archivedJobs }) =>
-        setState({
-          status: 'ready',
-          jobs,
-          monthlyClaims,
-          mainSheet,
-          monthlyHours,
-          monthlyClaimsHistory,
-          upcomingWork,
-          archivedJobs,
-        })
+      .then(
+        ({ jobs, monthlyClaims, mainSheet, monthlyHours, monthlyClaimsHistory, upcomingWork, archivedJobs, completedJobs }) =>
+          setState({
+            status: 'ready',
+            jobs,
+            monthlyClaims,
+            mainSheet,
+            monthlyHours,
+            monthlyClaimsHistory,
+            upcomingWork,
+            archivedJobs,
+            completedJobs,
+          })
       )
       .catch((error) => setState({ status: 'error', error }))
   }
@@ -176,6 +179,7 @@ export default function App() {
   const monthlyClaimsHistory =
     state.status === 'ready' ? state.monthlyClaimsHistory : { months: [], totalsByMonth: [], jobs: [] }
   const archivedJobs = state.status === 'ready' ? state.archivedJobs : []
+  const completedJobs = state.status === 'ready' ? state.completedJobs : []
   const kpis = state.status === 'ready' ? computeKpis(jobs) : null
   const flaggedJobs = useMemo(() => jobs.filter((j) => j.flagged), [jobs])
 
@@ -242,6 +246,11 @@ export default function App() {
     pushUrlState({ view: 'upcoming-work', selectedJobId, dashboardQuery, dashboardFilter })
   }
 
+  function goCompletedJobs() {
+    setView('completed-jobs')
+    pushUrlState({ view: 'completed-jobs', selectedJobId, dashboardQuery, dashboardFilter })
+  }
+
   function goCharts() {
     setView('charts')
     pushUrlState({ view: 'charts', selectedJobId, dashboardQuery, dashboardFilter })
@@ -302,6 +311,7 @@ export default function App() {
     onGoMonthlyClaims: goMonthlyClaims,
     onGoMainSheet: goMainSheet,
     onGoUpcomingWork: goUpcomingWork,
+    onGoCompletedJobs: goCompletedJobs,
     onGoCharts: goCharts,
   }
   return (
@@ -415,6 +425,18 @@ export default function App() {
           ) : (
             <Reveal index={0}>
               <UpcomingWorkTab upcomingWork={upcomingWork} onBack={goHome} />
+            </Reveal>
+          )}
+        </main>
+      )}
+
+      {view === 'completed-jobs' && (
+        <main className="dashboard">
+          {state.status !== 'ready' ? (
+            <LoadStatus status={state.status} error={state.error} onRetry={retryLoad} />
+          ) : (
+            <Reveal index={0}>
+              <CompletedJobsTab completedJobs={completedJobs} onBack={goHome} />
             </Reveal>
           )}
         </main>

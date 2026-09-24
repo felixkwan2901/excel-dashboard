@@ -21,6 +21,7 @@ const workbookUrl = `${import.meta.env.BASE_URL}Cassidy_Davies_Electrical_BPMN_D
 const monthlyHoursLogUrl = `${import.meta.env.BASE_URL}monthly-hours-log.json`
 const monthlyClaimsLogUrl = `${import.meta.env.BASE_URL}monthly-claims-log.json`
 const archivedJobsUrl = `${import.meta.env.BASE_URL}archived-jobs.json`
+const completedJobsUrl = `${import.meta.env.BASE_URL}completed-jobs.json`
 
 // Columns are located by header text, not position — the real sheet's
 // headers have embedded newlines ("Job\nNumber") and have already drifted
@@ -801,14 +802,15 @@ export async function loadWorkbook() {
   // — this bounds it so an error state (with a retry) shows up instead.
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 20_000)
-  let res, hoursRes, claimsLogRes, archivedRes, mainSheetOverrides, claimCalcOverrides, upcomingWorkOverrides, jobOwners, jobCategories, jobDetails, jobChecklists, claimFields, upcomingWorkFields
+  let res, hoursRes, claimsLogRes, archivedRes, completedRes, mainSheetOverrides, claimCalcOverrides, upcomingWorkOverrides, jobOwners, jobCategories, jobDetails, jobChecklists, claimFields, upcomingWorkFields
   try {
-    ;[res, hoursRes, claimsLogRes, archivedRes, mainSheetOverrides, claimCalcOverrides, upcomingWorkOverrides, jobOwners, jobCategories, jobDetails, jobChecklists, claimFields, upcomingWorkFields] =
+    ;[res, hoursRes, claimsLogRes, archivedRes, completedRes, mainSheetOverrides, claimCalcOverrides, upcomingWorkOverrides, jobOwners, jobCategories, jobDetails, jobChecklists, claimFields, upcomingWorkFields] =
       await Promise.all([
         fetch(workbookUrl, { signal: controller.signal, cache: 'no-store' }),
         fetch(monthlyHoursLogUrl, { signal: controller.signal, cache: 'no-store' }),
         fetch(monthlyClaimsLogUrl, { signal: controller.signal, cache: 'no-store' }),
         fetch(archivedJobsUrl, { signal: controller.signal, cache: 'no-store' }),
+        fetch(completedJobsUrl, { signal: controller.signal, cache: 'no-store' }),
         fetchOverrides('main-sheet'),
         fetchOverrides('claim-calculator'),
         fetchOverrides('upcoming-work'),
@@ -855,6 +857,11 @@ export async function loadWorkbook() {
   // against here, in one place, rather than each sheet's own workbook data
   // ever being modified/deleted. Degrades to "nothing archived" if this is
   // missing/unreadable, same reasoning as the hours log above.
+  // Degrades to an empty list, same reasoning as the hours/claims logs above
+  // — this file only exists once someone has run add-completed-job.mjs at
+  // least once.
+  const completedJobs = completedRes?.ok ? await completedRes.json() : []
+
   const archivedJobNumbers = new Set(archivedRes?.ok ? await archivedRes.json() : [])
   const notArchived = (job) => !archivedJobNumbers.has(job.jobNumber)
   // Captured from the full, unfiltered list before archived jobs get
@@ -872,5 +879,6 @@ export async function loadWorkbook() {
     monthlyClaimsHistory: { ...monthlyClaimsHistory, jobs: monthlyClaimsHistory.jobs.filter(notArchived) },
     upcomingWork: { ...upcomingWork, jobs: upcomingWork.jobs.filter(notArchived) },
     archivedJobs,
+    completedJobs,
   }
 }

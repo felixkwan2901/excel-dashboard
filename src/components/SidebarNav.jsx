@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import {
   CalendarClock,
   ChartColumn,
+  CheckCircle2,
   ClipboardCheck,
   ExternalLink,
   FolderKanban,
@@ -40,6 +41,7 @@ const LINKS = [
   { view: 'dashboard', label: 'Projects', icon: FolderKanban, handler: 'onGoDashboard' },
   { view: 'monthly-claims', label: 'Monthly claims', icon: Receipt, handler: 'onGoMonthlyClaims' },
   { view: 'upcoming-work', label: 'Upcoming work', icon: CalendarClock, handler: 'onGoUpcomingWork' },
+  { view: 'completed-jobs', label: 'Completed jobs', icon: CheckCircle2, handler: 'onGoCompletedJobs' },
   { view: 'update', label: 'Update data', icon: Upload, handler: 'onGoUpdateData' },
 ]
 

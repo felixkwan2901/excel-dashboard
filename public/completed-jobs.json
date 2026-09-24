@@ -1,0 +1,18 @@
+[
+  {
+    "jobNumber": "9865",
+    "jobName": "2 run on timers for bathroom ceiling vent fans in 2 bathrooms",
+    "type": "quoted",
+    "profit": 111.99753834,
+    "hours": 1.5,
+    "gpPerHour": 74.67,
+    "workers": [
+      {
+        "name": "Kyle Williams",
+        "hours": 1.5
+      }
+    ],
+    "addedAt": "2026-09-24",
+    "sourceFile": "ProfitAndLoss-2026-09-24-12_23.xlsx"
+  }
+]
