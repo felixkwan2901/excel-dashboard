@@ -32,11 +32,15 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    # Disabled: the CLOUDFLARE_API_TOKEN secret in the repo is invalid (wrong
+    # token was set), so this job failed on every trigger. Re-enable by
+    # removing `&& false` below once a valid token is set via:
+    #   gh secret set CLOUDFLARE_API_TOKEN
     # A failed upload run leaves the workbook untouched, so there is nothing
     # new to publish from.
     if: >-
-      github.event_name != 'workflow_run' ||
-      github.event.workflow_run.conclusion == 'success'
+      (github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success') && false
     steps:
       # main, not the triggering SHA: the upload pipeline resets to latest
       # main and re-commits on conflict, so the freshest workbook is on the

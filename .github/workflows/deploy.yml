@@ -53,13 +53,15 @@ jobs:
   # one above: if this fails, GitHub Pages has already published and
   # kwanfelix.me is unaffected.
   #
-  # Inert until CLOUDFLARE_API_TOKEN exists in the repo secrets. Create one at
-  # Cloudflare > Manage Account > API Tokens with the "Edit Cloudflare Workers"
-  # template, then: gh secret set CLOUDFLARE_API_TOKEN
+  # Disabled: the CLOUDFLARE_API_TOKEN secret in the repo is invalid (wrong
+  # token was set), so this job failed on every push. Re-enable by removing
+  # `&& false` below once a valid token is set via:
+  #   gh secret set CLOUDFLARE_API_TOKEN
+  # (Cloudflare > Manage Account > API Tokens, "Edit Cloudflare Workers" template.)
   cloudflare:
     runs-on: ubuntu-latest
     needs: deploy
-    if: ${{ github.ref == 'refs/heads/main' }}
+    if: ${{ github.ref == 'refs/heads/main' && false }}
     steps:
       - uses: actions/checkout@v4
 
