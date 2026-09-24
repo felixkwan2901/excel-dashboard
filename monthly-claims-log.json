@@ -391,8 +391,8 @@
     "7658": {
       "jobName": "Charity Hospital",
       "claim": 22202.890000000014,
-      "costs": 20645.929999999993,
-      "profit": 1556.960000000021
+      "costs": 21022.23000000001,
+      "profit": 1180.6600000000035
     },
     "7864": {
       "jobName": "Ryans House",
@@ -402,9 +402,9 @@
     },
     "7901": {
       "jobName": "St Albans Street",
-      "claim": 52040.560000000005,
+      "claim": 64090.99,
       "costs": 10303.779999999999,
-      "profit": 41736.780000000006
+      "profit": 53787.21
     },
     "7912": {
       "jobName": "71A Fendalton Road ",
@@ -420,15 +420,15 @@
     },
     "8142": {
       "jobName": "Fisher Developements",
-      "claim": 0,
-      "costs": 17363.759999999995,
-      "profit": -17363.759999999995
+      "claim": 42019.899999999994,
+      "costs": 18657.01999999999,
+      "profit": 23362.880000000005
     },
     "8183": {
       "jobName": "Murney Custodian - 1 Freight Drive",
-      "claim": 0,
-      "costs": 60407.110000000015,
-      "profit": -60407.110000000015
+      "claim": 93276.07999999999,
+      "costs": 61105.389999999985,
+      "profit": 32170.690000000002
     },
     "8214": {
       "jobName": "6 Tiroroa Lane",
@@ -444,9 +444,9 @@
     },
     "8308": {
       "jobName": "Roydvale",
-      "claim": 34650.399999999965,
-      "costs": 21886.190000000002,
-      "profit": 12764.209999999963
+      "claim": 82279.71999999997,
+      "costs": 22406.589999999997,
+      "profit": 59873.129999999976
     },
     "8337": {
       "jobName": "Waimak Dairys ",
@@ -480,9 +480,9 @@
     },
     "8670": {
       "jobName": "Studio DB - tautara fit out",
-      "claim": 0,
-      "costs": 14851.680000000008,
-      "profit": -14851.680000000008
+      "claim": 27482.319999999992,
+      "costs": 14933.520000000004,
+      "profit": 12548.799999999988
     },
     "8769": {
       "jobName": "Percival Bach",
@@ -510,9 +510,9 @@
     },
     "8886": {
       "jobName": "Monkey Toe - Fisher fit out",
-      "claim": 0,
+      "claim": 61369.72,
       "costs": 14493.379999999997,
-      "profit": -14493.379999999997
+      "profit": 46876.340000000004
     },
     "8887": {
       "jobName": "Tenancy 2 - Fisher Fit out",
