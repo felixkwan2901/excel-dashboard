@@ -1,0 +1,213 @@
+{
+  "kind": "completed-jobs",
+  "loaded": 33,
+  "total": 34,
+  "jobs": [
+    {
+      "jobNumber": "10016",
+      "jobName": "BUPA Parklands - Remu 12 Toilet Light",
+      "type": "chargeup",
+      "gpPerHour": 632.3
+    },
+    {
+      "jobNumber": "9964",
+      "jobName": "CALLOUT - University of Canterbury",
+      "type": "chargeup",
+      "gpPerHour": 508.13
+    },
+    {
+      "jobNumber": "10007",
+      "jobName": "Bathroom heater replacement",
+      "type": "chargeup",
+      "gpPerHour": 456.94
+    },
+    {
+      "jobNumber": "9939",
+      "jobName": "Job 9939",
+      "type": "chargeup",
+      "gpPerHour": 270.74
+    },
+    {
+      "jobNumber": "9734",
+      "jobName": "Fire Alarm",
+      "type": "quoted",
+      "gpPerHour": 199.58
+    },
+    {
+      "jobNumber": "9923",
+      "jobName": "Job 9923",
+      "type": "chargeup",
+      "gpPerHour": 185.72
+    },
+    {
+      "jobNumber": "9984",
+      "jobName": "Supply & Install Exterior Power Outlet",
+      "type": "chargeup",
+      "gpPerHour": 142.73
+    },
+    {
+      "jobNumber": "9975",
+      "jobName": "Jumper Links",
+      "type": "chargeup",
+      "gpPerHour": 109.02
+    },
+    {
+      "jobNumber": "9965",
+      "jobName": "Power Loss Investigation",
+      "type": "chargeup",
+      "gpPerHour": 98.73
+    },
+    {
+      "jobNumber": "9938",
+      "jobName": "Power Alterations",
+      "type": "chargeup",
+      "gpPerHour": 96.56
+    },
+    {
+      "jobNumber": "9987",
+      "jobName": "BUPA Parklands - Apartment 201 - Bathroom Lighting",
+      "type": "quoted",
+      "gpPerHour": 94.93
+    },
+    {
+      "jobNumber": "9986",
+      "jobName": "Various Lighting Repairs",
+      "type": "chargeup",
+      "gpPerHour": 93.37
+    },
+    {
+      "jobNumber": "9901",
+      "jobName": "Wire & Install new extract system",
+      "type": "chargeup",
+      "gpPerHour": 86.35
+    },
+    {
+      "jobNumber": "9519",
+      "jobName": "Bupa Ballarat Villa 5",
+      "type": "quoted",
+      "gpPerHour": 81.29
+    },
+    {
+      "jobNumber": "9703",
+      "jobName": "Various Elec",
+      "type": "quoted",
+      "gpPerHour": 78.52
+    },
+    {
+      "jobNumber": "9959",
+      "jobName": "Isolate & Remove 1200mm Round Light Box",
+      "type": "chargeup",
+      "gpPerHour": 78.3
+    },
+    {
+      "jobNumber": "9635",
+      "jobName": "VAPO Bush Inn",
+      "type": "quoted",
+      "gpPerHour": 73.38
+    },
+    {
+      "jobNumber": "9802",
+      "jobName": "Cashmere View Apartment 208",
+      "type": "quoted",
+      "gpPerHour": 71.87
+    },
+    {
+      "jobNumber": "9698",
+      "jobName": "SmarVent Lite+",
+      "type": "quoted",
+      "gpPerHour": 67.18
+    },
+    {
+      "jobNumber": "9910",
+      "jobName": "Gas Fire Works in Lobby Area",
+      "type": "chargeup",
+      "gpPerHour": 66.8
+    },
+    {
+      "jobNumber": "9776",
+      "jobName": "Kitchen Renovation & Switchboard Upgrade",
+      "type": "chargeup",
+      "gpPerHour": 56.45
+    },
+    {
+      "jobNumber": "9900",
+      "jobName": "Inslab data/ power boxes",
+      "type": "chargeup",
+      "gpPerHour": 54.48
+    },
+    {
+      "jobNumber": "9980",
+      "jobName": "Job 9980",
+      "type": "chargeup",
+      "gpPerHour": 53.97
+    },
+    {
+      "jobNumber": "9666",
+      "jobName": "Supply & install additional power outlet",
+      "type": "chargeup",
+      "gpPerHour": 48.62
+    },
+    {
+      "jobNumber": "9940",
+      "jobName": "Vapo Bush inn extra fit off works",
+      "type": "chargeup",
+      "gpPerHour": 46.79
+    },
+    {
+      "jobNumber": "9934",
+      "jobName": "Burside High School - Onsite electrical assessment",
+      "type": "chargeup",
+      "gpPerHour": 46.64
+    },
+    {
+      "jobNumber": "9983",
+      "jobName": "Heat Pump Hookups",
+      "type": "chargeup",
+      "gpPerHour": 45.88
+    },
+    {
+      "jobNumber": "9966",
+      "jobName": "Supply & Install LED Downlight in place of failed one",
+      "type": "chargeup",
+      "gpPerHour": 44.4
+    },
+    {
+      "jobNumber": "9950",
+      "jobName": "Go-Bus Em Lighting Repair/Replacement",
+      "type": "chargeup",
+      "gpPerHour": 40.25
+    },
+    {
+      "jobNumber": "8337",
+      "jobName": "Resi New",
+      "type": "quoted",
+      "gpPerHour": 39.41
+    },
+    {
+      "jobNumber": "9944",
+      "jobName": "Rolleston Controls",
+      "type": "chargeup",
+      "gpPerHour": 36.76
+    },
+    {
+      "jobNumber": "9955",
+      "jobName": "Various Electrical Repairs",
+      "type": "chargeup",
+      "gpPerHour": 15.76
+    },
+    {
+      "jobNumber": "9922",
+      "jobName": "Contracting to Smart Sparks September",
+      "type": "chargeup",
+      "gpPerHour": 11.35
+    }
+  ],
+  "needsLook": [],
+  "notes": [
+    "job 9951 had nothing to export in Katipolt",
+    "job 9943 had nothing to export in Katipolt",
+    "job 9918 had nothing to export in Katipolt",
+    "job 9296 had nothing to export in Katipolt",
+    "Matched 41 download(s) to jobs using manifest.csv."
+  ]
+}
