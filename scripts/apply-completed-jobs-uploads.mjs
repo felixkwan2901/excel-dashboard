@@ -43,7 +43,7 @@ for (const name of bundles) {
     if (!records.length) { fail(name, 'No completed jobs could be read from these files. ' + skipped.map((s) => `${s.job}: ${s.reason}`).join(' · ')); continue }
     const total = upsertCompletedJobs(OUT, records)
     mkdirSync(RESULTS, { recursive: true })
-    writeFileSync(join(RESULTS, name), JSON.stringify({
+    writeFileSync(join(RESULTS, `${name}.json`), JSON.stringify({   // the path /status reads: results/<staged file name>.json
       kind: 'completed-jobs', loaded: records.length, total,
       jobs: records.map((r) => ({ jobNumber: r.jobNumber, jobName: r.jobName, type: r.type, gpPerHour: r.gpPerHour })),
       needsLook: skipped, notes,
