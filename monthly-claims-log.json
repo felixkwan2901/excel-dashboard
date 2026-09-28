@@ -373,8 +373,8 @@
     "7428": {
       "jobName": "FAB Pegasus Lakeside",
       "claim": 0,
-      "costs": 3062.5,
-      "profit": -3062.5
+      "costs": 2625.4400000000023,
+      "profit": -2625.4400000000023
     },
     "7429": {
       "jobName": "Taggart House",
@@ -391,8 +391,8 @@
     "7658": {
       "jobName": "Charity Hospital",
       "claim": 22202.890000000014,
-      "costs": 21523.99000000002,
-      "profit": 678.8999999999942
+      "costs": 21498.290000000008,
+      "profit": 704.6000000000058
     },
     "7864": {
       "jobName": "Ryans House",
