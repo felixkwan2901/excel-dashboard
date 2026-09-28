@@ -177,7 +177,7 @@ function MarginBar({ value }) {
 // it is the one that can be edited in place. Everything else on this table
 // comes from the workbook's own figures and changing it here would mean
 // nothing.
-function OwnerCell({ job, value, saving, onChange }) {
+export function OwnerCell({ job, value, saving, onChange }) {
   return (
     <select
       value={value}
@@ -216,7 +216,7 @@ function OwnerCell({ job, value, saving, onChange }) {
 // records what kind of work a job is, so this is the only place it can be
 // set. Kept as its own component rather than generalising the two — they read
 // the same today and there is no reason they must stay that way.
-function CategoryCell({ job, value, saving, onChange }) {
+export function CategoryCell({ job, value, saving, onChange }) {
   return (
     <select
       value={value}

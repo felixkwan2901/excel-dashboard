@@ -1,6 +1,10 @@
-import { Fragment, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { money } from '../lib/format'
 import CollapsibleSection from './CollapsibleSection'
+import { useLocalStorageState } from '../lib/useLocalStorageState'
+import { fetchJobOwners, saveJobOwner } from '../lib/jobOwnerStore'
+import { fetchJobCategories, saveJobCategory } from '../lib/jobCategoryStore'
+import { OwnerCell, CategoryCell } from './JobTable'
 
 // Added by scripts/add-completed-job.mjs, one job at a time — see that
 // script for how profit and hours are worked out for a quoted vs a
@@ -109,8 +113,83 @@ function Breakdown({ job }) {
   )
 }
 
+// Charge-up and quoted GP/hr aren't measured the same way (billed profit over billed
+// hours vs quoted profit over hours worked), and a 15-minute callout can top the
+// list over a 70-hour build — so each type gets its own view and its own overall
+// rate: total profit ÷ total hours, which weights every job by the time it took.
+const TYPE_FILTERS = [
+  { key: 'all', label: 'All' },
+  { key: 'chargeup', label: 'Charge-up' },
+  { key: 'quoted', label: 'Quoted' },
+]
+
+function typeStats(jobs) {
+  const profit = jobs.reduce((sum, j) => sum + (j.profit ?? 0), 0)
+  const hours = jobs.reduce((sum, j) => sum + (j.hours ?? 0), 0)
+  return { count: jobs.length, profit, hours: Math.round(hours * 100) / 100, gp: hours ? profit / hours : null }
+}
+
+function TypeSummary({ type, jobs, active, onSelect }) {
+  const st = typeStats(jobs)
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-pressed={active}
+      className={`flex min-w-0 flex-1 flex-col gap-1 rounded-[18px] border p-5 text-left transition-colors ${
+        active ? 'border-brand-green/50 bg-brand-green/[0.06]' : 'border-white/[0.06] bg-[#11161c] hover:border-white/20'
+      }`}
+    >
+      <span className="text-[12px] font-medium uppercase tracking-wide text-neutral-400">
+        {TYPE_LABEL[type]} · {st.count} job{st.count === 1 ? '' : 's'}
+      </span>
+      <span className="text-2xl font-semibold tabular-nums text-white">{st.gp === null ? '—' : `${money(st.gp)}/hr`}</span>
+      <span className="text-[12px] tabular-nums text-neutral-500">
+        {money(st.profit)} profit over {st.hours} h
+      </span>
+    </button>
+  )
+}
+
 export default function CompletedJobsTab({ completedJobs, onBack }) {
   const [sort, setSort] = useState({ key: 'gpPerHour', dir: -1 })
+  const [typeFilter, setTypeFilter] = useLocalStorageState('completedJobs.typeFilter', 'all')
+  // Owner and type of work are the same per-job stores the Projects dropdowns
+  // write to, so a job set in either place shows the same value in both.
+  const [owners, setOwners] = useState(null)
+  const [categories, setCategories] = useState(null)
+  const [saving, setSaving] = useState(() => new Set())
+  const [saveError, setSaveError] = useState('')
+  useEffect(() => {
+    let live = true
+    Promise.all([fetchJobOwners(), fetchJobCategories()])
+      .then(([o, c]) => { if (live) { setOwners(o); setCategories(c) } })
+      .catch(() => { if (live) { setOwners({}); setCategories({}); setSaveError('Could not load owners and types of work.') } })
+    return () => { live = false }
+  }, [])
+  async function saveField(kind, job, value) {
+    const [map, setMap, save, label] = kind === 'owner'
+      ? [owners, setOwners, saveJobOwner, 'owner']
+      : [categories, setCategories, saveJobCategory, 'type of work']
+    const previous = map?.[job.jobNumber] ?? ''
+    if (value === previous) return
+    const token = `${kind}:${job.jobNumber}`
+    setMap((m) => ({ ...m, [job.jobNumber]: value }))
+    setSaving((prev) => new Set(prev).add(token))
+    setSaveError('')
+    const saved = await save(job.jobNumber, value)
+    setSaving((prev) => { const next = new Set(prev); next.delete(token); return next })
+    if (saved) setMap(saved)
+    else {
+      setMap((m) => ({ ...m, [job.jobNumber]: previous }))
+      setSaveError(`Could not save the ${label} for job ${job.jobNumber}. Nothing was changed.`)
+    }
+  }
+  const loaded = owners !== null && categories !== null
+  const cells = (j) => ({
+    category: <CategoryCell job={j} value={categories?.[j.jobNumber] ?? ''} saving={!loaded || saving.has(`category:${j.jobNumber}`)} onChange={(job, v) => saveField('category', job, v)} />,
+    owner: <OwnerCell job={j} value={owners?.[j.jobNumber] ?? ''} saving={!loaded || saving.has(`owner:${j.jobNumber}`)} onChange={(job, v) => saveField('owner', job, v)} />,
+  })
   const [open, setOpen] = useState(() => new Set())
   function toggleOpen(jobNumber) {
     setOpen((prev) => { const next = new Set(prev); next.has(jobNumber) ? next.delete(jobNumber) : next.add(jobNumber); return next })
@@ -120,14 +199,20 @@ export default function CompletedJobsTab({ completedJobs, onBack }) {
     setSort((prev) => (prev.key === key ? { key, dir: -prev.dir } : { key, dir: -1 }))
   }
 
+  const byType = useMemo(() => ({
+    chargeup: completedJobs.filter((j) => j.type === 'chargeup'),
+    quoted: completedJobs.filter((j) => j.type === 'quoted'),
+  }), [completedJobs])
+  const shown = typeFilter === 'all' ? completedJobs : (byType[typeFilter] ?? completedJobs)
+
   const rows = useMemo(() => {
-    return [...completedJobs].sort((a, b) => {
+    return [...shown].sort((a, b) => {
       const av = a[sort.key]
       const bv = b[sort.key]
       if (typeof av === 'string') return av.localeCompare(bv) * sort.dir
       return ((av ?? 0) - (bv ?? 0)) * sort.dir
     })
-  }, [completedJobs, sort])
+  }, [shown, sort])
 
   return (
     <div className="mx-auto flex w-full max-w-[1800px] flex-col gap-6">
@@ -149,10 +234,39 @@ export default function CompletedJobsTab({ completedJobs, onBack }) {
         </p>
       </div>
 
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Job type">
+          {TYPE_FILTERS.map((f) => {
+            const n = f.key === 'all' ? completedJobs.length : byType[f.key].length
+            const on = typeFilter === f.key
+            return (
+              <button
+                key={f.key}
+                type="button"
+                onClick={() => setTypeFilter(f.key)}
+                aria-pressed={on}
+                className={`rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                  on ? 'border-brand-green/50 bg-brand-green/10 text-brand-green' : 'border-white/10 text-neutral-400 hover:border-white/20 hover:text-white'
+                }`}
+              >
+                {f.label} ({n})
+              </button>
+            )
+          })}
+        </div>
+        {saveError && <p className="text-sm text-red-400">{saveError}</p>}
+        <div className="flex flex-col gap-3 sm:flex-row">
+          {(typeFilter === 'all' ? ['chargeup', 'quoted'] : [typeFilter]).map((t) => (
+            <TypeSummary key={t} type={t} jobs={byType[t] ?? []} active={typeFilter === t}
+              onSelect={() => setTypeFilter(typeFilter === t ? 'all' : t)} />
+          ))}
+        </div>
+      </div>
+
       <CollapsibleSection
         className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6"
         storageKey="completed-jobs.table"
-        title={`${completedJobs.length} completed job${completedJobs.length === 1 ? '' : 's'}`}
+        title={`${rows.length} ${typeFilter === 'all' ? 'completed' : TYPE_LABEL[typeFilter].toLowerCase()} job${rows.length === 1 ? '' : 's'}`}
       >
         {/* Mobile: one stacked card per job. */}
         <div className="mt-4 flex flex-col gap-3 sm:hidden">
@@ -171,6 +285,10 @@ export default function CompletedJobsTab({ completedJobs, onBack }) {
                   <span className="text-neutral-400">{j.jobNumber}</span> {j.jobName}
                 </p>
                 <p className="mt-0.5 text-[12px] text-neutral-500">{TYPE_LABEL[j.type] ?? j.type}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {cells(j).category}
+                {cells(j).owner}
               </div>
               <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[13px]">
                 <span className="text-neutral-400">Profit</span>
@@ -196,8 +314,21 @@ export default function CompletedJobsTab({ completedJobs, onBack }) {
                 <th>Job #</th>
                 <th>Job name</th>
                 <th>Type</th>
+                {SORT_OPTIONS.slice(0, 3).map((col) => (
+                  <th
+                    key={col.key}
+                    className="num sortable"
+                    onClick={() => toggleSort(col.key)}
+                    aria-sort={sort.key === col.key ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'}
+                  >
+                    {col.label}
+                    {sort.key === col.key && (sort.dir === 1 ? ' ▲' : ' ▼')}
+                  </th>
+                ))}
                 <th>Worked by</th>
-                {SORT_OPTIONS.map((col) => (
+                <th>Type of work</th>
+                <th>Owner</th>
+                {SORT_OPTIONS.slice(3).map((col) => (
                   <th
                     key={col.key}
                     className="num sortable"
@@ -228,15 +359,17 @@ export default function CompletedJobsTab({ completedJobs, onBack }) {
                       </td>
                       <td>{j.jobName}</td>
                       <td>{TYPE_LABEL[j.type] ?? j.type}</td>
-                      <td><WorkedBy job={j} /></td>
-                      <td className="num">{money(j.gpPerHour)}</td>
+                      <td className="num font-medium">{money(j.gpPerHour)}</td>
                       <td className="num">{money(j.profit)}</td>
                       <td className="num">{j.hours}</td>
+                      <td><WorkedBy job={j} /></td>
+                      <td>{cells(j).category}</td>
+                      <td>{cells(j).owner}</td>
                       <td className="num">{j.addedAt}</td>
                     </tr>
                     {isOpen && (
                       <tr>
-                        <td colSpan={8} className="bg-white/[0.02]">
+                        <td colSpan={10} className="bg-white/[0.02]">
                           <div className="max-w-3xl py-2 pl-6"><Breakdown job={j} /></div>
                         </td>
                       </tr>
@@ -246,7 +379,7 @@ export default function CompletedJobsTab({ completedJobs, onBack }) {
               })}
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="empty-row">
+                  <td colSpan={10} className="empty-row">
                     No completed jobs added yet.
                   </td>
                 </tr>
