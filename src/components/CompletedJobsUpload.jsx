@@ -1,0 +1,122 @@
+import { useState } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
+import { Button } from './ui/button'
+import { pollStagedStatus } from '../lib/pollStagedStatus'
+import { workerFetch } from '@/lib/workerClient'
+
+// A month of completed-job exports from Katipolt (the katipolt-completed-export
+// prompt's downloads plus its manifest.csv), uploaded as one bundle so the
+// workflow always sees the whole batch. scripts/apply-completed-jobs-uploads.mjs
+// matches each file to its job and refuses the lot if they don't line up.
+
+function bytesToBase64(bytes) {
+  let s = ''
+  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000))
+  return btoa(s)
+}
+
+function summarise(files) {
+  const names = [...files].map((f) => f.name)
+  return {
+    pl: names.filter((n) => /^ProfitAndLoss/i.test(n) || /^CU-\d+\.xlsx$/i.test(n) || /^Q-\d+-pl\.xlsx$/i.test(n)).length,
+    ts: names.filter((n) => /^Timesheets/i.test(n) || /^Q-\d+-ts\.xlsx$/i.test(n)).length,
+    lists: names.filter((n) => /^Jobs/i.test(n)).length,
+    manifest: names.some((n) => n.toLowerCase() === 'manifest.csv'),
+    renamed: names.some((n) => /^(CU|Q)-\d+/i.test(n)),
+    other: names.filter((n) => !/\.xlsx$/i.test(n) && n.toLowerCase() !== 'manifest.csv'),
+  }
+}
+
+export default function CompletedJobsUpload() {
+  const [files, setFiles] = useState(null)
+  const [status, setStatus] = useState('idle') // idle | staging | processing | done | error
+  const [message, setMessage] = useState('')
+  const [result, setResult] = useState(null)
+  const sum = files ? summarise(files) : null
+  const busy = status === 'staging' || status === 'processing'
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    if (!files?.length) return
+    setStatus('staging'); setMessage(''); setResult(null)
+    try {
+      const packed = await Promise.all([...files].map(async (f) => ({ name: f.name, base64: bytesToBase64(new Uint8Array(await f.arrayBuffer())) })))
+      const bundleBase64 = bytesToBase64(new TextEncoder().encode(JSON.stringify({ uploadedAt: new Date().toISOString(), files: packed })))
+      const res = await workerFetch('/completed-jobs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ names: packed.map((f) => f.name), bundleBase64 }),
+      })
+      const payload = await res.json()
+      if (!res.ok) { setMessage(payload.message ?? `Request failed (${res.status}).`); setStatus('error'); return }
+      setStatus('processing'); setMessage(payload.message)
+      const r = await pollStagedStatus(payload.staged[0], { timeoutMs: 300000 })
+      if (r.status === 'failed') { setMessage(r.message); setStatus('error'); return }
+      if (r.status === 'timeout') { setMessage('Still processing after 5 minutes — check the Completed jobs tab shortly.'); setStatus('done'); return }
+      setResult(r.result ?? null)
+      setMessage(r.result
+        ? `Loaded ${r.result.loaded} completed job(s). The site updates in about a minute — then refresh to see them in Completed jobs.`
+        : 'Processed. The site updates in about a minute — then refresh to see them in Completed jobs.')
+      setStatus('done')
+    } catch (err) {
+      setMessage(`Could not reach the upload service: ${String(err.message ?? err)}`)
+      setStatus('error')
+    }
+  }
+
+  return (
+    <Card className="mt-4">
+      <CardHeader>
+        <CardTitle className="text-sm">Completed jobs</CardTitle>
+        <p className="text-xs text-text-muted">
+          This month&apos;s completed-job downloads from Katipolt — every ProfitAndLoss and Timesheets file, both
+          Jobs lists, and manifest.csv — selected together. Each file is matched to its job and checked against the
+          manifest; if anything doesn&apos;t line up, nothing is loaded and you&apos;ll see why.
+        </p>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div>
+            <label htmlFor="completed-files" className="mb-1.5 block text-xs text-text-muted">
+              Completed-job exports + manifest.csv (select all)
+            </label>
+            <input
+              id="completed-files"
+              type="file"
+              accept=".xlsx,.csv"
+              multiple
+              required
+              onChange={(e) => { setFiles(e.target.files); setStatus('idle'); setMessage(''); setResult(null) }}
+              className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white file:mr-3 file:rounded-md file:border-0 file:bg-white/[0.08] file:px-2.5 file:py-1 file:text-xs file:text-white"
+            />
+          </div>
+
+          {sum && (
+            <p className="text-xs text-text-muted">
+              {sum.pl} Profit &amp; Loss · {sum.ts} Timesheets · {sum.lists} Jobs list{sum.lists === 1 ? '' : 's'} ·{' '}
+              {sum.manifest ? 'manifest.csv ✓' : <span className="text-status-warning">no manifest.csv</span>}
+              {!sum.manifest && !sum.renamed && ' — without it the files can’t be matched to jobs'}
+              {sum.other.length > 0 && <span className="text-status-warning"> · not accepted: {sum.other.join(', ')}</span>}
+            </p>
+          )}
+
+          <Button type="submit" disabled={busy || (sum && !sum.manifest && !sum.renamed)} className="mt-1">
+            {status === 'staging' ? 'Uploading…' : status === 'processing' ? 'Processing…' : 'Upload completed jobs'}
+          </Button>
+
+          {message && (
+            <p className={`text-sm ${status === 'error' ? 'text-red-400' : 'text-brand-green'}`}>{message}</p>
+          )}
+          {result?.needsLook?.length > 0 && (
+            <div className="text-xs text-text-muted">
+              <p className="mb-1 font-medium text-status-warning">Needs a look ({result.needsLook.length}):</p>
+              <ul className="flex flex-col gap-0.5">
+                {result.needsLook.map((s, i) => <li key={i}>{s.job} — {s.reason}</li>)}
+              </ul>
+            </div>
+          )}
+        </form>
+      </CardContent>
+    </Card>
+  )
+}

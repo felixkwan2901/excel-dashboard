@@ -795,6 +795,41 @@ async function handleUpcomingWorkUpdate(request, env) {
 // /status — poll whether a staged request has been processed yet
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// /completed-jobs — a month of completed-job exports (Katipolt P&L and
+// Timesheets downloads, the two Jobs lists and manifest.csv) for the
+// dashboard's Completed jobs tab. The page sends everything as ONE bundle,
+// already base64-encoded, so this route only checks the file list and stages
+// a single file: the whole batch lands in one commit, and the free plan's
+// 10ms CPU limit is never at risk from re-encoding megabytes here.
+// scripts/apply-completed-jobs-uploads.mjs does the actual work.
+// ---------------------------------------------------------------------------
+
+const COMPLETED_MAX_FILES = 120
+const COMPLETED_MAX_BYTES = 30 * 1024 * 1024
+
+async function handleCompletedJobs(request, env) {
+  let body
+  try { body = await request.json() } catch { return json({ error: 'bad_request', message: 'Expected a JSON body.' }, 400) }
+  const names = Array.isArray(body?.names) ? body.names.map(String) : []
+  const bundle = typeof body?.bundleBase64 === 'string' ? body.bundleBase64 : ''
+  const fail = (message) => json({ error: 'invalid', message }, 400)
+  if (!names.length || !bundle) return fail('No files were selected.')
+  if (names.length > COMPLETED_MAX_FILES) return fail(`Too many files at once (max ${COMPLETED_MAX_FILES}).`)
+  const bad = names.find((n) => !/\.xlsx$/i.test(n) && n.toLowerCase() !== 'manifest.csv')
+  if (bad) return fail(`"${bad}" isn't a Katipolt .xlsx export or manifest.csv.`)
+  if (!names.some((n) => /\.xlsx$/i.test(n))) return fail('Only manifest.csv was selected — add the downloaded .xlsx files too.')
+  if (bundle.length * 0.75 > COMPLETED_MAX_BYTES) return fail('These files are too large to upload at once (max 30MB).')
+
+  const stagedPath = `pending-updates/completed-jobs/completed-${stagedId()}.json`
+  const res = await putNewFile(stagedPath, env, { contentBase64: bundle, message: `Stage completed jobs upload (${names.length} files)` })
+  if (!res.ok) {
+    const text = await res.text()
+    return json({ error: 'github_write_failed', message: `GitHub rejected the upload (${res.status}). ${text.slice(0, 200)}` }, 502)
+  }
+  return json({ queued: true, staged: [stagedPath], message: `Queued ${names.length} file(s). Processing takes about a minute.` })
+}
+
 async function handleStatus(request, env) {
   const url = new URL(request.url)
   const path = url.searchParams.get('path')
@@ -1136,6 +1171,14 @@ export default {
       } catch (err) {
         const msg = `Unexpected error: ${String(err.message ?? err)}`
         return respond(request, 500, { htmlMessage: `<div class="result err">${escapeHtml(msg)}</div>`, data: { error: 'unexpected', message: msg } })
+      }
+    }
+
+    if (request.method === 'POST' && url.pathname === '/completed-jobs') {
+      try {
+        return await handleCompletedJobs(request, env)
+      } catch (err) {
+        return json({ error: 'unexpected', message: `Unexpected error: ${String(err.message ?? err)}` }, 500)
       }
     }
 

@@ -8,6 +8,7 @@ import { recordJobCreated } from '../lib/onboardingChecklist'
 
 import { workerFetch, workerDownload } from '@/lib/workerClient'
 import LastSynced from './LastSynced'
+import CompletedJobsUpload from './CompletedJobsUpload'
 import {
   capacityByMonthCsv,
   claimsByMonthCsv,
@@ -382,6 +383,8 @@ export default function UpdateData({ onBack, jobs, monthlyClaimsHistory, monthly
           </form>
         </CardContent>
       </Card>
+
+      <CompletedJobsUpload />
 
       <Card className="mt-4">
         <CardHeader>

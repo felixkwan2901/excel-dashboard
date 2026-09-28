@@ -37,7 +37,7 @@ const APP_DATA_KEY_RE =
   /^(weekly|completion|jobCreated|field):[A-Za-z0-9]{1,20}$|^override:(main-sheet|claim-calculator|upcoming-work)$|^planning:(staff-roster|servicing|working-days|staff-on-tools|avg-hourly-rate|job-owners|job-categories|job-details|job-checklist|field-checklist-overrides|claim-fields|upcoming-work)$|^fieldTasks:(commercial|residential)$/
 
 const UPLOAD_WORKER = 'https://cde-data-upload.fkw24.workers.dev'
-const PROXY_PATHS = new Set(['/upload', '/replace', '/new-job', '/command', '/status', '/archive-job', '/download'])
+const PROXY_PATHS = new Set(['/upload', '/replace', '/new-job', '/command', '/status', '/archive-job', '/download', '/completed-jobs'])
 
 // The only files served without a session, and they are served without one for
 // a specific reason: a browser that installed the old precaching service

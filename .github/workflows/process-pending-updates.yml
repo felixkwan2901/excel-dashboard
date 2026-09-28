@@ -81,6 +81,7 @@ jobs:
             node scripts/apply-claim-calculator-edits.mjs
             node scripts/apply-upcoming-work-edits.mjs
             node scripts/apply-archived-jobs-edits.mjs
+            node scripts/apply-completed-jobs-uploads.mjs
             node scripts/log-monthly-hours.mjs
 
             git add -A
@@ -151,12 +152,68 @@ jobs:
           cp public/monthly-claims-log.json /tmp/gh-pages/monthly-claims-log.json
           cp public/archived-jobs.json /tmp/gh-pages/archived-jobs.json
           cp public/sync-meta.json /tmp/gh-pages/sync-meta.json
+          cp public/completed-jobs.json /tmp/gh-pages/completed-jobs.json
 
           cd /tmp/gh-pages
-          git add Cassidy_Davies_Electrical_BPMN_Data.xlsx monthly-hours-log.json monthly-claims-log.json archived-jobs.json sync-meta.json
+          git add Cassidy_Davies_Electrical_BPMN_Data.xlsx monthly-hours-log.json monthly-claims-log.json archived-jobs.json sync-meta.json completed-jobs.json
           if git diff --cached --quiet; then
             echo "Data files unchanged on gh-pages — nothing to sync."
             exit 0
           fi
           git commit -m "Sync data files ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
           git push origin HEAD:gh-pages
+
+  # The same data onto the Cloudflare copy (cd-dashboard.fkw24.workers.dev). Its
+  # data files are the Worker's static assets, so they only change with a
+  # deploy — and deploy.yml never runs for the commit above, because a push made
+  # with GITHUB_TOKEN does not trigger other workflows. Without this job every
+  # upload reached GitHub Pages and silently never reached the Cloudflare site.
+  sync-cloudflare:
+    needs: process
+    if: needs.process.outputs.pushed == 'true'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: cloudflare-deploy
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Skip with a clear reason if the token is missing
+        id: gate
+        run: |
+          if [ -z "${{ secrets.CLOUDFLARE_API_TOKEN }}" ]; then
+            echo "No CLOUDFLARE_API_TOKEN secret set — skipping the Cloudflare sync."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Same build settings as deploy.yml's cloudflare job. The build id is this
+      # commit, so an open dashboard tab offers "A new version is available".
+      - name: Build for the Cloudflare site
+        if: steps.gate.outputs.ready == 'true'
+        run: |
+          SHA="$(git rev-parse HEAD)"
+          echo "$SHA" > public/build-id.txt
+          GITHUB_SHA="$SHA" npm run build
+        env:
+          APP_BASE: /
+          VITE_API_BASE: /api
+          PWA_SELF_DESTROY: '1'
+          VITE_FIELD_APP_URL: https://cd-field.fkw24.workers.dev/
+
+      - name: Deploy
+        if: steps.gate.outputs.ready == 'true'
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: dc836f801a754ca49cb4ea1290935614

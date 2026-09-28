@@ -24,7 +24,8 @@ dist-ssr
 # nothing ever reads either back. pending-updates/exports/ is deliberately
 # NOT ignored: the upload worker stages there and the workflow must see it.
 /pending-updates/imports-archive
-/pending-updates/results
+/pending-updates/results/*
+!/pending-updates/results/completed-*.json
 
 # Ad-hoc workbooks kept at the repo root
 /July Data.xlsx
