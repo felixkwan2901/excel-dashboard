@@ -373,8 +373,8 @@
     "7428": {
       "jobName": "FAB Pegasus Lakeside",
       "claim": 0,
-      "costs": 3062.5,
-      "profit": -3062.5
+      "costs": 2942.1800000000076,
+      "profit": -2942.1800000000076
     },
     "7429": {
       "jobName": "Taggart House",
@@ -391,8 +391,8 @@
     "7658": {
       "jobName": "Charity Hospital",
       "claim": 22202.890000000014,
-      "costs": 21523.99000000002,
-      "profit": 678.8999999999942
+      "costs": 21022.23000000001,
+      "profit": 1180.6600000000035
     },
     "7864": {
       "jobName": "Ryans House",
@@ -421,14 +421,14 @@
     "8142": {
       "jobName": "Fisher Developements",
       "claim": 42019.899999999994,
-      "costs": 20112.42,
-      "profit": 21907.479999999996
+      "costs": 18657.01999999999,
+      "profit": 23362.880000000005
     },
     "8183": {
       "jobName": "Murney Custodian - 1 Freight Drive",
       "claim": 93276.07999999999,
-      "costs": 62494.389999999985,
-      "profit": 30781.690000000002
+      "costs": 61105.389999999985,
+      "profit": 32170.690000000002
     },
     "8214": {
       "jobName": "6 Tiroroa Lane",
@@ -445,14 +445,14 @@
     "8308": {
       "jobName": "Roydvale",
       "claim": 82279.71999999997,
-      "costs": 18983.080000000016,
-      "profit": 63296.639999999956
+      "costs": 22406.589999999997,
+      "profit": 59873.129999999976
     },
     "8337": {
       "jobName": "Waimak Dairys ",
       "claim": 0,
-      "costs": 3650.3599999999988,
-      "profit": -3650.3599999999988
+      "costs": 2218.25,
+      "profit": -2218.25
     },
     "8352": {
       "jobName": "5 Sanscrit Place",
@@ -474,21 +474,21 @@
     },
     "8530": {
       "jobName": "224 Cashel St - Eastern WC Block Reno",
-      "claim": 1740.2,
-      "costs": 239.55,
-      "profit": 1500.65
+      "claim": 0,
+      "costs": 397,
+      "profit": -397
     },
     "8670": {
       "jobName": "Studio DB - tautara fit out",
       "claim": 27482.319999999992,
-      "costs": 18539.01000000001,
-      "profit": 8943.309999999983
+      "costs": 14933.520000000004,
+      "profit": 12548.799999999988
     },
     "8769": {
       "jobName": "Percival Bach",
       "claim": 0,
-      "costs": 58.32,
-      "profit": -58.32
+      "costs": 0,
+      "profit": 0
     },
     "8824": {
       "jobName": "3 Innovation Road",
@@ -511,8 +511,8 @@
     "8886": {
       "jobName": "Monkey Toe - Fisher fit out",
       "claim": 61369.72,
-      "costs": 14830.879999999997,
-      "profit": 46538.840000000004
+      "costs": 14493.379999999997,
+      "profit": 46876.340000000004
     },
     "8887": {
       "jobName": "Tenancy 2 - Fisher Fit out",
@@ -534,15 +534,15 @@
     },
     "8946": {
       "jobName": "Westcoast Vaults",
-      "claim": 12193.580000000002,
+      "claim": 0,
       "costs": 11037.14,
-      "profit": 1156.4400000000023
+      "profit": -11037.14
     },
     "9065": {
       "jobName": "Cooltranz stage 4",
-      "claim": 19065.239999999998,
-      "costs": 14898.84,
-      "profit": 4166.399999999998
+      "claim": 0,
+      "costs": 12195.39,
+      "profit": -12195.39
     },
     "9240": {
       "jobName": "Daves Twizel Shack",
@@ -552,21 +552,21 @@
     },
     "9259": {
       "jobName": "Andrew Reeve Stage 2",
-      "claim": 16999.83,
-      "costs": 12895.309999999998,
-      "profit": 4104.520000000004
+      "claim": 0,
+      "costs": 9681.120000000003,
+      "profit": -9681.120000000003
     },
     "9351": {
       "jobName": "Harewood Golf Club",
       "claim": 0,
-      "costs": 2109.5099999999998,
-      "profit": -2109.5099999999998
+      "costs": 1718.2499999999995,
+      "profit": -1718.2499999999995
     },
     "9437": {
       "jobName": "65A Belfast Road (Revised)",
-      "claim": 19872.16,
-      "costs": 18292.87,
-      "profit": 1579.2900000000009
+      "claim": 10598.48,
+      "costs": 18235.02,
+      "profit": -7636.540000000001
     },
     "9508": {
       "jobName": "St Barnabas Church",
