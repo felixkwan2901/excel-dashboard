@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import { money } from '../lib/format'
 import CollapsibleSection from './CollapsibleSection'
 
@@ -17,8 +17,88 @@ const SORT_OPTIONS = [
 
 const TYPE_LABEL = { quoted: 'Quoted', chargeup: 'Charge-up' }
 
+// Who did the job and who contributed: each person's hours, their share of the
+// job's hours, and the same share of its profit (profit × their hours ÷ total
+// hours). Everyone on a job therefore earns at the job's GP/hr — the split shows
+// how much of the result each person's time accounts for.
+//
+// Katipolt lists a person's after-hours rate as its own line ("Sean Baines After
+// Hours") and corrections as negative lines, so lines are merged per person and
+// netted first. Anyone left at zero or below was an adjustment, not a
+// contribution: they're listed separately and left out of the split, so the
+// shares still add to 100% and the whole profit is allocated.
+function contributors(job) {
+  const people = new Map()
+  for (const w of job.workers ?? []) {
+    const afterHours = /\s+after\s*hours$/i.test(w.name)
+    const name = w.name.replace(/\s+after\s*hours$/i, '').trim()
+    const p = people.get(name) ?? { name, hours: 0, afterHours: false }
+    p.hours += w.hours
+    p.afterHours ||= afterHours
+    people.set(name, p)
+  }
+  const all = [...people.values()].map((p) => ({ ...p, hours: Math.round(p.hours * 100) / 100 }))
+  const worked = all.filter((p) => p.hours > 0).sort((a, b) => b.hours - a.hours)
+  const total = worked.reduce((sum, p) => sum + p.hours, 0)
+  return {
+    worked: worked.map((p) => ({ ...p, share: p.hours / total, profitShare: (job.profit * p.hours) / total })),
+    adjustments: all.filter((p) => p.hours <= 0),
+  }
+}
+
+function WorkedBy({ job }) {
+  const people = contributors(job).worked
+  if (!people.length) return <span className="text-neutral-500">—</span>
+  return (
+    <span>
+      <span className="text-neutral-200">{people[0].name}</span>
+      {people.length > 1 && <span className="text-neutral-500"> +{people.length - 1} more</span>}
+    </span>
+  )
+}
+
+function Breakdown({ job }) {
+  const { worked: people, adjustments } = contributors(job)
+  if (!people.length) {
+    return <p className="text-[13px] text-neutral-500">No per-person hours for this job — its timesheet export wasn&apos;t included.</p>
+  }
+  return (
+    <div className="flex flex-col gap-2.5">
+      <p className="text-[12px] text-neutral-500">
+        {people.length === 1 ? 'One person did all the hours on this job.' : `${people.length} people worked on this job — profit split by each person's share of the hours.`}
+      </p>
+      {people.map((p, i) => (
+        <div key={p.name} className="grid grid-cols-[minmax(0,1.6fr)_minmax(0,2fr)_auto_auto_auto] items-center gap-x-4 text-[13px]">
+          <span className="truncate text-neutral-100">
+            {p.name}
+            {p.afterHours && <span className="ml-1.5 text-[11px] text-neutral-500">incl. after-hours</span>}
+            {i === 0 && people.length > 1 && (
+              <span className="ml-2 rounded-full border border-brand-green/40 px-2 py-0.5 text-[11px] text-brand-green">Most hours</span>
+            )}
+          </span>
+          <span className="h-2 overflow-hidden rounded-full bg-white/[0.06]" aria-hidden="true">
+            <span className="block h-full rounded-full bg-brand-green" style={{ width: `${Math.max(2, p.share * 100)}%` }} />
+          </span>
+          <span className="w-14 text-right tabular-nums text-neutral-300">{Math.round(p.hours * 100) / 100} h</span>
+          <span className="w-12 text-right tabular-nums text-neutral-400">{Math.round(p.share * 100)}%</span>
+          <span className="w-20 text-right tabular-nums text-neutral-200">{money(p.profitShare)}</span>
+        </div>
+      ))}
+      {adjustments.map((p) => (
+        <p key={p.name} className="text-[12px] text-neutral-500">
+          {p.name}: {p.hours} h adjustment on the invoice — not counted in the split.
+        </p>
+      ))}
+    </div>
+  )
+}
+
 export default function CompletedJobsTab({ completedJobs, onBack }) {
   const [sort, setSort] = useState({ key: 'gpPerHour', dir: -1 })
+  const [open, setOpen] = useState(() => new Set())
+  function toggleOpen(jobNumber) {
+    setOpen((prev) => { const next = new Set(prev); next.has(jobNumber) ? next.delete(jobNumber) : next.add(jobNumber); return next })
+  }
 
   function toggleSort(key) {
     setSort((prev) => (prev.key === key ? { key, dir: -prev.dir } : { key, dir: -1 }))
@@ -48,11 +128,8 @@ export default function CompletedJobsTab({ completedJobs, onBack }) {
         <p className="mt-1 text-sm text-neutral-400">
           Profit ÷ actual hours for each finished job — a quoted job&apos;s Quoted Profit
           against its actual hours worked, a charge-up job&apos;s billed profit against its
-          billed hours. Added one at a time with{' '}
-          <code className="rounded bg-white/[0.06] px-1 py-0.5 text-[12px]">
-            node scripts/add-completed-job.mjs
-          </code>
-          .
+          billed hours. Click a job to see who worked on it and how the profit splits by
+          their hours. Add a month&apos;s jobs in Update data → Completed jobs.
         </p>
       </div>
 
@@ -66,7 +143,12 @@ export default function CompletedJobsTab({ completedJobs, onBack }) {
           {rows.map((j) => (
             <div
               key={j.jobNumber}
-              className="flex flex-col gap-3 rounded-[14px] border border-white/[0.06] bg-white/[0.02] p-4"
+              role="button"
+              tabIndex={0}
+              aria-expanded={open.has(j.jobNumber)}
+              onClick={() => toggleOpen(j.jobNumber)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleOpen(j.jobNumber) } }}
+              className="flex cursor-pointer flex-col gap-3 rounded-[14px] border border-white/[0.06] bg-white/[0.02] p-4"
             >
               <div>
                 <p className="text-[14px] font-medium text-white">
@@ -82,11 +164,10 @@ export default function CompletedJobsTab({ completedJobs, onBack }) {
                 <span className="text-neutral-400">GP $/hr</span>
                 <span className="text-right tabular-nums font-medium text-white">{money(j.gpPerHour)}</span>
               </div>
-              {j.workers?.length > 0 && (
-                <p className="text-[12px] text-neutral-500">
-                  {j.workers.map((w) => `${w.name} (${w.hours}h)`).join(', ')}
-                </p>
-              )}
+              <p className="text-[12px] text-neutral-500">
+                <WorkedBy job={j} /> · {open.has(j.jobNumber) ? 'Hide' : 'Show'} who worked on it
+              </p>
+              {open.has(j.jobNumber) && <div className="border-t border-white/10 pt-3"><Breakdown job={j} /></div>}
             </div>
           ))}
           {rows.length === 0 && <p className="empty-row">No completed jobs added yet.</p>}
@@ -114,20 +195,39 @@ export default function CompletedJobsTab({ completedJobs, onBack }) {
               </tr>
             </thead>
             <tbody>
-              {rows.map((j) => (
-                <tr key={j.jobNumber}>
-                  <td>{j.jobNumber}</td>
-                  <td>{j.jobName}</td>
-                  <td>{TYPE_LABEL[j.type] ?? j.type}</td>
-                  <td className="text-neutral-400">
-                    {j.workers?.map((w) => `${w.name} (${w.hours}h)`).join(', ') ?? '—'}
-                  </td>
-                  <td className="num">{money(j.gpPerHour)}</td>
-                  <td className="num">{money(j.profit)}</td>
-                  <td className="num">{j.hours}</td>
-                  <td className="num">{j.addedAt}</td>
-                </tr>
-              ))}
+              {rows.map((j) => {
+                const isOpen = open.has(j.jobNumber)
+                return (
+                  <Fragment key={j.jobNumber}>
+                    <tr
+                      className="cursor-pointer"
+                      tabIndex={0}
+                      aria-expanded={isOpen}
+                      onClick={() => toggleOpen(j.jobNumber)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleOpen(j.jobNumber) } }}
+                    >
+                      <td>
+                        <span className={`mr-2 inline-block text-neutral-500 transition-transform ${isOpen ? 'rotate-90' : ''}`} aria-hidden="true">›</span>
+                        {j.jobNumber}
+                      </td>
+                      <td>{j.jobName}</td>
+                      <td>{TYPE_LABEL[j.type] ?? j.type}</td>
+                      <td><WorkedBy job={j} /></td>
+                      <td className="num">{money(j.gpPerHour)}</td>
+                      <td className="num">{money(j.profit)}</td>
+                      <td className="num">{j.hours}</td>
+                      <td className="num">{j.addedAt}</td>
+                    </tr>
+                    {isOpen && (
+                      <tr>
+                        <td colSpan={8} className="bg-white/[0.02]">
+                          <div className="max-w-3xl py-2 pl-6"><Breakdown job={j} /></div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                )
+              })}
               {rows.length === 0 && (
                 <tr>
                   <td colSpan={8} className="empty-row">
