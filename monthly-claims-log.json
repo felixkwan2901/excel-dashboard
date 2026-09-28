@@ -475,14 +475,14 @@
     "8530": {
       "jobName": "224 Cashel St - Eastern WC Block Reno",
       "claim": 1740.2,
-      "costs": 239.55,
-      "profit": 1500.65
+      "costs": 584.85,
+      "profit": 1155.35
     },
     "8670": {
       "jobName": "Studio DB - tautara fit out",
       "claim": 27482.319999999992,
-      "costs": 18539.01000000001,
-      "profit": 8943.309999999983
+      "costs": 19232.930000000008,
+      "profit": 8249.389999999985
     },
     "8769": {
       "jobName": "Percival Bach",
@@ -511,8 +511,8 @@
     "8886": {
       "jobName": "Monkey Toe - Fisher fit out",
       "claim": 61369.72,
-      "costs": 14830.879999999997,
-      "profit": 46538.840000000004
+      "costs": 16020.68,
+      "profit": 45349.04
     },
     "8887": {
       "jobName": "Tenancy 2 - Fisher Fit out",
@@ -541,26 +541,26 @@
     "9065": {
       "jobName": "Cooltranz stage 4",
       "claim": 19065.239999999998,
-      "costs": 14898.84,
-      "profit": 4166.399999999998
+      "costs": 20702.6,
+      "profit": -1637.3600000000006
     },
     "9240": {
       "jobName": "Daves Twizel Shack",
       "claim": 0,
-      "costs": 2116.21,
-      "profit": -2116.21
+      "costs": 2097.39,
+      "profit": -2097.39
     },
     "9259": {
       "jobName": "Andrew Reeve Stage 2",
       "claim": 16999.83,
-      "costs": 12895.309999999998,
-      "profit": 4104.520000000004
+      "costs": 15288.169999999998,
+      "profit": 1711.6600000000035
     },
     "9351": {
       "jobName": "Harewood Golf Club",
-      "claim": 0,
-      "costs": 2109.5099999999998,
-      "profit": -2109.5099999999998
+      "claim": 3801.9399999999996,
+      "costs": 3273.68,
+      "profit": 528.2599999999998
     },
     "9437": {
       "jobName": "65A Belfast Road (Revised)",
