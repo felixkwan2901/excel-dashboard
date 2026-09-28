@@ -18,9 +18,8 @@ const SORT_OPTIONS = [
 const TYPE_LABEL = { quoted: 'Quoted', chargeup: 'Charge-up' }
 
 // Who did the job and who contributed: each person's hours, their share of the
-// job's hours, and the same share of its profit (profit × their hours ÷ total
-// hours). Everyone on a job therefore earns at the job's GP/hr — the split shows
-// how much of the result each person's time accounts for.
+// job's hours, and the same share of its GP/hr and of its profit (× their hours
+// ÷ total hours) — so the people on a job add back up to the job's figures.
 //
 // Katipolt lists a person's after-hours rate as its own line ("Sean Baines After
 // Hours") and corrections as negative lines, so lines are merged per person and
@@ -41,7 +40,8 @@ function contributors(job) {
   const worked = all.filter((p) => p.hours > 0).sort((a, b) => b.hours - a.hours)
   const total = worked.reduce((sum, p) => sum + p.hours, 0)
   return {
-    worked: worked.map((p) => ({ ...p, share: p.hours / total, profitShare: (job.profit * p.hours) / total })),
+    // gpShare = the job's GP/hr × (their hours ÷ total hours); the shares add up to the job's GP/hr.
+    worked: worked.map((p) => ({ ...p, share: p.hours / total, profitShare: (job.profit * p.hours) / total, gpShare: (job.gpPerHour * p.hours) / total })),
     adjustments: all.filter((p) => p.hours <= 0),
   }
 }
@@ -57,6 +57,9 @@ function WorkedBy({ job }) {
   )
 }
 
+const GRID = 'grid grid-cols-[minmax(0,1.6fr)_minmax(0,1.6fr)_4rem_3rem_6rem_5.5rem] gap-x-4'
+const GRID_ONE = 'grid grid-cols-[minmax(0,1.6fr)_minmax(0,1.6fr)_4rem_3rem_5.5rem] gap-x-4'
+
 function Breakdown({ job }) {
   const { worked: people, adjustments } = contributors(job)
   if (!people.length) {
@@ -65,10 +68,22 @@ function Breakdown({ job }) {
   return (
     <div className="flex flex-col gap-2.5">
       <p className="text-[12px] text-neutral-500">
-        {people.length === 1 ? 'One person did all the hours on this job.' : `${people.length} people worked on this job — profit split by each person's share of the hours.`}
+        {people.length === 1
+          ? 'One person did all the hours on this job.'
+          : `${people.length} people worked on this job — GP/hr and profit split by each person's share of the hours (the shares add up to the job's ${money(job.gpPerHour)}/hr).`}
       </p>
+      {people.length > 1 && (
+        <div className={`${GRID} text-[11px] uppercase tracking-wide text-neutral-500`}>
+          <span>Person</span>
+          <span />
+          <span className="text-right">Hours</span>
+          <span className="text-right">Share</span>
+          <span className="text-right">GP/hr share</span>
+          <span className="text-right">Profit share</span>
+        </div>
+      )}
       {people.map((p, i) => (
-        <div key={p.name} className="grid grid-cols-[minmax(0,1.6fr)_minmax(0,2fr)_auto_auto_auto] items-center gap-x-4 text-[13px]">
+        <div key={p.name} className={`${people.length > 1 ? GRID : GRID_ONE} items-center text-[13px]`}>
           <span className="truncate text-neutral-100">
             {p.name}
             {p.afterHours && <span className="ml-1.5 text-[11px] text-neutral-500">incl. after-hours</span>}
@@ -79,9 +94,10 @@ function Breakdown({ job }) {
           <span className="h-2 overflow-hidden rounded-full bg-white/[0.06]" aria-hidden="true">
             <span className="block h-full rounded-full bg-brand-green" style={{ width: `${Math.max(2, p.share * 100)}%` }} />
           </span>
-          <span className="w-14 text-right tabular-nums text-neutral-300">{Math.round(p.hours * 100) / 100} h</span>
-          <span className="w-12 text-right tabular-nums text-neutral-400">{Math.round(p.share * 100)}%</span>
-          <span className="w-20 text-right tabular-nums text-neutral-200">{money(p.profitShare)}</span>
+          <span className="text-right tabular-nums text-neutral-300">{Math.round(p.hours * 100) / 100} h</span>
+          <span className="text-right tabular-nums text-neutral-400">{Math.round(p.share * 100)}%</span>
+          {people.length > 1 && <span className="text-right tabular-nums font-medium text-white">{money(p.gpShare)}/hr</span>}
+          <span className="text-right tabular-nums text-neutral-200">{money(p.profitShare)}</span>
         </div>
       ))}
       {adjustments.map((p) => (
