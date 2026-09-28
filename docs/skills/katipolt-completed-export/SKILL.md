@@ -131,5 +131,5 @@ When finished, **show the whole manifest in a code block** and ask the user to s
 - Counts: Charge Up jobs exported, Quoted jobs exported (P&L + timesheet), and every `none` row with its reason ("No data to display", "no timesheet entries").
 - Jobs whose P&L loaded but showed $0.00 profit or zero hours — thin, worth a look.
 - The manifest (code block), plus the reminder to save it as `manifest.csv`.
-- Then tell the user to put **all** the downloaded files (both Jobs lists, every ProfitAndLoss and Timesheets file) and `manifest.csv` into one folder and send that folder to whoever runs the dashboard update. They load it with `node scripts/add-completed-jobs.mjs <folder>`.
+- Then tell the user how to load it: open the dashboard (cd-dashboard.fkw24.workers.dev) → **Update data** → the **Completed jobs** section (not "Update job data" — that one is for in-progress jobs), click the file picker, select **all** the downloaded files (both Jobs lists, every ProfitAndLoss and Timesheets file) **and** `manifest.csv` together, and click **Upload completed jobs**. After about a minute it says how many jobs were loaded; if the files and manifest don't line up it loads nothing and says which job to fix.
 - Do not claim to have checked the files on disk.
