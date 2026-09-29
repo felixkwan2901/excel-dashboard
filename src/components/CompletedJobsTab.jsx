@@ -26,7 +26,18 @@ const SORT_OPTIONS = [
   { key: 'hoursDiff', label: 'Difference h' },
   { key: 'addedAt', label: 'Date added' },
 ]
-const BEFORE_WORKED_BY = 5
+// Every column of the table sorts; text columns start A–Z, numbers high to low.
+const TEXT_SORTS = new Set(['jobName', 'type', 'workedBy', 'category', 'owner'])
+const COLUMNS = [
+  { key: 'jobNumber', label: 'Job #' },
+  { key: 'jobName', label: 'Job name' },
+  { key: 'type', label: 'Type' },
+  ...SORT_OPTIONS.slice(0, 5).map((c) => ({ ...c, num: true })),
+  { key: 'workedBy', label: 'Worked by' },
+  { key: 'category', label: 'Type of work' },
+  { key: 'owner', label: 'Owner' },
+  ...SORT_OPTIONS.slice(5).map((c) => ({ ...c, num: true })),
+]
 
 // Difference = quoted − actual hours. A charge-up job's quoted hours are Sold +
 // Unsold and its actual hours are Sold, so its difference is its Unsold hours.
@@ -299,7 +310,7 @@ export default function CompletedJobsTab({ completedJobs, onBack }) {
   }
 
   function toggleSort(key) {
-    setSort((prev) => (prev.key === key ? { key, dir: -prev.dir } : { key, dir: -1 }))
+    setSort((prev) => (prev.key === key ? { key, dir: -prev.dir } : { key, dir: TEXT_SORTS.has(key) ? 1 : -1 }))
   }
 
   const byType = useMemo(() => ({
@@ -310,13 +321,26 @@ export default function CompletedJobsTab({ completedJobs, onBack }) {
 
   const rows = useMemo(() => {
     return [...shown].sort((a, b) => {
-      const val = (j) => (sort.key === 'hoursDiff' ? hoursDiff(j) : j[sort.key])
-      const av = val(a)
-      const bv = val(b)
+      const av = sortValue(a)
+      const bv = sortValue(b)
+      // blanks (no owner, no type of work, …) always go last
+      const blank = (v) => v === null || v === undefined || v === ''
+      if (blank(av) || blank(bv)) return blank(av) - blank(bv)
       if (typeof av === 'string') return av.localeCompare(bv) * sort.dir
-      return ((av ?? 0) - (bv ?? 0)) * sort.dir
+      return (av - bv) * sort.dir
     })
-  }, [shown, sort])
+    function sortValue(j) {
+      switch (sort.key) {
+        case 'jobNumber': return Number(j.jobNumber)
+        case 'type': return TYPE_LABEL[j.type] ?? j.type
+        case 'hoursDiff': return hoursDiff(j)
+        case 'workedBy': return contributors(j).worked[0]?.name ?? ''
+        case 'category': return categories?.[j.jobNumber] ?? ''
+        case 'owner': return owners?.[j.jobNumber] ?? ''
+        default: return j[sort.key]
+      }
+    }
+  }, [shown, sort, owners, categories])
 
   return (
     <div className="mx-auto flex w-full max-w-[1800px] flex-col gap-6">
@@ -380,6 +404,26 @@ export default function CompletedJobsTab({ completedJobs, onBack }) {
         storageKey="completed-jobs.table"
         title={`${rows.length} ${typeFilter === 'all' ? 'completed' : TYPE_LABEL[typeFilter].toLowerCase()} job${rows.length === 1 ? '' : 's'}`}
       >
+        {/* Mobile: no column headers to click, so a sort picker instead. */}
+        <div className="mt-4 flex items-center gap-2 sm:hidden">
+          <label htmlFor="completed-sort" className="text-[12px] text-neutral-500">Sort by</label>
+          <select
+            id="completed-sort"
+            value={sort.key}
+            onChange={(e) => setSort({ key: e.target.value, dir: TEXT_SORTS.has(e.target.value) ? 1 : -1 })}
+            className="rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1 text-[13px] text-white"
+          >
+            {COLUMNS.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+          </select>
+          <button
+            type="button"
+            onClick={() => setSort((prev) => ({ ...prev, dir: -prev.dir }))}
+            className="rounded-lg border border-white/10 px-2 py-1 text-[13px] text-neutral-300"
+            aria-label={sort.dir === 1 ? 'Ascending — switch to descending' : 'Descending — switch to ascending'}
+          >
+            {sort.dir === 1 ? '▲' : '▼'}
+          </button>
+        </div>
         {/* Mobile: one stacked card per job. */}
         <div className="mt-4 flex flex-col gap-3 sm:hidden">
           {rows.map((j) => (
@@ -428,27 +472,10 @@ export default function CompletedJobsTab({ completedJobs, onBack }) {
           <table className="data-table">
             <thead>
               <tr>
-                <th>Job #</th>
-                <th>Job name</th>
-                <th>Type</th>
-                {SORT_OPTIONS.slice(0, BEFORE_WORKED_BY).map((col) => (
+                {COLUMNS.map((col) => (
                   <th
                     key={col.key}
-                    className="num sortable"
-                    onClick={() => toggleSort(col.key)}
-                    aria-sort={sort.key === col.key ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'}
-                  >
-                    {col.label}
-                    {sort.key === col.key && (sort.dir === 1 ? ' ▲' : ' ▼')}
-                  </th>
-                ))}
-                <th>Worked by</th>
-                <th>Type of work</th>
-                <th>Owner</th>
-                {SORT_OPTIONS.slice(BEFORE_WORKED_BY).map((col) => (
-                  <th
-                    key={col.key}
-                    className="num sortable"
+                    className={`${col.num ? 'num ' : ''}sortable`}
                     onClick={() => toggleSort(col.key)}
                     aria-sort={sort.key === col.key ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'}
                   >
