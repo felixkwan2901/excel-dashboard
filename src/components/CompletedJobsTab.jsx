@@ -3,6 +3,7 @@ import { Users } from 'lucide-react'
 import { cents, money, percent } from '../lib/format'
 import CollapsibleSection from './CollapsibleSection'
 import LastSynced from './LastSynced'
+import CompletedCompare from './CompletedCompare'
 import { useLocalStorageState } from '../lib/useLocalStorageState'
 import { fetchJobOwners, saveJobOwner } from '../lib/jobOwnerStore'
 import { fetchJobCategories, saveJobCategory } from '../lib/jobCategoryStore'
@@ -611,6 +612,10 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
                 }`}>
                 Show selected only
               </button>
+              <button type="button" onClick={() => document.getElementById('completed-compare')?.scrollIntoView({ block: 'start', behavior: 'smooth' })}
+                className="rounded-full border border-brand-green/50 bg-brand-green/10 px-3 py-1 text-[12px] font-medium text-brand-green hover:bg-brand-green/15">
+                Compare &amp; AI summary ↓
+              </button>
               <button type="button" onClick={() => { setSelected(new Set()); setSelectedOnly(false) }}
                 className="rounded-full border border-white/10 px-3 py-1 text-[12px] font-medium text-neutral-300 hover:border-white/20 hover:text-white">
                 Clear
@@ -753,6 +758,7 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
             )}
           </table>
         </div>
+        {selectedJobs.length > 0 && <CompletedCompare jobs={selectedJobs} />}
       </CollapsibleSection>
     </div>
   )

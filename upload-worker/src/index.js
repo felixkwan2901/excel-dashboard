@@ -873,6 +873,114 @@ async function handleStatus(request, env) {
 }
 
 // ---------------------------------------------------------------------------
+// /job-summary — a plain-English read of some completed jobs (Gemini). Read
+// only: the page sends the figures it already shows (no customer details),
+// the model writes a verdict per job, a note per person and an overall line.
+// Every number it may quote is in the payload; it's told not to invent any.
+// ---------------------------------------------------------------------------
+
+const JOB_SUMMARY_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    headline: { type: 'STRING' },
+    jobs: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: {
+          jobNumber: { type: 'STRING' },
+          verdict: { type: 'STRING', enum: ['good', 'mixed', 'poor'] },
+          note: { type: 'STRING' },
+        },
+        required: ['jobNumber', 'verdict', 'note'],
+      },
+    },
+    people: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: { name: { type: 'STRING' }, note: { type: 'STRING' } },
+        required: ['name', 'note'],
+      },
+    },
+    overall: { type: 'STRING' },
+    nextTime: { type: 'STRING' },
+  },
+  required: ['headline', 'jobs', 'people', 'overall', 'nextTime'],
+}
+
+function buildJobSummaryPrompt(jobs) {
+  return `You review finished jobs for Cassidy-Davies Electrical, a New Zealand electrical contractor, for the owner who wants to know plainly whether each job went well. Write in short, plain New Zealand English, with money as $1,234 and percentages as 44.3% — never write field names from the data (like totalHours) in the text. Use ONLY the figures in the data below — never invent or estimate a number that isn't there. Money is NZD.
+
+How the figures work:
+- A QUOTED job: labour profit = quoted labour cost − actual labour cost. GP/hr = labour profit ÷ actual hours. Quoted hours vs actual hours and quoted vs actual labour/total cost show whether it came in within the quote. Profit to date / margin to date are the job's actual result; quoted profit / quoted margin were the plan. A job is good when it came in at or under the quoted hours and costs and the margin to date is at or above the quoted margin; poor when it went clearly over (hours or costs) or the margin fell well short; mixed otherwise.
+- A CHARGE-UP job: GP/hr = the job's total profit ÷ sold (charged) hours. Unsold hours are hours worked but not charged — the more of them, the worse. There's no quote to compare against.
+- Each person's "part" = the job's GP/hr × their hours; it adds up to the job's labour profit. A person's GP/hr across these jobs = their parts ÷ their hours.
+
+Write:
+- headline: one sentence — how these jobs went overall.
+- jobs: for EACH job, a verdict (good / mixed / poor) and a one- or two-sentence note saying why, quoting the key figures (hours quoted vs actual, margin quoted vs to date, what went over).
+- people: for each person in peopleAcrossTheseJobs, one sentence on what they contributed across these jobs — use their totalHours and gpPerHourOnQuotedJobs exactly as given (never recompute them), written in plain words like "26.25 hours at $2.51/hr" — factual, not blaming; hours over quote are a job outcome, not proof of one person's fault.
+- overall: two or three sentences comparing the jobs with each other.
+- nextTime: one practical suggestion for quoting or running similar jobs next time, grounded in these figures.
+
+DATA (JSON):
+${JSON.stringify(jobs)}`
+}
+
+async function handleJobSummary(request, env) {
+  const body = await request.json().catch(() => null)
+  const jobs = Array.isArray(body?.jobs) ? body.jobs : null
+  const people = Array.isArray(body?.peopleAcrossTheseJobs) ? body.peopleAcrossTheseJobs.slice(0, 60) : []
+  if (!jobs || jobs.length === 0) return json({ ok: false, error: 'no_jobs', message: 'Tick at least one job first.' }, 400)
+  if (jobs.length > 25) return json({ ok: false, error: 'too_many', message: 'Pick 25 jobs or fewer for a summary.' }, 400)
+  const payload = JSON.stringify({ jobs, peopleAcrossTheseJobs: people })
+  if (payload.length > 40000) return json({ ok: false, error: 'too_big', message: 'That selection is too large to summarise — pick fewer jobs.' }, 400)
+  if (!env.GEMINI_API_KEY) return json({ ok: false, error: 'not_configured', message: 'The AI summary is not configured yet.' }, 503)
+
+  const geminiBody = JSON.stringify({
+    contents: [{ role: 'user', parts: [{ text: buildJobSummaryPrompt({ jobs, peopleAcrossTheseJobs: people }) }] }],
+    generationConfig: {
+      responseMimeType: 'application/json',
+      responseSchema: JOB_SUMMARY_SCHEMA,
+      thinkingConfig: { thinkingLevel: 'low' },
+    },
+  })
+  // Google's transient 503 "high demand" is common, so: two tries on the main
+  // model, then the lighter one (a different queue), before giving up.
+  const TRIES = ['gemini-flash-latest', 'gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-flash-lite-latest']
+  let geminiRes
+  for (let attempt = 0; attempt < TRIES.length; attempt++) {
+    if (attempt) await new Promise((r) => setTimeout(r, 1200))
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${TRIES[attempt]}:generateContent?key=${env.GEMINI_API_KEY}`
+    try {
+      geminiRes = await fetch(geminiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: geminiBody })
+    } catch (err) {
+      if (attempt === TRIES.length - 1) return json({ ok: false, error: 'gemini_unreachable', message: `Could not reach the AI service: ${String(err.message ?? err)}` }, 502)
+      continue
+    }
+    if (geminiRes.ok || geminiRes.status !== 503) break
+  }
+  if (geminiRes.status === 503) {
+    return json({ ok: false, error: 'gemini_busy', message: 'The AI is busy right now (Google says high demand) — try again in a minute.' }, 503)
+  }
+  if (!geminiRes.ok) {
+    const errText = await geminiRes.text().catch(() => '')
+    return json({ ok: false, error: 'gemini_error', message: `AI service error (${geminiRes.status}). ${errText.slice(0, 200)}` }, 502)
+  }
+  const geminiPayload = await geminiRes.json().catch(() => null)
+  try {
+    const summary = JSON.parse(geminiPayload?.candidates?.[0]?.content?.parts?.[0]?.text)
+    // Only keep verdicts for jobs that were actually sent.
+    const sent = new Set(jobs.map((j) => String(j.jobNumber)))
+    summary.jobs = (summary.jobs ?? []).filter((j) => sent.has(String(j.jobNumber)))
+    return json({ ok: true, summary })
+  } catch {
+    return json({ ok: false, error: 'gemini_bad_response', message: 'The AI summary came back unreadable — try again.' }, 502)
+  }
+}
+
+// ---------------------------------------------------------------------------
 // /command — natural-language edit parsing (Gemini), never writes anything
 // itself. Turns a typed instruction into the exact {jobNumber, col, value}
 // shape the three save routes above already accept, so there is exactly
@@ -1241,6 +1349,14 @@ export default {
       } catch (err) {
         const msg = `Unexpected error: ${String(err.message ?? err)}`
         return respond(request, 500, { htmlMessage: `<div class="result err">${escapeHtml(msg)}</div>`, data: { error: 'unexpected', message: msg } })
+      }
+    }
+
+    if (request.method === 'POST' && url.pathname === '/job-summary') {
+      try {
+        return await handleJobSummary(request, env)
+      } catch (err) {
+        return json({ ok: false, error: 'unexpected', message: `Unexpected error: ${String(err.message ?? err)}` }, 500)
       }
     }
 
