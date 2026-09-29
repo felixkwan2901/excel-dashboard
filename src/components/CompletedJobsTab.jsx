@@ -382,37 +382,6 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
       )}
 
       <div className="flex flex-col gap-3">
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Job type">
-          {TYPE_FILTERS.map((f) => {
-            const n = f.key === 'all' ? completedJobs.length : byType[f.key].length
-            const on = typeFilter === f.key
-            return (
-              <button
-                key={f.key}
-                type="button"
-                onClick={() => setTypeFilter(f.key)}
-                aria-pressed={on}
-                className={`rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors ${
-                  on ? 'border-brand-green/50 bg-brand-green/10 text-brand-green' : 'border-white/10 text-neutral-400 hover:border-white/20 hover:text-white'
-                }`}
-              >
-                {f.label} ({n})
-              </button>
-            )
-          })}
-          <label className="ml-1 flex items-center gap-2 text-[13px] text-neutral-400">
-            Type of work
-            <select
-              value={workFilter ?? ''}
-              onChange={(e) => setWorkFilter(e.target.value || null)}
-              className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[13px] text-white"
-            >
-              <option value="">All</option>
-              {[...JOB_CATEGORIES, NOT_SET].filter((c) => completedJobs.some((j) => (categories?.[j.jobNumber] || NOT_SET) === c))
-                .map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </label>
-        </div>
         <p className="flex items-center gap-2 text-[12px] text-neutral-500">
           <span className="inline-block h-3 w-3 rounded-sm" style={{ background: OVER_TINT, boxShadow: `inset 4px 0 0 ${OVER}` }} aria-hidden="true" />
           Red rows are quoted jobs that came in over quote — the blinking figures are what went over.
@@ -432,6 +401,44 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
         storageKey="completed-jobs.table"
         title={`${rows.length} ${typeFilter === 'all' ? 'completed' : TYPE_LABEL[typeFilter].toLowerCase()} job${rows.length === 1 ? '' : 's'}${workFilter ? ` · ${workFilter}` : ''}`}
       >
+        {/* Filters right above the table: job type, then type of work. Counts in
+            each button are for what the other filter currently leaves. */}
+        <div className="mt-3 flex flex-col gap-2">
+          <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Job type">
+            <span className="mr-1 w-24 text-[12px] text-neutral-500">Job type</span>
+            {TYPE_FILTERS.map((f) => {
+              const pool = workFilter ? completedJobs.filter((j) => (categories?.[j.jobNumber] || NOT_SET) === workFilter) : completedJobs
+              const n = f.key === 'all' ? pool.length : pool.filter((j) => j.type === f.key).length
+              const on = typeFilter === f.key
+              return (
+                <button key={f.key} type="button" onClick={() => setTypeFilter(f.key)} aria-pressed={on}
+                  className={`rounded-full border px-3 py-1 text-[13px] font-medium transition-colors ${
+                    on ? 'border-brand-green/50 bg-brand-green/10 text-brand-green' : 'border-white/10 text-neutral-400 hover:border-white/20 hover:text-white'
+                  }`}>
+                  {f.label} ({n})
+                </button>
+              )
+            })}
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Type of work">
+            <span className="mr-1 w-24 text-[12px] text-neutral-500">Type of work</span>
+            {[null, ...JOB_CATEGORIES, NOT_SET].map((c) => {
+              const pool = typeFilter === 'all' ? completedJobs : completedJobs.filter((j) => j.type === typeFilter)
+              const n = c === null ? pool.length : pool.filter((j) => (categories?.[j.jobNumber] || NOT_SET) === c).length
+              if (c !== null && !completedJobs.some((j) => (categories?.[j.jobNumber] || NOT_SET) === c)) return null
+              const on = workFilter === c
+              return (
+                <button key={c ?? 'all'} type="button" onClick={() => setWorkFilter(c)} aria-pressed={on} disabled={!n && !on}
+                  className={`rounded-full border px-3 py-1 text-[13px] font-medium transition-colors disabled:opacity-35 ${
+                    on ? 'border-brand-green/50 bg-brand-green/10 text-brand-green' : 'border-white/10 text-neutral-400 hover:border-white/20 hover:text-white'
+                  }`}>
+                  {c ?? 'All'} ({n})
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
         {/* Mobile: no column headers to click, so a sort picker instead. */}
         <div className="mt-4 flex items-center gap-2 sm:hidden">
           <label htmlFor="completed-sort" className="text-[12px] text-neutral-500">Sort by</label>
