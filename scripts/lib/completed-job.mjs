@@ -7,13 +7,12 @@
 //             "Actual Quantity". Quoted hours = the Budgeted Labour "Quoted Quantity".
 //   Charge-up ("Sold"/"Unsold", no "Quotes") — labour profit = the Summary sheet's
 //             Labour Actual Sell − Labour Actual Cost. Actual hours = the Sold sheet's
-//             labour lines (per person); the Unsold sheet's labour total is kept as
-//             unsoldHours — 0 means the job was done within the time.
+//             labour lines (per person); quoted hours = Sold + Unsold labour, so with
+//             no Unsold hours quoted = actual (done within the time).
 //             These exports carry no job number or name, so the caller supplies them.
 //
 // GP/hour = labour profit ÷ actual hours, for both types; each person's part is that
-// GP/hour × their own hours. Quoted: quotedHours − hours is shown alongside;
-// charge-up: its unsoldHours.
+// GP/hour × their own hours. quotedHours − hours is shown alongside.
 
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
@@ -129,7 +128,7 @@ export function parseChargeUp(workbook) {
   const sum = (lines) => lines.reduce((t, w) => t + w.hours, 0)
   const hours = sum(workers), unsoldHours = sum(labourLines(sheetRows(workbook, 'Unsold') ?? []))
   if (hours <= 0) throw new Error('No labour hours on the Sold sheet.')
-  return { type: 'chargeup', profit, hours, unsoldHours, workers, hoursSource: 'sold', labour: { actualCost, actualSell } }
+  return { type: 'chargeup', profit, hours, quotedHours: hours + unsoldHours, unsoldHours, workers, hoursSource: 'sold', labour: { actualCost, actualSell } }
 }
 
 export function toRecord(result, { jobNumber, jobName, sourceFile, timesheetFile }) {

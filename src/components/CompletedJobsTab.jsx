@@ -27,13 +27,9 @@ const SORT_OPTIONS = [
 ]
 const BEFORE_WORKED_BY = 5
 
-// Quoted job: difference = quoted − actual hours. Charge-up job (no quoted hours):
-// its Unsold hours, shown as −unsold. Zero or above = done within the time.
-const hoursDiff = (j) => {
-  if (j.quotedHours != null) return Math.round((j.quotedHours - j.hours) * 100) / 100
-  if (j.unsoldHours != null) return j.unsoldHours ? -j.unsoldHours : 0
-  return null
-}
+// Difference = quoted − actual hours. A charge-up job's quoted hours are Sold +
+// Unsold and its actual hours are Sold, so its difference is its Unsold hours.
+const hoursDiff = (j) => (j.quotedHours == null ? null : Math.round((j.quotedHours - j.hours) * 100) / 100)
 function DiffHours({ job }) {
   const d = hoursDiff(job)
   if (d === null) return <span className="text-neutral-500">—</span>
@@ -286,8 +282,8 @@ export default function CompletedJobsTab({ completedJobs, onBack }) {
           actual labour cost for a quoted job, and actual labour sell − actual labour cost for
           a charge-up job — divided by the actual hours (charge-up: the Sold tab&apos;s labour
           hours). On a job with more than one person, each person&apos;s part is that GP/hr ×
-          their hours. Difference h is quoted − actual for a quoted job, and the unsold hours
-          for a charge-up job (0 = done within the time). Click a job to see the working and who worked on it. Add a month&apos;s jobs in Update data → Completed jobs.
+          their hours. Quoted h is a quoted job&apos;s quoted hours, or a charge-up job&apos;s sold +
+          unsold hours; difference h is quoted − actual. Click a job to see the working and who worked on it. Add a month&apos;s jobs in Update data → Completed jobs.
         </p>
       </div>
 
