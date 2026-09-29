@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react'
 import {
+  BarChart3,
+  Briefcase,
   CalendarClock,
+  ChevronRight,
+  Database,
+  LayoutDashboard,
   ChartColumn,
   CheckCircle2,
   ClipboardCheck,
@@ -35,18 +40,51 @@ import { UPLOAD_WORKER_URL } from '../lib/workerClient'
 // The view key stays 'charts'. 'dashboard' is already taken — it is the
 // default view, the one labelled "Projects" — so reusing it here would send
 // every visit to the wrong screen.
-const LINKS = [
-  { view: 'charts', label: 'Dashboard', icon: ChartColumn, handler: 'onGoCharts' },
-  { view: 'main-sheet', label: 'Job checklist', icon: ClipboardCheck, handler: 'onGoMainSheet' },
-  { view: 'dashboard', label: 'Projects', icon: FolderKanban, handler: 'onGoDashboard' },
-  { view: 'monthly-claims', label: 'Monthly claims', icon: Receipt, handler: 'onGoMonthlyClaims' },
-  { view: 'upcoming-work', label: 'Upcoming work', icon: CalendarClock, handler: 'onGoUpcomingWork' },
-  { view: 'completed-jobs', label: 'Completed jobs', icon: CheckCircle2, handler: 'onGoCompletedJobs' },
-  { view: 'update', label: 'Update data', icon: Upload, handler: 'onGoUpdateData' },
+// Three groups, each opening to its tabs. The group holding the page you're on
+// is always open; the others open and close with a click (remembered). On a
+// collapsed rail or a phone the group headings drop out and every tab shows as
+// before, since there's no room for a heading to say anything.
+const NAV_GROUPS = [
+  {
+    key: 'overview', label: 'Overview', icon: LayoutDashboard,
+    links: [
+      { view: 'charts', label: 'Dashboard', icon: ChartColumn, handler: 'onGoCharts' },
+      { view: 'dashboard', label: 'Projects', icon: FolderKanban, handler: 'onGoDashboard', also: ['project', 'review'] },
+      { view: 'upcoming-work', label: 'Upcoming work', icon: CalendarClock, handler: 'onGoUpcomingWork' },
+    ],
+  },
+  {
+    key: 'jobs', label: 'Jobs', icon: Briefcase,
+    links: [
+      { view: 'main-sheet', label: 'Job checklist', icon: ClipboardCheck, handler: 'onGoMainSheet', also: ['weekly-check-sheet', 'job-completion-checklist'] },
+      { view: 'monthly-claims', label: 'Monthly claims', icon: Receipt, handler: 'onGoMonthlyClaims' },
+      { view: 'completed-jobs', label: 'Completed jobs', icon: CheckCircle2, handler: 'onGoCompletedJobs' },
+      { view: 'completed-insights', label: 'Completed insights', icon: BarChart3, handler: 'onGoCompletedInsights' },
+    ],
+  },
+  {
+    key: 'data', label: 'Data', icon: Database,
+    links: [
+      { view: 'update', label: 'Update data', icon: Upload, handler: 'onGoUpdateData' },
+      { external: FIELD_APP_URL, label: 'Field app', icon: HardHat, title: 'Field app — on-site task progress (opens in a new tab)' },
+    ],
+  },
 ]
+const OPEN_KEY = 'sidebar.openGroups'
+function readOpenGroups() {
+  try { return JSON.parse(localStorage.getItem(OPEN_KEY)) ?? [] } catch { return [] }
+}
 
 export function Sidebar({ view, onGoHome, ...handlers }) {
   const [collapsed, setCollapsed] = useState(readSidebarCollapsed)
+  const [openGroups, setOpenGroups] = useState(readOpenGroups)
+  function toggleGroup(key) {
+    setOpenGroups((prev) => {
+      const next = prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+      try { localStorage.setItem(OPEN_KEY, JSON.stringify(next)) } catch { /* not saved, still works */ }
+      return next
+    })
+  }
 
   function toggleRail() {
     setCollapsed((prev) => applySidebarCollapsed(!prev))
@@ -58,37 +96,60 @@ export function Sidebar({ view, onGoHome, ...handlers }) {
         <Logo size={26} />
         <span>Cassidy-Davies</span>
       </button>
-      {LINKS.map(({ view: v, label, icon: Icon, handler }) => (
-        <button
-          key={v}
-          className={`side-nav__link ${view === v ? 'is-active' : ''}`}
-          onClick={handlers[handler]}
-          aria-current={view === v ? 'page' : undefined}
-          // The title carries the label when it's a rail and the icon is all
-          // that's left on screen.
-          title={label}
-        >
-          <Icon size={15} aria-hidden="true" />
-          <span className="side-nav__label">{label}</span>
-        </button>
-      ))}
-      {/* The field app is a separate app on a separate URL, so this is a real
-          link rather than another view. Marked with an arrow and opened in a
-          new tab: nothing is more disorienting than a sidebar item that
-          silently replaces the dashboard you were working in. */}
-      <a
-        href={FIELD_APP_URL}
-        target="_blank"
-        rel="noreferrer"
-        className="side-nav__link"
-        title="Field app — on-site task progress (opens in a new tab)"
-      >
-        <HardHat size={15} aria-hidden="true" />
-        <span className="side-nav__label">
-          Field app
-          <ExternalLink size={12} aria-hidden="true" className="ml-1.5 inline align-[-1px] opacity-60" />
-        </span>
-      </a>
+      {NAV_GROUPS.map((g) => {
+        const here = g.links.some((l) => l.view === view || l.also?.includes(view))
+        const isOpen = here || openGroups.includes(g.key)
+        const GIcon = g.icon
+        return (
+          <div key={g.key} className={`side-nav__group ${isOpen ? 'is-open' : ''}`}>
+            <button
+              type="button"
+              className={`side-nav__group-head ${here ? 'is-here' : ''}`}
+              onClick={() => toggleGroup(g.key)}
+              aria-expanded={isOpen}
+              title={g.label}
+            >
+              <GIcon size={15} aria-hidden="true" />
+              <span className="side-nav__label">{g.label}</span>
+              <ChevronRight size={13} aria-hidden="true" className="side-nav__chevron" />
+            </button>
+            <div className="side-nav__sub">
+              {g.links.map((l) => {
+                const Icon = l.icon
+                if (l.external) {
+                  // A separate app on a separate URL: a real link, opened in a new
+                  // tab, and marked with an arrow so it never silently replaces
+                  // the dashboard you were working in.
+                  return (
+                    <a key={l.label} href={l.external} target="_blank" rel="noreferrer" className="side-nav__link" title={l.title}>
+                      <Icon size={15} aria-hidden="true" />
+                      <span className="side-nav__label">
+                        {l.label}
+                        <ExternalLink size={12} aria-hidden="true" className="ml-1.5 inline align-[-1px] opacity-60" />
+                      </span>
+                    </a>
+                  )
+                }
+                const active = view === l.view || l.also?.includes(view)
+                return (
+                  <button
+                    key={l.view}
+                    className={`side-nav__link ${active ? 'is-active' : ''}`}
+                    onClick={handlers[l.handler]}
+                    aria-current={active ? 'page' : undefined}
+                    // The title carries the label when it's a rail and the icon is all
+                    // that's left on screen.
+                    title={l.label}
+                  >
+                    <Icon size={15} aria-hidden="true" />
+                    <span className="side-nav__label">{l.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })}
 
       <div className="side-nav__spacer" />
       <AccountFooter />

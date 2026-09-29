@@ -1,17 +1,13 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { Users } from 'lucide-react'
-import { money, percent } from '../lib/format'
-
-// GP/hr and per-person figures are often a few dollars, so show cents.
-const CENTS = new Intl.NumberFormat('en-NZ', { style: 'currency', currency: 'NZD', minimumFractionDigits: 2, maximumFractionDigits: 2 })
-const cents = (v) => (v == null ? '—' : CENTS.format(Math.round(v * 100) === 0 ? 0 : v))
+import { cents, money, percent } from '../lib/format'
 import CollapsibleSection from './CollapsibleSection'
 import { useLocalStorageState } from '../lib/useLocalStorageState'
 import { fetchJobOwners, saveJobOwner } from '../lib/jobOwnerStore'
 import { fetchJobCategories, saveJobCategory } from '../lib/jobCategoryStore'
 import { OwnerCell, CategoryCell } from './JobTable'
 import { JOB_CATEGORIES } from '../lib/jobCategories'
-import { contributors, personTotals } from '../lib/completedJobPeople'
+import { contributors } from '../lib/completedJobPeople'
 import { jobsToReview, overruns } from '../lib/completedJobReview'
 
 // Loaded by scripts/lib/completed-job.mjs — labour only: a quoted job's profit is
@@ -57,6 +53,7 @@ const GROUPS = [
 // Which cells turn red when a quoted job came in over quote on that measure.
 const OVER_CELLS = { hours: ['hours', 'hoursDiff', 'labourActualH'], labour: ['labourActual'], cost: ['costActual'] }
 const OVER = 'var(--viz-critical)'
+const OVER_TINT = 'color-mix(in srgb, var(--viz-critical) 12%, transparent)'
 const fmtOver = (o) => (o.unit === 'h' ? `${o.label} ${o.quoted} → ${o.actual} h` : `${o.label} ${money(o.quoted)} → ${money(o.actual)}`)
 
 // Frozen leading columns (Job #, Job name) — widths so the second knows its left.
@@ -74,12 +71,9 @@ function DiffHours({ job }) {
 
 const TYPE_LABEL = { quoted: 'Quoted', chargeup: 'Charge-up' }
 
-// Jobs worked by more than one person get the chart blue — a tinted row with a
-// blue edge and a people tag — so team jobs stand out from one-person ones at a
-// glance. Green is already taken by selection and the type switch.
+// Jobs worked by more than one person just get a "N people" tag; the row colour
+// is kept for quoted jobs that came in over quote (red), so they stand out.
 const TEAM = 'var(--viz-1)'
-const TEAM_TINT = 'color-mix(in srgb, var(--viz-1) 7%, transparent)'
-const isTeam = (job) => contributors(job).worked.length > 1
 
 function WorkedBy({ job }) {
   const people = contributors(job).worked
@@ -209,139 +203,7 @@ function TypeSummary({ type, jobs, active, onSelect }) {
   )
 }
 
-const PERSON_COLS = [
-  { key: 'count', label: 'Jobs' },
-  { key: 'hours', label: 'Hours' },
-  { key: 'profit', label: 'Labour profit' },
-  { key: 'gpPerHour', label: 'GP $/hr' },
-]
-
-function PeopleSummary({ jobs, scope }) {
-  const [sort, setSort] = useState({ key: 'gpPerHour', dir: -1 })
-  const [open, setOpen] = useState(() => new Set())
-  const people = useMemo(() => personTotals(jobs).sort((a, b) =>
-    sort.key === 'name' ? a.name.localeCompare(b.name) * sort.dir : ((a[sort.key] ?? 0) - (b[sort.key] ?? 0)) * sort.dir), [jobs, sort])
-  const toggle = (name) => setOpen((prev) => { const next = new Set(prev); next.has(name) ? next.delete(name) : next.add(name); return next })
-  const sortBy = (key) => setSort((prev) => (prev.key === key ? { key, dir: -prev.dir } : { key, dir: key === 'name' ? 1 : -1 }))
-  const arrow = (key) => (sort.key === key ? (sort.dir === 1 ? ' ▲' : ' ▼') : '')
-
-  return (
-    <CollapsibleSection
-      className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6"
-      storageKey="completed-jobs.people"
-      title={`By person — ${people.length} ${people.length === 1 ? 'person' : 'people'}`}
-      description={`Quoted jobs only — charge-up jobs aren't split per person. Each person's hours and their part of the labour profit (each job's GP/hr × their hours) across ${scope}, summed. GP/hr = their labour profit ÷ their hours. Click a person to see their jobs.`}
-    >
-      <div className="table-scroll mt-2">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th className="sortable" onClick={() => sortBy('name')}
-                aria-sort={sort.key === 'name' ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'}>Person{arrow('name')}</th>
-              {PERSON_COLS.map((c) => (
-                <th key={c.key} className="num sortable" onClick={() => sortBy(c.key)}
-                  aria-sort={sort.key === c.key ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'}>
-                  {c.label}{arrow(c.key)}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {people.map((p) => {
-              const isOpen = open.has(p.name)
-              return (
-                <Fragment key={p.name}>
-                  <tr className="cursor-pointer" tabIndex={0} aria-expanded={isOpen} onClick={() => toggle(p.name)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(p.name) } }}>
-                    <td>
-                      <span className={`mr-2 inline-block text-neutral-500 transition-transform ${isOpen ? 'rotate-90' : ''}`} aria-hidden="true">›</span>
-                      {p.name}
-                    </td>
-                    <td className="num">{p.count}</td>
-                    <td className="num">{p.hours}</td>
-                    <td className="num">{cents(p.profit)}</td>
-                    <td className="num font-medium">{p.gpPerHour === null ? '—' : `${cents(p.gpPerHour)}/hr`}</td>
-                  </tr>
-                  {isOpen && (
-                    <tr>
-                      <td colSpan={5} className="bg-white/[0.02]">
-                        <div className="flex max-w-3xl flex-col gap-1.5 py-2 pl-6 text-[13px]">
-                          <div className="grid grid-cols-[4rem_minmax(0,1fr)_5rem_4rem_6rem] gap-x-4 text-[11px] uppercase tracking-wide text-neutral-500">
-                            <span>Job #</span><span>Job name</span><span className="text-right">GP/hr</span><span className="text-right">Hours</span><span className="text-right">Their part</span>
-                          </div>
-                          {p.jobs.map(({ job, hours, part }) => (
-                            <div key={job.jobNumber} className="grid grid-cols-[4rem_minmax(0,1fr)_5rem_4rem_6rem] gap-x-4 tabular-nums">
-                              <span className="text-neutral-400">{job.jobNumber}</span>
-                              <span className="truncate text-neutral-200">{job.jobName} <span className="text-neutral-500">· {TYPE_LABEL[job.type]}</span></span>
-                              <span className="text-right text-neutral-400">{cents(job.gpPerHour)}</span>
-                              <span className="text-right text-neutral-300">{hours} h</span>
-                              <span className="text-right text-white">{cents(part)}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
-              )
-            })}
-            {people.length === 0 && <tr><td colSpan={5} className="empty-row">No per-person hours yet.</td></tr>}
-          </tbody>
-        </table>
-      </div>
-    </CollapsibleSection>
-  )
-}
-
-// How many completed jobs of each type of work, split charge-up / quoted. A row
-// is a filter: click it to show only that type of work below.
 const NOT_SET = 'Not set'
-function WorkTypeCounts({ jobs, categories, active, onSelect }) {
-  const counts = new Map()
-  for (const j of jobs) {
-    const cat = categories?.[j.jobNumber] || NOT_SET
-    const c = counts.get(cat) ?? { chargeup: 0, quoted: 0 }
-    c[j.type] = (c[j.type] ?? 0) + 1
-    counts.set(cat, c)
-  }
-  const order = [...JOB_CATEGORIES, NOT_SET].filter((c) => counts.has(c))
-  const total = { chargeup: jobs.filter((j) => j.type === 'chargeup').length, quoted: jobs.filter((j) => j.type === 'quoted').length }
-  const cell = (n) => (n ? n : <span className="text-neutral-600">0</span>)
-  return (
-    <div className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-5">
-      <div className="mb-2 flex items-baseline justify-between gap-3">
-        <h2 className="text-[15px] font-medium text-neutral-100">Jobs by type and type of work</h2>
-        {active && <button type="button" onClick={() => onSelect(null)} className="text-[12px] text-brand-green hover:underline">Show all types of work</button>}
-      </div>
-      <table className="data-table data-table--compact">
-        <thead>
-          <tr><th>Type of work</th><th className="num">Charge-up</th><th className="num">Quoted</th><th className="num">Total</th></tr>
-        </thead>
-        <tbody>
-          {order.map((cat) => {
-            const c = counts.get(cat), on = active === cat
-            return (
-              <tr key={cat} className="cursor-pointer" tabIndex={0} aria-pressed={on} onClick={() => onSelect(on ? null : cat)}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(on ? null : cat) } }}
-                style={on ? { background: 'color-mix(in srgb, var(--brand-green, #22c55e) 10%, transparent)' } : undefined}>
-                <td className={on ? 'font-medium text-brand-green' : cat === NOT_SET ? 'text-neutral-500' : ''}>{cat}</td>
-                <td className="num">{cell(c.chargeup)}</td>
-                <td className="num">{cell(c.quoted)}</td>
-                <td className="num font-medium">{c.chargeup + c.quoted}</td>
-              </tr>
-            )
-          })}
-          <tr>
-            <td className="font-medium">All</td>
-            <td className="num font-medium">{total.chargeup}</td>
-            <td className="num font-medium">{total.quoted}</td>
-            <td className="num font-medium">{jobs.length}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  )
-}
 
 function HeadCell({ col, rowSpan, sub, sort, onSort }) {
   const on = sort.key === col.key
@@ -538,10 +400,22 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
               </button>
             )
           })}
+          <label className="ml-1 flex items-center gap-2 text-[13px] text-neutral-400">
+            Type of work
+            <select
+              value={workFilter ?? ''}
+              onChange={(e) => setWorkFilter(e.target.value || null)}
+              className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[13px] text-white"
+            >
+              <option value="">All</option>
+              {[...JOB_CATEGORIES, NOT_SET].filter((c) => completedJobs.some((j) => (categories?.[j.jobNumber] || NOT_SET) === c))
+                .map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </label>
         </div>
         <p className="flex items-center gap-2 text-[12px] text-neutral-500">
-          <span className="inline-block h-3 w-3 rounded-sm" style={{ background: TEAM_TINT, boxShadow: `inset 3px 0 0 ${TEAM}` }} aria-hidden="true" />
-          Blue rows were worked on by more than one person — click one to see the split.
+          <span className="inline-block h-3 w-3 rounded-sm" style={{ background: OVER_TINT, boxShadow: `inset 4px 0 0 ${OVER}` }} aria-hidden="true" />
+          Red rows are quoted jobs that came in over quote — the blinking figures are what went over.
         </p>
         {saveError && <p className="text-sm text-red-400">{saveError}</p>}
         <div className="flex flex-col gap-3 sm:flex-row">
@@ -552,9 +426,6 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
         </div>
       </div>
 
-      <WorkTypeCounts jobs={completedJobs} categories={categories} active={workFilter} onSelect={setWorkFilter} />
-
-      {typeFilter !== 'chargeup' && <PeopleSummary jobs={byType.quoted} scope="the completed quoted jobs" />}
 
       <CollapsibleSection
         className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6"
@@ -592,7 +463,7 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
               onClick={() => toggleOpen(j.jobNumber)}
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleOpen(j.jobNumber) } }}
               className="flex cursor-pointer flex-col gap-3 rounded-[14px] border border-white/[0.06] bg-white/[0.02] p-4"
-              style={overruns(j).length ? { boxShadow: `inset 3px 0 0 ${OVER}`, ...(isTeam(j) ? { background: TEAM_TINT } : {}) } : isTeam(j) ? { background: TEAM_TINT, boxShadow: `inset 3px 0 0 ${TEAM}` } : undefined}
+              style={overruns(j).length ? { background: OVER_TINT, boxShadow: `inset 4px 0 0 ${OVER}` } : undefined}
             >
               <div>
                 <p className="text-[14px] font-medium text-white">
@@ -677,18 +548,16 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
             <tbody>
               {rows.map((j) => {
                 const isOpen = open.has(j.jobNumber)
-                const team = isTeam(j)
                 const over = overruns(j)
                 const redCells = new Set(over.flatMap((o) => OVER_CELLS[o.key]))
-                // red edge for a job to review wins over the blue team edge
-                const edge = over.length ? OVER : team ? TEAM : null
+                const edge = over.length ? OVER : null
                 return (
                   <Fragment key={j.jobNumber}>
                     <tr
                       id={`cj-${j.jobNumber}`}
                       title={over.length ? `Over quote — review: ${over.map(fmtOver).join(' · ')}` : undefined}
-                      className={`cursor-pointer ${team ? 'is-team' : ''}`}
-                      style={team ? { background: TEAM_TINT } : undefined}
+                      className={`cursor-pointer ${edge ? 'is-over' : ''}`}
+                      style={edge ? { background: OVER_TINT } : undefined}
                       tabIndex={0}
                       aria-expanded={isOpen}
                       onClick={() => toggleOpen(j.jobNumber)}
@@ -721,17 +590,17 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
                           <td key={col.key} className={cls}
                             style={{
                               ...style,
-                              ...(col.key === 'jobNumber' && edge ? { boxShadow: `inset 3px 0 0 ${edge}` } : {}),
-                              ...(redCells.has(col.key) ? { color: OVER, fontWeight: 600 } : {}),
+                              ...(col.key === 'jobNumber' && edge ? { boxShadow: `inset 4px 0 0 ${edge}` } : {}),
+                              ...(redCells.has(col.key) ? { color: OVER, fontWeight: 700 } : {}),
                             }}>
-                            {content}
+                            {redCells.has(col.key) ? <span className="blink-over">{content}</span> : content}
                           </td>
                         )
                       })}
                     </tr>
                     {isOpen && (
-                      <tr className={team ? 'is-team' : ''} style={team ? { background: TEAM_TINT } : undefined}>
-                        <td colSpan={visibleCols.length} className="bg-white/[0.02]" style={edge ? { boxShadow: `inset 3px 0 0 ${edge}` } : undefined}>
+                      <tr className={edge ? 'is-over' : ''} style={edge ? { background: OVER_TINT } : undefined}>
+                        <td colSpan={visibleCols.length} className="bg-white/[0.02]" style={edge ? { boxShadow: `inset 4px 0 0 ${edge}` } : undefined}>
                           {/* sticky so the breakdown stays in view when the table is scrolled sideways */}
                           <div className="sticky left-0 max-w-3xl py-2 pl-6"><Breakdown job={j} /></div>
                         </td>

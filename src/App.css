@@ -442,9 +442,26 @@
   padding-right: 8px;
 }
 
-/* Frozen cells are opaque, so a team row's tint is laid over them again. */
-.data-table tr.is-team > .sticky-col {
-  background-image: linear-gradient(color-mix(in srgb, var(--viz-1) 7%, transparent), color-mix(in srgb, var(--viz-1) 7%, transparent));
+/* Frozen cells are opaque, so an over-quote row's red tint is laid over them again. */
+.data-table tr.is-over > .sticky-col {
+  background-image: linear-gradient(color-mix(in srgb, var(--viz-critical) 12%, transparent), color-mix(in srgb, var(--viz-critical) 12%, transparent));
+}
+
+/* The figures that went over quote, and the bell's count, pulse so they're hard
+   to miss. Not for anyone who has asked their system for less motion. */
+@keyframes blink-over {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+
+.blink-over {
+  animation: blink-over 1.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blink-over {
+    animation: none;
+  }
 }
 
 /* Thursday-morning overdue alert for an unfinished Weekly job check sheet —

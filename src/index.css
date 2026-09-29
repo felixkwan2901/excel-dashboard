@@ -605,6 +605,78 @@ input:focus-visible {
   flex: 1;
 }
 
+/* Three groups (Overview / Jobs / Data), each opening to its tabs. */
+.side-nav__group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.side-nav__group-head {
+  appearance: none;
+  border: 0;
+  background: none;
+  color: var(--sidebar-text);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 9px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.side-nav__group-head:hover {
+  background: var(--sidebar-2);
+  color: #ffffff;
+}
+
+.side-nav__group-head.is-here {
+  color: #ffffff;
+}
+
+.side-nav__chevron {
+  margin-left: auto;
+  opacity: 0.6;
+  transition: transform 0.15s ease;
+}
+
+.side-nav__group.is-open .side-nav__chevron {
+  transform: rotate(90deg);
+}
+
+.side-nav__sub {
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: 14px;
+  margin-bottom: 4px;
+}
+
+.side-nav__group.is-open .side-nav__sub {
+  display: flex;
+}
+
+.side-nav__sub .side-nav__link {
+  font-size: 13px;
+  padding: 7px 12px;
+}
+
+/* A collapsed rail or a phone has no room for headings: every tab shows. */
+:root[data-rail] .side-nav__group-head {
+  display: none;
+}
+
+:root[data-rail] .side-nav__sub {
+  display: flex;
+  padding-left: 0;
+  margin-bottom: 0;
+}
+
 /* The top strip that survives the move: search, weather, clock, alerts. These
    are glanceable things, not destinations, so they stay horizontal above the
    content instead of being crammed into a 232px column. */
@@ -633,6 +705,19 @@ input:focus-visible {
   .side-nav__brand,
   .side-nav__spacer {
     display: none;
+  }
+
+  .side-nav__group-head {
+    display: none;
+  }
+
+  .side-nav__group,
+  .side-nav__sub,
+  .side-nav__group .side-nav__sub {
+    display: flex;
+    flex-direction: row;
+    padding-left: 0;
+    margin-bottom: 0;
   }
 
   .side-nav__link.is-active {

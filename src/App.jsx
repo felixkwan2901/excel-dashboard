@@ -17,6 +17,7 @@ import ArchivedJobsPanel from './components/ArchivedJobsPanel'
 import UpcomingWorkTab from './components/UpcomingWorkTab'
 import CompletedJobsTab from './components/CompletedJobsTab'
 import ChartsTab from './components/ChartsTab'
+import CompletedInsightsTab from './components/CompletedInsightsTab'
 import { jobsToReview } from './lib/completedJobReview'
 import WeeklyCheckSheetTab from './components/WeeklyCheckSheetTab'
 import JobCompletionChecklistTab from './components/JobCompletionChecklistTab'
@@ -259,6 +260,11 @@ export default function App() {
     pushUrlState({ view: 'completed-jobs', selectedJobId, dashboardQuery, dashboardFilter })
   }
 
+  function goCompletedInsights() {
+    setView('completed-insights')
+    pushUrlState({ view: 'completed-insights', selectedJobId, dashboardQuery, dashboardFilter })
+  }
+
   function goCharts() {
     setView('charts')
     pushUrlState({ view: 'charts', selectedJobId, dashboardQuery, dashboardFilter })
@@ -320,6 +326,7 @@ export default function App() {
     onGoMainSheet: goMainSheet,
     onGoUpcomingWork: goUpcomingWork,
     onGoCompletedJobs: goCompletedJobs,
+    onGoCompletedInsights: goCompletedInsights,
     onGoCharts: goCharts,
   }
   return (
@@ -436,6 +443,18 @@ export default function App() {
           ) : (
             <Reveal index={0}>
               <UpcomingWorkTab upcomingWork={upcomingWork} onBack={goHome} />
+            </Reveal>
+          )}
+        </main>
+      )}
+
+      {view === 'completed-insights' && (
+        <main className="dashboard">
+          {state.status !== 'ready' ? (
+            <LoadStatus status={state.status} error={state.error} onRetry={retryLoad} />
+          ) : (
+            <Reveal index={0}>
+              <CompletedInsightsTab completedJobs={completedJobs} onBack={goHome} onOpenJob={reviewCompletedJob} />
             </Reveal>
           )}
         </main>

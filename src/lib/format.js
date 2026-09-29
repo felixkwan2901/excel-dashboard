@@ -20,6 +20,12 @@ export function money(v) {
   return CURRENCY.format(Math.round(v) === 0 ? 0 : v)
 }
 
+// GP/hr and per-person figures are often a few dollars, so these show cents.
+const CENTS = new Intl.NumberFormat('en-NZ', { style: 'currency', currency: 'NZD', minimumFractionDigits: 2, maximumFractionDigits: 2 })
+export function cents(v) {
+  return v == null ? '—' : CENTS.format(Math.round(v * 100) === 0 ? 0 : v)
+}
+
 export function percent(v) {
   if (v === null) return '—'
   return PERCENT.format(Math.round(v * 10000) === 0 ? 0 : v)
