@@ -28,6 +28,7 @@
     "profit": -21.735,
     "hours": 0.25,
     "gpPerHour": -86.94,
+    "quotedHours": 0.75,
     "unsoldHours": 0.5,
     "workers": [
       {
@@ -49,6 +50,7 @@
     "profit": -48.565,
     "hours": 0.5,
     "gpPerHour": -97.13,
+    "quotedHours": 1.5,
     "unsoldHours": 1,
     "workers": [
       {
@@ -74,6 +76,7 @@
     "profit": -52.724999999999994,
     "hours": 0.25,
     "gpPerHour": -210.9,
+    "quotedHours": 1.25,
     "unsoldHours": 1,
     "workers": [
       {
@@ -95,6 +98,7 @@
     "profit": -3.6199999999999974,
     "hours": 0.5,
     "gpPerHour": -7.24,
+    "quotedHours": 1,
     "unsoldHours": 0.5,
     "workers": [
       {
@@ -138,6 +142,7 @@
     "profit": 19.319999999999993,
     "hours": 1,
     "gpPerHour": 19.32,
+    "quotedHours": 1.5,
     "unsoldHours": 0.5,
     "workers": [
       {
@@ -159,6 +164,7 @@
     "profit": 65.19999999999999,
     "hours": 2,
     "gpPerHour": 32.6,
+    "quotedHours": 2.5,
     "unsoldHours": 0.5,
     "workers": [
       {
@@ -180,6 +186,7 @@
     "profit": 24.540000000000006,
     "hours": 1.5,
     "gpPerHour": 16.36,
+    "quotedHours": 2,
     "unsoldHours": 0.5,
     "workers": [
       {
@@ -201,6 +208,7 @@
     "profit": 33.79499999999999,
     "hours": 1.75,
     "gpPerHour": 19.31,
+    "quotedHours": 2.25,
     "unsoldHours": 0.5,
     "workers": [
       {
@@ -222,6 +230,7 @@
     "profit": 54.125,
     "hours": 2,
     "gpPerHour": 27.06,
+    "quotedHours": 2.5,
     "unsoldHours": 0.5,
     "workers": [
       {
@@ -265,6 +274,7 @@
     "profit": -45.620000000000005,
     "hours": 1,
     "gpPerHour": -45.62,
+    "quotedHours": 2.75,
     "unsoldHours": 1.75,
     "workers": [
       {
@@ -290,6 +300,7 @@
     "profit": 255.91500000000002,
     "hours": 7.75,
     "gpPerHour": 33.02,
+    "quotedHours": 8.25,
     "unsoldHours": 0.5,
     "workers": [
       {
@@ -363,6 +374,7 @@
     "profit": -1.957499999999996,
     "hours": 1.75,
     "gpPerHour": -1.12,
+    "quotedHours": 2.25,
     "unsoldHours": 0.5,
     "workers": [
       {
@@ -482,6 +494,7 @@
     "profit": 333.1025,
     "hours": 8.25,
     "gpPerHour": 40.38,
+    "quotedHours": 8.25,
     "unsoldHours": 0,
     "workers": [
       {
@@ -507,6 +520,7 @@
     "profit": 910.3225,
     "hours": 26.75,
     "gpPerHour": 34.03,
+    "quotedHours": 27.25,
     "unsoldHours": 0.5,
     "workers": [
       {
@@ -532,6 +546,7 @@
     "profit": 649.68,
     "hours": 23.25,
     "gpPerHour": 27.94,
+    "quotedHours": 23.25,
     "unsoldHours": 0,
     "workers": [
       {
@@ -557,6 +572,7 @@
     "profit": -65.8,
     "hours": 1.5,
     "gpPerHour": -43.87,
+    "quotedHours": 2,
     "unsoldHours": 0.5,
     "workers": [
       {
@@ -582,6 +598,7 @@
     "profit": 432.615,
     "hours": 10.25,
     "gpPerHour": 42.21,
+    "quotedHours": 10.25,
     "unsoldHours": 0,
     "workers": [
       {
@@ -607,6 +624,7 @@
     "profit": 701.335,
     "hours": 20.75,
     "gpPerHour": 33.8,
+    "quotedHours": 20.75,
     "unsoldHours": 0,
     "workers": [
       {
@@ -640,6 +658,7 @@
     "profit": 852.0374999999999,
     "hours": 21.25,
     "gpPerHour": 40.1,
+    "quotedHours": 21.75,
     "unsoldHours": 0.5,
     "workers": [
       {
@@ -661,6 +680,7 @@
     "profit": 137.64,
     "hours": 3,
     "gpPerHour": 45.88,
+    "quotedHours": 3,
     "unsoldHours": 0,
     "workers": [
       {
@@ -682,6 +702,7 @@
     "profit": 37.02,
     "hours": 1,
     "gpPerHour": 37.02,
+    "quotedHours": 1,
     "unsoldHours": 0,
     "workers": [
       {
@@ -703,6 +724,7 @@
     "profit": -30.72,
     "hours": 2,
     "gpPerHour": -15.36,
+    "quotedHours": 4,
     "unsoldHours": 2,
     "workers": [
       {
@@ -770,6 +792,7 @@
     "profit": 312.43,
     "hours": 8.5,
     "gpPerHour": 36.76,
+    "quotedHours": 8.5,
     "unsoldHours": 0,
     "workers": [
       {
@@ -795,6 +818,7 @@
     "profit": 30.67500000000001,
     "hours": 2.5,
     "gpPerHour": 12.27,
+    "quotedHours": 2.5,
     "unsoldHours": 0,
     "workers": [
       {
@@ -816,6 +840,7 @@
     "profit": 649.6525000000001,
     "hours": 57.25,
     "gpPerHour": 11.35,
+    "quotedHours": 57.25,
     "unsoldHours": 0,
     "workers": [
       {
