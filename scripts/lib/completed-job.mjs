@@ -169,6 +169,14 @@ export function toRecord(result, { jobNumber, jobName, sourceFile, timesheetFile
   return record
 }
 
+// The month a batch of jobs was completed in, "YYYY-MM". Katipolt's "Completed:
+// This Month" filter is what the exports come from, so it's the month the upload
+// is for — taken as given when valid, otherwise the month (NZ time) of `date`.
+export function completedMonth(given, date = new Date()) {
+  if (/^\d{4}-(0[1-9]|1[0-2])$/.test(given ?? '')) return given
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Pacific/Auckland', year: 'numeric', month: '2-digit' }).format(new Date(date)).slice(0, 7)
+}
+
 // Replace-by-job-number, so re-running a month is safe.
 export function upsertCompletedJobs(outPath, records) {
   const existing = existsSync(outPath) ? JSON.parse(readFileSync(outPath, 'utf8')) : []

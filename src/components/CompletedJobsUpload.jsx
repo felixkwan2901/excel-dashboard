@@ -15,6 +15,18 @@ function bytesToBase64(bytes) {
   return btoa(s)
 }
 
+// The month these jobs were completed in, "YYYY-MM" — it decides which month's
+// column they land in on Completed insights. Defaults to this month (NZ time);
+// pick an earlier one when loading older months.
+function nzMonth(offset = 0) {
+  const [y, m] = new Intl.DateTimeFormat('en-CA', { timeZone: 'Pacific/Auckland', year: 'numeric', month: '2-digit' })
+    .format(new Date()).split('-').map(Number)
+  const d = new Date(Date.UTC(y, m - 1 - offset, 1))
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`
+}
+const MONTHS = Array.from({ length: 24 }, (_, i) => nzMonth(i))
+const monthLabel = (ym) => new Date(`${ym}-01T00:00:00Z`).toLocaleDateString('en-NZ', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+
 function summarise(files) {
   const names = [...files].map((f) => f.name)
   return {
@@ -29,6 +41,7 @@ function summarise(files) {
 
 export default function CompletedJobsUpload() {
   const [files, setFiles] = useState(null)
+  const [month, setMonth] = useState(MONTHS[0])
   const [status, setStatus] = useState('idle') // idle | staging | processing | done | error
   const [message, setMessage] = useState('')
   const [result, setResult] = useState(null)
@@ -41,7 +54,7 @@ export default function CompletedJobsUpload() {
     setStatus('staging'); setMessage(''); setResult(null)
     try {
       const packed = await Promise.all([...files].map(async (f) => ({ name: f.name, base64: bytesToBase64(new Uint8Array(await f.arrayBuffer())) })))
-      const bundleBase64 = bytesToBase64(new TextEncoder().encode(JSON.stringify({ uploadedAt: new Date().toISOString(), files: packed })))
+      const bundleBase64 = bytesToBase64(new TextEncoder().encode(JSON.stringify({ uploadedAt: new Date().toISOString(), month, files: packed })))
       const res = await workerFetch('/completed-jobs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
@@ -55,7 +68,7 @@ export default function CompletedJobsUpload() {
       if (r.status === 'timeout') { setMessage('Still processing after 5 minutes — check the Completed jobs tab shortly.'); setStatus('done'); return }
       setResult(r.result ?? null)
       setMessage(r.result
-        ? `Loaded ${r.result.loaded} completed job(s). The site updates in about a minute — then refresh to see them in Completed jobs.`
+        ? `Loaded ${r.result.loaded} completed job(s) for ${monthLabel(r.result.month ?? month)}. The site updates in about a minute — then refresh to see them in Completed jobs.`
         : 'Processed. The site updates in about a minute — then refresh to see them in Completed jobs.')
       setStatus('done')
     } catch (err) {
@@ -76,6 +89,23 @@ export default function CompletedJobsUpload() {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div>
+            <label htmlFor="completed-month" className="mb-1.5 block text-xs text-text-muted">
+              Month these jobs were completed in
+            </label>
+            <select
+              id="completed-month"
+              value={month}
+              onChange={(e) => setMonth(e.target.value)}
+              className="rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white"
+            >
+              {MONTHS.map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}
+            </select>
+            <p className="mt-1 text-[11px] text-text-muted">
+              Katipolt&apos;s &ldquo;Completed: This Month&rdquo; list is this month. Loading an older month? Pick it here.
+            </p>
+          </div>
+
           <div>
             <label htmlFor="completed-files" className="mb-1.5 block text-xs text-text-muted">
               Completed-job exports + manifest.csv (select all)

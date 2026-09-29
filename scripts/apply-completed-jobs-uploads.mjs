@@ -15,7 +15,7 @@
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join, resolve } from 'node:path'
-import { loadCompletedFolder, upsertCompletedJobs } from './lib/completed-job.mjs'
+import { completedMonth, loadCompletedFolder, upsertCompletedJobs } from './lib/completed-job.mjs'
 
 const STAGING = resolve('pending-updates/completed-jobs')
 const FAILED = resolve('pending-updates/failed')
@@ -41,10 +41,13 @@ for (const name of bundles) {
     const { records, skipped, problems, notes } = loadCompletedFolder(tmp)
     if (problems.length) { fail(name, 'The files and manifest.csv do not line up, so nothing was loaded: ' + problems.join(' · ')); continue }
     if (!records.length) { fail(name, 'No completed jobs could be read from these files. ' + skipped.map((s) => `${s.job}: ${s.reason}`).join(' · ')); continue }
+    // the month picked on the Update data page (older bundles: the upload's month)
+    const month = completedMonth(bundle.month, bundle.uploadedAt)
+    for (const r of records) r.month = month
     const total = upsertCompletedJobs(OUT, records)
     mkdirSync(RESULTS, { recursive: true })
     writeFileSync(join(RESULTS, `${name}.json`), JSON.stringify({   // the path /status reads: results/<staged file name>.json
-      kind: 'completed-jobs', loaded: records.length, total,
+      kind: 'completed-jobs', loaded: records.length, total, month,
       jobs: records.map((r) => ({ jobNumber: r.jobNumber, jobName: r.jobName, type: r.type, gpPerHour: r.gpPerHour })),
       needsLook: skipped, notes,
     }, null, 2) + '\n')

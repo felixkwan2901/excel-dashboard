@@ -3,7 +3,7 @@ import { cents, money } from '../lib/format'
 import CollapsibleSection from './CollapsibleSection'
 import { fetchJobCategories } from '../lib/jobCategoryStore'
 import { JOB_CATEGORIES } from '../lib/jobCategories'
-import { personTotals } from '../lib/completedJobPeople'
+import { monthName, personMonthly } from '../lib/completedJobPeople'
 
 // The summaries that used to sit on top of the Completed jobs table: how many
 // jobs of each type of work (split charge-up / quoted), and each person's
@@ -127,41 +127,73 @@ function WorkTypeBreakdown({ jobs, categories, onOpenJob }) {
   )
 }
 
-const PERSON_COLS = [
+const TOTAL_COLS = [
   { key: 'count', label: 'Jobs' },
   { key: 'hours', label: 'Hours' },
   { key: 'profit', label: 'Labour profit' },
   { key: 'gpPerHour', label: 'GP $/hr' },
 ]
+const OVER = 'var(--viz-critical)'
 
+// One column per month (GP/hr, with hours under it) and a Total that adds every
+// month together. Someone whose latest-month GP/hr is below the month before is
+// flagged red. Sorting: name, any month's GP/hr, or any total column.
 function PeopleSummary({ jobs, scope, onOpenJob }) {
   const [sort, setSort] = useState({ key: 'gpPerHour', dir: -1 })
   const [open, setOpen] = useState(() => new Set())
-  const people = useMemo(() => personTotals(jobs).sort((a, b) =>
-    sort.key === 'name' ? a.name.localeCompare(b.name) * sort.dir : ((a[sort.key] ?? 0) - (b[sort.key] ?? 0)) * sort.dir), [jobs, sort])
+  const { months, latest, previous, people: all } = useMemo(() => personMonthly(jobs), [jobs])
+  const people = useMemo(() => {
+    const val = (p) => (sort.key.startsWith('m:') ? p.monthly[sort.key.slice(2)]?.gpPerHour ?? null : p[sort.key])
+    return [...all].sort((a, b) => {
+      if (sort.key === 'name') return a.name.localeCompare(b.name) * sort.dir
+      const av = val(a), bv = val(b)
+      if (av === null || bv === null) return (av === null) - (bv === null)   // no work that month: last
+      return (av - bv) * sort.dir
+    })
+  }, [all, sort])
+  const flagged = all.filter((p) => p.flag)
   const toggle = (name) => setOpen((prev) => { const next = new Set(prev); next.has(name) ? next.delete(name) : next.add(name); return next })
   const sortBy = (key) => setSort((prev) => (prev.key === key ? { key, dir: -prev.dir } : { key, dir: key === 'name' ? 1 : -1 }))
   const arrow = (key) => (sort.key === key ? (sort.dir === 1 ? ' ▲' : ' ▼') : '')
+  const th = (key, label, extra = '') => (
+    <th key={key} className={`sortable ${extra}`} onClick={() => sortBy(key)}
+      aria-sort={sort.key === key ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'}>{label}{arrow(key)}</th>
+  )
+  const span = 1 + months.length + TOTAL_COLS.length
 
   return (
     <CollapsibleSection
       className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6"
       storageKey="completed-jobs.people"
-      title={`By person — ${people.length} ${people.length === 1 ? 'person' : 'people'}`}
-      description={`Quoted jobs only — charge-up jobs aren't split per person. Each person's hours and their part of the labour profit (each job's GP/hr × their hours) across ${scope}, summed. GP/hr = their labour profit ÷ their hours. Click a person to see their jobs, and a job to open it.`}
+      title={`By person — ${all.length} ${all.length === 1 ? 'person' : 'people'}`}
+      description={`Quoted jobs only — charge-up jobs aren't split per person. Each person's GP/hr month by month, and in Total for every month added together: their part of the labour profit (each job's GP/hr × their hours) ÷ their hours, across ${scope}. Red = worse than the month before. Click a person to see their jobs, and a job to open it.`}
     >
+      {flagged.length > 0 && (
+        <div className="mt-2 rounded-[12px] border p-3 text-[13px]" style={{ borderColor: `color-mix(in srgb, ${OVER} 45%, transparent)`, background: `color-mix(in srgb, ${OVER} 7%, transparent)` }}>
+          <p className="font-medium" style={{ color: OVER }}>
+            {flagged.length} {flagged.length === 1 ? 'person' : 'people'} did worse in {monthName(latest)} than in {monthName(previous)}
+          </p>
+          <ul className="mt-1 flex flex-col gap-0.5 text-neutral-300">
+            {flagged.map((p) => (
+              <li key={p.name}>
+                <span className="font-medium text-white">{p.name}</span> — {cents(p.flag.now)}/hr, down from {cents(p.flag.before)}/hr
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {months.length <= 1 && (
+        <p className="mt-2 text-[12px] text-neutral-500">
+          {months.length ? `Only ${monthName(months[0])} is loaded so far` : 'No months loaded yet'} — once another month is added, each person&apos;s months sit side by side here and anyone doing worse than the month before is flagged red.
+        </p>
+      )}
       <div className="table-scroll mt-2">
-        <table className="data-table">
+        <table className="data-table data-table--compact">
           <thead>
             <tr>
-              <th className="sortable" onClick={() => sortBy('name')}
-                aria-sort={sort.key === 'name' ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'}>Person{arrow('name')}</th>
-              {PERSON_COLS.map((c) => (
-                <th key={c.key} className="num sortable" onClick={() => sortBy(c.key)}
-                  aria-sort={sort.key === c.key ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'}>
-                  {c.label}{arrow(c.key)}
-                </th>
-              ))}
+              {th('name', 'Person')}
+              {months.map((m) => th(`m:${m}`, `${monthName(m, 'short')} GP/hr`, 'num'))}
+              {TOTAL_COLS.map((c) => th(c.key, `${months.length > 1 ? 'Total ' : ''}${c.label}`, 'num'))}
             </tr>
           </thead>
           <tbody>
@@ -170,11 +202,27 @@ function PeopleSummary({ jobs, scope, onOpenJob }) {
               return (
                 <Fragment key={p.name}>
                   <tr className="cursor-pointer" tabIndex={0} aria-expanded={isOpen} onClick={() => toggle(p.name)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(p.name) } }}>
-                    <td>
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(p.name) } }}
+                    style={p.flag ? { background: `color-mix(in srgb, ${OVER} 10%, transparent)` } : undefined}>
+                    <td style={p.flag ? { boxShadow: `inset 4px 0 0 ${OVER}` } : undefined}>
                       <span className={`mr-2 inline-block text-neutral-500 transition-transform ${isOpen ? 'rotate-90' : ''}`} aria-hidden="true">›</span>
                       {p.name}
                     </td>
+                    {months.map((m) => {
+                      const v = p.monthly[m]
+                      const down = p.flag && m === latest
+                      return (
+                        <td key={m} className="num" style={down ? { color: OVER, fontWeight: 700 } : undefined}
+                          title={down ? `Down from ${cents(p.flag.before)}/hr in ${monthName(previous)}` : undefined}>
+                          {v ? (
+                            <span className={down ? 'blink-over' : ''}>
+                              {down && '↓ '}{cents(v.gpPerHour)}
+                              <span className="ml-1 text-[11px] font-normal text-neutral-500">{v.hours} h</span>
+                            </span>
+                          ) : <span className="text-neutral-600">—</span>}
+                        </td>
+                      )
+                    })}
                     <td className="num">{p.count}</td>
                     <td className="num">{p.hours}</td>
                     <td className="num">{cents(p.profit)}</td>
@@ -182,16 +230,17 @@ function PeopleSummary({ jobs, scope, onOpenJob }) {
                   </tr>
                   {isOpen && (
                     <tr>
-                      <td colSpan={5} className="bg-white/[0.02]">
+                      <td colSpan={span} className="bg-white/[0.02]">
                         <div className="flex max-w-3xl flex-col gap-1.5 py-2 pl-6 text-[13px]">
-                          <div className="grid grid-cols-[4rem_minmax(0,1fr)_5rem_4rem_6rem] gap-x-4 text-[11px] uppercase tracking-wide text-neutral-500">
-                            <span>Job #</span><span>Job name</span><span className="text-right">GP/hr</span><span className="text-right">Hours</span><span className="text-right">Their part</span>
+                          <div className="grid grid-cols-[4rem_minmax(0,1fr)_5rem_5rem_4rem_6rem] gap-x-4 text-[11px] uppercase tracking-wide text-neutral-500">
+                            <span>Job #</span><span>Job name</span><span>Month</span><span className="text-right">GP/hr</span><span className="text-right">Hours</span><span className="text-right">Their part</span>
                           </div>
-                          {p.jobs.map(({ job, hours, part }) => (
+                          {[...p.jobs].sort((a, b) => (b.job.month ?? '').localeCompare(a.job.month ?? '')).map(({ job, hours, part }) => (
                             <button type="button" key={job.jobNumber} onClick={() => onOpenJob(job.jobNumber)} title="Open on the Completed jobs tab"
-                              className="grid grid-cols-[4rem_minmax(0,1fr)_5rem_4rem_6rem] gap-x-4 rounded text-left tabular-nums hover:bg-white/[0.05]">
+                              className="grid grid-cols-[4rem_minmax(0,1fr)_5rem_5rem_4rem_6rem] gap-x-4 rounded text-left tabular-nums hover:bg-white/[0.05]">
                               <span className="text-neutral-400">{job.jobNumber}</span>
-                              <span className="truncate text-neutral-200">{job.jobName} <span className="text-neutral-500">· {TYPE_LABEL[job.type]}</span></span>
+                              <span className="truncate text-neutral-200">{job.jobName}</span>
+                              <span className="text-neutral-400">{monthName(job.month, 'short')}</span>
                               <span className="text-right text-neutral-400">{cents(job.gpPerHour)}</span>
                               <span className="text-right text-neutral-300">{hours} h</span>
                               <span className="text-right text-white">{cents(part)}</span>
@@ -204,14 +253,13 @@ function PeopleSummary({ jobs, scope, onOpenJob }) {
                 </Fragment>
               )
             })}
-            {people.length === 0 && <tr><td colSpan={5} className="empty-row">No per-person hours yet.</td></tr>}
+            {people.length === 0 && <tr><td colSpan={span} className="empty-row">No per-person hours yet.</td></tr>}
           </tbody>
         </table>
       </div>
     </CollapsibleSection>
   )
 }
-
 
 export default function CompletedInsightsTab({ completedJobs, onBack, onOpenJob }) {
   const [categories, setCategories] = useState(null)

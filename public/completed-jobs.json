@@ -27,7 +27,8 @@
     },
     "addedAt": "2026-09-28",
     "sourceFile": "Q-9865-pl.xlsx",
-    "timesheetFile": "Q-9865-ts.xlsx"
+    "timesheetFile": "Q-9865-ts.xlsx",
+    "month": "2026-09"
   },
   {
     "jobNumber": "10016",
@@ -54,7 +55,8 @@
       "marginToDate": 0.5522
     },
     "addedAt": "2026-09-28",
-    "sourceFile": "CU-10016.xlsx"
+    "sourceFile": "CU-10016.xlsx",
+    "month": "2026-09"
   },
   {
     "jobNumber": "9964",
@@ -85,7 +87,8 @@
       "marginToDate": 0.5536
     },
     "addedAt": "2026-09-28",
-    "sourceFile": "CU-9964.xlsx"
+    "sourceFile": "CU-9964.xlsx",
+    "month": "2026-09"
   },
   {
     "jobNumber": "10007",
@@ -112,7 +115,8 @@
       "marginToDate": 0.3763
     },
     "addedAt": "2026-09-28",
-    "sourceFile": "CU-10007.xlsx"
+    "sourceFile": "CU-10007.xlsx",
+    "month": "2026-09"
   },
   {
     "jobNumber": "9939",
@@ -139,7 +143,8 @@
       "marginToDate": 0.7181
     },
     "addedAt": "2026-09-28",
-    "sourceFile": "CU-9939.xlsx"
+    "sourceFile": "CU-9939.xlsx",
+    "month": "2026-09"
   },
   {
     "jobNumber": "9734",
@@ -169,7 +174,8 @@
     },
     "addedAt": "2026-09-28",
     "sourceFile": "Q-9734-pl.xlsx",
-    "timesheetFile": "Q-9734-ts.xlsx"
+    "timesheetFile": "Q-9734-ts.xlsx",
+    "month": "2026-09"
   },
   {
     "jobNumber": "9923",
@@ -196,7 +202,8 @@
       "marginToDate": 0.6342
     },
     "addedAt": "2026-09-28",
-    "sourceFile": "CU-9923.xlsx"
+    "sourceFile": "CU-9923.xlsx",
+    "month": "2026-09"
   },
   {
     "jobNumber": "9984",
@@ -223,7 +230,8 @@
       "marginToDate": 0.4914
     },
     "addedAt": "2026-09-28",
-    "sourceFile": "CU-9984.xlsx"
+    "sourceFile": "CU-9984.xlsx",
+    "month": "2026-09"
   },
   {
     "jobNumber": "9975",
@@ -250,7 +258,8 @@
       "marginToDate": 0.5688
     },
     "addedAt": "2026-09-28",
-    "sourceFile": "CU-9975.xlsx"
+    "sourceFile": "CU-9975.xlsx",
+    "month": "2026-09"
   },
   {
     "jobNumber": "9965",
@@ -277,7 +286,8 @@
       "marginToDate": 0.5534
     },
     "addedAt": "2026-09-28",
-    "sourceFile": "CU-9965.xlsx"
+    "sourceFile": "CU-9965.xlsx",
+    "month": "2026-09"
   },
   {
     "jobNumber": "9938",
@@ -304,7 +314,8 @@
       "marginToDate": 0.573
     },
     "addedAt": "2026-09-28",
-    "sourceFile": "CU-9938.xlsx"
+    "sourceFile": "CU-9938.xlsx",
+    "month": "2026-09"
   },
   {
     "jobNumber": "9987",
@@ -334,7 +345,8 @@
     },
     "addedAt": "2026-09-28",
     "sourceFile": "Q-9987-pl.xlsx",
-    "timesheetFile": "Q-9987-ts.xlsx"
+    "timesheetFile": "Q-9987-ts.xlsx",
+    "month": "2026-09"
   },
   {
     "jobNumber": "9986",
@@ -365,7 +377,8 @@
       "marginToDate": 0.3923
     },
     "addedAt": "2026-09-28",
-    "sourceFile": "CU-9986.xlsx"
+    "sourceFile": "CU-9986.xlsx",
+    "month": "2026-09"
   },
   {
     "jobNumber": "9901",
@@ -392,7 +405,8 @@
       "marginToDate": 0.4384
     },
     "addedAt": "2026-09-28",
-    "sourceFile": "CU-9901.xlsx"
+    "sourceFile": "CU-9901.xlsx",
+    "month": "2026-09"
   },
   {
     "jobNumber": "9519",
@@ -426,7 +440,8 @@
     },
     "addedAt": "2026-09-28",
     "sourceFile": "Q-9519-pl.xlsx",
-    "timesheetFile": "Q-9519-ts.xlsx"
+    "timesheetFile": "Q-9519-ts.xlsx",
+    "month": "2026-09"
   },
   {
     "jobNumber": "9703",
@@ -460,7 +475,8 @@
     },
     "addedAt": "2026-09-28",
     "sourceFile": "Q-9703-pl.xlsx",
-    "timesheetFile": "Q-9703-ts.xlsx"
+    "timesheetFile": "Q-9703-ts.xlsx",
+    "month": "2026-09"
   },
   {
     "jobNumber": "9959",
@@ -487,7 +503,8 @@
       "marginToDate": 0.5341
     },
     "addedAt": "2026-09-28",
-    "sourceFile": "CU-9959.xlsx"
+    "sourceFile": "CU-9959.xlsx",
+    "month": "2026-09"
   },
   {
     "jobNumber": "9635",
@@ -537,7 +554,8 @@
     },
     "addedAt": "2026-09-28",
     "sourceFile": "Q-9635-pl.xlsx",
-    "timesheetFile": "Q-9635-ts.xlsx"
+    "timesheetFile": "Q-9635-ts.xlsx",
+    "month": "2026-09"
   },
   {
     "jobNumber": "9802",
@@ -575,7 +593,8 @@
     },
     "addedAt": "2026-09-28",
     "sourceFile": "Q-9802-pl.xlsx",
-    "timesheetFile": "Q-9802-ts.xlsx"
+    "timesheetFile": "Q-9802-ts.xlsx",
+    "month": "2026-09"
   },
   {
     "jobNumber": "9698",
@@ -609,7 +628,8 @@
     },
     "addedAt": "2026-09-28",
     "sourceFile": "Q-9698-pl.xlsx",
-    "timesheetFile": "Q-9698-ts.xlsx"
+    "timesheetFile": "Q-9698-ts.xlsx",
+    "month": "2026-09"
   },
   {
     "jobNumber": "9910",
@@ -640,7 +660,8 @@
       "marginToDate": 0.4357
     },
     "addedAt": "2026-09-28",
-    "sourceFile": "CU-9910.xlsx"
+    "sourceFile": "CU-9910.xlsx",
+    "month": "2026-09"
   },
   {
     "jobNumber": "9776",
@@ -671,7 +692,8 @@
       "marginToDate": 0.3939
     },
     "addedAt": "2026-09-28",
-    "sourceFile": "CU-9776.xlsx"
+    "sourceFile": "CU-9776.xlsx",
+    "month": "2026-09"
   },
   {
     "jobNumber": "9900",
@@ -702,7 +724,8 @@
       "marginToDate": 0.3068
     },
     "addedAt": "2026-09-28",
-    "sourceFile": "CU-9900.xlsx"
+    "sourceFile": "CU-9900.xlsx",
+    "month": "2026-09"
   },
   {
     "jobNumber": "9980",
@@ -733,7 +756,8 @@
       "marginToDate": 0.3491
     },
     "addedAt": "2026-09-28",
-    "sourceFile": "CU-9980.xlsx"
+    "sourceFile": "CU-9980.xlsx",
+    "month": "2026-09"
   },
   {
     "jobNumber": "9666",
@@ -764,7 +788,8 @@
       "marginToDate": 0.4112
     },
     "addedAt": "2026-09-28",
-    "sourceFile": "CU-9666.xlsx"
+    "sourceFile": "CU-9666.xlsx",
+    "month": "2026-09"
   },
   {
     "jobNumber": "9940",
@@ -803,7 +828,8 @@
       "marginToDate": 0.397
     },
     "addedAt": "2026-09-28",
-    "sourceFile": "CU-9940.xlsx"
+    "sourceFile": "CU-9940.xlsx",
+    "month": "2026-09"
   },
   {
     "jobNumber": "9934",
@@ -830,7 +856,8 @@
       "marginToDate": 0.4419
     },
     "addedAt": "2026-09-28",
-    "sourceFile": "CU-9934.xlsx"
+    "sourceFile": "CU-9934.xlsx",
+    "month": "2026-09"
   },
   {
     "jobNumber": "9983",
@@ -857,7 +884,8 @@
       "marginToDate": 0.4634
     },
     "addedAt": "2026-09-28",
-    "sourceFile": "CU-9983.xlsx"
+    "sourceFile": "CU-9983.xlsx",
+    "month": "2026-09"
   },
   {
     "jobNumber": "9966",
@@ -884,7 +912,8 @@
       "marginToDate": 0.3267
     },
     "addedAt": "2026-09-28",
-    "sourceFile": "CU-9966.xlsx"
+    "sourceFile": "CU-9966.xlsx",
+    "month": "2026-09"
   },
   {
     "jobNumber": "9950",
@@ -915,7 +944,8 @@
       "marginToDate": 0.1614
     },
     "addedAt": "2026-09-28",
-    "sourceFile": "CU-9950.xlsx"
+    "sourceFile": "CU-9950.xlsx",
+    "month": "2026-09"
   },
   {
     "jobNumber": "8337",
@@ -965,7 +995,8 @@
     },
     "addedAt": "2026-09-28",
     "sourceFile": "Q-8337-pl.xlsx",
-    "timesheetFile": "Q-8337-ts.xlsx"
+    "timesheetFile": "Q-8337-ts.xlsx",
+    "month": "2026-09"
   },
   {
     "jobNumber": "9944",
@@ -996,7 +1027,8 @@
       "marginToDate": 0.3794
     },
     "addedAt": "2026-09-28",
-    "sourceFile": "CU-9944.xlsx"
+    "sourceFile": "CU-9944.xlsx",
+    "month": "2026-09"
   },
   {
     "jobNumber": "9955",
@@ -1023,7 +1055,8 @@
       "marginToDate": 0.1719
     },
     "addedAt": "2026-09-28",
-    "sourceFile": "CU-9955.xlsx"
+    "sourceFile": "CU-9955.xlsx",
+    "month": "2026-09"
   },
   {
     "jobNumber": "9922",
@@ -1054,6 +1087,7 @@
       "marginToDate": 0.2063
     },
     "addedAt": "2026-09-28",
-    "sourceFile": "CU-9922.xlsx"
+    "sourceFile": "CU-9922.xlsx",
+    "month": "2026-09"
   }
 ]

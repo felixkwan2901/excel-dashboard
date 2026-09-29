@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 // Loads a month of completed-job exports into public/completed-jobs.json in one pass.
 //
-// Usage: node scripts/add-completed-jobs.mjs <folder> [--dry-run]
+// Usage: node scripts/add-completed-jobs.mjs <folder> [--month=YYYY-MM] [--dry-run]
+//
+// --month is the month the jobs were completed in (default: this month, NZ time).
 //
 // The folder holds Katipolt exports renamed by job number as they were downloaded
 // (a charge-up P&L export has no job number inside it, so the name is the only link):
@@ -22,11 +24,12 @@
 // Every job is reported: loaded, or skipped with the reason (e.g. no billed hours).
 
 import { resolve } from 'node:path'
-import { loadCompletedFolder, upsertCompletedJobs } from './lib/completed-job.mjs'
+import { completedMonth, loadCompletedFolder, upsertCompletedJobs } from './lib/completed-job.mjs'
 
 const args = process.argv.slice(2)
 const folder = args.find((a) => !a.startsWith('--'))
 const dryRun = args.includes('--dry-run')
+const month = completedMonth(args.find((a) => a.startsWith('--month='))?.slice(8))
 if (!folder) { console.error('Usage: node scripts/add-completed-jobs.mjs <folder> [--dry-run]'); process.exit(1) }
 
 const { records, skipped, problems, notes } = loadCompletedFolder(folder)
@@ -34,7 +37,9 @@ if (problems.length) {
   console.error('Manifest does not match the downloads — nothing loaded:\n  ' + problems.join('\n  '))
   process.exit(1)
 }
+for (const r of records) r.month = month
 for (const n of notes) console.log(n)
+console.log(`Month completed: ${month}`)
 const fmt = (n) => '$' + n.toFixed(2)
 console.log(`\n${records.length} job(s) read:\n`)
 for (const r of records) console.log(`  ${r.type.padEnd(8)} ${r.jobNumber.padEnd(6)} ${fmt(r.gpPerHour).padStart(10)}/hr  ${fmt(r.profit).padStart(11)}  ${String(r.hours).padStart(6)} h  ${r.jobName}`)

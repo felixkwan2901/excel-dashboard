@@ -56,3 +56,27 @@ export function personTotals(jobs) {
     jobs: t.jobs.sort((a, b) => b.hours - a.hours),
   }))
 }
+
+// Per person, month by month. Each job carries the month it was completed in
+// ("YYYY-MM"); every person gets their totals for each month and for all months
+// together (Total = every month added up). A person is flagged when their GP/hr
+// in the latest month is below their GP/hr the month before — only when they
+// worked in both, since no work last month is not a drop.
+export function personMonthly(jobs) {
+  const months = [...new Set(jobs.map((j) => j.month).filter(Boolean))].sort()
+  const byMonth = new Map(months.map((m) => [m, new Map(personTotals(jobs.filter((j) => j.month === m)).map((p) => [p.name, p]))]))
+  const latest = months.at(-1), previous = months.at(-2)
+  const people = personTotals(jobs).map((total) => {
+    const monthly = Object.fromEntries(months.map((m) => [m, byMonth.get(m).get(total.name) ?? null]))
+    const now = latest && monthly[latest], before = previous && monthly[previous]
+    const flag = now && before && now.gpPerHour !== null && before.gpPerHour !== null && now.gpPerHour < before.gpPerHour
+      ? { month: latest, previousMonth: previous, now: now.gpPerHour, before: before.gpPerHour }
+      : null
+    return { ...total, monthly, flag }
+  })
+  return { months, latest, previous, people }
+}
+
+export function monthName(ym, style = 'long') {
+  return ym ? new Date(`${ym}-01T00:00:00Z`).toLocaleDateString('en-NZ', { month: style, year: 'numeric', timeZone: 'UTC' }) : ''
+}
