@@ -120,7 +120,10 @@
   },
   {
     "jobNumber": "9939",
-    "jobName": "Job 9939",
+    "jobName": "9939",
+    "flags": [
+      "no-name"
+    ],
     "type": "chargeup",
     "profit": 135.37,
     "hours": 0.5,
@@ -147,39 +150,11 @@
     "month": "2026-09"
   },
   {
-    "jobNumber": "9734",
-    "jobName": "Fire Alarm",
-    "type": "quoted",
-    "profit": 128.072,
-    "hours": 1.25,
-    "gpPerHour": 102.46,
-    "quotedHours": 4,
-    "workers": [
-      {
-        "name": "Andy Schweizer",
-        "hours": 1.25
-      }
-    ],
-    "labour": {
-      "quotedCost": 200.01,
-      "actualCost": 71.94
-    },
-    "pl": {
-      "quotedCost": 416.48,
-      "actualCost": 233.41,
-      "quotedProfit": 249.47,
-      "quotedMargin": 0.3746,
-      "profitToDate": 432.54,
-      "marginToDate": 0.6495
-    },
-    "addedAt": "2026-09-28",
-    "sourceFile": "Q-9734-pl.xlsx",
-    "timesheetFile": "Q-9734-ts.xlsx",
-    "month": "2026-09"
-  },
-  {
     "jobNumber": "9923",
-    "jobName": "Job 9923",
+    "jobName": "9923",
+    "flags": [
+      "no-name"
+    ],
     "type": "chargeup",
     "profit": 185.72,
     "hours": 1,
@@ -262,6 +237,37 @@
     "month": "2026-09"
   },
   {
+    "jobNumber": "9734",
+    "jobName": "Fire Alarm",
+    "type": "quoted",
+    "profit": 128.072,
+    "hours": 1.25,
+    "gpPerHour": 102.46,
+    "quotedHours": 4,
+    "workers": [
+      {
+        "name": "Andy Schweizer",
+        "hours": 1.25
+      }
+    ],
+    "labour": {
+      "quotedCost": 200.01,
+      "actualCost": 71.94
+    },
+    "pl": {
+      "quotedCost": 416.48,
+      "actualCost": 233.41,
+      "quotedProfit": 249.47,
+      "quotedMargin": 0.3746,
+      "profitToDate": 432.54,
+      "marginToDate": 0.6495
+    },
+    "addedAt": "2026-09-28",
+    "sourceFile": "Q-9734-pl.xlsx",
+    "timesheetFile": "Q-9734-ts.xlsx",
+    "month": "2026-09"
+  },
+  {
     "jobNumber": "9965",
     "jobName": "Power Loss Investigation",
     "type": "chargeup",
@@ -315,37 +321,6 @@
     },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9938.xlsx",
-    "month": "2026-09"
-  },
-  {
-    "jobNumber": "9987",
-    "jobName": "BUPA Parklands - Apartment 201 - Bathroom Lighting",
-    "type": "quoted",
-    "profit": 38.02400000000001,
-    "hours": 1,
-    "gpPerHour": 38.02,
-    "quotedHours": 2,
-    "workers": [
-      {
-        "name": "Doug Stevens",
-        "hours": 1
-      }
-    ],
-    "labour": {
-      "quotedCost": 100,
-      "actualCost": 61.98
-    },
-    "pl": {
-      "quotedCost": 244.16,
-      "actualCost": 245.26,
-      "quotedProfit": 94.93,
-      "quotedMargin": 0.28,
-      "profitToDate": 93.83,
-      "marginToDate": 0.2767
-    },
-    "addedAt": "2026-09-28",
-    "sourceFile": "Q-9987-pl.xlsx",
-    "timesheetFile": "Q-9987-ts.xlsx",
     "month": "2026-09"
   },
   {
@@ -409,76 +384,6 @@
     "month": "2026-09"
   },
   {
-    "jobNumber": "9519",
-    "jobName": "Bupa Ballarat Villa 5",
-    "type": "quoted",
-    "profit": 84.19860000000017,
-    "hours": 33,
-    "gpPerHour": 2.55,
-    "quotedHours": 35.98,
-    "workers": [
-      {
-        "name": "Sean Baines",
-        "hours": 17
-      },
-      {
-        "name": "Ethan van Tuinen",
-        "hours": 16
-      }
-    ],
-    "labour": {
-      "quotedCost": 1796.06,
-      "actualCost": 1711.86
-    },
-    "pl": {
-      "quotedCost": 4291.31,
-      "actualCost": 3881.79,
-      "quotedProfit": 2682.44,
-      "quotedMargin": 0.3846,
-      "profitToDate": 3091.96,
-      "marginToDate": 0.4434
-    },
-    "addedAt": "2026-09-28",
-    "sourceFile": "Q-9519-pl.xlsx",
-    "timesheetFile": "Q-9519-ts.xlsx",
-    "month": "2026-09"
-  },
-  {
-    "jobNumber": "9703",
-    "jobName": "Various Elec",
-    "type": "quoted",
-    "profit": 43.48779999999999,
-    "hours": 17.75,
-    "gpPerHour": 2.45,
-    "quotedHours": 18.82,
-    "workers": [
-      {
-        "name": "Ethan van Tuinen",
-        "hours": 10.25
-      },
-      {
-        "name": "Sean Baines",
-        "hours": 7.5
-      }
-    ],
-    "labour": {
-      "quotedCost": 939.99,
-      "actualCost": 896.5
-    },
-    "pl": {
-      "quotedCost": 4761.71,
-      "actualCost": 4649.47,
-      "quotedProfit": 1393.72,
-      "quotedMargin": 0.2264,
-      "profitToDate": 1505.96,
-      "marginToDate": 0.2447
-    },
-    "addedAt": "2026-09-28",
-    "sourceFile": "Q-9703-pl.xlsx",
-    "timesheetFile": "Q-9703-ts.xlsx",
-    "month": "2026-09"
-  },
-  {
     "jobNumber": "9959",
     "jobName": "Isolate & Remove 1200mm Round Light Box",
     "type": "chargeup",
@@ -504,131 +409,6 @@
     },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9959.xlsx",
-    "month": "2026-09"
-  },
-  {
-    "jobNumber": "9635",
-    "jobName": "VAPO Bush Inn",
-    "type": "quoted",
-    "profit": 81.64460000000008,
-    "hours": 70,
-    "gpPerHour": 1.17,
-    "quotedHours": 69.6,
-    "workers": [
-      {
-        "name": "Hayden Warrington",
-        "hours": 23.5
-      },
-      {
-        "name": "Rhod Calla",
-        "hours": 24
-      },
-      {
-        "name": "Tim Davies",
-        "hours": 6
-      },
-      {
-        "name": "Daniel James - PPL",
-        "hours": 9
-      },
-      {
-        "name": "George Pirie",
-        "hours": 4
-      },
-      {
-        "name": "Jake Toplis",
-        "hours": 3.5
-      }
-    ],
-    "labour": {
-      "quotedCost": 3474.02,
-      "actualCost": 3392.38
-    },
-    "pl": {
-      "quotedCost": 18422.21,
-      "actualCost": 11361.86,
-      "quotedProfit": 5136.45,
-      "quotedMargin": 0.218,
-      "profitToDate": 12196.8,
-      "marginToDate": 0.5177
-    },
-    "addedAt": "2026-09-28",
-    "sourceFile": "Q-9635-pl.xlsx",
-    "timesheetFile": "Q-9635-ts.xlsx",
-    "month": "2026-09"
-  },
-  {
-    "jobNumber": "9802",
-    "jobName": "Cashmere View Apartment 208",
-    "type": "quoted",
-    "profit": -39.20999999999998,
-    "hours": 6.75,
-    "gpPerHour": -5.81,
-    "quotedHours": 6.69,
-    "workers": [
-      {
-        "name": "Kyle Williams",
-        "hours": 4.5
-      },
-      {
-        "name": "Andy Schweizer",
-        "hours": 1
-      },
-      {
-        "name": "Doug Stevens",
-        "hours": 1.25
-      }
-    ],
-    "labour": {
-      "quotedCost": 334.86,
-      "actualCost": 374.07
-    },
-    "pl": {
-      "quotedCost": 635.06,
-      "actualCost": 485.95,
-      "quotedProfit": 485.14,
-      "quotedMargin": 0.4331,
-      "profitToDate": 634.25,
-      "marginToDate": 0.5662
-    },
-    "addedAt": "2026-09-28",
-    "sourceFile": "Q-9802-pl.xlsx",
-    "timesheetFile": "Q-9802-ts.xlsx",
-    "month": "2026-09"
-  },
-  {
-    "jobNumber": "9698",
-    "jobName": "SmarVent Lite+",
-    "type": "quoted",
-    "profit": -282.2786000000001,
-    "hours": 15.5,
-    "gpPerHour": -18.21,
-    "quotedHours": 10.37,
-    "workers": [
-      {
-        "name": "Sean Baines",
-        "hours": 7.75
-      },
-      {
-        "name": "Ethan van Tuinen",
-        "hours": 7.75
-      }
-    ],
-    "labour": {
-      "quotedCost": 518.29,
-      "actualCost": 800.57
-    },
-    "pl": {
-      "quotedCost": 2942.91,
-      "actualCost": 4876.88,
-      "quotedProfit": 1041.23,
-      "quotedMargin": 0.2613,
-      "profitToDate": -892.74,
-      "marginToDate": -0.2241
-    },
-    "addedAt": "2026-09-28",
-    "sourceFile": "Q-9698-pl.xlsx",
-    "timesheetFile": "Q-9698-ts.xlsx",
     "month": "2026-09"
   },
   {
@@ -729,7 +509,10 @@
   },
   {
     "jobNumber": "9980",
-    "jobName": "Job 9980",
+    "jobName": "9980",
+    "flags": [
+      "no-name"
+    ],
     "type": "chargeup",
     "profit": 80.95000000000002,
     "hours": 1.5,
@@ -948,54 +731,34 @@
     "month": "2026-09"
   },
   {
-    "jobNumber": "8337",
-    "jobName": "Resi New",
+    "jobNumber": "9987",
+    "jobName": "BUPA Parklands - Apartment 201 - Bathroom Lighting",
     "type": "quoted",
-    "profit": 146.5640000000003,
-    "hours": 116.25,
-    "gpPerHour": 1.26,
-    "quotedHours": 120.44,
+    "profit": 38.02400000000001,
+    "hours": 1,
+    "gpPerHour": 38.02,
+    "quotedHours": 2,
     "workers": [
       {
-        "name": "George Pirie",
-        "hours": 57.5
-      },
-      {
-        "name": "Kyle Williams",
-        "hours": 10
-      },
-      {
         "name": "Doug Stevens",
-        "hours": 11.75
-      },
-      {
-        "name": "Jack Maffey",
-        "hours": 9
-      },
-      {
-        "name": "Jake Toplis",
-        "hours": 26.5
-      },
-      {
-        "name": "Andy Schweizer",
-        "hours": 1.5
+        "hours": 1
       }
     ],
     "labour": {
-      "quotedCost": 6008.51,
-      "actualCost": 5861.95
+      "quotedCost": 100,
+      "actualCost": 61.98
     },
     "pl": {
-      "quotedCost": 14923.59,
-      "actualCost": 14052.73,
-      "quotedProfit": 4581.93,
-      "quotedMargin": 0.2349,
-      "profitToDate": 5452.79,
-      "marginToDate": 0.2796
+      "quotedCost": 244.16,
+      "actualCost": 245.26,
+      "quotedProfit": 94.93,
+      "quotedMargin": 0.28,
+      "profitToDate": 93.83,
+      "marginToDate": 0.2767
     },
     "addedAt": "2026-09-28",
-    "sourceFile": "Q-8337-pl.xlsx",
-    "timesheetFile": "Q-8337-ts.xlsx",
+    "sourceFile": "Q-9987-pl.xlsx",
+    "timesheetFile": "Q-9987-ts.xlsx",
     "month": "2026-09"
   },
   {
@@ -1091,6 +854,252 @@
     "month": "2026-09"
   },
   {
+    "jobNumber": "9519",
+    "jobName": "Bupa Ballarat Villa 5",
+    "type": "quoted",
+    "profit": 84.19860000000017,
+    "hours": 33,
+    "gpPerHour": 2.55,
+    "quotedHours": 35.98,
+    "workers": [
+      {
+        "name": "Sean Baines",
+        "hours": 17
+      },
+      {
+        "name": "Ethan van Tuinen",
+        "hours": 16
+      }
+    ],
+    "labour": {
+      "quotedCost": 1796.06,
+      "actualCost": 1711.86
+    },
+    "pl": {
+      "quotedCost": 4291.31,
+      "actualCost": 3881.79,
+      "quotedProfit": 2682.44,
+      "quotedMargin": 0.3846,
+      "profitToDate": 3091.96,
+      "marginToDate": 0.4434
+    },
+    "addedAt": "2026-09-28",
+    "sourceFile": "Q-9519-pl.xlsx",
+    "timesheetFile": "Q-9519-ts.xlsx",
+    "month": "2026-09"
+  },
+  {
+    "jobNumber": "9703",
+    "jobName": "Various Elec",
+    "type": "quoted",
+    "profit": 43.48779999999999,
+    "hours": 17.75,
+    "gpPerHour": 2.45,
+    "quotedHours": 18.82,
+    "workers": [
+      {
+        "name": "Ethan van Tuinen",
+        "hours": 10.25
+      },
+      {
+        "name": "Sean Baines",
+        "hours": 7.5
+      }
+    ],
+    "labour": {
+      "quotedCost": 939.99,
+      "actualCost": 896.5
+    },
+    "pl": {
+      "quotedCost": 4761.71,
+      "actualCost": 4649.47,
+      "quotedProfit": 1393.72,
+      "quotedMargin": 0.2264,
+      "profitToDate": 1505.96,
+      "marginToDate": 0.2447
+    },
+    "addedAt": "2026-09-28",
+    "sourceFile": "Q-9703-pl.xlsx",
+    "timesheetFile": "Q-9703-ts.xlsx",
+    "month": "2026-09"
+  },
+  {
+    "jobNumber": "8337",
+    "jobName": "Resi New",
+    "type": "quoted",
+    "profit": 146.5640000000003,
+    "hours": 116.25,
+    "gpPerHour": 1.26,
+    "quotedHours": 120.44,
+    "workers": [
+      {
+        "name": "George Pirie",
+        "hours": 57.5
+      },
+      {
+        "name": "Kyle Williams",
+        "hours": 10
+      },
+      {
+        "name": "Doug Stevens",
+        "hours": 11.75
+      },
+      {
+        "name": "Jack Maffey",
+        "hours": 9
+      },
+      {
+        "name": "Jake Toplis",
+        "hours": 26.5
+      },
+      {
+        "name": "Andy Schweizer",
+        "hours": 1.5
+      }
+    ],
+    "labour": {
+      "quotedCost": 6008.51,
+      "actualCost": 5861.95
+    },
+    "pl": {
+      "quotedCost": 14923.59,
+      "actualCost": 14052.73,
+      "quotedProfit": 4581.93,
+      "quotedMargin": 0.2349,
+      "profitToDate": 5452.79,
+      "marginToDate": 0.2796
+    },
+    "addedAt": "2026-09-28",
+    "sourceFile": "Q-8337-pl.xlsx",
+    "timesheetFile": "Q-8337-ts.xlsx",
+    "month": "2026-09"
+  },
+  {
+    "jobNumber": "9635",
+    "jobName": "VAPO Bush Inn",
+    "type": "quoted",
+    "profit": 81.64460000000008,
+    "hours": 70,
+    "gpPerHour": 1.17,
+    "quotedHours": 69.6,
+    "workers": [
+      {
+        "name": "Hayden Warrington",
+        "hours": 23.5
+      },
+      {
+        "name": "Rhod Calla",
+        "hours": 24
+      },
+      {
+        "name": "Tim Davies",
+        "hours": 6
+      },
+      {
+        "name": "Daniel James - PPL",
+        "hours": 9
+      },
+      {
+        "name": "George Pirie",
+        "hours": 4
+      },
+      {
+        "name": "Jake Toplis",
+        "hours": 3.5
+      }
+    ],
+    "labour": {
+      "quotedCost": 3474.02,
+      "actualCost": 3392.38
+    },
+    "pl": {
+      "quotedCost": 18422.21,
+      "actualCost": 11361.86,
+      "quotedProfit": 5136.45,
+      "quotedMargin": 0.218,
+      "profitToDate": 12196.8,
+      "marginToDate": 0.5177
+    },
+    "addedAt": "2026-09-28",
+    "sourceFile": "Q-9635-pl.xlsx",
+    "timesheetFile": "Q-9635-ts.xlsx",
+    "month": "2026-09"
+  },
+  {
+    "jobNumber": "9802",
+    "jobName": "Cashmere View Apartment 208",
+    "type": "quoted",
+    "profit": -39.20999999999998,
+    "hours": 6.75,
+    "gpPerHour": -5.81,
+    "quotedHours": 6.69,
+    "workers": [
+      {
+        "name": "Kyle Williams",
+        "hours": 4.5
+      },
+      {
+        "name": "Andy Schweizer",
+        "hours": 1
+      },
+      {
+        "name": "Doug Stevens",
+        "hours": 1.25
+      }
+    ],
+    "labour": {
+      "quotedCost": 334.86,
+      "actualCost": 374.07
+    },
+    "pl": {
+      "quotedCost": 635.06,
+      "actualCost": 485.95,
+      "quotedProfit": 485.14,
+      "quotedMargin": 0.4331,
+      "profitToDate": 634.25,
+      "marginToDate": 0.5662
+    },
+    "addedAt": "2026-09-28",
+    "sourceFile": "Q-9802-pl.xlsx",
+    "timesheetFile": "Q-9802-ts.xlsx",
+    "month": "2026-09"
+  },
+  {
+    "jobNumber": "9698",
+    "jobName": "SmarVent Lite+",
+    "type": "quoted",
+    "profit": -282.2786000000001,
+    "hours": 15.5,
+    "gpPerHour": -18.21,
+    "quotedHours": 10.37,
+    "workers": [
+      {
+        "name": "Sean Baines",
+        "hours": 7.75
+      },
+      {
+        "name": "Ethan van Tuinen",
+        "hours": 7.75
+      }
+    ],
+    "labour": {
+      "quotedCost": 518.29,
+      "actualCost": 800.57
+    },
+    "pl": {
+      "quotedCost": 2942.91,
+      "actualCost": 4876.88,
+      "quotedProfit": 1041.23,
+      "quotedMargin": 0.2613,
+      "profitToDate": -892.74,
+      "marginToDate": -0.2241
+    },
+    "addedAt": "2026-09-28",
+    "sourceFile": "Q-9698-pl.xlsx",
+    "timesheetFile": "Q-9698-ts.xlsx",
+    "month": "2026-09"
+  },
+  {
     "jobNumber": "10024",
     "jobName": "Decommission 3 x Heat Pumps",
     "type": "chargeup",
@@ -1175,8 +1184,8 @@
     "month": "2026-09"
   },
   {
-    "jobNumber": "10031",
-    "jobName": "Investigate Caravan Power",
+    "jobNumber": "10028",
+    "jobName": "Various Lighting Replacement",
     "type": "chargeup",
     "profit": 93.26249999999999,
     "hours": 2.25,
@@ -1199,12 +1208,15 @@
       "marginToDate": 0.4187
     },
     "addedAt": "2026-09-29",
-    "sourceFile": "CU-10031.xlsx",
+    "sourceFile": "CU-10028.xlsx",
     "month": "2026-09"
   },
   {
     "jobNumber": "10017",
-    "jobName": "Job 10017",
+    "jobName": "10017",
+    "flags": [
+      "no-name"
+    ],
     "type": "chargeup",
     "profit": 64.785,
     "hours": 1.75,
@@ -1228,6 +1240,58 @@
     },
     "addedAt": "2026-09-29",
     "sourceFile": "CU-10017.xlsx",
+    "month": "2026-09"
+  },
+  {
+    "jobNumber": "10029",
+    "jobName": "Investigate Glowing Dimmers",
+    "flags": [
+      "no-sold-hours"
+    ],
+    "type": "chargeup",
+    "profit": -53.12,
+    "hours": 0,
+    "gpPerHour": null,
+    "quotedHours": 1,
+    "unsoldHours": 1,
+    "workers": [],
+    "labour": {
+      "actualCost": 53.12,
+      "actualSell": 0
+    },
+    "pl": {
+      "actualCost": 53.12,
+      "profitToDate": -53.12,
+      "marginToDate": 0
+    },
+    "addedAt": "2026-09-29",
+    "sourceFile": "CU-10029.xlsx",
+    "month": "2026-09"
+  },
+  {
+    "jobNumber": "10031",
+    "jobName": "Investigate Caravan Power",
+    "flags": [
+      "no-sold-hours"
+    ],
+    "type": "chargeup",
+    "profit": -39.84,
+    "hours": 0,
+    "gpPerHour": null,
+    "quotedHours": 0.75,
+    "unsoldHours": 0.75,
+    "workers": [],
+    "labour": {
+      "actualCost": 39.84,
+      "actualSell": 0
+    },
+    "pl": {
+      "actualCost": 39.84,
+      "profitToDate": -39.84,
+      "marginToDate": 0
+    },
+    "addedAt": "2026-09-29",
+    "sourceFile": "CU-10031.xlsx",
     "month": "2026-09"
   }
 ]
