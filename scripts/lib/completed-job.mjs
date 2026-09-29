@@ -143,18 +143,25 @@ export function parseChargeUp(workbook) {
   const workers = labourLines(sold)
   const sum = (lines) => lines.reduce((t, w) => t + w.hours, 0)
   const hours = sum(workers), unsoldHours = sum(labourLines(sheetRows(workbook, 'Unsold') ?? []))
-  if (hours <= 0) throw new Error('No labour hours on the Sold sheet.')
+  // No sold hours (all unsold, e.g. warranty): still loaded with its profit and
+  // costs, but there's no GP/hr — the record is flagged 'no-sold-hours'.
   return { type: 'chargeup', profit, hours, quotedHours: hours + unsoldHours, unsoldHours, workers, hoursSource: 'sold', labour: { actualCost, actualSell }, pl }
 }
 
+// Flags a job to check: 'no-name' (no name in Katipolt — shown as its number)
+// and 'no-sold-hours' (nothing to divide the profit by, so no GP/hr).
 export function toRecord(result, { jobNumber, jobName, sourceFile, timesheetFile }) {
+  const number = String(jobNumber ?? result.jobNumber)
+  const name = String(jobName ?? result.jobName ?? '').trim()
+  const flags = [...(name ? [] : ['no-name']), ...(result.hours > 0 ? [] : ['no-sold-hours'])]
   const record = {
-    jobNumber: String(jobNumber ?? result.jobNumber),
-    jobName: jobName ?? result.jobName,
+    jobNumber: number,
+    jobName: name || number,
+    ...(flags.length && { flags }),
     type: result.type,
     profit: result.profit,
     hours: Math.round(result.hours * 100) / 100,
-    gpPerHour: Math.round((result.profit / result.hours) * 100) / 100,
+    gpPerHour: result.hours > 0 ? Math.round((result.profit / result.hours) * 100) / 100 : null,
     ...(result.quotedHours != null && { quotedHours: Math.round(result.quotedHours * 100) / 100 }),
     ...(result.unsoldHours != null && { unsoldHours: Math.round(result.unsoldHours * 100) / 100 }),
     workers: result.workers,
@@ -266,7 +273,7 @@ for (const raw of files) {
       const wb = readWorkbook(pathOf(f))
       if (exportKind(wb) !== 'chargeup') throw new Error(`not a charge-up P&L export (sheets: ${wb.SheetNames.join(', ')})`)
       const job = m[1]
-      records.push(toRecord(parseChargeUp(wb), { jobNumber: job, jobName: names.get(job) || `Job ${job}`, sourceFile: f }))
+      records.push(toRecord(parseChargeUp(wb), { jobNumber: job, jobName: names.get(job) || '', sourceFile: f }))
     } else if ((m = f.match(/^Q-(\d+)-pl\.xlsx$/i))) {
       const job = m[1], tsName = files.map(logical).find((x) => x.toLowerCase() === `q-${job}-ts.xlsx`)
       const wb = readWorkbook(pathOf(f))
@@ -281,6 +288,6 @@ for (const raw of files) {
   }
 }
 
-records.sort((a, b) => b.gpPerHour - a.gpPerHour)
+records.sort((a, b) => (b.gpPerHour ?? -Infinity) - (a.gpPerHour ?? -Infinity))
 return { records, skipped, problems: [], notes }
 }

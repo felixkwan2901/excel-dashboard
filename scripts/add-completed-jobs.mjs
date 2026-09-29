@@ -40,7 +40,7 @@ if (problems.length) {
 for (const r of records) r.month = month
 for (const n of notes) console.log(n)
 console.log(`Month completed: ${month}`)
-const fmt = (n) => '$' + n.toFixed(2)
+const fmt = (n) => (n == null ? "—" : "$" + n.toFixed(2))
 console.log(`\n${records.length} job(s) read:\n`)
 for (const r of records) console.log(`  ${r.type.padEnd(8)} ${r.jobNumber.padEnd(6)} ${fmt(r.gpPerHour).padStart(10)}/hr  ${fmt(r.profit).padStart(11)}  ${String(r.hours).padStart(6)} h  ${r.jobName}`)
 if (skipped.length) {

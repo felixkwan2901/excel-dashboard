@@ -101,7 +101,9 @@ const GRID_ONE = 'grid grid-cols-[minmax(0,1.6fr)_minmax(0,1.6fr)_4rem_3rem] gap
 
 // How the job's GP/hr was worked out, straight from its P&L export.
 function LabourSum({ job }) {
-  const rate = <> ÷ {job.hours} actual h = <span className="font-medium text-white">{cents(job.gpPerHour)}/hr</span></>
+  const rate = job.hours > 0
+    ? <> ÷ {job.hours} actual h = <span className="font-medium text-white">{cents(job.gpPerHour)}/hr</span></>
+    : <> — no sold (actual) hours, so no GP/hr{job.unsoldHours ? ` (${job.unsoldHours} h unsold)` : ''}</>
   if (job.type === 'chargeup') {
     return <p className="text-[12px] tabular-nums text-neutral-400"><span className="text-neutral-200">{cents(job.profit)}</span> profit (P&amp;L total){rate}</p>
   }
@@ -119,7 +121,7 @@ function Breakdown({ job }) {
   // Only quoted jobs split GP per person; a charge-up job just lists who worked it.
   const split = job.type === 'quoted' && people.length > 1
   if (!people.length) {
-    return <div className="flex flex-col gap-2.5"><LabourSum job={job} /><p className="text-[13px] text-neutral-500">No per-person hours for this job — its timesheet export wasn&apos;t included.</p></div>
+    return <div className="flex flex-col gap-2.5"><LabourSum job={job} /><p className="text-[13px] text-neutral-500">{job.type === 'chargeup' ? 'No sold hours on this job, so there are no per-person hours to show.' : 'No per-person hours for this job — its timesheet export wasn\u2019t included.'}</p></div>
   }
   return (
     <div className="flex flex-col gap-2.5">
@@ -176,10 +178,13 @@ const TYPE_FILTERS = [
   { key: 'quoted', label: 'Quoted' },
 ]
 
-function typeStats(jobs) {
+// Jobs with no actual hours (flagged 'no-sold-hours') have no GP/hr, so they're
+// left out of the rate — their profit over zero hours would only inflate it.
+function typeStats(all) {
+  const jobs = all.filter((j) => j.hours > 0)
   const profit = jobs.reduce((sum, j) => sum + (j.profit ?? 0), 0)
   const hours = jobs.reduce((sum, j) => sum + (j.hours ?? 0), 0)
-  return { count: jobs.length, profit, hours: Math.round(hours * 100) / 100, gp: hours ? profit / hours : null }
+  return { count: all.length, profit, hours: Math.round(hours * 100) / 100, gp: hours ? profit / hours : null }
 }
 
 function TypeSummary({ type, jobs, active, onSelect }) {
@@ -205,6 +210,20 @@ function TypeSummary({ type, jobs, active, onSelect }) {
 }
 
 const NOT_SET = 'Not set'
+
+// Data to check, set when the job was loaded: no name in Katipolt (shown as its
+// number), or no sold hours (so no GP/hr). Amber — a thing to fix, not a loss.
+const CHECK = 'var(--viz-warning, #d97706)'
+const CHECK_LABEL = { 'no-name': 'No name', 'no-sold-hours': 'No sold hours' }
+function CheckTags({ job }) {
+  return (job.flags ?? []).map((f) => (
+    <span key={f} className="rounded-full px-1.5 py-0.5 text-[10.5px] font-semibold"
+      style={{ color: CHECK, background: `color-mix(in srgb, ${CHECK} 16%, transparent)` }}
+      title={f === 'no-name' ? 'This job has no name in Katipolt — add one there and re-upload.' : 'All its hours are unsold, so there is nothing to divide the profit by.'}>
+      Check: {CHECK_LABEL[f] ?? f}
+    </span>
+  ))
+}
 
 function HeadCell({ col, rowSpan, sub, sort, onSort }) {
   const on = sort.key === col.key
@@ -478,7 +497,7 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
                 <p className="text-[14px] font-medium text-white">
                   <span className="text-neutral-400">{j.jobNumber}</span> {j.jobName}
                 </p>
-                <p className="mt-0.5 text-[12px] text-neutral-500">{TYPE_LABEL[j.type] ?? j.type}</p>
+                <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[12px] text-neutral-500">{TYPE_LABEL[j.type] ?? j.type}<CheckTags job={j} /></p>
                 {overruns(j).length > 0 && (
                   <p className="mt-1 text-[12px] font-medium" style={{ color: OVER }}>Over quote — review: {overruns(j).map(fmtOver).join(' · ')}</p>
                 )}
@@ -583,9 +602,13 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
                           case 'jobName': content = <span className="block truncate" title={j.jobName}>{j.jobName}</span>; break
                           case 'hoursDiff': content = <DiffHours job={j} />; break
                           case 'type':
-                            content = over.length
-                              ? <span className="inline-flex items-center gap-1.5 whitespace-nowrap">{TYPE_LABEL[j.type]}<span className="rounded-full px-1.5 py-0.5 text-[10.5px] font-semibold" style={{ color: OVER, background: `color-mix(in srgb, ${OVER} 14%, transparent)` }}>Review</span></span>
-                              : TYPE_LABEL[j.type] ?? j.type
+                            content = (
+                              <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                                {TYPE_LABEL[j.type] ?? j.type}
+                                {over.length > 0 && <span className="rounded-full px-1.5 py-0.5 text-[10.5px] font-semibold" style={{ color: OVER, background: `color-mix(in srgb, ${OVER} 14%, transparent)` }}>Review</span>}
+                                <CheckTags job={j} />
+                              </span>
+                            )
                             break
                           case 'workedBy': content = <WorkedBy job={j} />; break
                           case 'category': content = cells(j).category; break

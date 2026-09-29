@@ -15,8 +15,10 @@ const TYPE_LABEL = { quoted: 'Quoted', chargeup: 'Charge-up' }
 const NOT_SET = 'Not set'
 
 // GP/hr over a set of jobs, weighted by hours: total profit ÷ total hours.
-function rate(jobs) {
-  const h = jobs.reduce((t, j) => t + (j.hours ?? 0), 0)
+// Jobs with no actual hours have no GP/hr and are left out.
+function rate(all) {
+  const jobs = all.filter((j) => j.hours > 0)
+  const h = jobs.reduce((t, j) => t + j.hours, 0)
   return h ? jobs.reduce((t, j) => t + (j.profit ?? 0), 0) / h : null
 }
 
@@ -33,7 +35,7 @@ function WorkTypeBreakdown({ jobs, categories, onOpenJob }) {
   }, [jobs, categories])
   const order = [...JOB_CATEGORIES, NOT_SET].filter((c) => byCat.has(c))
   const of = (list, type) => (type ? list.filter((j) => j.type === type) : list)
-  const picked = pick ? of(pick.cat ? byCat.get(pick.cat) ?? [] : jobs, pick.type).sort((a, b) => b.gpPerHour - a.gpPerHour) : []
+  const picked = pick ? of(pick.cat ? byCat.get(pick.cat) ?? [] : jobs, pick.type).sort((a, b) => (b.gpPerHour ?? -Infinity) - (a.gpPerHour ?? -Infinity)) : []
   const isOn = (cat, type) => pick && pick.cat === cat && pick.type === type
 
   function Count({ cat, type, list }) {
