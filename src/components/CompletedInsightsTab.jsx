@@ -14,12 +14,18 @@ import { monthName, personMonthly } from '../lib/completedJobPeople'
 const TYPE_LABEL = { quoted: 'Quoted', chargeup: 'Charge-up' }
 const NOT_SET = 'Not set'
 
-// GP/hr over a set of jobs, weighted by hours: total profit ÷ total hours.
-// Jobs with no actual hours have no GP/hr and are left out.
+// Project GP/hr — the whole job's result, not just labour: profit to date (the
+// P&L's actual profit) ÷ actual hours. For a charge-up job that's the same as
+// its GP/hr. The labour-only GP/hr stays on the Completed jobs table and in the
+// By person figures below.
+const projectProfit = (j) => j.pl?.profitToDate ?? j.profit ?? null
+const projectGp = (j) => (j.hours > 0 && projectProfit(j) != null ? projectProfit(j) / j.hours : null)
+// Over a set of jobs, weighted by hours: total profit to date ÷ total actual
+// hours. Jobs with no actual hours have no GP/hr and are left out.
 function rate(all) {
-  const jobs = all.filter((j) => j.hours > 0)
+  const jobs = all.filter((j) => projectGp(j) !== null)
   const h = jobs.reduce((t, j) => t + j.hours, 0)
-  return h ? jobs.reduce((t, j) => t + (j.profit ?? 0), 0) / h : null
+  return h ? jobs.reduce((t, j) => t + projectProfit(j), 0) / h : null
 }
 
 function WorkTypeBreakdown({ jobs, categories, onOpenJob }) {
@@ -35,7 +41,7 @@ function WorkTypeBreakdown({ jobs, categories, onOpenJob }) {
   }, [jobs, categories])
   const order = [...JOB_CATEGORIES, NOT_SET].filter((c) => byCat.has(c))
   const of = (list, type) => (type ? list.filter((j) => j.type === type) : list)
-  const picked = pick ? of(pick.cat ? byCat.get(pick.cat) ?? [] : jobs, pick.type).sort((a, b) => (b.gpPerHour ?? -Infinity) - (a.gpPerHour ?? -Infinity)) : []
+  const picked = pick ? of(pick.cat ? byCat.get(pick.cat) ?? [] : jobs, pick.type).sort((a, b) => (projectGp(b) ?? -Infinity) - (projectGp(a) ?? -Infinity)) : []
   const isOn = (cat, type) => pick && pick.cat === cat && pick.type === type
 
   function Count({ cat, type, list }) {
@@ -76,15 +82,15 @@ function WorkTypeBreakdown({ jobs, categories, onOpenJob }) {
       className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6"
       storageKey="completed-insights.worktype"
       title="Jobs by type and type of work"
-      description="How many completed jobs of each type of work, charge-up and quoted, with each group's GP/hr (total profit ÷ total hours). Click any number to see those jobs."
+      description="How many completed jobs of each type of work, charge-up and quoted, with each group's project GP/hr — the jobs' profit to date ÷ their actual hours (the whole job, not just labour). Click any number to see those jobs."
     >
       <div className="table-scroll mt-2">
         <table className="data-table data-table--compact">
           <thead>
             <tr>
               <th>Type of work</th>
-              <th className="num">Charge-up</th><th className="num">Charge-up GP/hr</th>
-              <th className="num">Quoted</th><th className="num">Quoted GP/hr</th>
+              <th className="num">Charge-up</th><th className="num">Charge-up project GP/hr</th>
+              <th className="num">Quoted</th><th className="num">Quoted project GP/hr</th>
               <th className="num">Total</th>
             </tr>
           </thead>
@@ -106,7 +112,7 @@ function WorkTypeBreakdown({ jobs, categories, onOpenJob }) {
           <div className="table-scroll">
             <table className="data-table data-table--compact">
               <thead>
-                <tr><th>Job #</th><th>Job name</th><th>Type</th><th className="num">GP/hr</th><th className="num">Profit</th><th className="num">Actual h</th></tr>
+                <tr><th>Job #</th><th>Job name</th><th>Type</th><th className="num">Project GP/hr</th><th className="num">Profit to date</th><th className="num">Actual h</th><th className="num">Labour GP/hr</th></tr>
               </thead>
               <tbody>
                 {picked.map((j) => (
@@ -116,9 +122,10 @@ function WorkTypeBreakdown({ jobs, categories, onOpenJob }) {
                     <td>{j.jobNumber}</td>
                     <td>{j.jobName}</td>
                     <td>{TYPE_LABEL[j.type]}</td>
-                    <td className="num font-medium">{cents(j.gpPerHour)}</td>
-                    <td className="num">{money(j.profit)}</td>
+                    <td className="num font-medium">{projectGp(j) === null ? '—' : `${cents(projectGp(j))}/hr`}</td>
+                    <td className="num">{projectProfit(j) == null ? '—' : money(projectProfit(j))}</td>
                     <td className="num">{j.hours}</td>
+                    <td className="num text-neutral-400">{j.type === 'quoted' ? `${cents(j.gpPerHour)}/hr` : '—'}</td>
                   </tr>
                 ))}
               </tbody>
