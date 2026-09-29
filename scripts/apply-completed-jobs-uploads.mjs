@@ -21,6 +21,9 @@ const STAGING = resolve('pending-updates/completed-jobs')
 const FAILED = resolve('pending-updates/failed')
 const RESULTS = resolve('pending-updates/results')
 const OUT = resolve('public/completed-jobs.json')
+// completedJobsUpdatedAt is its own time, so the pages can say when completed
+// jobs last changed separately from the job data's updatedAt.
+const SYNC_META = resolve('public/sync-meta.json')
 
 const bundles = existsSync(STAGING) ? readdirSync(STAGING).filter((f) => f.endsWith('.json')).sort() : []
 if (!bundles.length) { console.log('No pending completed-job uploads.'); process.exit(0) }
@@ -51,6 +54,10 @@ for (const name of bundles) {
       jobs: records.map((r) => ({ jobNumber: r.jobNumber, jobName: r.jobName, type: r.type, gpPerHour: r.gpPerHour })),
       needsLook: skipped, notes,
     }, null, 2) + '\n')
+    let meta = {}
+    try { meta = JSON.parse(readFileSync(SYNC_META, 'utf8')) } catch { /* optional */ }
+    meta.completedJobsUpdatedAt = new Date().toISOString()
+    writeFileSync(SYNC_META, JSON.stringify(meta, null, 2) + '\n')
     rmSync(join(STAGING, name))
     console.log(`✓ ${name}: loaded ${records.length} job(s), ${skipped.length} to look at`)
   } catch (err) {

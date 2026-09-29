@@ -253,7 +253,11 @@ export default function UpdateData({ onBack, jobs, monthlyClaimsHistory, monthly
         <span className="text-text-primary">Update data</span>
       </nav>
 
-      <LastSynced detailed />
+      {/* Two separate times: the job data (workbook uploads) and completed jobs. */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <LastSynced detailed kind="jobs" />
+        <LastSynced detailed kind="completed" />
+      </div>
 
       <StaleJobsPanel jobs={jobs} />
 

@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { cents, money } from '../lib/format'
 import CollapsibleSection from './CollapsibleSection'
+import LastSynced from './LastSynced'
 import { fetchJobCategories } from '../lib/jobCategoryStore'
 import { JOB_CATEGORIES } from '../lib/jobCategories'
 import { monthName, personMonthly } from '../lib/completedJobPeople'
@@ -279,6 +280,7 @@ export default function CompletedInsightsTab({ completedJobs, onBack, onOpenJob 
       </nav>
       <div>
         <h1 className="text-2xl font-semibold text-white">Completed insights</h1>
+        <div className="mt-1"><LastSynced kind="completed" /></div>
         <p className="mt-1 text-sm text-neutral-400">
           The {completedJobs.length} completed jobs summed up by type of work and by person. Click a number
           or a person to see the jobs behind it; click a job to open it on the Completed jobs tab.

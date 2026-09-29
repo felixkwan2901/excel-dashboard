@@ -16,7 +16,16 @@ const REFRESH_MS = 60 * 1000 // keep the relative label ("2 minutes ago") fresh
 // upload again?" — a relative label alone ("5 days ago") makes you work out
 // the actual day, so that variant shows the exact local date and time with
 // the relative reading beside it.
-export default function LastSynced({ detailed = false }) {
+// `kind` picks which time: 'jobs' (the job data — workbook uploads and edits,
+// sync-meta's updatedAt) or 'completed' (completed-jobs uploads only, its
+// completedJobsUpdatedAt).
+const KINDS = {
+  jobs: { field: 'updatedAt', title: 'Job data — last upload processed', short: 'Last updated' },
+  completed: { field: 'completedJobsUpdatedAt', title: 'Completed jobs — last upload processed', short: 'Completed jobs last updated' },
+}
+
+export default function LastSynced({ detailed = false, kind = 'jobs' }) {
+  const k = KINDS[kind] ?? KINDS.jobs
   const [updatedAt, setUpdatedAt] = useState(null)
   const [, forceTick] = useState(0)
 
@@ -25,7 +34,7 @@ export default function LastSynced({ detailed = false }) {
     fetch(syncMetaUrl, { cache: 'no-store' })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (!cancelled && data?.updatedAt) setUpdatedAt(data.updatedAt)
+        if (!cancelled && data?.[k.field]) setUpdatedAt(data[k.field])
       })
       .catch(() => {
         // Missing or unreadable — show nothing rather than an error.
@@ -33,7 +42,7 @@ export default function LastSynced({ detailed = false }) {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [k.field])
 
   useEffect(() => {
     const interval = setInterval(() => forceTick((n) => n + 1), REFRESH_MS)
@@ -45,7 +54,7 @@ export default function LastSynced({ detailed = false }) {
     // space reads as "no uploads yet" just as easily as "couldn't check".
     return detailed ? (
       <p className="mb-4 rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3 text-[13px] text-neutral-400">
-        Couldn&apos;t read when the data was last updated.
+        {kind === 'completed' ? 'No completed-jobs upload processed yet.' : 'Couldn\u2019t read when the data was last updated.'}
       </p>
     ) : null
   }
@@ -63,7 +72,7 @@ export default function LastSynced({ detailed = false }) {
     return (
       <div className="mb-4 rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3">
         <p className="text-[11px] font-medium tracking-wider text-neutral-400 uppercase">
-          Last upload processed
+          {k.title}
         </p>
         <p className="mt-1 text-[15px] font-semibold text-neutral-100 tabular-nums">
           {absolute}
@@ -75,7 +84,7 @@ export default function LastSynced({ detailed = false }) {
 
   return (
     <p className="text-[13px] text-neutral-400 tabular-nums">
-      Last updated: {formatRelativeTime(updatedAt)}
+      {k.short}: {formatRelativeTime(updatedAt)}
     </p>
   )
 }

@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react'
 import { Users } from 'lucide-react'
 import { cents, money, percent } from '../lib/format'
 import CollapsibleSection from './CollapsibleSection'
+import LastSynced from './LastSynced'
 import { useLocalStorageState } from '../lib/useLocalStorageState'
 import { fetchJobOwners, saveJobOwner } from '../lib/jobOwnerStore'
 import { fetchJobCategories, saveJobCategory } from '../lib/jobCategoryStore'
@@ -352,6 +353,7 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
 
       <div>
         <h1 className="text-2xl font-semibold text-white">Completed jobs — GP per hour</h1>
+        <div className="mt-1"><LastSynced kind="completed" /></div>
         <p className="mt-1 text-sm text-neutral-400">
           GP per hour for each finished job. A quoted job&apos;s is its labour profit (quoted
           labour cost − actual labour cost) ÷ actual hours, and on a job with more than one
