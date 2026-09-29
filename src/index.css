@@ -513,6 +513,10 @@ input:focus-visible {
   background-color: #eef3ee;
 }
 
+:root[data-theme='light'] .table-scroll > .data-table > thead th {
+  background-color: var(--surface-2);
+}
+
 :root[data-theme='light'] .table-freeze thead th {
   background-color: var(--surface-2);
 }

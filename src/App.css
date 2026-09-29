@@ -219,7 +219,12 @@
 }
 
 .table-scroll {
-  overflow-x: auto;
+  /* Both ways: a long table scrolls inside its own box (up to 70% of the
+     screen) instead of stretching the page, so the header row can stay pinned
+     and the sideways scrollbar is always on screen rather than at the bottom
+     of a 3000px table. */
+  overflow: auto;
+  max-height: 70vh;
   -webkit-overflow-scrolling: touch;
   /* Draw the horizontal scrollbar permanently rather than leaving it to the
      OS. macOS hides overlay scrollbars until you scroll, so on a trackpad
@@ -233,6 +238,24 @@
 
 .table-scroll::-webkit-scrollbar {
   height: 11px;
+  width: 11px;
+}
+
+.table-scroll::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Header row pinned to the top of the scrolling box, on every table. */
+.table-scroll > .data-table > thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: #11161c;
+}
+
+.table-scroll > .data-table > thead th.sticky-col,
+.table-scroll > .data-table > thead th.sticky-col-right {
+  z-index: 4;
 }
 
 .table-scroll::-webkit-scrollbar-track {
@@ -595,6 +618,12 @@
 /* ---------- print ---------- */
 
 @media print {
+  /* Print every row, not just what fits in the on-screen scroll box. */
+  .table-scroll {
+    max-height: none;
+    overflow: visible;
+  }
+
   .side-nav,
   .top-strip,
   .site-footer,
