@@ -1089,5 +1089,145 @@
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9922.xlsx",
     "month": "2026-09"
+  },
+  {
+    "jobNumber": "10024",
+    "jobName": "Decommission 3 x Heat Pumps",
+    "type": "chargeup",
+    "profit": 129.46,
+    "hours": 0.5,
+    "gpPerHour": 258.92,
+    "quotedHours": 1,
+    "unsoldHours": 0.5,
+    "workers": [
+      {
+        "name": "Sean Baines",
+        "hours": 0.5
+      }
+    ],
+    "labour": {
+      "actualCost": 59.03,
+      "actualSell": 49.5
+    },
+    "pl": {
+      "actualCost": 59.04,
+      "profitToDate": 129.46,
+      "marginToDate": 0.6868
+    },
+    "addedAt": "2026-09-29",
+    "sourceFile": "CU-10024.xlsx",
+    "month": "2026-09"
+  },
+  {
+    "jobNumber": "10036",
+    "jobName": "Cable Repairs",
+    "type": "chargeup",
+    "profit": 151.66500000000002,
+    "hours": 1,
+    "gpPerHour": 151.67,
+    "quotedHours": 1.5,
+    "unsoldHours": 0.5,
+    "workers": [
+      {
+        "name": "Andy Schweizer",
+        "hours": 1
+      }
+    ],
+    "labour": {
+      "actualCost": 86.33,
+      "actualSell": 99
+    },
+    "pl": {
+      "actualCost": 86.34,
+      "profitToDate": 151.67,
+      "marginToDate": 0.6372
+    },
+    "addedAt": "2026-09-29",
+    "sourceFile": "CU-10036.xlsx",
+    "month": "2026-09"
+  },
+  {
+    "jobNumber": "10033",
+    "jobName": "Camera recorder call out",
+    "type": "chargeup",
+    "profit": 154.275,
+    "hours": 1.25,
+    "gpPerHour": 123.42,
+    "quotedHours": 1.75,
+    "unsoldHours": 0.5,
+    "workers": [
+      {
+        "name": "Doug Stevens",
+        "hours": 1.25
+      }
+    ],
+    "labour": {
+      "actualCost": 108.47,
+      "actualSell": 123.75
+    },
+    "pl": {
+      "actualCost": 108.48,
+      "profitToDate": 154.28,
+      "marginToDate": 0.5872
+    },
+    "addedAt": "2026-09-29",
+    "sourceFile": "CU-10033.xlsx",
+    "month": "2026-09"
+  },
+  {
+    "jobNumber": "10031",
+    "jobName": "Investigate Caravan Power",
+    "type": "chargeup",
+    "profit": 93.26249999999999,
+    "hours": 2.25,
+    "gpPerHour": 41.45,
+    "quotedHours": 2.25,
+    "unsoldHours": 0,
+    "workers": [
+      {
+        "name": "Andy Schweizer",
+        "hours": 2.25
+      }
+    ],
+    "labour": {
+      "actualCost": 129.49,
+      "actualSell": 222.75
+    },
+    "pl": {
+      "actualCost": 129.49,
+      "profitToDate": 93.26,
+      "marginToDate": 0.4187
+    },
+    "addedAt": "2026-09-29",
+    "sourceFile": "CU-10031.xlsx",
+    "month": "2026-09"
+  },
+  {
+    "jobNumber": "10017",
+    "jobName": "Job 10017",
+    "type": "chargeup",
+    "profit": 64.785,
+    "hours": 1.75,
+    "gpPerHour": 37.02,
+    "quotedHours": 1.75,
+    "unsoldHours": 0,
+    "workers": [
+      {
+        "name": "Doug Stevens",
+        "hours": 1.75
+      }
+    ],
+    "labour": {
+      "actualCost": 108.47,
+      "actualSell": 173.25
+    },
+    "pl": {
+      "actualCost": 108.47,
+      "profitToDate": 64.79,
+      "marginToDate": 0.3739
+    },
+    "addedAt": "2026-09-29",
+    "sourceFile": "CU-10017.xlsx",
+    "month": "2026-09"
   }
 ]
