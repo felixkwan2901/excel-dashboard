@@ -10,7 +10,9 @@ import { useLocalStorageState } from '../lib/useLocalStorageState'
 import { fetchJobOwners, saveJobOwner } from '../lib/jobOwnerStore'
 import { fetchJobCategories, saveJobCategory } from '../lib/jobCategoryStore'
 import { OwnerCell, CategoryCell } from './JobTable'
+import { JOB_CATEGORIES } from '../lib/jobCategories'
 import { contributors, personTotals } from '../lib/completedJobPeople'
+import { jobsToReview, overruns } from '../lib/completedJobReview'
 
 // Loaded by scripts/lib/completed-job.mjs — labour only: a quoted job's profit is
 // its Labour Quoted Cost − Labour Actual Cost, a charge-up job's is Labour Actual
@@ -52,6 +54,11 @@ const GROUPS = [
   { key: 'cost', label: 'Total cost' },
   { key: 'people', label: 'Worked by, type of work, owner', flat: true },
 ]
+// Which cells turn red when a quoted job came in over quote on that measure.
+const OVER_CELLS = { hours: ['hours', 'hoursDiff', 'labourActualH'], labour: ['labourActual'], cost: ['costActual'] }
+const OVER = 'var(--viz-critical)'
+const fmtOver = (o) => (o.unit === 'h' ? `${o.label} ${o.quoted} → ${o.actual} h` : `${o.label} ${money(o.quoted)} → ${money(o.actual)}`)
+
 // Frozen leading columns (Job #, Job name) — widths so the second knows its left.
 const STICKY_W = [92, 230]
 const STICKY_LEFT = [0, STICKY_W[0]]
@@ -286,6 +293,56 @@ function PeopleSummary({ jobs, scope }) {
   )
 }
 
+// How many completed jobs of each type of work, split charge-up / quoted. A row
+// is a filter: click it to show only that type of work below.
+const NOT_SET = 'Not set'
+function WorkTypeCounts({ jobs, categories, active, onSelect }) {
+  const counts = new Map()
+  for (const j of jobs) {
+    const cat = categories?.[j.jobNumber] || NOT_SET
+    const c = counts.get(cat) ?? { chargeup: 0, quoted: 0 }
+    c[j.type] = (c[j.type] ?? 0) + 1
+    counts.set(cat, c)
+  }
+  const order = [...JOB_CATEGORIES, NOT_SET].filter((c) => counts.has(c))
+  const total = { chargeup: jobs.filter((j) => j.type === 'chargeup').length, quoted: jobs.filter((j) => j.type === 'quoted').length }
+  const cell = (n) => (n ? n : <span className="text-neutral-600">0</span>)
+  return (
+    <div className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-5">
+      <div className="mb-2 flex items-baseline justify-between gap-3">
+        <h2 className="text-[15px] font-medium text-neutral-100">Jobs by type and type of work</h2>
+        {active && <button type="button" onClick={() => onSelect(null)} className="text-[12px] text-brand-green hover:underline">Show all types of work</button>}
+      </div>
+      <table className="data-table data-table--compact">
+        <thead>
+          <tr><th>Type of work</th><th className="num">Charge-up</th><th className="num">Quoted</th><th className="num">Total</th></tr>
+        </thead>
+        <tbody>
+          {order.map((cat) => {
+            const c = counts.get(cat), on = active === cat
+            return (
+              <tr key={cat} className="cursor-pointer" tabIndex={0} aria-pressed={on} onClick={() => onSelect(on ? null : cat)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(on ? null : cat) } }}
+                style={on ? { background: 'color-mix(in srgb, var(--brand-green, #22c55e) 10%, transparent)' } : undefined}>
+                <td className={on ? 'font-medium text-brand-green' : cat === NOT_SET ? 'text-neutral-500' : ''}>{cat}</td>
+                <td className="num">{cell(c.chargeup)}</td>
+                <td className="num">{cell(c.quoted)}</td>
+                <td className="num font-medium">{c.chargeup + c.quoted}</td>
+              </tr>
+            )
+          })}
+          <tr>
+            <td className="font-medium">All</td>
+            <td className="num font-medium">{total.chargeup}</td>
+            <td className="num font-medium">{total.quoted}</td>
+            <td className="num font-medium">{jobs.length}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
 function HeadCell({ col, rowSpan, sub, sort, onSort }) {
   const on = sort.key === col.key
   const sticky = col.sticky !== undefined
@@ -303,9 +360,10 @@ function HeadCell({ col, rowSpan, sub, sort, onSort }) {
   )
 }
 
-export default function CompletedJobsTab({ completedJobs, onBack }) {
+export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
   const [sort, setSort] = useState({ key: 'gpPerHour', dir: -1 })
   const [typeFilter, setTypeFilter] = useLocalStorageState('completedJobs.typeFilter', 'all')
+  const [workFilter, setWorkFilter] = useState(null)   // a type of work picked in the counts table
   // Owner and type of work are the same per-job stores the Projects dropdowns
   // write to, so a job set in either place shows the same value in both.
   const [owners, setOwners] = useState(null)
@@ -358,7 +416,28 @@ export default function CompletedJobsTab({ completedJobs, onBack }) {
   }
   const subCols = visibleCols.filter((c) => c.group && !GROUPS.find((x) => x.key === c.group)?.flat)
 
-  const [open, setOpen] = useState(() => new Set())
+  const toReview = useMemo(() => jobsToReview(completedJobs), [completedJobs])
+  const [open, setOpen] = useState(() => new Set(focusJob ? [focusJob.job] : []))
+  // Opened from the notifications bell: show that job's row, expanded, in view.
+  function reviewJob(jobNumber) {
+    setTypeFilter('all')
+    setWorkFilter(null)
+    setOpen((prev) => new Set(prev).add(jobNumber))
+    // The row may not be laid out yet (tab just opened, filters just reset), so
+    // wait for it before scrolling it into the middle of the screen.
+    let tries = 0
+    const scroll = () => {
+      const el = document.getElementById(`cj-${jobNumber}`)
+      if (el && el.offsetParent) el.scrollIntoView({ block: 'center' })
+      else if (tries++ < 20) setTimeout(scroll, 100)
+    }
+    setTimeout(scroll, 150)
+  }
+  useEffect(() => {
+    if (!focusJob) return
+    const t = setTimeout(() => reviewJob(focusJob.job), 0)
+    return () => clearTimeout(t)
+  }, [focusJob]) // eslint-disable-line react-hooks/exhaustive-deps
   function toggleOpen(jobNumber) {
     setOpen((prev) => { const next = new Set(prev); next.has(jobNumber) ? next.delete(jobNumber) : next.add(jobNumber); return next })
   }
@@ -371,7 +450,10 @@ export default function CompletedJobsTab({ completedJobs, onBack }) {
     chargeup: completedJobs.filter((j) => j.type === 'chargeup'),
     quoted: completedJobs.filter((j) => j.type === 'quoted'),
   }), [completedJobs])
-  const shown = typeFilter === 'all' ? completedJobs : (byType[typeFilter] ?? completedJobs)
+  const byTypeShown = typeFilter === 'all' ? completedJobs : (byType[typeFilter] ?? completedJobs)
+  const shown = useMemo(() => (workFilter
+    ? byTypeShown.filter((j) => (categories?.[j.jobNumber] || NOT_SET) === workFilter)
+    : byTypeShown), [byTypeShown, workFilter, categories])
 
   const rows = useMemo(() => {
     return [...shown].sort((a, b) => {
@@ -418,6 +500,25 @@ export default function CompletedJobsTab({ completedJobs, onBack }) {
         </p>
       </div>
 
+      {toReview.length > 0 && (
+        <div className="rounded-[14px] border p-4" style={{ borderColor: `color-mix(in srgb, ${OVER} 45%, transparent)`, background: `color-mix(in srgb, ${OVER} 7%, transparent)` }}>
+          <p className="text-[14px] font-medium" style={{ color: OVER }}>
+            {toReview.length} quoted job{toReview.length === 1 ? '' : 's'} came in over quote — please review
+          </p>
+          <ul className="mt-2 flex flex-col gap-1 text-[13px]">
+            {toReview.map(({ job, over }) => (
+              <li key={job.jobNumber}>
+                <button type="button" onClick={() => reviewJob(job.jobNumber)} className="text-left hover:underline">
+                  <span className="font-medium text-white">{job.jobNumber}</span>{' '}
+                  <span className="text-neutral-300">{job.jobName}</span>
+                  <span className="text-neutral-400"> — {over.map(fmtOver).join(' · ')}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap gap-2" role="group" aria-label="Job type">
           {TYPE_FILTERS.map((f) => {
@@ -451,12 +552,14 @@ export default function CompletedJobsTab({ completedJobs, onBack }) {
         </div>
       </div>
 
+      <WorkTypeCounts jobs={completedJobs} categories={categories} active={workFilter} onSelect={setWorkFilter} />
+
       {typeFilter !== 'chargeup' && <PeopleSummary jobs={byType.quoted} scope="the completed quoted jobs" />}
 
       <CollapsibleSection
         className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6"
         storageKey="completed-jobs.table"
-        title={`${rows.length} ${typeFilter === 'all' ? 'completed' : TYPE_LABEL[typeFilter].toLowerCase()} job${rows.length === 1 ? '' : 's'}`}
+        title={`${rows.length} ${typeFilter === 'all' ? 'completed' : TYPE_LABEL[typeFilter].toLowerCase()} job${rows.length === 1 ? '' : 's'}${workFilter ? ` · ${workFilter}` : ''}`}
       >
         {/* Mobile: no column headers to click, so a sort picker instead. */}
         <div className="mt-4 flex items-center gap-2 sm:hidden">
@@ -489,13 +592,16 @@ export default function CompletedJobsTab({ completedJobs, onBack }) {
               onClick={() => toggleOpen(j.jobNumber)}
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleOpen(j.jobNumber) } }}
               className="flex cursor-pointer flex-col gap-3 rounded-[14px] border border-white/[0.06] bg-white/[0.02] p-4"
-              style={isTeam(j) ? { background: TEAM_TINT, boxShadow: `inset 3px 0 0 ${TEAM}` } : undefined}
+              style={overruns(j).length ? { boxShadow: `inset 3px 0 0 ${OVER}`, ...(isTeam(j) ? { background: TEAM_TINT } : {}) } : isTeam(j) ? { background: TEAM_TINT, boxShadow: `inset 3px 0 0 ${TEAM}` } : undefined}
             >
               <div>
                 <p className="text-[14px] font-medium text-white">
                   <span className="text-neutral-400">{j.jobNumber}</span> {j.jobName}
                 </p>
                 <p className="mt-0.5 text-[12px] text-neutral-500">{TYPE_LABEL[j.type] ?? j.type}</p>
+                {overruns(j).length > 0 && (
+                  <p className="mt-1 text-[12px] font-medium" style={{ color: OVER }}>Over quote — review: {overruns(j).map(fmtOver).join(' · ')}</p>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-2">
                 {cells(j).category}
@@ -572,9 +678,15 @@ export default function CompletedJobsTab({ completedJobs, onBack }) {
               {rows.map((j) => {
                 const isOpen = open.has(j.jobNumber)
                 const team = isTeam(j)
+                const over = overruns(j)
+                const redCells = new Set(over.flatMap((o) => OVER_CELLS[o.key]))
+                // red edge for a job to review wins over the blue team edge
+                const edge = over.length ? OVER : team ? TEAM : null
                 return (
                   <Fragment key={j.jobNumber}>
                     <tr
+                      id={`cj-${j.jobNumber}`}
+                      title={over.length ? `Over quote — review: ${over.map(fmtOver).join(' · ')}` : undefined}
                       className={`cursor-pointer ${team ? 'is-team' : ''}`}
                       style={team ? { background: TEAM_TINT } : undefined}
                       tabIndex={0}
@@ -592,6 +704,11 @@ export default function CompletedJobsTab({ completedJobs, onBack }) {
                             break
                           case 'jobName': content = <span className="block truncate" title={j.jobName}>{j.jobName}</span>; break
                           case 'hoursDiff': content = <DiffHours job={j} />; break
+                          case 'type':
+                            content = over.length
+                              ? <span className="inline-flex items-center gap-1.5 whitespace-nowrap">{TYPE_LABEL[j.type]}<span className="rounded-full px-1.5 py-0.5 text-[10.5px] font-semibold" style={{ color: OVER, background: `color-mix(in srgb, ${OVER} 14%, transparent)` }}>Review</span></span>
+                              : TYPE_LABEL[j.type] ?? j.type
+                            break
                           case 'workedBy': content = <WorkedBy job={j} />; break
                           case 'category': content = cells(j).category; break
                           case 'owner': content = cells(j).owner; break
@@ -602,7 +719,11 @@ export default function CompletedJobsTab({ completedJobs, onBack }) {
                         }
                         return (
                           <td key={col.key} className={cls}
-                            style={col.key === 'jobNumber' && team ? { ...style, boxShadow: `inset 3px 0 0 ${TEAM}` } : style}>
+                            style={{
+                              ...style,
+                              ...(col.key === 'jobNumber' && edge ? { boxShadow: `inset 3px 0 0 ${edge}` } : {}),
+                              ...(redCells.has(col.key) ? { color: OVER, fontWeight: 600 } : {}),
+                            }}>
                             {content}
                           </td>
                         )
@@ -610,7 +731,7 @@ export default function CompletedJobsTab({ completedJobs, onBack }) {
                     </tr>
                     {isOpen && (
                       <tr className={team ? 'is-team' : ''} style={team ? { background: TEAM_TINT } : undefined}>
-                        <td colSpan={visibleCols.length} className="bg-white/[0.02]" style={team ? { boxShadow: `inset 3px 0 0 ${TEAM}` } : undefined}>
+                        <td colSpan={visibleCols.length} className="bg-white/[0.02]" style={edge ? { boxShadow: `inset 3px 0 0 ${edge}` } : undefined}>
                           {/* sticky so the breakdown stays in view when the table is scrolled sideways */}
                           <div className="sticky left-0 max-w-3xl py-2 pl-6"><Breakdown job={j} /></div>
                         </td>

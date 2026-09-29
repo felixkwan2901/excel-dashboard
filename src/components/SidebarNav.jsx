@@ -180,6 +180,8 @@ export function TopStrip({
   onSearchSubmit,
   flaggedJobs,
   onSelectFlaggedJob,
+  completedReviews,
+  onSelectCompletedReview,
   onPrintReport,
   onRefresh,
   theme,
@@ -204,6 +206,8 @@ export function TopStrip({
         <NotificationsBell
           flaggedJobs={flaggedJobs}
           onSelectJob={onSelectFlaggedJob}
+          completedReviews={completedReviews}
+          onSelectCompletedReview={onSelectCompletedReview}
           onPrintReport={onPrintReport}
         />
       </div>

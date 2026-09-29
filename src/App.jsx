@@ -17,6 +17,7 @@ import ArchivedJobsPanel from './components/ArchivedJobsPanel'
 import UpcomingWorkTab from './components/UpcomingWorkTab'
 import CompletedJobsTab from './components/CompletedJobsTab'
 import ChartsTab from './components/ChartsTab'
+import { jobsToReview } from './lib/completedJobReview'
 import WeeklyCheckSheetTab from './components/WeeklyCheckSheetTab'
 import JobCompletionChecklistTab from './components/JobCompletionChecklistTab'
 import LastSynced from './components/LastSynced'
@@ -179,9 +180,16 @@ export default function App() {
   const monthlyClaimsHistory =
     state.status === 'ready' ? state.monthlyClaimsHistory : { months: [], totalsByMonth: [], jobs: [] }
   const archivedJobs = state.status === 'ready' ? state.archivedJobs : []
-  const completedJobs = state.status === 'ready' ? state.completedJobs : []
+  const completedJobs = useMemo(() => (state.status === 'ready' ? state.completedJobs : []), [state])
   const kpis = state.status === 'ready' ? computeKpis(jobs) : null
   const flaggedJobs = useMemo(() => jobs.filter((j) => j.flagged), [jobs])
+  // Completed quoted jobs that came in over quote — listed in the bell too.
+  const completedReviews = useMemo(() => jobsToReview(completedJobs), [completedJobs])
+  const [completedFocus, setCompletedFocus] = useState(null)
+  function reviewCompletedJob(jobNumber) {
+    setCompletedFocus({ job: jobNumber, at: Date.now() })
+    goCompletedJobs()
+  }
 
   const selectedJob = useMemo(
     () => jobs.find((job) => job.jobNumber === selectedJobId) ?? null,
@@ -324,6 +332,8 @@ export default function App() {
           onSearchSubmit={submitSearch}
           flaggedJobs={flaggedJobs}
           onSelectFlaggedJob={openJob}
+          completedReviews={completedReviews}
+          onSelectCompletedReview={reviewCompletedJob}
           onPrintReport={goReviewReport}
           onRefresh={() => window.location.reload()}
           theme={theme}
@@ -437,7 +447,7 @@ export default function App() {
             <LoadStatus status={state.status} error={state.error} onRetry={retryLoad} />
           ) : (
             <Reveal index={0}>
-              <CompletedJobsTab completedJobs={completedJobs} onBack={goHome} />
+              <CompletedJobsTab completedJobs={completedJobs} onBack={goHome} focusJob={completedFocus} />
             </Reveal>
           )}
         </main>
