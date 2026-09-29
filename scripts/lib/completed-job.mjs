@@ -1,15 +1,19 @@
 // Parsing for completed-job P&L exports, shared by add-completed-job.mjs (one job)
-// and add-completed-jobs.mjs (a folder of them).
+// and add-completed-jobs.mjs (a folder of them). Everything is LABOUR only:
 //
-//   Quoted    ("Quotes" sheet) — profit is the Summary sheet's Quoted Profit; hours
-//             come from the job's Timesheets export when given (per worker),
-//             otherwise the Budgeted sheet's Labour "Actual Quantity".
-//   Charge-up ("Sold"/"Unsold", no "Quotes") — profit is the Summary Total profit
-//             (Actual Sell − Actual Cost, Unsold write-off cost already netted);
-//             hours are Sold-sheet Labour only, i.e. billed hours. These exports
-//             carry no job number or name, so the caller supplies them.
+//   Quoted    ("Quotes" sheet) — labour profit = the Summary sheet's Labour Quoted
+//             Cost − Labour Actual Cost; hours come from the job's Timesheets export
+//             when given (per worker), otherwise the Budgeted sheet's Labour
+//             "Actual Quantity". Quoted hours = the Budgeted Labour "Quoted Quantity".
+//   Charge-up ("Sold"/"Unsold", no "Quotes") — labour profit = the Summary sheet's
+//             Labour Actual Sell − Labour Actual Cost. Actual hours = the Sold sheet's
+//             labour lines (per person); the Unsold sheet's labour total is kept as
+//             unsoldHours — 0 means the job was done within the time.
+//             These exports carry no job number or name, so the caller supplies them.
 //
-// GP/hour = profit ÷ hours — one job-level rate.
+// GP/hour = labour profit ÷ actual hours, for both types; each person's part is that
+// GP/hour × their own hours. Quoted: quotedHours − hours is shown alongside;
+// charge-up: its unsoldHours.
 
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
@@ -68,16 +72,17 @@ export function parseQuoted(workbook, timesheetWorkbook = null) {
   const jobNumber = String(quoteRow[0]).trim()
   const jobName = String(quoteRow[1] ?? '').trim()
 
-  const totalRow = summary.find((r) => r[0] === 'Total')
-  if (!totalRow) throw new Error('Could not find the Total row on the Summary sheet.')
   // Category,Quoted Cost,Actual Cost,Quoted Sell,,Quoted Profit,,Quoted Margin
-  const profit = toNumber(totalRow[5])
-  if (profit === null) throw new Error('Could not read Quoted Profit from the Summary sheet Total row.')
+  const labour = summary.find((r) => r[0] === 'Labour')
+  const quotedCost = toNumber(labour?.[1]), actualCost = toNumber(labour?.[2])
+  if (quotedCost === null || actualCost === null) throw new Error('Could not read the Labour Quoted/Actual Cost on the Summary sheet.')
+  const profit = quotedCost - actualCost
 
-  let hours = null, workers = null, hoursSource = 'budgeted'
+  let hours = null, workers = null, hoursSource = 'budgeted', quotedHours = null
   if (budgeted) {
+    // Code,Source,Description,Actual Cost,Actual Quantity,Quoted Cost,Quoted Quantity,…
     const labourRow = budgeted.find((r) => r[1] === 'Timesheet' && r[2] === 'Labour')
-    if (labourRow) hours = toNumber(labourRow[4])
+    if (labourRow) { hours = toNumber(labourRow[4]); quotedHours = toNumber(labourRow[6]) }
   }
   if (timesheetWorkbook) {
     workers = readTimesheetWorkers(timesheetWorkbook)
@@ -85,34 +90,46 @@ export function parseQuoted(workbook, timesheetWorkbook = null) {
     hoursSource = 'timesheet'
   }
   if (hours === null || hours <= 0) throw new Error('No actual hours recorded for this quoted job.')
-  return { jobNumber, jobName, type: 'quoted', profit, hours, workers, hoursSource }
+  return { jobNumber, jobName, type: 'quoted', profit, hours, quotedHours, workers, hoursSource, labour: { quotedCost, actualCost } }
+}
+
+function labourLines(rows) {
+  const out = []
+  const start = rows.findIndex((r) => r[0] === 'Product Category: Labour')
+  if (start === -1) return out
+  for (let i = start + 1; i < rows.length; i++) {
+    const row = rows[i]
+    if (typeof row[0] === 'string' && row[0].startsWith('Total: Product Category')) break
+    const name = String(row[2] ?? '').trim()
+    const quantity = toNumber(row[6])
+    if (!name || quantity === null) continue
+    out.push({ name, hours: quantity })
+  }
+  return out
+}
+
+// The whole job's Summary Total profit — what the export prompt reads off the screen,
+// so the manifest check uses it (labour-only profit wouldn't match the screen).
+export function chargeUpTotalProfit(workbook) {
+  const total = (sheetRows(workbook, 'Summary') ?? []).find((r) => r[0] === 'Total')
+  return toNumber(total?.[3]) ?? NaN
 }
 
 export function parseChargeUp(workbook) {
   const summary = sheetRows(workbook, 'Summary')
   const sold = sheetRows(workbook, 'Sold')
   if (!summary || !sold) throw new Error('Charge-up export is missing its Summary or Sold sheet.')
-  const totalRow = summary.find((r) => r[0] === 'Total')
-  if (!totalRow) throw new Error('Could not find the Total row on the Summary sheet.')
   // Category,Actual Cost,Actual Sell,Profit,Margin
-  const profit = toNumber(totalRow[3])
-  if (profit === null) throw new Error('Could not read Profit from the Summary sheet Total row.')
+  const labour = summary.find((r) => r[0] === 'Labour')
+  const actualCost = toNumber(labour?.[1]) ?? 0, actualSell = toNumber(labour?.[2]) ?? 0
+  const profit = actualSell - actualCost
 
-  // Labour rows on the Sold sheet only — billed hours, not Unsold (written-off).
-  const labourStart = sold.findIndex((r) => r[0] === 'Product Category: Labour')
-  if (labourStart === -1) throw new Error('No billed labour on the Sold sheet.')
-  const workers = []
-  for (let i = labourStart + 1; i < sold.length; i++) {
-    const row = sold[i]
-    if (typeof row[0] === 'string' && row[0].startsWith('Total: Product Category')) break
-    const name = String(row[2] ?? '').trim()
-    const quantity = toNumber(row[6])
-    if (!name || quantity === null) continue
-    workers.push({ name, hours: quantity })
-  }
-  const hours = workers.reduce((sum, w) => sum + w.hours, 0)
-  if (hours <= 0) throw new Error('No billed labour hours on the Sold sheet.')
-  return { type: 'chargeup', profit, hours, workers, hoursSource: 'sold' }
+  // Sold labour = the actual hours, per person; Unsold labour total kept alongside.
+  const workers = labourLines(sold)
+  const sum = (lines) => lines.reduce((t, w) => t + w.hours, 0)
+  const hours = sum(workers), unsoldHours = sum(labourLines(sheetRows(workbook, 'Unsold') ?? []))
+  if (hours <= 0) throw new Error('No labour hours on the Sold sheet.')
+  return { type: 'chargeup', profit, hours, unsoldHours, workers, hoursSource: 'sold', labour: { actualCost, actualSell } }
 }
 
 export function toRecord(result, { jobNumber, jobName, sourceFile, timesheetFile }) {
@@ -123,7 +140,10 @@ export function toRecord(result, { jobNumber, jobName, sourceFile, timesheetFile
     profit: result.profit,
     hours: Math.round(result.hours * 100) / 100,
     gpPerHour: Math.round((result.profit / result.hours) * 100) / 100,
+    ...(result.quotedHours != null && { quotedHours: Math.round(result.quotedHours * 100) / 100 }),
+    ...(result.unsoldHours != null && { unsoldHours: Math.round(result.unsoldHours * 100) / 100 }),
     workers: result.workers,
+    labour: Object.fromEntries(Object.entries(result.labour ?? {}).map(([k, v]) => [k, Math.round(v * 100) / 100])),
     addedAt: new Date().toISOString().slice(0, 10),
     sourceFile,
   }
@@ -189,7 +209,7 @@ if (manifestFile) {
         const inFile = quotedJobNumber(wb)
         if (inFile !== r.job) return problems.push(`#${r.order} job ${r.job}: ${f} is for job ${inFile}`)
       } else if (r.check) {
-        const p = parseChargeUp(wb).profit
+        const p = chargeUpTotalProfit(wb)
         if (!near(p, Number(r.check), 1)) return problems.push(`#${r.order} job ${r.job}: ${f} has profit ${p.toFixed(2)}, screen showed ${r.check}`)
       }
       renamed.set(f, r.type === 'quoted' ? `Q-${r.job}-pl.xlsx` : `CU-${r.job}.xlsx`)

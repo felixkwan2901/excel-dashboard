@@ -1,40 +1,63 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Users } from 'lucide-react'
 import { money } from '../lib/format'
+
+// GP/hr and per-person figures are often a few dollars, so show cents.
+const CENTS = new Intl.NumberFormat('en-NZ', { style: 'currency', currency: 'NZD', minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const cents = (v) => (v == null ? '—' : CENTS.format(Math.round(v * 100) === 0 ? 0 : v))
 import CollapsibleSection from './CollapsibleSection'
 import { useLocalStorageState } from '../lib/useLocalStorageState'
 import { fetchJobOwners, saveJobOwner } from '../lib/jobOwnerStore'
 import { fetchJobCategories, saveJobCategory } from '../lib/jobCategoryStore'
 import { OwnerCell, CategoryCell } from './JobTable'
 
-// Added by scripts/add-completed-job.mjs, one job at a time — see that
-// script for how profit and hours are worked out for a quoted vs a
-// charge-up job. Sorted by GP/hour by default: the whole point of this tab
+// Loaded by scripts/lib/completed-job.mjs — labour only: a quoted job's profit is
+// its Labour Quoted Cost − Labour Actual Cost, a charge-up job's is Labour Actual
+// Sell − Labour Actual Cost, each over the job's actual hours. Sorted by GP/hour by default: the whole point of this tab
 // is spotting which finished jobs actually paid well per hour worked,
 // which a plain "most profitable" or "most recent" sort wouldn't surface —
 // a small quick job can easily out-earn a big one per hour.
 const SORT_OPTIONS = [
   { key: 'gpPerHour', label: 'GP $/hr' },
-  { key: 'profit', label: 'Profit' },
-  { key: 'hours', label: 'Hours' },
+  { key: 'profit', label: 'Labour profit' },
+  { key: 'hours', label: 'Actual h' },
+  { key: 'quotedHours', label: 'Quoted h' },
+  { key: 'hoursDiff', label: 'Difference h' },
   { key: 'addedAt', label: 'Date added' },
 ]
+const BEFORE_WORKED_BY = 5
+
+// Quoted job: difference = quoted − actual hours. Charge-up job (no quoted hours):
+// its Unsold hours, shown as −unsold. Zero or above = done within the time.
+const hoursDiff = (j) => {
+  if (j.quotedHours != null) return Math.round((j.quotedHours - j.hours) * 100) / 100
+  if (j.unsoldHours != null) return j.unsoldHours ? -j.unsoldHours : 0
+  return null
+}
+function DiffHours({ job }) {
+  const d = hoursDiff(job)
+  if (d === null) return <span className="text-neutral-500">—</span>
+  return <span className={d > 0 ? 'text-brand-green' : d < 0 ? 'text-red-400' : 'text-neutral-400'}>{d > 0 ? '+' : ''}{d}</span>
+}
 
 const TYPE_LABEL = { quoted: 'Quoted', chargeup: 'Charge-up' }
 
 // Who did the job and who contributed: each person's hours, their share of the
-// job's hours, and the same share of its GP/hr and of its profit (× their hours
-// ÷ total hours) — so the people on a job add back up to the job's figures.
+// job's hours, and the job's GP/hr × their hours — so the people on a job add back
+// up to the job's labour profit.
 //
-// Katipolt lists a person's after-hours rate as its own line ("Sean Baines After
-// Hours") and corrections as negative lines, so lines are merged per person and
+// Katipolt lists a person's after-hours or overtime rate as its own line ("Sean
+// Baines After Hours", "Sean Baines Overtime") and corrections as negative lines, so lines are merged per person and
 // netted first. Anyone left at zero or below was an adjustment, not a
 // contribution: they're listed separately and left out of the split, so the
 // shares still add to 100% and the whole profit is allocated.
+const EXTRA_RATE = /\s+(after\s*hours|overtime)$/i
+
 function contributors(job) {
   const people = new Map()
   for (const w of job.workers ?? []) {
-    const afterHours = /\s+after\s*hours$/i.test(w.name)
-    const name = w.name.replace(/\s+after\s*hours$/i, '').trim()
+    const afterHours = EXTRA_RATE.test(w.name)
+    const name = w.name.replace(EXTRA_RATE, '').trim()
     const p = people.get(name) ?? { name, hours: 0, afterHours: false }
     p.hours += w.hours
     p.afterHours ||= afterHours
@@ -44,37 +67,70 @@ function contributors(job) {
   const worked = all.filter((p) => p.hours > 0).sort((a, b) => b.hours - a.hours)
   const total = worked.reduce((sum, p) => sum + p.hours, 0)
   return {
-    // gpShare = the job's GP/hr × (their hours ÷ total hours); the shares add up to the job's GP/hr.
-    worked: worked.map((p) => ({ ...p, share: p.hours / total, profitShare: (job.profit * p.hours) / total, gpShare: (job.gpPerHour * p.hours) / total })),
+    // gpTimesHours = the job's GP/hr × their hours (adds up to its labour profit).
+    // (unrounded rate, so the parts add back to the job's labour profit exactly)
+    worked: worked.map((p) => ({ ...p, share: p.hours / total, gpTimesHours: (job.profit / job.hours) * p.hours })),
     adjustments: all.filter((p) => p.hours <= 0),
   }
 }
+
+// Jobs worked by more than one person get the chart blue — a tinted row with a
+// blue edge and a people tag — so team jobs stand out from one-person ones at a
+// glance. Green is already taken by selection and the type switch.
+const TEAM = 'var(--viz-1)'
+const TEAM_TINT = 'color-mix(in srgb, var(--viz-1) 7%, transparent)'
+const isTeam = (job) => contributors(job).worked.length > 1
 
 function WorkedBy({ job }) {
   const people = contributors(job).worked
   if (!people.length) return <span className="text-neutral-500">—</span>
   return (
-    <span>
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
       <span className="text-neutral-200">{people[0].name}</span>
-      {people.length > 1 && <span className="text-neutral-500"> +{people.length - 1} more</span>}
+      {people.length > 1 && (
+        <span
+          className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium"
+          style={{ color: TEAM, background: 'color-mix(in srgb, var(--viz-1) 14%, transparent)' }}
+          title={people.map((p) => p.name).join(', ')}
+        >
+          <Users size={12} aria-hidden="true" />
+          {people.length} people
+        </span>
+      )}
     </span>
   )
 }
 
-const GRID = 'grid grid-cols-[minmax(0,1.6fr)_minmax(0,1.6fr)_4rem_3rem_6rem_5.5rem] gap-x-4'
-const GRID_ONE = 'grid grid-cols-[minmax(0,1.6fr)_minmax(0,1.6fr)_4rem_3rem_5.5rem] gap-x-4'
+const GRID = 'grid grid-cols-[minmax(0,1.6fr)_minmax(0,1.6fr)_4rem_3rem_6rem] gap-x-4'
+const GRID_ONE = 'grid grid-cols-[minmax(0,1.6fr)_minmax(0,1.6fr)_4rem_3rem] gap-x-4'
+
+// How the job's labour profit was worked out, straight from its P&L export.
+function LabourSum({ job }) {
+  const l = job.labour
+  if (!l) return null
+  const [a, b, aLabel, bLabel] = job.type === 'quoted'
+    ? [l.quotedCost, l.actualCost, 'quoted labour cost', 'actual labour cost']
+    : [l.actualSell, l.actualCost, 'actual labour sell', 'actual labour cost']
+  return (
+    <p className="text-[12px] tabular-nums text-neutral-400">
+      {money(a)} {aLabel} − {money(b)} {bLabel} = <span className="text-neutral-200">{cents(job.profit)}</span> labour profit
+      {' '}÷ {job.hours} actual h{job.type === 'chargeup' ? ' (sold)' : ''} = <span className="font-medium text-white">{cents(job.gpPerHour)}/hr</span>
+    </p>
+  )
+}
 
 function Breakdown({ job }) {
   const { worked: people, adjustments } = contributors(job)
   if (!people.length) {
-    return <p className="text-[13px] text-neutral-500">No per-person hours for this job — its timesheet export wasn&apos;t included.</p>
+    return <div className="flex flex-col gap-2.5"><LabourSum job={job} /><p className="text-[13px] text-neutral-500">No per-person hours for this job — its timesheet export wasn&apos;t included.</p></div>
   }
   return (
     <div className="flex flex-col gap-2.5">
+      <LabourSum job={job} />
       <p className="text-[12px] text-neutral-500">
         {people.length === 1
           ? 'One person did all the hours on this job.'
-          : `${people.length} people worked on this job — GP/hr and profit split by each person's share of the hours (the shares add up to the job's ${money(job.gpPerHour)}/hr).`}
+          : `${people.length} people worked on this job — each person's part is the job's ${cents(job.gpPerHour)}/hr × their hours.`}
       </p>
       {people.length > 1 && (
         <div className={`${GRID} text-[11px] uppercase tracking-wide text-neutral-500`}>
@@ -82,15 +138,14 @@ function Breakdown({ job }) {
           <span />
           <span className="text-right">Hours</span>
           <span className="text-right">Share</span>
-          <span className="text-right">GP/hr share</span>
-          <span className="text-right">Profit share</span>
+          <span className="text-right">GP/hr × hours</span>
         </div>
       )}
       {people.map((p, i) => (
         <div key={p.name} className={`${people.length > 1 ? GRID : GRID_ONE} items-center text-[13px]`}>
           <span className="truncate text-neutral-100">
             {p.name}
-            {p.afterHours && <span className="ml-1.5 text-[11px] text-neutral-500">incl. after-hours</span>}
+            {p.afterHours && <span className="ml-1.5 text-[11px] text-neutral-500">incl. after-hours/overtime</span>}
             {i === 0 && people.length > 1 && (
               <span className="ml-2 rounded-full border border-brand-green/40 px-2 py-0.5 text-[11px] text-brand-green">Most hours</span>
             )}
@@ -100,8 +155,7 @@ function Breakdown({ job }) {
           </span>
           <span className="text-right tabular-nums text-neutral-300">{Math.round(p.hours * 100) / 100} h</span>
           <span className="text-right tabular-nums text-neutral-400">{Math.round(p.share * 100)}%</span>
-          {people.length > 1 && <span className="text-right tabular-nums font-medium text-white">{money(p.gpShare)}/hr</span>}
-          <span className="text-right tabular-nums text-neutral-200">{money(p.profitShare)}</span>
+          {people.length > 1 && <span className="text-right tabular-nums font-medium text-white">{cents(p.gpTimesHours)}</span>}
         </div>
       ))}
       {adjustments.map((p) => (
@@ -113,8 +167,8 @@ function Breakdown({ job }) {
   )
 }
 
-// Charge-up and quoted GP/hr aren't measured the same way (billed profit over billed
-// hours vs quoted profit over hours worked), and a 15-minute callout can top the
+// Charge-up and quoted GP/hr aren't measured the same way (labour sell − cost vs
+// quoted − actual labour cost), and a 15-minute callout can top the
 // list over a 70-hour build — so each type gets its own view and its own overall
 // rate: total profit ÷ total hours, which weights every job by the time it took.
 const TYPE_FILTERS = [
@@ -143,9 +197,9 @@ function TypeSummary({ type, jobs, active, onSelect }) {
       <span className="text-[12px] font-medium uppercase tracking-wide text-neutral-400">
         {TYPE_LABEL[type]} · {st.count} job{st.count === 1 ? '' : 's'}
       </span>
-      <span className="text-2xl font-semibold tabular-nums text-white">{st.gp === null ? '—' : `${money(st.gp)}/hr`}</span>
+      <span className="text-2xl font-semibold tabular-nums text-white">{st.gp === null ? '—' : `${cents(st.gp)}/hr`}</span>
       <span className="text-[12px] tabular-nums text-neutral-500">
-        {money(st.profit)} profit over {st.hours} h
+        {money(st.profit)} labour profit ÷ {st.hours} actual h
       </span>
     </button>
   )
@@ -207,8 +261,9 @@ export default function CompletedJobsTab({ completedJobs, onBack }) {
 
   const rows = useMemo(() => {
     return [...shown].sort((a, b) => {
-      const av = a[sort.key]
-      const bv = b[sort.key]
+      const val = (j) => (sort.key === 'hoursDiff' ? hoursDiff(j) : j[sort.key])
+      const av = val(a)
+      const bv = val(b)
       if (typeof av === 'string') return av.localeCompare(bv) * sort.dir
       return ((av ?? 0) - (bv ?? 0)) * sort.dir
     })
@@ -227,10 +282,12 @@ export default function CompletedJobsTab({ completedJobs, onBack }) {
       <div>
         <h1 className="text-2xl font-semibold text-white">Completed jobs — GP per hour</h1>
         <p className="mt-1 text-sm text-neutral-400">
-          Profit ÷ actual hours for each finished job — a quoted job&apos;s Quoted Profit
-          against its actual hours worked, a charge-up job&apos;s billed profit against its
-          billed hours. Click a job to see who worked on it and how the profit splits by
-          their hours. Add a month&apos;s jobs in Update data → Completed jobs.
+          Labour profit per hour for each finished job. Labour profit is quoted labour cost −
+          actual labour cost for a quoted job, and actual labour sell − actual labour cost for
+          a charge-up job — divided by the actual hours (charge-up: the Sold tab&apos;s labour
+          hours). On a job with more than one person, each person&apos;s part is that GP/hr ×
+          their hours. Difference h is quoted − actual for a quoted job, and the unsold hours
+          for a charge-up job (0 = done within the time). Click a job to see the working and who worked on it. Add a month&apos;s jobs in Update data → Completed jobs.
         </p>
       </div>
 
@@ -254,6 +311,10 @@ export default function CompletedJobsTab({ completedJobs, onBack }) {
             )
           })}
         </div>
+        <p className="flex items-center gap-2 text-[12px] text-neutral-500">
+          <span className="inline-block h-3 w-3 rounded-sm" style={{ background: TEAM_TINT, boxShadow: `inset 3px 0 0 ${TEAM}` }} aria-hidden="true" />
+          Blue rows were worked on by more than one person — click one to see the split.
+        </p>
         {saveError && <p className="text-sm text-red-400">{saveError}</p>}
         <div className="flex flex-col gap-3 sm:flex-row">
           {(typeFilter === 'all' ? ['chargeup', 'quoted'] : [typeFilter]).map((t) => (
@@ -279,6 +340,7 @@ export default function CompletedJobsTab({ completedJobs, onBack }) {
               onClick={() => toggleOpen(j.jobNumber)}
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleOpen(j.jobNumber) } }}
               className="flex cursor-pointer flex-col gap-3 rounded-[14px] border border-white/[0.06] bg-white/[0.02] p-4"
+              style={isTeam(j) ? { background: TEAM_TINT, boxShadow: `inset 3px 0 0 ${TEAM}` } : undefined}
             >
               <div>
                 <p className="text-[14px] font-medium text-white">
@@ -291,12 +353,16 @@ export default function CompletedJobsTab({ completedJobs, onBack }) {
                 {cells(j).owner}
               </div>
               <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[13px]">
-                <span className="text-neutral-400">Profit</span>
+                <span className="text-neutral-400">Labour profit</span>
                 <span className="text-right tabular-nums text-neutral-200">{money(j.profit)}</span>
-                <span className="text-neutral-400">Hours</span>
+                <span className="text-neutral-400">Actual h</span>
                 <span className="text-right tabular-nums text-neutral-200">{j.hours}</span>
+                <span className="text-neutral-400">Quoted h</span>
+                <span className="text-right tabular-nums text-neutral-200">{j.quotedHours ?? '—'}</span>
+                <span className="text-neutral-400">Difference h</span>
+                <span className="text-right tabular-nums"><DiffHours job={j} /></span>
                 <span className="text-neutral-400">GP $/hr</span>
-                <span className="text-right tabular-nums font-medium text-white">{money(j.gpPerHour)}</span>
+                <span className="text-right tabular-nums font-medium text-white">{cents(j.gpPerHour)}</span>
               </div>
               <p className="text-[12px] text-neutral-500">
                 <WorkedBy job={j} /> · {open.has(j.jobNumber) ? 'Hide' : 'Show'} who worked on it
@@ -314,7 +380,7 @@ export default function CompletedJobsTab({ completedJobs, onBack }) {
                 <th>Job #</th>
                 <th>Job name</th>
                 <th>Type</th>
-                {SORT_OPTIONS.slice(0, 3).map((col) => (
+                {SORT_OPTIONS.slice(0, BEFORE_WORKED_BY).map((col) => (
                   <th
                     key={col.key}
                     className="num sortable"
@@ -328,7 +394,7 @@ export default function CompletedJobsTab({ completedJobs, onBack }) {
                 <th>Worked by</th>
                 <th>Type of work</th>
                 <th>Owner</th>
-                {SORT_OPTIONS.slice(3).map((col) => (
+                {SORT_OPTIONS.slice(BEFORE_WORKED_BY).map((col) => (
                   <th
                     key={col.key}
                     className="num sortable"
@@ -348,28 +414,31 @@ export default function CompletedJobsTab({ completedJobs, onBack }) {
                   <Fragment key={j.jobNumber}>
                     <tr
                       className="cursor-pointer"
+                      style={isTeam(j) ? { background: TEAM_TINT } : undefined}
                       tabIndex={0}
                       aria-expanded={isOpen}
                       onClick={() => toggleOpen(j.jobNumber)}
                       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleOpen(j.jobNumber) } }}
                     >
-                      <td>
+                      <td style={isTeam(j) ? { boxShadow: `inset 3px 0 0 ${TEAM}` } : undefined}>
                         <span className={`mr-2 inline-block text-neutral-500 transition-transform ${isOpen ? 'rotate-90' : ''}`} aria-hidden="true">›</span>
                         {j.jobNumber}
                       </td>
                       <td>{j.jobName}</td>
                       <td>{TYPE_LABEL[j.type] ?? j.type}</td>
-                      <td className="num font-medium">{money(j.gpPerHour)}</td>
+                      <td className="num font-medium">{cents(j.gpPerHour)}</td>
                       <td className="num">{money(j.profit)}</td>
                       <td className="num">{j.hours}</td>
+                      <td className="num">{j.quotedHours ?? '—'}</td>
+                      <td className="num"><DiffHours job={j} /></td>
                       <td><WorkedBy job={j} /></td>
                       <td>{cells(j).category}</td>
                       <td>{cells(j).owner}</td>
                       <td className="num">{j.addedAt}</td>
                     </tr>
                     {isOpen && (
-                      <tr>
-                        <td colSpan={10} className="bg-white/[0.02]">
+                      <tr style={isTeam(j) ? { background: TEAM_TINT } : undefined}>
+                        <td colSpan={12} className="bg-white/[0.02]" style={isTeam(j) ? { boxShadow: `inset 3px 0 0 ${TEAM}` } : undefined}>
                           <div className="max-w-3xl py-2 pl-6"><Breakdown job={j} /></div>
                         </td>
                       </tr>

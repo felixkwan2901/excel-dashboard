@@ -17,18 +17,11 @@
 //
 //   Charge-up ("Sold"/"Unsold" sheets, no "Quotes" sheet) — these exports
 //            carry no job number or name at all, so pass --job-number and
-//            --job-name yourself. Profit is the Summary sheet's Total
-//            profit (Actual Sell − Actual Cost, which already nets out
-//            Unsold's write-off cost). Hours are Sold-sheet Labour hours
-//            only (billed hours) — Unsold hours were worked but written
-//            off, and aren't counted as "hours this profit was earned
-//            over".
+//            --job-name yourself.
 //
-// GP/hour = profit ÷ total hours, for both types — a single job-level rate,
-// not a per-worker split (splitting profit proportionally to each worker's
-// hours produces the same per-hour rate for everyone anyway, so there is
-// nothing to be gained by fragmenting it. Worker hours are still recorded
-// per job so the total can be sanity-checked or an individual's hours seen).
+// Labour only: a quoted job's profit is Labour Quoted Cost − Labour Actual Cost;
+// a charge-up job's is Labour Actual Sell − Labour Actual Cost. GP/hour = that
+// profit ÷ actual hours (charge-up: Sold labour hours); each person's part is GP/hour × their hours.
 //
 // Options:
 //   --job-number=1234       required for a charge-up export

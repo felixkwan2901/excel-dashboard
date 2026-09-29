@@ -3,15 +3,20 @@
     "jobNumber": "9865",
     "jobName": "2 run on timers for bathroom ceiling vent fans in 2 bathrooms",
     "type": "quoted",
-    "profit": 111.99753834,
+    "profit": 95.32999999999998,
     "hours": 1.5,
-    "gpPerHour": 74.67,
+    "gpPerHour": 63.55,
+    "quotedHours": 3.5,
     "workers": [
       {
         "name": "Kyle Williams",
         "hours": 1.5
       }
     ],
+    "labour": {
+      "quotedCost": 175.01,
+      "actualCost": 79.68
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "Q-9865-pl.xlsx",
     "timesheetFile": "Q-9865-ts.xlsx"
@@ -20,15 +25,20 @@
     "jobNumber": "10016",
     "jobName": "BUPA Parklands - Remu 12 Toilet Light",
     "type": "chargeup",
-    "profit": 158.07500000000002,
+    "profit": -21.735,
     "hours": 0.25,
-    "gpPerHour": 632.3,
+    "gpPerHour": -86.94,
+    "unsoldHours": 0.5,
     "workers": [
       {
         "name": "Doug Stevens",
         "hours": 0.25
       }
     ],
+    "labour": {
+      "actualCost": 46.49,
+      "actualSell": 24.75
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-10016.xlsx"
   },
@@ -36,9 +46,10 @@
     "jobNumber": "9964",
     "jobName": "CALLOUT - University of Canterbury",
     "type": "chargeup",
-    "profit": 254.06500000000003,
+    "profit": -48.565,
     "hours": 0.5,
-    "gpPerHour": 508.13,
+    "gpPerHour": -97.13,
+    "unsoldHours": 1,
     "workers": [
       {
         "name": "Sean Baines",
@@ -49,6 +60,10 @@
         "hours": 1
       }
     ],
+    "labour": {
+      "actualCost": 147.57,
+      "actualSell": 99
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9964.xlsx"
   },
@@ -56,15 +71,20 @@
     "jobNumber": "10007",
     "jobName": "Bathroom heater replacement",
     "type": "chargeup",
-    "profit": 114.23500000000001,
+    "profit": -52.724999999999994,
     "hours": 0.25,
-    "gpPerHour": 456.94,
+    "gpPerHour": -210.9,
+    "unsoldHours": 1,
     "workers": [
       {
         "name": "Doug Stevens",
         "hours": 0.25
       }
     ],
+    "labour": {
+      "actualCost": 77.47,
+      "actualSell": 24.75
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-10007.xlsx"
   },
@@ -72,15 +92,20 @@
     "jobNumber": "9939",
     "jobName": "Job 9939",
     "type": "chargeup",
-    "profit": 135.37,
+    "profit": -3.6199999999999974,
     "hours": 0.5,
-    "gpPerHour": 270.74,
+    "gpPerHour": -7.24,
+    "unsoldHours": 0.5,
     "workers": [
       {
         "name": "Kyle Williams",
         "hours": 0.5
       }
     ],
+    "labour": {
+      "actualCost": 53.12,
+      "actualSell": 49.5
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9939.xlsx"
   },
@@ -88,15 +113,20 @@
     "jobNumber": "9734",
     "jobName": "Fire Alarm",
     "type": "quoted",
-    "profit": 249.47200000000004,
+    "profit": 128.072,
     "hours": 1.25,
-    "gpPerHour": 199.58,
+    "gpPerHour": 102.46,
+    "quotedHours": 4,
     "workers": [
       {
         "name": "Andy Schweizer",
         "hours": 1.25
       }
     ],
+    "labour": {
+      "quotedCost": 200.01,
+      "actualCost": 71.94
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "Q-9734-pl.xlsx",
     "timesheetFile": "Q-9734-ts.xlsx"
@@ -105,15 +135,20 @@
     "jobNumber": "9923",
     "jobName": "Job 9923",
     "type": "chargeup",
-    "profit": 185.72,
+    "profit": 19.319999999999993,
     "hours": 1,
-    "gpPerHour": 185.72,
+    "gpPerHour": 19.32,
+    "unsoldHours": 0.5,
     "workers": [
       {
         "name": "Kyle Williams",
         "hours": 1
       }
     ],
+    "labour": {
+      "actualCost": 79.68,
+      "actualSell": 99
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9923.xlsx"
   },
@@ -121,15 +156,20 @@
     "jobNumber": "9984",
     "jobName": "Supply & Install Exterior Power Outlet",
     "type": "chargeup",
-    "profit": 285.46,
+    "profit": 65.19999999999999,
     "hours": 2,
-    "gpPerHour": 142.73,
+    "gpPerHour": 32.6,
+    "unsoldHours": 0.5,
     "workers": [
       {
         "name": "Kyle Williams",
         "hours": 2
       }
     ],
+    "labour": {
+      "actualCost": 132.8,
+      "actualSell": 198
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9984.xlsx"
   },
@@ -137,15 +177,20 @@
     "jobNumber": "9975",
     "jobName": "Jumper Links",
     "type": "chargeup",
-    "profit": 163.53,
+    "profit": 24.540000000000006,
     "hours": 1.5,
-    "gpPerHour": 109.02,
+    "gpPerHour": 16.36,
+    "unsoldHours": 0.5,
     "workers": [
       {
         "name": "Doug Stevens",
         "hours": 1.5
       }
     ],
+    "labour": {
+      "actualCost": 123.96,
+      "actualSell": 148.5
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9975.xlsx"
   },
@@ -153,15 +198,20 @@
     "jobNumber": "9965",
     "jobName": "Power Loss Investigation",
     "type": "chargeup",
-    "profit": 172.785,
+    "profit": 33.79499999999999,
     "hours": 1.75,
-    "gpPerHour": 98.73,
+    "gpPerHour": 19.31,
+    "unsoldHours": 0.5,
     "workers": [
       {
         "name": "Doug Stevens",
         "hours": 1.75
       }
     ],
+    "labour": {
+      "actualCost": 139.46,
+      "actualSell": 173.25
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9965.xlsx"
   },
@@ -169,15 +219,20 @@
     "jobNumber": "9938",
     "jobName": "Power Alterations",
     "type": "chargeup",
-    "profit": 193.115,
+    "profit": 54.125,
     "hours": 2,
-    "gpPerHour": 96.56,
+    "gpPerHour": 27.06,
+    "unsoldHours": 0.5,
     "workers": [
       {
         "name": "Andy Schweizer",
         "hours": 2
       }
     ],
+    "labour": {
+      "actualCost": 143.88,
+      "actualSell": 198
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9938.xlsx"
   },
@@ -185,15 +240,20 @@
     "jobNumber": "9987",
     "jobName": "BUPA Parklands - Apartment 201 - Bathroom Lighting",
     "type": "quoted",
-    "profit": 94.93242929000002,
+    "profit": 38.02400000000001,
     "hours": 1,
-    "gpPerHour": 94.93,
+    "gpPerHour": 38.02,
+    "quotedHours": 2,
     "workers": [
       {
         "name": "Doug Stevens",
         "hours": 1
       }
     ],
+    "labour": {
+      "quotedCost": 100,
+      "actualCost": 61.98
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "Q-9987-pl.xlsx",
     "timesheetFile": "Q-9987-ts.xlsx"
@@ -202,9 +262,10 @@
     "jobNumber": "9986",
     "jobName": "Various Lighting Repairs",
     "type": "chargeup",
-    "profit": 93.37,
+    "profit": -45.620000000000005,
     "hours": 1,
-    "gpPerHour": 93.37,
+    "gpPerHour": -45.62,
+    "unsoldHours": 1.75,
     "workers": [
       {
         "name": "Doug Stevens",
@@ -215,6 +276,10 @@
         "hours": 1.25
       }
     ],
+    "labour": {
+      "actualCost": 144.62,
+      "actualSell": 99
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9986.xlsx"
   },
@@ -222,15 +287,20 @@
     "jobNumber": "9901",
     "jobName": "Wire & Install new extract system",
     "type": "chargeup",
-    "profit": 669.2149999999999,
+    "profit": 255.91500000000002,
     "hours": 7.75,
-    "gpPerHour": 86.35,
+    "gpPerHour": 33.02,
+    "unsoldHours": 0.5,
     "workers": [
       {
         "name": "Doug Stevens",
         "hours": 7.75
       }
     ],
+    "labour": {
+      "actualCost": 511.34,
+      "actualSell": 767.25
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9901.xlsx"
   },
@@ -238,9 +308,10 @@
     "jobNumber": "9519",
     "jobName": "Bupa Ballarat Villa 5",
     "type": "quoted",
-    "profit": 2682.4434685200004,
+    "profit": 84.19860000000017,
     "hours": 33,
-    "gpPerHour": 81.29,
+    "gpPerHour": 2.55,
+    "quotedHours": 35.98,
     "workers": [
       {
         "name": "Sean Baines",
@@ -251,6 +322,10 @@
         "hours": 16
       }
     ],
+    "labour": {
+      "quotedCost": 1796.06,
+      "actualCost": 1711.86
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "Q-9519-pl.xlsx",
     "timesheetFile": "Q-9519-ts.xlsx"
@@ -259,9 +334,10 @@
     "jobNumber": "9703",
     "jobName": "Various Elec",
     "type": "quoted",
-    "profit": 1393.7203017599995,
+    "profit": 43.48779999999999,
     "hours": 17.75,
-    "gpPerHour": 78.52,
+    "gpPerHour": 2.45,
+    "quotedHours": 18.82,
     "workers": [
       {
         "name": "Ethan van Tuinen",
@@ -272,6 +348,10 @@
         "hours": 7.5
       }
     ],
+    "labour": {
+      "quotedCost": 939.99,
+      "actualCost": 896.5
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "Q-9703-pl.xlsx",
     "timesheetFile": "Q-9703-ts.xlsx"
@@ -280,15 +360,20 @@
     "jobNumber": "9959",
     "jobName": "Isolate & Remove 1200mm Round Light Box",
     "type": "chargeup",
-    "profit": 137.0325,
+    "profit": -1.957499999999996,
     "hours": 1.75,
-    "gpPerHour": 78.3,
+    "gpPerHour": -1.12,
+    "unsoldHours": 0.5,
     "workers": [
       {
         "name": "Kyle Williams",
         "hours": 1.75
       }
     ],
+    "labour": {
+      "actualCost": 119.52,
+      "actualSell": 117.56
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9959.xlsx"
   },
@@ -296,9 +381,10 @@
     "jobNumber": "9635",
     "jobName": "VAPO Bush Inn",
     "type": "quoted",
-    "profit": 5136.44810654,
+    "profit": 81.64460000000008,
     "hours": 70,
-    "gpPerHour": 73.38,
+    "gpPerHour": 1.17,
+    "quotedHours": 69.6,
     "workers": [
       {
         "name": "Hayden Warrington",
@@ -325,6 +411,10 @@
         "hours": 3.5
       }
     ],
+    "labour": {
+      "quotedCost": 3474.02,
+      "actualCost": 3392.38
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "Q-9635-pl.xlsx",
     "timesheetFile": "Q-9635-ts.xlsx"
@@ -333,9 +423,10 @@
     "jobNumber": "9802",
     "jobName": "Cashmere View Apartment 208",
     "type": "quoted",
-    "profit": 485.14253235,
+    "profit": -39.20999999999998,
     "hours": 6.75,
-    "gpPerHour": 71.87,
+    "gpPerHour": -5.81,
+    "quotedHours": 6.69,
     "workers": [
       {
         "name": "Kyle Williams",
@@ -350,6 +441,10 @@
         "hours": 1.25
       }
     ],
+    "labour": {
+      "quotedCost": 334.86,
+      "actualCost": 374.07
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "Q-9802-pl.xlsx",
     "timesheetFile": "Q-9802-ts.xlsx"
@@ -358,9 +453,10 @@
     "jobNumber": "9698",
     "jobName": "SmarVent Lite+",
     "type": "quoted",
-    "profit": 1041.2307,
+    "profit": -282.2786000000001,
     "hours": 15.5,
-    "gpPerHour": 67.18,
+    "gpPerHour": -18.21,
+    "quotedHours": 10.37,
     "workers": [
       {
         "name": "Sean Baines",
@@ -371,6 +467,10 @@
         "hours": 7.75
       }
     ],
+    "labour": {
+      "quotedCost": 518.29,
+      "actualCost": 800.57
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "Q-9698-pl.xlsx",
     "timesheetFile": "Q-9698-ts.xlsx"
@@ -379,9 +479,10 @@
     "jobNumber": "9910",
     "jobName": "Gas Fire Works in Lobby Area",
     "type": "chargeup",
-    "profit": 551.1025000000001,
+    "profit": 333.1025,
     "hours": 8.25,
-    "gpPerHour": 66.8,
+    "gpPerHour": 40.38,
+    "unsoldHours": 0,
     "workers": [
       {
         "name": "Andy Schweizer",
@@ -392,6 +493,10 @@
         "hours": 2
       }
     ],
+    "labour": {
+      "actualCost": 483.65,
+      "actualSell": 816.75
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9910.xlsx"
   },
@@ -399,9 +504,10 @@
     "jobNumber": "9776",
     "jobName": "Kitchen Renovation & Switchboard Upgrade",
     "type": "chargeup",
-    "profit": 1510.0524999999998,
+    "profit": 910.3225,
     "hours": 26.75,
-    "gpPerHour": 56.45,
+    "gpPerHour": 34.03,
+    "unsoldHours": 0.5,
     "workers": [
       {
         "name": "Ethan van Tuinen",
@@ -412,6 +518,10 @@
         "hours": 12.75
       }
     ],
+    "labour": {
+      "actualCost": 1401.93,
+      "actualSell": 2312.25
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9776.xlsx"
   },
@@ -419,9 +529,10 @@
     "jobNumber": "9900",
     "jobName": "Inslab data/ power boxes",
     "type": "chargeup",
-    "profit": 1266.5499999999997,
+    "profit": 649.68,
     "hours": 23.25,
-    "gpPerHour": 54.48,
+    "gpPerHour": 27.94,
+    "unsoldHours": 0,
     "workers": [
       {
         "name": "Dan Brosnahan",
@@ -432,6 +543,10 @@
         "hours": 10.5
       }
     ],
+    "labour": {
+      "actualCost": 1011.57,
+      "actualSell": 1661.25
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9900.xlsx"
   },
@@ -439,9 +554,10 @@
     "jobNumber": "9980",
     "jobName": "Job 9980",
     "type": "chargeup",
-    "profit": 80.95000000000002,
+    "profit": -65.8,
     "hours": 1.5,
-    "gpPerHour": 53.97,
+    "gpPerHour": -43.87,
+    "unsoldHours": 0.5,
     "workers": [
       {
         "name": "Ethan van Tuinen",
@@ -452,6 +568,10 @@
         "hours": 0.5
       }
     ],
+    "labour": {
+      "actualCost": 103.3,
+      "actualSell": 37.5
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9980.xlsx"
   },
@@ -459,9 +579,10 @@
     "jobNumber": "9666",
     "jobName": "Supply & install additional power outlet",
     "type": "chargeup",
-    "profit": 498.3649999999999,
+    "profit": 432.615,
     "hours": 10.25,
-    "gpPerHour": 48.62,
+    "gpPerHour": 42.21,
+    "unsoldHours": 0,
     "workers": [
       {
         "name": "Kyle Williams",
@@ -472,6 +593,10 @@
         "hours": 8.5
       }
     ],
+    "labour": {
+      "actualCost": 582.14,
+      "actualSell": 1014.75
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9666.xlsx"
   },
@@ -479,9 +604,10 @@
     "jobNumber": "9940",
     "jobName": "Vapo Bush inn extra fit off works",
     "type": "chargeup",
-    "profit": 970.9649999999997,
+    "profit": 701.335,
     "hours": 20.75,
-    "gpPerHour": 46.79,
+    "gpPerHour": 33.8,
+    "unsoldHours": 0,
     "workers": [
       {
         "name": "Hayden Warrington",
@@ -500,6 +626,10 @@
         "hours": 1.5
       }
     ],
+    "labour": {
+      "actualCost": 1022.17,
+      "actualSell": 1723.5
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9940.xlsx"
   },
@@ -507,15 +637,20 @@
     "jobNumber": "9934",
     "jobName": "Burside High School - Onsite electrical assessment",
     "type": "chargeup",
-    "profit": 991.0274999999999,
+    "profit": 852.0374999999999,
     "hours": 21.25,
-    "gpPerHour": 46.64,
+    "gpPerHour": 40.1,
+    "unsoldHours": 0.5,
     "workers": [
       {
         "name": "Andy Schweizer",
         "hours": 21.25
       }
     ],
+    "labour": {
+      "actualCost": 1251.71,
+      "actualSell": 2103.75
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9934.xlsx"
   },
@@ -526,12 +661,17 @@
     "profit": 137.64,
     "hours": 3,
     "gpPerHour": 45.88,
+    "unsoldHours": 0,
     "workers": [
       {
         "name": "Kyle Williams",
         "hours": 3
       }
     ],
+    "labour": {
+      "actualCost": 159.36,
+      "actualSell": 297
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9983.xlsx"
   },
@@ -539,15 +679,20 @@
     "jobNumber": "9966",
     "jobName": "Supply & Install LED Downlight in place of failed one",
     "type": "chargeup",
-    "profit": 44.39999999999999,
+    "profit": 37.02,
     "hours": 1,
-    "gpPerHour": 44.4,
+    "gpPerHour": 37.02,
+    "unsoldHours": 0,
     "workers": [
       {
         "name": "Doug Stevens",
         "hours": 1
       }
     ],
+    "labour": {
+      "actualCost": 61.98,
+      "actualSell": 99
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9966.xlsx"
   },
@@ -555,9 +700,10 @@
     "jobNumber": "9950",
     "jobName": "Go-Bus Em Lighting Repair/Replacement",
     "type": "chargeup",
-    "profit": 80.5,
+    "profit": -30.72,
     "hours": 2,
-    "gpPerHour": 40.25,
+    "gpPerHour": -15.36,
+    "unsoldHours": 2,
     "workers": [
       {
         "name": "Hayden Warrington",
@@ -568,6 +714,10 @@
         "hours": 1
       }
     ],
+    "labour": {
+      "actualCost": 195.72,
+      "actualSell": 165
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9950.xlsx"
   },
@@ -575,9 +725,10 @@
     "jobNumber": "8337",
     "jobName": "Resi New",
     "type": "quoted",
-    "profit": 4581.9285084,
+    "profit": 146.5640000000003,
     "hours": 116.25,
-    "gpPerHour": 39.41,
+    "gpPerHour": 1.26,
+    "quotedHours": 120.44,
     "workers": [
       {
         "name": "George Pirie",
@@ -604,6 +755,10 @@
         "hours": 1.5
       }
     ],
+    "labour": {
+      "quotedCost": 6008.51,
+      "actualCost": 5861.95
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "Q-8337-pl.xlsx",
     "timesheetFile": "Q-8337-ts.xlsx"
@@ -615,6 +770,7 @@
     "profit": 312.43,
     "hours": 8.5,
     "gpPerHour": 36.76,
+    "unsoldHours": 0,
     "workers": [
       {
         "name": "Hayden Warrington",
@@ -625,6 +781,10 @@
         "hours": 6.5
       }
     ],
+    "labour": {
+      "actualCost": 511.07,
+      "actualSell": 823.5
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9944.xlsx"
   },
@@ -632,15 +792,20 @@
     "jobNumber": "9955",
     "jobName": "Various Electrical Repairs",
     "type": "chargeup",
-    "profit": 39.39500000000001,
+    "profit": 30.67500000000001,
     "hours": 2.5,
-    "gpPerHour": 15.76,
+    "gpPerHour": 12.27,
+    "unsoldHours": 0,
     "workers": [
       {
         "name": "Doug Stevens",
         "hours": 2.5
       }
     ],
+    "labour": {
+      "actualCost": 154.95,
+      "actualSell": 185.63
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9955.xlsx"
   },
@@ -651,6 +816,7 @@
     "profit": 649.6525000000001,
     "hours": 57.25,
     "gpPerHour": 11.35,
+    "unsoldHours": 0,
     "workers": [
       {
         "name": "Quin McGillivray",
@@ -661,6 +827,10 @@
         "hours": 41.25
       }
     ],
+    "labour": {
+      "actualCost": 2499.1,
+      "actualSell": 3148.75
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9922.xlsx"
   }
