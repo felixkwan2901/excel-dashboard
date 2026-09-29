@@ -17,6 +17,14 @@
       "quotedCost": 175.01,
       "actualCost": 79.68
     },
+    "pl": {
+      "quotedCost": 300.82,
+      "actualCost": 185.98,
+      "quotedProfit": 112,
+      "quotedMargin": 0.2713,
+      "profitToDate": 226.84,
+      "marginToDate": 0.5495
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "Q-9865-pl.xlsx",
     "timesheetFile": "Q-9865-ts.xlsx"
@@ -39,6 +47,11 @@
     "labour": {
       "actualCost": 46.49,
       "actualSell": 24.75
+    },
+    "pl": {
+      "actualCost": 128.17,
+      "profitToDate": 158.08,
+      "marginToDate": 0.5522
     },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-10016.xlsx"
@@ -66,6 +79,11 @@
       "actualCost": 147.57,
       "actualSell": 99
     },
+    "pl": {
+      "actualCost": 204.86,
+      "profitToDate": 254.07,
+      "marginToDate": 0.5536
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9964.xlsx"
   },
@@ -87,6 +105,11 @@
     "labour": {
       "actualCost": 77.47,
       "actualSell": 24.75
+    },
+    "pl": {
+      "actualCost": 189.37,
+      "profitToDate": 114.24,
+      "marginToDate": 0.3763
     },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-10007.xlsx"
@@ -110,6 +133,11 @@
       "actualCost": 53.12,
       "actualSell": 49.5
     },
+    "pl": {
+      "actualCost": 53.13,
+      "profitToDate": 135.37,
+      "marginToDate": 0.7181
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9939.xlsx"
   },
@@ -130,6 +158,14 @@
     "labour": {
       "quotedCost": 200.01,
       "actualCost": 71.94
+    },
+    "pl": {
+      "quotedCost": 416.48,
+      "actualCost": 233.41,
+      "quotedProfit": 249.47,
+      "quotedMargin": 0.3746,
+      "profitToDate": 432.54,
+      "marginToDate": 0.6495
     },
     "addedAt": "2026-09-28",
     "sourceFile": "Q-9734-pl.xlsx",
@@ -154,6 +190,11 @@
       "actualCost": 79.68,
       "actualSell": 99
     },
+    "pl": {
+      "actualCost": 107.1,
+      "profitToDate": 185.72,
+      "marginToDate": 0.6342
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9923.xlsx"
   },
@@ -175,6 +216,11 @@
     "labour": {
       "actualCost": 132.8,
       "actualSell": 198
+    },
+    "pl": {
+      "actualCost": 295.44,
+      "profitToDate": 285.46,
+      "marginToDate": 0.4914
     },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9984.xlsx"
@@ -198,6 +244,11 @@
       "actualCost": 123.96,
       "actualSell": 148.5
     },
+    "pl": {
+      "actualCost": 123.97,
+      "profitToDate": 163.53,
+      "marginToDate": 0.5688
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9975.xlsx"
   },
@@ -219,6 +270,11 @@
     "labour": {
       "actualCost": 139.46,
       "actualSell": 173.25
+    },
+    "pl": {
+      "actualCost": 139.47,
+      "profitToDate": 172.79,
+      "marginToDate": 0.5534
     },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9965.xlsx"
@@ -242,6 +298,11 @@
       "actualCost": 143.88,
       "actualSell": 198
     },
+    "pl": {
+      "actualCost": 143.89,
+      "profitToDate": 193.12,
+      "marginToDate": 0.573
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9938.xlsx"
   },
@@ -262,6 +323,14 @@
     "labour": {
       "quotedCost": 100,
       "actualCost": 61.98
+    },
+    "pl": {
+      "quotedCost": 244.16,
+      "actualCost": 245.26,
+      "quotedProfit": 94.93,
+      "quotedMargin": 0.28,
+      "profitToDate": 93.83,
+      "marginToDate": 0.2767
     },
     "addedAt": "2026-09-28",
     "sourceFile": "Q-9987-pl.xlsx",
@@ -290,6 +359,11 @@
       "actualCost": 144.62,
       "actualSell": 99
     },
+    "pl": {
+      "actualCost": 144.63,
+      "profitToDate": 93.37,
+      "marginToDate": 0.3923
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9986.xlsx"
   },
@@ -311,6 +385,11 @@
     "labour": {
       "actualCost": 511.34,
       "actualSell": 767.25
+    },
+    "pl": {
+      "actualCost": 857.11,
+      "profitToDate": 669.21,
+      "marginToDate": 0.4384
     },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9901.xlsx"
@@ -336,6 +415,14 @@
     "labour": {
       "quotedCost": 1796.06,
       "actualCost": 1711.86
+    },
+    "pl": {
+      "quotedCost": 4291.31,
+      "actualCost": 3881.79,
+      "quotedProfit": 2682.44,
+      "quotedMargin": 0.3846,
+      "profitToDate": 3091.96,
+      "marginToDate": 0.4434
     },
     "addedAt": "2026-09-28",
     "sourceFile": "Q-9519-pl.xlsx",
@@ -363,6 +450,14 @@
       "quotedCost": 939.99,
       "actualCost": 896.5
     },
+    "pl": {
+      "quotedCost": 4761.71,
+      "actualCost": 4649.47,
+      "quotedProfit": 1393.72,
+      "quotedMargin": 0.2264,
+      "profitToDate": 1505.96,
+      "marginToDate": 0.2447
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "Q-9703-pl.xlsx",
     "timesheetFile": "Q-9703-ts.xlsx"
@@ -385,6 +480,11 @@
     "labour": {
       "actualCost": 119.52,
       "actualSell": 117.56
+    },
+    "pl": {
+      "actualCost": 119.53,
+      "profitToDate": 137.03,
+      "marginToDate": 0.5341
     },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9959.xlsx"
@@ -427,6 +527,14 @@
       "quotedCost": 3474.02,
       "actualCost": 3392.38
     },
+    "pl": {
+      "quotedCost": 18422.21,
+      "actualCost": 11361.86,
+      "quotedProfit": 5136.45,
+      "quotedMargin": 0.218,
+      "profitToDate": 12196.8,
+      "marginToDate": 0.5177
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "Q-9635-pl.xlsx",
     "timesheetFile": "Q-9635-ts.xlsx"
@@ -457,6 +565,14 @@
       "quotedCost": 334.86,
       "actualCost": 374.07
     },
+    "pl": {
+      "quotedCost": 635.06,
+      "actualCost": 485.95,
+      "quotedProfit": 485.14,
+      "quotedMargin": 0.4331,
+      "profitToDate": 634.25,
+      "marginToDate": 0.5662
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "Q-9802-pl.xlsx",
     "timesheetFile": "Q-9802-ts.xlsx"
@@ -482,6 +598,14 @@
     "labour": {
       "quotedCost": 518.29,
       "actualCost": 800.57
+    },
+    "pl": {
+      "quotedCost": 2942.91,
+      "actualCost": 4876.88,
+      "quotedProfit": 1041.23,
+      "quotedMargin": 0.2613,
+      "profitToDate": -892.74,
+      "marginToDate": -0.2241
     },
     "addedAt": "2026-09-28",
     "sourceFile": "Q-9698-pl.xlsx",
@@ -510,6 +634,11 @@
       "actualCost": 483.65,
       "actualSell": 816.75
     },
+    "pl": {
+      "actualCost": 713.8,
+      "profitToDate": 551.1,
+      "marginToDate": 0.4357
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9910.xlsx"
   },
@@ -535,6 +664,11 @@
     "labour": {
       "actualCost": 1401.93,
       "actualSell": 2312.25
+    },
+    "pl": {
+      "actualCost": 2323.51,
+      "profitToDate": 1510.05,
+      "marginToDate": 0.3939
     },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9776.xlsx"
@@ -562,6 +696,11 @@
       "actualCost": 1011.57,
       "actualSell": 1661.25
     },
+    "pl": {
+      "actualCost": 2861.53,
+      "profitToDate": 1266.55,
+      "marginToDate": 0.3068
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9900.xlsx"
   },
@@ -588,6 +727,11 @@
       "actualCost": 103.3,
       "actualSell": 37.5
     },
+    "pl": {
+      "actualCost": 150.92,
+      "profitToDate": 80.95,
+      "marginToDate": 0.3491
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9980.xlsx"
   },
@@ -613,6 +757,11 @@
     "labour": {
       "actualCost": 582.14,
       "actualSell": 1014.75
+    },
+    "pl": {
+      "actualCost": 713.7,
+      "profitToDate": 498.36,
+      "marginToDate": 0.4112
     },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9666.xlsx"
@@ -648,6 +797,11 @@
       "actualCost": 1022.17,
       "actualSell": 1723.5
     },
+    "pl": {
+      "actualCost": 1474.76,
+      "profitToDate": 970.96,
+      "marginToDate": 0.397
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9940.xlsx"
   },
@@ -669,6 +823,11 @@
     "labour": {
       "actualCost": 1251.71,
       "actualSell": 2103.75
+    },
+    "pl": {
+      "actualCost": 1251.72,
+      "profitToDate": 991.03,
+      "marginToDate": 0.4419
     },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9934.xlsx"
@@ -692,6 +851,11 @@
       "actualCost": 159.36,
       "actualSell": 297
     },
+    "pl": {
+      "actualCost": 159.36,
+      "profitToDate": 137.64,
+      "marginToDate": 0.4634
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9983.xlsx"
   },
@@ -713,6 +877,11 @@
     "labour": {
       "actualCost": 61.98,
       "actualSell": 99
+    },
+    "pl": {
+      "actualCost": 91.49,
+      "profitToDate": 44.4,
+      "marginToDate": 0.3267
     },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9966.xlsx"
@@ -739,6 +908,11 @@
     "labour": {
       "actualCost": 195.72,
       "actualSell": 165
+    },
+    "pl": {
+      "actualCost": 418.2,
+      "profitToDate": 80.5,
+      "marginToDate": 0.1614
     },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9950.xlsx"
@@ -781,6 +955,14 @@
       "quotedCost": 6008.51,
       "actualCost": 5861.95
     },
+    "pl": {
+      "quotedCost": 14923.59,
+      "actualCost": 14052.73,
+      "quotedProfit": 4581.93,
+      "quotedMargin": 0.2349,
+      "profitToDate": 5452.79,
+      "marginToDate": 0.2796
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "Q-8337-pl.xlsx",
     "timesheetFile": "Q-8337-ts.xlsx"
@@ -808,6 +990,11 @@
       "actualCost": 511.07,
       "actualSell": 823.5
     },
+    "pl": {
+      "actualCost": 511.07,
+      "profitToDate": 312.43,
+      "marginToDate": 0.3794
+    },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9944.xlsx"
   },
@@ -829,6 +1016,11 @@
     "labour": {
       "actualCost": 154.95,
       "actualSell": 185.63
+    },
+    "pl": {
+      "actualCost": 189.81,
+      "profitToDate": 39.4,
+      "marginToDate": 0.1719
     },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9955.xlsx"
@@ -855,6 +1047,11 @@
     "labour": {
       "actualCost": 2499.1,
       "actualSell": 3148.75
+    },
+    "pl": {
+      "actualCost": 2499.1,
+      "profitToDate": 649.65,
+      "marginToDate": 0.2063
     },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9922.xlsx"
