@@ -20,7 +20,7 @@
 //            --job-name yourself.
 //
 // Labour only: a quoted job's profit is Labour Quoted Cost − Labour Actual Cost;
-// a charge-up job's is Labour Actual Sell − Labour Actual Cost. GP/hour = that
+// a charge-up job's is the Summary sheet's Total profit. GP/hour = that
 // profit ÷ actual hours (charge-up: Sold labour hours); each person's part is GP/hour × their hours.
 //
 // Options:

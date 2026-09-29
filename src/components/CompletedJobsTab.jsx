@@ -20,7 +20,7 @@ import { contributors, personTotals } from '../lib/completedJobPeople'
 // a small quick job can easily out-earn a big one per hour.
 const SORT_OPTIONS = [
   { key: 'gpPerHour', label: 'GP $/hr' },
-  { key: 'profit', label: 'Labour profit' },
+  { key: 'profit', label: 'Profit' },
   { key: 'hours', label: 'Actual h' },
   { key: 'quotedHours', label: 'Quoted h' },
   { key: 'hoursDiff', label: 'Difference h' },
@@ -80,23 +80,25 @@ function WorkedBy({ job }) {
 const GRID = 'grid grid-cols-[minmax(0,1.6fr)_minmax(0,1.6fr)_4rem_3rem_6rem] gap-x-4'
 const GRID_ONE = 'grid grid-cols-[minmax(0,1.6fr)_minmax(0,1.6fr)_4rem_3rem] gap-x-4'
 
-// How the job's labour profit was worked out, straight from its P&L export.
+// How the job's GP/hr was worked out, straight from its P&L export.
 function LabourSum({ job }) {
+  const rate = <> ÷ {job.hours} actual h = <span className="font-medium text-white">{cents(job.gpPerHour)}/hr</span></>
+  if (job.type === 'chargeup') {
+    return <p className="text-[12px] tabular-nums text-neutral-400"><span className="text-neutral-200">{cents(job.profit)}</span> profit (P&amp;L total){rate}</p>
+  }
   const l = job.labour
   if (!l) return null
-  const [a, b, aLabel, bLabel] = job.type === 'quoted'
-    ? [l.quotedCost, l.actualCost, 'quoted labour cost', 'actual labour cost']
-    : [l.actualSell, l.actualCost, 'actual labour sell', 'actual labour cost']
   return (
     <p className="text-[12px] tabular-nums text-neutral-400">
-      {money(a)} {aLabel} − {money(b)} {bLabel} = <span className="text-neutral-200">{cents(job.profit)}</span> labour profit
-      {' '}÷ {job.hours} actual h{job.type === 'chargeup' ? ' (sold)' : ''} = <span className="font-medium text-white">{cents(job.gpPerHour)}/hr</span>
+      {money(l.quotedCost)} quoted labour cost − {money(l.actualCost)} actual labour cost = <span className="text-neutral-200">{cents(job.profit)}</span> labour profit{rate}
     </p>
   )
 }
 
 function Breakdown({ job }) {
   const { worked: people, adjustments } = contributors(job)
+  // Only quoted jobs split GP per person; a charge-up job just lists who worked it.
+  const split = job.type === 'quoted' && people.length > 1
   if (!people.length) {
     return <div className="flex flex-col gap-2.5"><LabourSum job={job} /><p className="text-[13px] text-neutral-500">No per-person hours for this job — its timesheet export wasn&apos;t included.</p></div>
   }
@@ -106,19 +108,21 @@ function Breakdown({ job }) {
       <p className="text-[12px] text-neutral-500">
         {people.length === 1
           ? 'One person did all the hours on this job.'
-          : `${people.length} people worked on this job — each person's part is the job's ${cents(job.gpPerHour)}/hr × their hours.`}
+          : split
+            ? `${people.length} people worked on this job — each person's part is the job's ${cents(job.gpPerHour)}/hr × their hours.`
+            : `${people.length} people worked on this job.`}
       </p>
       {people.length > 1 && (
-        <div className={`${GRID} text-[11px] uppercase tracking-wide text-neutral-500`}>
+        <div className={`${split ? GRID : GRID_ONE} text-[11px] uppercase tracking-wide text-neutral-500`}>
           <span>Person</span>
           <span />
           <span className="text-right">Hours</span>
           <span className="text-right">Share</span>
-          <span className="text-right">GP/hr × hours</span>
+          {split && <span className="text-right">GP/hr × hours</span>}
         </div>
       )}
       {people.map((p, i) => (
-        <div key={p.name} className={`${people.length > 1 ? GRID : GRID_ONE} items-center text-[13px]`}>
+        <div key={p.name} className={`${split ? GRID : GRID_ONE} items-center text-[13px]`}>
           <span className="truncate text-neutral-100">
             {p.name}
             {p.afterHours && <span className="ml-1.5 text-[11px] text-neutral-500">incl. after-hours/overtime</span>}
@@ -131,7 +135,7 @@ function Breakdown({ job }) {
           </span>
           <span className="text-right tabular-nums text-neutral-300">{Math.round(p.hours * 100) / 100} h</span>
           <span className="text-right tabular-nums text-neutral-400">{Math.round(p.share * 100)}%</span>
-          {people.length > 1 && <span className="text-right tabular-nums font-medium text-white">{cents(p.gpTimesHours)}</span>}
+          {split && <span className="text-right tabular-nums font-medium text-white">{cents(p.gpTimesHours)}</span>}
         </div>
       ))}
       {adjustments.map((p) => (
@@ -175,7 +179,7 @@ function TypeSummary({ type, jobs, active, onSelect }) {
       </span>
       <span className="text-2xl font-semibold tabular-nums text-white">{st.gp === null ? '—' : `${cents(st.gp)}/hr`}</span>
       <span className="text-[12px] tabular-nums text-neutral-500">
-        {money(st.profit)} labour profit ÷ {st.hours} actual h
+        {money(st.profit)} {type === 'quoted' ? 'labour profit' : 'profit'} ÷ {st.hours} actual h
       </span>
     </button>
   )
@@ -202,7 +206,7 @@ function PeopleSummary({ jobs, scope }) {
       className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6"
       storageKey="completed-jobs.people"
       title={`By person — ${people.length} ${people.length === 1 ? 'person' : 'people'}`}
-      description={`Each person's hours and their part of the labour profit (each job's GP/hr × their hours) across ${scope}, summed. GP/hr = their labour profit ÷ their hours. Click a person to see their jobs.`}
+      description={`Quoted jobs only — charge-up jobs aren't split per person. Each person's hours and their part of the labour profit (each job's GP/hr × their hours) across ${scope}, summed. GP/hr = their labour profit ÷ their hours. Click a person to see their jobs.`}
     >
       <div className="table-scroll mt-2">
         <table className="data-table">
@@ -355,12 +359,12 @@ export default function CompletedJobsTab({ completedJobs, onBack }) {
       <div>
         <h1 className="text-2xl font-semibold text-white">Completed jobs — GP per hour</h1>
         <p className="mt-1 text-sm text-neutral-400">
-          Labour profit per hour for each finished job. Labour profit is quoted labour cost −
-          actual labour cost for a quoted job, and actual labour sell − actual labour cost for
-          a charge-up job — divided by the actual hours (charge-up: the Sold tab&apos;s labour
-          hours). On a job with more than one person, each person&apos;s part is that GP/hr ×
-          their hours. Quoted h is a quoted job&apos;s quoted hours, or a charge-up job&apos;s sold +
-          unsold hours; difference h is quoted − actual. Click a job to see the working and who worked on it. Add a month&apos;s jobs in Update data → Completed jobs.
+          GP per hour for each finished job. A quoted job&apos;s is its labour profit (quoted
+          labour cost − actual labour cost) ÷ actual hours, and on a job with more than one
+          person each person&apos;s part is that GP/hr × their hours. A charge-up job&apos;s is its
+          profit ÷ actual hours (the Sold tab&apos;s labour hours). Quoted h is a quoted job&apos;s
+          quoted hours, or a charge-up job&apos;s sold + unsold hours; difference h is quoted −
+          actual. Click a job to see the working and who worked on it. Add a month&apos;s jobs in Update data → Completed jobs.
         </p>
       </div>
 
@@ -397,7 +401,7 @@ export default function CompletedJobsTab({ completedJobs, onBack }) {
         </div>
       </div>
 
-      <PeopleSummary jobs={shown} scope={typeFilter === 'all' ? 'all completed jobs' : `${TYPE_LABEL[typeFilter].toLowerCase()} jobs`} />
+      {typeFilter !== 'chargeup' && <PeopleSummary jobs={byType.quoted} scope="the completed quoted jobs" />}
 
       <CollapsibleSection
         className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6"
@@ -448,7 +452,7 @@ export default function CompletedJobsTab({ completedJobs, onBack }) {
                 {cells(j).owner}
               </div>
               <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[13px]">
-                <span className="text-neutral-400">Labour profit</span>
+                <span className="text-neutral-400">Profit</span>
                 <span className="text-right tabular-nums text-neutral-200">{money(j.profit)}</span>
                 <span className="text-neutral-400">Actual h</span>
                 <span className="text-right tabular-nums text-neutral-200">{j.hours}</span>

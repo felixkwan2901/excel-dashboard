@@ -1,12 +1,12 @@
 // Parsing for completed-job P&L exports, shared by add-completed-job.mjs (one job)
-// and add-completed-jobs.mjs (a folder of them). Everything is LABOUR only:
+// and add-completed-jobs.mjs (a folder of them):
 //
 //   Quoted    ("Quotes" sheet) — labour profit = the Summary sheet's Labour Quoted
 //             Cost − Labour Actual Cost; hours come from the job's Timesheets export
 //             when given (per worker), otherwise the Budgeted sheet's Labour
 //             "Actual Quantity". Quoted hours = the Budgeted Labour "Quoted Quantity".
-//   Charge-up ("Sold"/"Unsold", no "Quotes") — labour profit = the Summary sheet's
-//             Labour Actual Sell − Labour Actual Cost. Actual hours = the Sold sheet's
+//   Charge-up ("Sold"/"Unsold", no "Quotes") — profit = the Summary sheet's Total
+//             profit (the whole job). Actual hours = the Sold sheet's
 //             labour lines (per person); quoted hours = Sold + Unsold labour, so with
 //             no Unsold hours quoted = actual (done within the time).
 //             These exports carry no job number or name, so the caller supplies them.
@@ -121,7 +121,8 @@ export function parseChargeUp(workbook) {
   // Category,Actual Cost,Actual Sell,Profit,Margin
   const labour = summary.find((r) => r[0] === 'Labour')
   const actualCost = toNumber(labour?.[1]) ?? 0, actualSell = toNumber(labour?.[2]) ?? 0
-  const profit = actualSell - actualCost
+  const profit = chargeUpTotalProfit(workbook)
+  if (!Number.isFinite(profit)) throw new Error('Could not read Profit from the Summary sheet Total row.')
 
   // Sold labour = the actual hours, per person; Unsold labour total kept alongside.
   const workers = labourLines(sold)

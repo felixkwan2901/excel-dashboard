@@ -36,9 +36,10 @@ export function contributors(job) {
 // Each person's totals across the jobs shown: their hours and their part of each
 // job's labour profit (that job's GP/hr × their hours), summed. Their GP/hr is
 // total part ÷ total hours — so a person is weighted by the time they put in.
+// Quoted jobs only — a charge-up job's profit isn't split per person.
 export function personTotals(jobs) {
   const people = new Map()
-  for (const job of jobs) {
+  for (const job of jobs.filter((j) => j.type === 'quoted')) {
     for (const p of contributors(job).worked) {
       const t = people.get(p.name) ?? { name: p.name, hours: 0, profit: 0, jobs: [] }
       t.hours += p.hours
