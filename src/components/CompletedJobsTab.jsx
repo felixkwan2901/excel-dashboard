@@ -36,8 +36,6 @@ const COLUMNS = [
   { key: 'marginToDate', group: 'margin', label: 'Margin to date', num: true, get: (j) => j.pl?.marginToDate, fmt: pct },
   { key: 'labourQuoted', group: 'labour', label: 'Quoted $', num: true, get: (j) => j.labour?.quotedCost, fmt: money },
   { key: 'labourActual', group: 'labour', label: 'Actual $', num: true, get: (j) => j.labour?.actualCost, fmt: money },
-  { key: 'labourQuotedH', group: 'labour', label: 'Quoted h', num: true, get: (j) => j.quotedHours },
-  { key: 'labourActualH', group: 'labour', label: 'Actual h', num: true, get: (j) => j.hours },
   { key: 'costQuoted', group: 'cost', label: 'Quoted', num: true, get: (j) => j.pl?.quotedCost, fmt: money },
   { key: 'costActual', group: 'cost', label: 'Actual', num: true, get: (j) => j.pl?.actualCost, fmt: money },
   { key: 'workedBy', group: 'people', label: 'Worked by' },
@@ -48,18 +46,18 @@ const COLUMNS = [
 const GROUPS = [
   { key: 'gp', label: 'GP $/hr' },
   { key: 'margin', label: 'GP $ / %' },
-  { key: 'labour', label: 'Labour cost & hours' },
+  { key: 'labour', label: 'Labour cost' },
   { key: 'cost', label: 'Total cost' },
   { key: 'people', label: 'Worked by, type of work, owner', flat: true },
 ]
 // Which cells turn red when a quoted job came in over quote on that measure.
-const OVER_CELLS = { hours: ['hours', 'hoursDiff', 'labourActualH'], labour: ['labourActual'], cost: ['costActual'] }
+const OVER_CELLS = { hours: ['hours', 'hoursDiff'], labour: ['labourActual'], cost: ['costActual'] }
 const OVER = 'var(--viz-critical)'
 const OVER_TINT = 'color-mix(in srgb, var(--viz-critical) 12%, transparent)'
 const fmtOver = (o) => (o.unit === 'h' ? `${o.label} ${o.quoted} → ${o.actual} h` : `${o.label} ${money(o.quoted)} → ${money(o.actual)}`)
 
 // Frozen leading columns (Job #, Job name) — widths so the second knows its left.
-const STICKY_W = [112, 230]
+const STICKY_W = [98, 186]
 const STICKY_LEFT = [0, STICKY_W[0]]
 
 // Difference = quoted − actual hours. A charge-up job's quoted hours are Sold +
@@ -212,19 +210,10 @@ function TypeSummary({ type, jobs, active, onSelect }) {
 
 const NOT_SET = 'Not set'
 
-// Data to check, set when the job was loaded: no name in Katipolt (shown as its
-// number), or no sold hours (so no GP/hr). Amber — a thing to fix, not a loss.
-const CHECK = 'var(--viz-warning, #d97706)'
-const CHECK_LABEL = { 'no-name': 'No name', 'no-sold-hours': 'No sold hours' }
-function CheckTags({ job }) {
-  return (job.flags ?? []).map((f) => (
-    <span key={f} className="rounded-full px-1.5 py-0.5 text-[10.5px] font-semibold"
-      style={{ color: CHECK, background: `color-mix(in srgb, ${CHECK} 16%, transparent)` }}
-      title={f === 'no-name' ? 'This job has no name in Katipolt — add one there and re-upload.' : 'All its hours are unsold, so there is nothing to divide the profit by.'}>
-      Check: {CHECK_LABEL[f] ?? f}
-    </span>
-  ))
-}
+// Data to check, set when the job was loaded — shown as a tooltip on the type:
+// no name in Katipolt (named by its number), or no sold hours (so no GP/hr).
+const CHECK_NOTE = { 'no-name': 'No name in Katipolt — add one there and re-upload.', 'no-sold-hours': 'No sold hours, so no GP/hr.' }
+const checkNote = (job) => (job.flags ?? []).map((f) => CHECK_NOTE[f] ?? f).join(' ') || undefined
 
 // Totals for the ticked jobs, per column. Sums for money and hours; GP/hr and the
 // margins are worked out from the sums (total profit ÷ total hours, profit ÷
@@ -324,7 +313,7 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
     owner: <OwnerCell job={j} value={owners?.[j.jobNumber] ?? ''} saving={!loaded || saving.has(`owner:${j.jobNumber}`)} onChange={(job, v) => saveField('owner', job, v)} />,
   })
   // Column groups the viewer has hidden (saved in this browser).
-  const [hiddenGroups, setHiddenGroups] = useLocalStorageState('completedJobs.hiddenGroups', [])
+  const [hiddenGroups, setHiddenGroups] = useLocalStorageState('completedJobs.hiddenGroups.v2', ['people'])
   const [pickerOpen, setPickerOpen] = useState(false)
   // Ticked jobs: a Total row sums them, and "Show selected only" filters to them.
   const [selected, setSelected] = useState(() => new Set())
@@ -546,7 +535,7 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
                 <p className="text-[14px] font-medium text-white">
                   <span className="text-neutral-400">{j.jobNumber}</span> {j.jobName}
                 </p>
-                <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[12px] text-neutral-500">{TYPE_LABEL[j.type] ?? j.type}<CheckTags job={j} /></p>
+                <p className="mt-0.5 text-[12px] text-neutral-500" title={checkNote(j)}>{TYPE_LABEL[j.type] ?? j.type}</p>
                 {overruns(j).length > 0 && (
                   <p className="mt-1 text-[12px] font-medium" style={{ color: OVER }}>Over quote — review: {overruns(j).map(fmtOver).join(' · ')}</p>
                 )}
@@ -693,13 +682,9 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
                           case 'jobName': content = <span className="block truncate" title={j.jobName}>{j.jobName}</span>; break
                           case 'hoursDiff': content = <DiffHours job={j} />; break
                           case 'type':
-                            content = (
-                              <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-                                {TYPE_LABEL[j.type] ?? j.type}
-                                {over.length > 0 && <span className="rounded-full px-1.5 py-0.5 text-[10.5px] font-semibold" style={{ color: OVER, background: `color-mix(in srgb, ${OVER} 14%, transparent)` }}>Review</span>}
-                                <CheckTags job={j} />
-                              </span>
-                            )
+                            // Kept tight: the red row already marks a job to review; the
+                            // no-name / no-sold-hours notes live in the tooltip.
+                            content = <span title={checkNote(j)}>{TYPE_LABEL[j.type] ?? j.type}</span>
                             break
                           case 'workedBy': content = <WorkedBy job={j} />; break
                           case 'category': content = cells(j).category; break

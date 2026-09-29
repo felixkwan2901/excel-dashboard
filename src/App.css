@@ -434,6 +434,11 @@
 
 .table-freeze thead th.th-sub {
   top: 30px;
+  /* Long headings ("Margin to date") wrap onto two lines rather than widening
+     the column past its figures. */
+  white-space: normal;
+  line-height: 1.25;
+  vertical-align: bottom;
 }
 
 .table-freeze thead th.sticky-col {
