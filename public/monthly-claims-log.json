@@ -373,8 +373,8 @@
     "7428": {
       "jobName": "FAB Pegasus Lakeside",
       "claim": 0,
-      "costs": 2625.4400000000023,
-      "profit": -2625.4400000000023
+      "costs": -301.33000000000175,
+      "profit": 301.33000000000175
     },
     "7429": {
       "jobName": "Taggart House",
@@ -427,8 +427,8 @@
     "8183": {
       "jobName": "Murney Custodian - 1 Freight Drive",
       "claim": 93276.07999999999,
-      "costs": 62750.76999999999,
-      "profit": 30525.309999999998
+      "costs": 62516.95999999999,
+      "profit": 30759.119999999995
     },
     "8214": {
       "jobName": "6 Tiroroa Lane",
@@ -456,9 +456,9 @@
     },
     "8352": {
       "jobName": "5 Sanscrit Place",
-      "claim": 0,
-      "costs": 1159.83,
-      "profit": -1159.83
+      "claim": 1379.0600000000013,
+      "costs": 3415.09,
+      "profit": -2036.0299999999988
     },
     "8360": {
       "jobName": "Dixon House",
@@ -481,8 +481,8 @@
     "8670": {
       "jobName": "Studio DB - tautara fit out",
       "claim": 27482.319999999992,
-      "costs": 19232.930000000008,
-      "profit": 8249.389999999985
+      "costs": 19733.22,
+      "profit": 7749.099999999991
     },
     "8769": {
       "jobName": "Percival Bach",
@@ -511,8 +511,8 @@
     "8886": {
       "jobName": "Monkey Toe - Fisher fit out",
       "claim": 61369.72,
-      "costs": 16020.68,
-      "profit": 45349.04
+      "costs": 16335.68,
+      "profit": 45034.04
     },
     "8887": {
       "jobName": "Tenancy 2 - Fisher Fit out",
@@ -553,8 +553,8 @@
     "9259": {
       "jobName": "Andrew Reeve Stage 2",
       "claim": 16999.83,
-      "costs": 15288.169999999998,
-      "profit": 1711.6600000000035
+      "costs": 16896.64,
+      "profit": 103.19000000000233
     },
     "9351": {
       "jobName": "Harewood Golf Club",
