@@ -389,6 +389,64 @@
   background: #141a21;
 }
 
+/* A table that scrolls inside its own box, so its header row(s) can stay pinned
+   to the top while the page itself doesn't move (Completed jobs). The header's
+   first row is a fixed height so the second row knows where to stick. */
+.table-freeze {
+  max-height: 70vh;
+  overflow: auto;
+}
+
+.table-freeze thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: #11161c;
+}
+
+.table-freeze thead tr:first-child th {
+  height: 30px;
+  box-sizing: border-box;
+}
+
+.table-freeze thead th.th-sub {
+  top: 30px;
+}
+
+.table-freeze thead th.sticky-col {
+  z-index: 4;
+}
+
+.data-table .th-group {
+  text-align: center;
+  color: var(--text-secondary);
+  border-left: 1px solid var(--gridline);
+}
+
+.data-table .th-sub {
+  font-size: 11px;
+}
+
+/* Compact rows: more jobs on screen at once. */
+.data-table--compact {
+  font-size: 12.5px;
+}
+
+.data-table--compact tbody td {
+  padding: 7px 10px;
+}
+
+.data-table--compact th,
+.data-table--compact td {
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+/* Frozen cells are opaque, so a team row's tint is laid over them again. */
+.data-table tr.is-team > .sticky-col {
+  background-image: linear-gradient(color-mix(in srgb, var(--viz-1) 7%, transparent), color-mix(in srgb, var(--viz-1) 7%, transparent));
+}
+
 /* Thursday-morning overdue alert for an unfinished Weekly job check sheet —
    a steady red tint would be too easy to miss on a busy checklist page, so
    it pulses instead. Respects reduced-motion by falling back to a flat

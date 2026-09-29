@@ -509,6 +509,10 @@ input:focus-visible {
   background-color: #f7f9fb;
 }
 
+:root[data-theme='light'] .table-freeze thead th {
+  background-color: var(--surface-2);
+}
+
 :root[data-theme='light'] .data-table thead th {
   background-color: var(--surface-2);
   color: var(--text-secondary);

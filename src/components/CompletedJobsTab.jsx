@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { Users } from 'lucide-react'
-import { money } from '../lib/format'
+import { money, percent } from '../lib/format'
 
 // GP/hr and per-person figures are often a few dollars, so show cents.
 const CENTS = new Intl.NumberFormat('en-NZ', { style: 'currency', currency: 'NZD', minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -18,26 +18,43 @@ import { contributors, personTotals } from '../lib/completedJobPeople'
 // is spotting which finished jobs actually paid well per hour worked,
 // which a plain "most profitable" or "most recent" sort wouldn't surface —
 // a small quick job can easily out-earn a big one per hour.
-const SORT_OPTIONS = [
-  { key: 'gpPerHour', label: 'GP $/hr' },
-  { key: 'profit', label: 'Profit' },
-  { key: 'hours', label: 'Actual h' },
-  { key: 'quotedHours', label: 'Quoted h' },
-  { key: 'hoursDiff', label: 'Difference h' },
-  { key: 'addedAt', label: 'Date added' },
-]
-// Every column of the table sorts; text columns start A–Z, numbers high to low.
+// Every column sorts; text columns start A–Z, numbers high to low. `group` puts a
+// column under a two-row header; the groups can be shown or hidden from Columns.
 const TEXT_SORTS = new Set(['jobName', 'type', 'workedBy', 'category', 'owner'])
+const pct = (v) => (v == null ? '—' : percent(v))
 const COLUMNS = [
-  { key: 'jobNumber', label: 'Job #' },
-  { key: 'jobName', label: 'Job name' },
-  { key: 'type', label: 'Type' },
-  ...SORT_OPTIONS.slice(0, 5).map((c) => ({ ...c, num: true })),
-  { key: 'workedBy', label: 'Worked by' },
-  { key: 'category', label: 'Type of work' },
-  { key: 'owner', label: 'Owner' },
-  ...SORT_OPTIONS.slice(5).map((c) => ({ ...c, num: true })),
+  { key: 'jobNumber', label: 'Job #', get: (j) => Number(j.jobNumber), sticky: 0 },
+  { key: 'jobName', label: 'Job name', sticky: 1 },
+  { key: 'type', label: 'Type', get: (j) => TYPE_LABEL[j.type] ?? j.type },
+  { key: 'gpPerHour', group: 'gp', label: 'GP/hr', num: true, fmt: cents, strong: true },
+  { key: 'quotedHours', group: 'gp', label: 'Quoted h', num: true },
+  { key: 'hours', group: 'gp', label: 'Actual h', num: true },
+  { key: 'hoursDiff', group: 'gp', label: 'Diff h', num: true, get: (j) => hoursDiff(j) },
+  { key: 'quotedProfit', group: 'margin', label: 'Quoted profit', num: true, get: (j) => j.pl?.quotedProfit, fmt: money },
+  { key: 'quotedMargin', group: 'margin', label: 'Quoted margin', num: true, get: (j) => j.pl?.quotedMargin, fmt: pct },
+  { key: 'profitToDate', group: 'margin', label: 'Profit to date', num: true, get: (j) => j.pl?.profitToDate, fmt: money },
+  { key: 'marginToDate', group: 'margin', label: 'Margin to date', num: true, get: (j) => j.pl?.marginToDate, fmt: pct },
+  { key: 'labourQuoted', group: 'labour', label: 'Quoted $', num: true, get: (j) => j.labour?.quotedCost, fmt: money },
+  { key: 'labourActual', group: 'labour', label: 'Actual $', num: true, get: (j) => j.labour?.actualCost, fmt: money },
+  { key: 'labourQuotedH', group: 'labour', label: 'Quoted h', num: true, get: (j) => j.quotedHours },
+  { key: 'labourActualH', group: 'labour', label: 'Actual h', num: true, get: (j) => j.hours },
+  { key: 'costQuoted', group: 'cost', label: 'Quoted', num: true, get: (j) => j.pl?.quotedCost, fmt: money },
+  { key: 'costActual', group: 'cost', label: 'Actual', num: true, get: (j) => j.pl?.actualCost, fmt: money },
+  { key: 'workedBy', group: 'people', label: 'Worked by' },
+  { key: 'category', group: 'people', label: 'Type of work' },
+  { key: 'owner', group: 'people', label: 'Owner' },
+  { key: 'addedAt', group: 'people', label: 'Date added', num: true },
 ]
+const GROUPS = [
+  { key: 'gp', label: 'GP $/hr' },
+  { key: 'margin', label: 'GP $ / %' },
+  { key: 'labour', label: 'Labour cost & hours' },
+  { key: 'cost', label: 'Total cost' },
+  { key: 'people', label: 'Worked by, type of work, owner', flat: true },
+]
+// Frozen leading columns (Job #, Job name) — widths so the second knows its left.
+const STICKY_W = [92, 230]
+const STICKY_LEFT = [0, STICKY_W[0]]
 
 // Difference = quoted − actual hours. A charge-up job's quoted hours are Sold +
 // Unsold and its actual hours are Sold, so its difference is its Unsold hours.
@@ -269,6 +286,23 @@ function PeopleSummary({ jobs, scope }) {
   )
 }
 
+function HeadCell({ col, rowSpan, sub, sort, onSort }) {
+  const on = sort.key === col.key
+  const sticky = col.sticky !== undefined
+  return (
+    <th
+      rowSpan={rowSpan}
+      className={[col.num && 'num', 'sortable', sub && 'th-sub', sticky && 'sticky-col', col.sticky === 1 && 'sticky-col-end'].filter(Boolean).join(' ')}
+      style={sticky ? { left: STICKY_LEFT[col.sticky], minWidth: STICKY_W[col.sticky], maxWidth: STICKY_W[col.sticky] } : undefined}
+      onClick={() => onSort(col.key)}
+      aria-sort={on ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'}
+    >
+      {col.label}
+      {on && (sort.dir === 1 ? ' ▲' : ' ▼')}
+    </th>
+  )
+}
+
 export default function CompletedJobsTab({ completedJobs, onBack }) {
   const [sort, setSort] = useState({ key: 'gpPerHour', dir: -1 })
   const [typeFilter, setTypeFilter] = useLocalStorageState('completedJobs.typeFilter', 'all')
@@ -308,6 +342,22 @@ export default function CompletedJobsTab({ completedJobs, onBack }) {
     category: <CategoryCell job={j} value={categories?.[j.jobNumber] ?? ''} saving={!loaded || saving.has(`category:${j.jobNumber}`)} onChange={(job, v) => saveField('category', job, v)} />,
     owner: <OwnerCell job={j} value={owners?.[j.jobNumber] ?? ''} saving={!loaded || saving.has(`owner:${j.jobNumber}`)} onChange={(job, v) => saveField('owner', job, v)} />,
   })
+  // Column groups the viewer has hidden (saved in this browser).
+  const [hiddenGroups, setHiddenGroups] = useLocalStorageState('completedJobs.hiddenGroups', [])
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const hidden = new Set(hiddenGroups)
+  const visibleCols = COLUMNS.filter((c) => !c.group || !hidden.has(c.group))
+  const toggleGroup = (key) => setHiddenGroups(hidden.has(key) ? hiddenGroups.filter((g) => g !== key) : [...hiddenGroups, key])
+  // Header row 1: ungrouped columns span both rows; each visible group spans its columns.
+  const headRow1 = []
+  for (const c of visibleCols) {
+    const g = c.group && GROUPS.find((x) => x.key === c.group)
+    if (!g || g.flat) headRow1.push({ col: c })
+    else if (headRow1.at(-1)?.group !== g) headRow1.push({ group: g, span: 1 })
+    else headRow1.at(-1).span += 1
+  }
+  const subCols = visibleCols.filter((c) => c.group && !GROUPS.find((x) => x.key === c.group)?.flat)
+
   const [open, setOpen] = useState(() => new Set())
   function toggleOpen(jobNumber) {
     setOpen((prev) => { const next = new Set(prev); next.has(jobNumber) ? next.delete(jobNumber) : next.add(jobNumber); return next })
@@ -335,13 +385,13 @@ export default function CompletedJobsTab({ completedJobs, onBack }) {
     })
     function sortValue(j) {
       switch (sort.key) {
-        case 'jobNumber': return Number(j.jobNumber)
-        case 'type': return TYPE_LABEL[j.type] ?? j.type
-        case 'hoursDiff': return hoursDiff(j)
         case 'workedBy': return contributors(j).worked[0]?.name ?? ''
         case 'category': return categories?.[j.jobNumber] ?? ''
         case 'owner': return owners?.[j.jobNumber] ?? ''
-        default: return j[sort.key]
+        default: {
+          const col = COLUMNS.find((c) => c.key === sort.key)
+          return col?.get ? col.get(j) : j[sort.key]
+        }
       }
     }
   }, [shown, sort, owners, categories])
@@ -452,8 +502,14 @@ export default function CompletedJobsTab({ completedJobs, onBack }) {
                 {cells(j).owner}
               </div>
               <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[13px]">
-                <span className="text-neutral-400">Profit</span>
-                <span className="text-right tabular-nums text-neutral-200">{money(j.profit)}</span>
+                <span className="text-neutral-400">Quoted profit · margin</span>
+                <span className="text-right tabular-nums text-neutral-200">{j.pl?.quotedProfit == null ? '—' : `${money(j.pl.quotedProfit)} · ${pct(j.pl.quotedMargin)}`}</span>
+                <span className="text-neutral-400">Profit · margin to date</span>
+                <span className="text-right tabular-nums text-neutral-200">{j.pl?.profitToDate == null ? '—' : `${money(j.pl.profitToDate)} · ${pct(j.pl.marginToDate)}`}</span>
+                <span className="text-neutral-400">Labour cost (quoted · actual)</span>
+                <span className="text-right tabular-nums text-neutral-200">{j.labour?.quotedCost == null ? '—' : money(j.labour.quotedCost)} · {j.labour?.actualCost == null ? '—' : money(j.labour.actualCost)}</span>
+                <span className="text-neutral-400">Total cost (quoted · actual)</span>
+                <span className="text-right tabular-nums text-neutral-200">{j.pl?.quotedCost == null ? '—' : money(j.pl.quotedCost)} · {j.pl?.actualCost == null ? '—' : money(j.pl.actualCost)}</span>
                 <span className="text-neutral-400">Actual h</span>
                 <span className="text-right tabular-nums text-neutral-200">{j.hours}</span>
                 <span className="text-neutral-400">Quoted h</span>
@@ -472,56 +528,91 @@ export default function CompletedJobsTab({ completedJobs, onBack }) {
           {rows.length === 0 && <p className="empty-row">No completed jobs added yet.</p>}
         </div>
 
-        <div className="table-scroll hidden sm:block">
-          <table className="data-table">
+        <div className="relative mt-3 hidden items-center gap-2 sm:flex">
+          <button
+            type="button"
+            onClick={() => setPickerOpen((v) => !v)}
+            aria-expanded={pickerOpen}
+            className="rounded-full border border-white/10 px-3 py-1 text-[12px] font-medium text-neutral-300 hover:border-white/20 hover:text-white"
+          >
+            Columns{hiddenGroups.length ? ` · ${hiddenGroups.length} hidden` : ''} ▾
+          </button>
+          {pickerOpen && (
+            <div className="absolute left-0 top-full z-20 mt-1 flex w-72 flex-col gap-1 rounded-xl border border-white/10 bg-[#11161c] p-3 shadow-xl">
+              <p className="mb-1 text-[11px] uppercase tracking-wide text-neutral-500">Show columns</p>
+              {GROUPS.map((g) => (
+                <label key={g.key} className="flex cursor-pointer items-center gap-2 text-[13px] text-neutral-200">
+                  <input type="checkbox" checked={!hidden.has(g.key)} onChange={() => toggleGroup(g.key)} />
+                  {g.label}
+                </label>
+              ))}
+              <p className="mt-1 text-[11px] text-neutral-500">Job #, job name and type always show.</p>
+            </div>
+          )}
+          <span className="text-[12px] text-neutral-500">Scroll inside the table — the header and job columns stay put.</span>
+        </div>
+
+        <div className="table-scroll table-freeze mt-2 hidden sm:block">
+          <table className="data-table data-table--compact">
             <thead>
               <tr>
-                {COLUMNS.map((col) => (
-                  <th
-                    key={col.key}
-                    className={`${col.num ? 'num ' : ''}sortable`}
-                    onClick={() => toggleSort(col.key)}
-                    aria-sort={sort.key === col.key ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'}
-                  >
-                    {col.label}
-                    {sort.key === col.key && (sort.dir === 1 ? ' ▲' : ' ▼')}
-                  </th>
-                ))}
+                {headRow1.map((h) => {
+                  if (h.group) return <th key={h.group.key} colSpan={h.span} className="th-group">{h.group.label}</th>
+                  const col = h.col
+                  return <HeadCell key={col.key} col={col} rowSpan={subCols.length ? 2 : 1} sort={sort} onSort={toggleSort} />
+                })}
               </tr>
+              {subCols.length > 0 && (
+                <tr>
+                  {subCols.map((col) => <HeadCell key={col.key} col={col} sub sort={sort} onSort={toggleSort} />)}
+                </tr>
+              )}
             </thead>
             <tbody>
               {rows.map((j) => {
                 const isOpen = open.has(j.jobNumber)
+                const team = isTeam(j)
                 return (
                   <Fragment key={j.jobNumber}>
                     <tr
-                      className="cursor-pointer"
-                      style={isTeam(j) ? { background: TEAM_TINT } : undefined}
+                      className={`cursor-pointer ${team ? 'is-team' : ''}`}
+                      style={team ? { background: TEAM_TINT } : undefined}
                       tabIndex={0}
                       aria-expanded={isOpen}
                       onClick={() => toggleOpen(j.jobNumber)}
                       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleOpen(j.jobNumber) } }}
                     >
-                      <td style={isTeam(j) ? { boxShadow: `inset 3px 0 0 ${TEAM}` } : undefined}>
-                        <span className={`mr-2 inline-block text-neutral-500 transition-transform ${isOpen ? 'rotate-90' : ''}`} aria-hidden="true">›</span>
-                        {j.jobNumber}
-                      </td>
-                      <td>{j.jobName}</td>
-                      <td>{TYPE_LABEL[j.type] ?? j.type}</td>
-                      <td className="num font-medium">{cents(j.gpPerHour)}</td>
-                      <td className="num">{money(j.profit)}</td>
-                      <td className="num">{j.hours}</td>
-                      <td className="num">{j.quotedHours ?? '—'}</td>
-                      <td className="num"><DiffHours job={j} /></td>
-                      <td><WorkedBy job={j} /></td>
-                      <td>{cells(j).category}</td>
-                      <td>{cells(j).owner}</td>
-                      <td className="num">{j.addedAt}</td>
+                      {visibleCols.map((col) => {
+                        const cls = [col.num && 'num', col.strong && 'font-medium', col.sticky !== undefined && 'sticky-col', col.sticky === 1 && 'sticky-col-end'].filter(Boolean).join(' ')
+                        const style = col.sticky !== undefined ? { left: STICKY_LEFT[col.sticky], minWidth: STICKY_W[col.sticky], maxWidth: STICKY_W[col.sticky] } : undefined
+                        let content
+                        switch (col.key) {
+                          case 'jobNumber':
+                            content = <><span className={`mr-2 inline-block text-neutral-500 transition-transform ${isOpen ? 'rotate-90' : ''}`} aria-hidden="true">›</span>{j.jobNumber}</>
+                            break
+                          case 'jobName': content = <span className="block truncate" title={j.jobName}>{j.jobName}</span>; break
+                          case 'hoursDiff': content = <DiffHours job={j} />; break
+                          case 'workedBy': content = <WorkedBy job={j} />; break
+                          case 'category': content = cells(j).category; break
+                          case 'owner': content = cells(j).owner; break
+                          default: {
+                            const v = col.get ? col.get(j) : j[col.key]
+                            content = v == null ? <span className="text-neutral-500">—</span> : col.fmt ? col.fmt(v) : v
+                          }
+                        }
+                        return (
+                          <td key={col.key} className={cls}
+                            style={col.key === 'jobNumber' && team ? { ...style, boxShadow: `inset 3px 0 0 ${TEAM}` } : style}>
+                            {content}
+                          </td>
+                        )
+                      })}
                     </tr>
                     {isOpen && (
-                      <tr style={isTeam(j) ? { background: TEAM_TINT } : undefined}>
-                        <td colSpan={12} className="bg-white/[0.02]" style={isTeam(j) ? { boxShadow: `inset 3px 0 0 ${TEAM}` } : undefined}>
-                          <div className="max-w-3xl py-2 pl-6"><Breakdown job={j} /></div>
+                      <tr className={team ? 'is-team' : ''} style={team ? { background: TEAM_TINT } : undefined}>
+                        <td colSpan={visibleCols.length} className="bg-white/[0.02]" style={team ? { boxShadow: `inset 3px 0 0 ${TEAM}` } : undefined}>
+                          {/* sticky so the breakdown stays in view when the table is scrolled sideways */}
+                          <div className="sticky left-0 max-w-3xl py-2 pl-6"><Breakdown job={j} /></div>
                         </td>
                       </tr>
                     )}
@@ -530,7 +621,7 @@ export default function CompletedJobsTab({ completedJobs, onBack }) {
               })}
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="empty-row">
+                  <td colSpan={visibleCols.length} className="empty-row">
                     No completed jobs added yet.
                   </td>
                 </tr>

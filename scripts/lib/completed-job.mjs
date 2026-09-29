@@ -37,6 +37,12 @@ function toNumber(v) {
   return Number.isFinite(n) ? n : null
 }
 
+// Margins arrive either as a fraction (0.4331) or as text ("56.62%").
+function toFraction(v) {
+  if (typeof v === 'string' && v.includes('%')) { const n = toNumber(v); return n === null ? null : n / 100 }
+  return toNumber(v)
+}
+
 export function exportKind(workbook) {
   if (workbook.SheetNames.includes('Quotes')) return 'quoted'
   if (workbook.SheetNames.includes('Sold')) return 'chargeup'
@@ -72,6 +78,13 @@ export function parseQuoted(workbook, timesheetWorkbook = null) {
   const jobName = String(quoteRow[1] ?? '').trim()
 
   // Category,Quoted Cost,Actual Cost,Quoted Sell,,Quoted Profit,,Quoted Margin
+  const total = summary.find((r) => r[0] === 'Total') ?? []
+  const above = (label) => summary.find((r) => r[0] === label)?.[1]
+  const pl = {
+    quotedCost: toNumber(total[1]), actualCost: toNumber(total[2]),
+    quotedProfit: toNumber(total[5]), quotedMargin: toFraction(total[7]),
+    profitToDate: toNumber(above('Profit to Date')), marginToDate: toFraction(above('Margin to Date')),
+  }
   const labour = summary.find((r) => r[0] === 'Labour')
   const quotedCost = toNumber(labour?.[1]), actualCost = toNumber(labour?.[2])
   if (quotedCost === null || actualCost === null) throw new Error('Could not read the Labour Quoted/Actual Cost on the Summary sheet.')
@@ -89,7 +102,7 @@ export function parseQuoted(workbook, timesheetWorkbook = null) {
     hoursSource = 'timesheet'
   }
   if (hours === null || hours <= 0) throw new Error('No actual hours recorded for this quoted job.')
-  return { jobNumber, jobName, type: 'quoted', profit, hours, quotedHours, workers, hoursSource, labour: { quotedCost, actualCost } }
+  return { jobNumber, jobName, type: 'quoted', profit, hours, quotedHours, workers, hoursSource, labour: { quotedCost, actualCost }, pl }
 }
 
 function labourLines(rows) {
@@ -123,13 +136,15 @@ export function parseChargeUp(workbook) {
   const actualCost = toNumber(labour?.[1]) ?? 0, actualSell = toNumber(labour?.[2]) ?? 0
   const profit = chargeUpTotalProfit(workbook)
   if (!Number.isFinite(profit)) throw new Error('Could not read Profit from the Summary sheet Total row.')
+  const total = summary.find((r) => r[0] === 'Total') ?? []
+  const pl = { actualCost: toNumber(total[1]), profitToDate: profit, marginToDate: toFraction(total[4]) }
 
   // Sold labour = the actual hours, per person; Unsold labour total kept alongside.
   const workers = labourLines(sold)
   const sum = (lines) => lines.reduce((t, w) => t + w.hours, 0)
   const hours = sum(workers), unsoldHours = sum(labourLines(sheetRows(workbook, 'Unsold') ?? []))
   if (hours <= 0) throw new Error('No labour hours on the Sold sheet.')
-  return { type: 'chargeup', profit, hours, quotedHours: hours + unsoldHours, unsoldHours, workers, hoursSource: 'sold', labour: { actualCost, actualSell } }
+  return { type: 'chargeup', profit, hours, quotedHours: hours + unsoldHours, unsoldHours, workers, hoursSource: 'sold', labour: { actualCost, actualSell }, pl }
 }
 
 export function toRecord(result, { jobNumber, jobName, sourceFile, timesheetFile }) {
@@ -144,6 +159,9 @@ export function toRecord(result, { jobNumber, jobName, sourceFile, timesheetFile
     ...(result.unsoldHours != null && { unsoldHours: Math.round(result.unsoldHours * 100) / 100 }),
     workers: result.workers,
     labour: Object.fromEntries(Object.entries(result.labour ?? {}).map(([k, v]) => [k, Math.round(v * 100) / 100])),
+    // P&L headline figures; margins as fractions (0.43 = 43%)
+    pl: Object.fromEntries(Object.entries(result.pl ?? {}).filter(([, v]) => v !== null && v !== undefined)
+      .map(([k, v]) => [k, k.endsWith('Margin') || k === 'marginToDate' ? Math.round(v * 10000) / 10000 : Math.round(v * 100) / 100])),
     addedAt: new Date().toISOString().slice(0, 10),
     sourceFile,
   }
