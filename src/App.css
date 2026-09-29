@@ -427,6 +427,25 @@
   font-size: 11px;
 }
 
+/* The Total row for ticked jobs sits pinned to the bottom of the scrolling box. */
+.table-freeze tfoot td {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  background: #1a222b;
+  font-weight: 600;
+  color: var(--text-primary);
+  border-top: 2px solid var(--brand-green);
+}
+
+.table-freeze tfoot td.sticky-col {
+  z-index: 4;
+}
+
+.data-table tr.is-selected > td {
+  background-image: linear-gradient(color-mix(in srgb, var(--brand-green) 9%, transparent), color-mix(in srgb, var(--brand-green) 9%, transparent));
+}
+
 /* Compact rows: more jobs on screen at once. */
 .data-table--compact {
   font-size: 12.5px;

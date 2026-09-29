@@ -58,7 +58,7 @@ const OVER_TINT = 'color-mix(in srgb, var(--viz-critical) 12%, transparent)'
 const fmtOver = (o) => (o.unit === 'h' ? `${o.label} ${o.quoted} → ${o.actual} h` : `${o.label} ${money(o.quoted)} → ${money(o.actual)}`)
 
 // Frozen leading columns (Job #, Job name) — widths so the second knows its left.
-const STICKY_W = [92, 230]
+const STICKY_W = [112, 230]
 const STICKY_LEFT = [0, STICKY_W[0]]
 
 // Difference = quoted − actual hours. A charge-up job's quoted hours are Sold +
@@ -225,7 +225,46 @@ function CheckTags({ job }) {
   ))
 }
 
-function HeadCell({ col, rowSpan, sub, sort, onSort }) {
+// Totals for the ticked jobs, per column. Sums for money and hours; GP/hr and the
+// margins are worked out from the sums (total profit ÷ total hours, profit ÷
+// sell), never averaged — so a big job counts for more than a small one.
+function selectionTotals(jobs) {
+  const sum = (get) => {
+    const vals = jobs.map(get).filter((v) => v != null)
+    return vals.length ? vals.reduce((t, v) => t + v, 0) : null
+  }
+  const withHours = jobs.filter((j) => j.hours > 0)
+  const gpH = withHours.reduce((t, j) => t + j.hours, 0)
+  const withQuote = jobs.filter((j) => j.quotedHours != null)
+  const margin = (profitKey, costKey) => {
+    const both = jobs.filter((j) => j.pl?.[profitKey] != null && j.pl?.[costKey] != null)
+    const p = both.reduce((t, j) => t + j.pl[profitKey], 0), c = both.reduce((t, j) => t + j.pl[costKey], 0)
+    return both.length && p + c ? p / (p + c) : null
+  }
+  const cu = jobs.filter((j) => j.type === 'chargeup').length
+  return {
+    jobNumber: 'Total',
+    jobName: `${jobs.length} job${jobs.length === 1 ? '' : 's'} selected`,
+    type: [cu && `${cu} charge-up`, jobs.length - cu && `${jobs.length - cu} quoted`].filter(Boolean).join(' · '),
+    gpPerHour: gpH ? withHours.reduce((t, j) => t + (j.profit ?? 0), 0) / gpH : null,
+    quotedHours: sum((j) => j.quotedHours),
+    hours: sum((j) => j.hours),
+    hoursDiff: withQuote.length ? withQuote.reduce((t, j) => t + j.quotedHours - j.hours, 0) : null,
+    quotedProfit: sum((j) => j.pl?.quotedProfit),
+    quotedMargin: margin('quotedProfit', 'quotedCost'),
+    profitToDate: sum((j) => j.pl?.profitToDate),
+    marginToDate: margin('profitToDate', 'actualCost'),
+    labourQuoted: sum((j) => j.labour?.quotedCost),
+    labourActual: sum((j) => j.labour?.actualCost),
+    labourQuotedH: sum((j) => j.quotedHours),
+    labourActualH: sum((j) => j.hours),
+    costQuoted: sum((j) => j.pl?.quotedCost),
+    costActual: sum((j) => j.pl?.actualCost),
+  }
+}
+const round2 = (v) => Math.round(v * 100) / 100
+
+function HeadCell({ col, rowSpan, sub, sort, onSort, children }) {
   const on = sort.key === col.key
   const sticky = col.sticky !== undefined
   return (
@@ -236,6 +275,7 @@ function HeadCell({ col, rowSpan, sub, sort, onSort }) {
       onClick={() => onSort(col.key)}
       aria-sort={on ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'}
     >
+      {children}
       {col.label}
       {on && (sort.dir === 1 ? ' ▲' : ' ▼')}
     </th>
@@ -285,6 +325,10 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
   // Column groups the viewer has hidden (saved in this browser).
   const [hiddenGroups, setHiddenGroups] = useLocalStorageState('completedJobs.hiddenGroups', [])
   const [pickerOpen, setPickerOpen] = useState(false)
+  // Ticked jobs: a Total row sums them, and "Show selected only" filters to them.
+  const [selected, setSelected] = useState(() => new Set())
+  const [selectedOnly, setSelectedOnly] = useState(false)
+  const toggleSelected = (n) => setSelected((prev) => { const next = new Set(prev); next.has(n) ? next.delete(n) : next.add(n); return next })
   const hidden = new Set(hiddenGroups)
   const visibleCols = COLUMNS.filter((c) => !c.group || !hidden.has(c.group))
   const toggleGroup = (key) => setHiddenGroups(hidden.has(key) ? hiddenGroups.filter((g) => g !== key) : [...hiddenGroups, key])
@@ -338,7 +382,8 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
     : byTypeShown), [byTypeShown, workFilter, categories])
 
   const rows = useMemo(() => {
-    return [...shown].sort((a, b) => {
+    const pool = selectedOnly ? shown.filter((j) => selected.has(j.jobNumber)) : shown
+    return [...pool].sort((a, b) => {
       const av = sortValue(a)
       const bv = sortValue(b)
       // blanks (no owner, no type of work, …) always go last
@@ -358,7 +403,10 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
         }
       }
     }
-  }, [shown, sort, owners, categories])
+  }, [shown, sort, owners, categories, selectedOnly, selected])
+  const selectedJobs = completedJobs.filter((j) => selected.has(j.jobNumber))
+  const totals = selectedJobs.length ? selectionTotals(selectedJobs) : null
+  const allShownTicked = rows.length > 0 && rows.every((j) => selected.has(j.jobNumber))
 
   return (
     <div className="mx-auto flex w-full max-w-[1800px] flex-col gap-6">
@@ -554,7 +602,23 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
               <p className="mt-1 text-[11px] text-neutral-500">Job #, job name and type always show.</p>
             </div>
           )}
-          <span className="text-[12px] text-neutral-500">Scroll inside the table — the header and job columns stay put.</span>
+          {selected.size > 0 ? (
+            <>
+              <span className="text-[12px] font-medium text-brand-green">{selected.size} selected</span>
+              <button type="button" onClick={() => setSelectedOnly((v) => !v)} aria-pressed={selectedOnly}
+                className={`rounded-full border px-3 py-1 text-[12px] font-medium transition-colors ${
+                  selectedOnly ? 'border-brand-green/50 bg-brand-green/10 text-brand-green' : 'border-white/10 text-neutral-300 hover:border-white/20 hover:text-white'
+                }`}>
+                Show selected only
+              </button>
+              <button type="button" onClick={() => { setSelected(new Set()); setSelectedOnly(false) }}
+                className="rounded-full border border-white/10 px-3 py-1 text-[12px] font-medium text-neutral-300 hover:border-white/20 hover:text-white">
+                Clear
+              </button>
+            </>
+          ) : (
+            <span className="text-[12px] text-neutral-500">Tick jobs to add them up. Scroll inside the table — the header and job columns stay put.</span>
+          )}
         </div>
 
         <div className="table-scroll table-freeze mt-2 hidden sm:block">
@@ -564,7 +628,20 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
                 {headRow1.map((h) => {
                   if (h.group) return <th key={h.group.key} colSpan={h.span} className="th-group">{h.group.label}</th>
                   const col = h.col
-                  return <HeadCell key={col.key} col={col} rowSpan={subCols.length ? 2 : 1} sort={sort} onSort={toggleSort} />
+                  return (
+                    <HeadCell key={col.key} col={col} rowSpan={subCols.length ? 2 : 1} sort={sort} onSort={toggleSort}>
+                      {col.key === 'jobNumber' && (
+                        <input type="checkbox" className="mr-2 align-[-2px]" aria-label="Select every job shown"
+                          checked={allShownTicked}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={() => setSelected((prev) => {
+                            const next = new Set(prev)
+                            for (const j of rows) allShownTicked ? next.delete(j.jobNumber) : next.add(j.jobNumber)
+                            return next
+                          })} />
+                      )}
+                    </HeadCell>
+                  )
                 })}
               </tr>
               {subCols.length > 0 && (
@@ -584,7 +661,7 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
                     <tr
                       id={`cj-${j.jobNumber}`}
                       title={over.length ? `Over quote — review: ${over.map(fmtOver).join(' · ')}` : undefined}
-                      className={`cursor-pointer ${edge ? 'is-over' : ''}`}
+                      className={`cursor-pointer ${edge ? 'is-over' : ''} ${selected.has(j.jobNumber) ? 'is-selected' : ''}`}
                       style={edge ? { background: OVER_TINT } : undefined}
                       tabIndex={0}
                       aria-expanded={isOpen}
@@ -597,7 +674,16 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
                         let content
                         switch (col.key) {
                           case 'jobNumber':
-                            content = <><span className={`mr-2 inline-block text-neutral-500 transition-transform ${isOpen ? 'rotate-90' : ''}`} aria-hidden="true">›</span>{j.jobNumber}</>
+                            content = (
+                              <>
+                                <input type="checkbox" className="mr-2 align-[-2px]" aria-label={`Select job ${j.jobNumber}`}
+                                  checked={selected.has(j.jobNumber)}
+                                  onClick={(e) => e.stopPropagation()}
+                                  onKeyDown={(e) => e.stopPropagation()}
+                                  onChange={() => toggleSelected(j.jobNumber)} />
+                                <span className={`mr-1.5 inline-block text-neutral-500 transition-transform ${isOpen ? 'rotate-90' : ''}`} aria-hidden="true">›</span>{j.jobNumber}
+                              </>
+                            )
                             break
                           case 'jobName': content = <span className="block truncate" title={j.jobName}>{j.jobName}</span>; break
                           case 'hoursDiff': content = <DiffHours job={j} />; break
@@ -649,6 +735,22 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
                 </tr>
               )}
             </tbody>
+            {totals && (
+              <tfoot>
+                <tr className="totals-row">
+                  {visibleCols.map((col) => {
+                    const v = totals[col.key]
+                    const sticky = col.sticky !== undefined
+                    const cls = [col.num && 'num', sticky && 'sticky-col', col.sticky === 1 && 'sticky-col-end'].filter(Boolean).join(' ')
+                    const style = sticky ? { left: STICKY_LEFT[col.sticky], minWidth: STICKY_W[col.sticky], maxWidth: STICKY_W[col.sticky] } : undefined
+                    let content = v == null || v === '' ? '' : typeof v === 'string' ? v : col.fmt ? col.fmt(v) : round2(v)
+                    if (col.key === 'hoursDiff' && v != null) content = `${v > 0 ? '+' : ''}${round2(v)}`
+                    if (col.key === 'gpPerHour' && v != null) content = `${cents(v)}/hr`
+                    return <td key={col.key} className={cls} style={style}>{content}</td>
+                  })}
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       </CollapsibleSection>
