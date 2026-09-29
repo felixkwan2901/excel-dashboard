@@ -392,6 +392,7 @@ export default function App() {
                 jobs={jobs}
                 monthlyClaimsHistory={monthlyClaimsHistory}
                 upcomingWork={upcomingWork}
+                completedJobs={completedJobs}
                 onSelectJob={openJob}
                 onBack={goHome}
               />

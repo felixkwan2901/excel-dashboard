@@ -10,6 +10,7 @@ import { useLocalStorageState } from '../lib/useLocalStorageState'
 import { fetchJobOwners, saveJobOwner } from '../lib/jobOwnerStore'
 import { fetchJobCategories, saveJobCategory } from '../lib/jobCategoryStore'
 import { OwnerCell, CategoryCell } from './JobTable'
+import { contributors, personTotals } from '../lib/completedJobPeople'
 
 // Loaded by scripts/lib/completed-job.mjs — labour only: a quoted job's profit is
 // its Labour Quoted Cost − Labour Actual Cost, a charge-up job's is Labour Actual
@@ -37,38 +38,6 @@ function DiffHours({ job }) {
 }
 
 const TYPE_LABEL = { quoted: 'Quoted', chargeup: 'Charge-up' }
-
-// Who did the job and who contributed: each person's hours, their share of the
-// job's hours, and the job's GP/hr × their hours — so the people on a job add back
-// up to the job's labour profit.
-//
-// Katipolt lists a person's after-hours or overtime rate as its own line ("Sean
-// Baines After Hours", "Sean Baines Overtime") and corrections as negative lines, so lines are merged per person and
-// netted first. Anyone left at zero or below was an adjustment, not a
-// contribution: they're listed separately and left out of the split, so the
-// shares still add to 100% and the whole profit is allocated.
-const EXTRA_RATE = /\s+(after\s*hours|overtime)$/i
-
-function contributors(job) {
-  const people = new Map()
-  for (const w of job.workers ?? []) {
-    const afterHours = EXTRA_RATE.test(w.name)
-    const name = w.name.replace(EXTRA_RATE, '').trim()
-    const p = people.get(name) ?? { name, hours: 0, afterHours: false }
-    p.hours += w.hours
-    p.afterHours ||= afterHours
-    people.set(name, p)
-  }
-  const all = [...people.values()].map((p) => ({ ...p, hours: Math.round(p.hours * 100) / 100 }))
-  const worked = all.filter((p) => p.hours > 0).sort((a, b) => b.hours - a.hours)
-  const total = worked.reduce((sum, p) => sum + p.hours, 0)
-  return {
-    // gpTimesHours = the job's GP/hr × their hours (adds up to its labour profit).
-    // (unrounded rate, so the parts add back to the job's labour profit exactly)
-    worked: worked.map((p) => ({ ...p, share: p.hours / total, gpTimesHours: (job.profit / job.hours) * p.hours })),
-    adjustments: all.filter((p) => p.hours <= 0),
-  }
-}
 
 // Jobs worked by more than one person get the chart blue — a tinted row with a
 // blue edge and a people tag — so team jobs stand out from one-person ones at a
@@ -201,6 +170,90 @@ function TypeSummary({ type, jobs, active, onSelect }) {
   )
 }
 
+const PERSON_COLS = [
+  { key: 'count', label: 'Jobs' },
+  { key: 'hours', label: 'Hours' },
+  { key: 'profit', label: 'Labour profit' },
+  { key: 'gpPerHour', label: 'GP $/hr' },
+]
+
+function PeopleSummary({ jobs, scope }) {
+  const [sort, setSort] = useState({ key: 'gpPerHour', dir: -1 })
+  const [open, setOpen] = useState(() => new Set())
+  const people = useMemo(() => personTotals(jobs).sort((a, b) =>
+    sort.key === 'name' ? a.name.localeCompare(b.name) * sort.dir : ((a[sort.key] ?? 0) - (b[sort.key] ?? 0)) * sort.dir), [jobs, sort])
+  const toggle = (name) => setOpen((prev) => { const next = new Set(prev); next.has(name) ? next.delete(name) : next.add(name); return next })
+  const sortBy = (key) => setSort((prev) => (prev.key === key ? { key, dir: -prev.dir } : { key, dir: key === 'name' ? 1 : -1 }))
+  const arrow = (key) => (sort.key === key ? (sort.dir === 1 ? ' ▲' : ' ▼') : '')
+
+  return (
+    <CollapsibleSection
+      className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6"
+      storageKey="completed-jobs.people"
+      title={`By person — ${people.length} ${people.length === 1 ? 'person' : 'people'}`}
+      description={`Each person's hours and their part of the labour profit (each job's GP/hr × their hours) across ${scope}, summed. GP/hr = their labour profit ÷ their hours. Click a person to see their jobs.`}
+    >
+      <div className="table-scroll mt-2">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th className="sortable" onClick={() => sortBy('name')}
+                aria-sort={sort.key === 'name' ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'}>Person{arrow('name')}</th>
+              {PERSON_COLS.map((c) => (
+                <th key={c.key} className="num sortable" onClick={() => sortBy(c.key)}
+                  aria-sort={sort.key === c.key ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'}>
+                  {c.label}{arrow(c.key)}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {people.map((p) => {
+              const isOpen = open.has(p.name)
+              return (
+                <Fragment key={p.name}>
+                  <tr className="cursor-pointer" tabIndex={0} aria-expanded={isOpen} onClick={() => toggle(p.name)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(p.name) } }}>
+                    <td>
+                      <span className={`mr-2 inline-block text-neutral-500 transition-transform ${isOpen ? 'rotate-90' : ''}`} aria-hidden="true">›</span>
+                      {p.name}
+                    </td>
+                    <td className="num">{p.count}</td>
+                    <td className="num">{p.hours}</td>
+                    <td className="num">{cents(p.profit)}</td>
+                    <td className="num font-medium">{p.gpPerHour === null ? '—' : `${cents(p.gpPerHour)}/hr`}</td>
+                  </tr>
+                  {isOpen && (
+                    <tr>
+                      <td colSpan={5} className="bg-white/[0.02]">
+                        <div className="flex max-w-3xl flex-col gap-1.5 py-2 pl-6 text-[13px]">
+                          <div className="grid grid-cols-[4rem_minmax(0,1fr)_5rem_4rem_6rem] gap-x-4 text-[11px] uppercase tracking-wide text-neutral-500">
+                            <span>Job #</span><span>Job name</span><span className="text-right">GP/hr</span><span className="text-right">Hours</span><span className="text-right">Their part</span>
+                          </div>
+                          {p.jobs.map(({ job, hours, part }) => (
+                            <div key={job.jobNumber} className="grid grid-cols-[4rem_minmax(0,1fr)_5rem_4rem_6rem] gap-x-4 tabular-nums">
+                              <span className="text-neutral-400">{job.jobNumber}</span>
+                              <span className="truncate text-neutral-200">{job.jobName} <span className="text-neutral-500">· {TYPE_LABEL[job.type]}</span></span>
+                              <span className="text-right text-neutral-400">{cents(job.gpPerHour)}</span>
+                              <span className="text-right text-neutral-300">{hours} h</span>
+                              <span className="text-right text-white">{cents(part)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              )
+            })}
+            {people.length === 0 && <tr><td colSpan={5} className="empty-row">No per-person hours yet.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </CollapsibleSection>
+  )
+}
+
 export default function CompletedJobsTab({ completedJobs, onBack }) {
   const [sort, setSort] = useState({ key: 'gpPerHour', dir: -1 })
   const [typeFilter, setTypeFilter] = useLocalStorageState('completedJobs.typeFilter', 'all')
@@ -319,6 +372,8 @@ export default function CompletedJobsTab({ completedJobs, onBack }) {
           ))}
         </div>
       </div>
+
+      <PeopleSummary jobs={shown} scope={typeFilter === 'all' ? 'all completed jobs' : `${TYPE_LABEL[typeFilter].toLowerCase()} jobs`} />
 
       <CollapsibleSection
         className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6"

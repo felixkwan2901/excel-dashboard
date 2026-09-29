@@ -82,7 +82,7 @@ export default function HBarChart({
                 {r.values.map((v, s) => (
                   <path
                     key={series[s].name}
-                    d={hBarPath(gutter, top + s * (barH + BAR_GAP), wOf(v ?? 0), barH)}
+                    d={hBarPath(gutter, top + s * (barH + BAR_GAP), wOf(Math.max(0, v ?? 0)), barH)}
                     fill={r.colors?.[s] ?? series[s].color}
                     opacity={hover === null || hover === i ? 1 : 0.45}
                   />
@@ -97,7 +97,7 @@ export default function HBarChart({
                   v === null || v === undefined ? null : (
                     <text
                       key={`v-${series[s2].name}`}
-                      x={Math.min(gutter + wOf(v) + 6, width - 2)}
+                      x={Math.min(gutter + wOf(Math.max(0, v)) + 6, width - 2)}
                       y={top + s2 * (barH + BAR_GAP) + barH - 1}
                       className="fill-[var(--text-secondary)] text-[10.5px] tabular-nums"
                     >

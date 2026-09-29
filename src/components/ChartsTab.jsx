@@ -1,9 +1,10 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { money, percent, roundHours } from '../lib/format'
 import ChartCard from './charts/ChartCard'
 import BarChart from './charts/BarChart'
 import HBarChart from './charts/HBarChart'
 import { compactHours, compactMoney } from './charts/chartScale'
+import { personTotals } from '../lib/completedJobPeople'
 
 // Every figure on this page already exists somewhere in the dashboard. The
 // point of drawing them is that a table answers "what is this number" and a
@@ -44,6 +45,14 @@ function monthLong(key) {
 // A quiet divider between the three questions this page answers: what the
 // business billed, what the crew is committed to, and how the book is doing.
 // Eight charts in one column with no grouping is a wall.
+const PERSON_SORTS = [
+  { key: 'gpPerHour', label: 'GP $/hr', series: 'GP/hr', format: (v) => `${money(v)}/hr`, axis: compactMoney },
+  { key: 'profit', label: 'Labour profit', series: 'Labour profit', format: money, axis: compactMoney },
+  { key: 'hours', label: 'Hours', series: 'Hours', format: (v) => `${roundHours(v)} h`, axis: compactHours },
+  { key: 'count', label: 'Jobs', series: 'Jobs', format: (v) => `${v} jobs`, axis: (v) => String(v) },
+  { key: 'name', label: 'Name' },
+]
+
 function SectionHeading({ children }) {
   return (
     <h2 className="mt-2 text-[12px] font-semibold tracking-wide text-neutral-400 uppercase">
@@ -52,8 +61,29 @@ function SectionHeading({ children }) {
   )
 }
 
-export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, onSelectJob, onBack }) {
+export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, completedJobs = [], onSelectJob, onBack }) {
   const capacity = upcomingWork?.capacity
+
+  // Completed jobs, per person: their part of each job's labour profit (the job's
+  // GP/hr × their hours) summed, over their hours summed — same maths as the
+  // Completed jobs tab's "By person" table.
+  // The bars show whatever the chart is sorted by; sorting by name keeps GP/hr.
+  const [personSort, setPersonSort] = useState({ key: 'gpPerHour', dir: -1 })
+  const personMetric = PERSON_SORTS.find((s) => s.key === personSort.key && s.key !== 'name') ?? PERSON_SORTS[0]
+  const people = useMemo(() => personTotals(completedJobs)
+    .filter((p) => p.gpPerHour !== null)
+    .sort((a, b) => (personSort.key === 'name'
+      ? a.name.localeCompare(b.name)
+      : a[personSort.key] - b[personSort.key]) * personSort.dir)
+    .map((p) => ({
+      label: p.name,
+      fullLabel: `${p.name} — ${p.count} job${p.count === 1 ? '' : 's'}, ${p.hours} h, ${money(p.profit)} labour profit, ${money(p.gpPerHour)}/hr`,
+      values: [Math.round(p[personMetric.key] * 100) / 100],
+      colors: [p[personMetric.key] < 0 ? CRITICAL : SERIES_1],
+      p,
+    })), [completedJobs, personSort, personMetric])
+  const sortPeople = (key) => setPersonSort((prev) =>
+    (prev.key === key ? { key, dir: -prev.dir } : { key, dir: key === 'name' ? 1 : -1 }))
 
   // Planned hours summed from the per-job rows, not read off the sheet's own
   // Total Hours row.
@@ -425,6 +455,58 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, on
           axisFormat={compactMoney}
           onSelect={(r) => openJob(r.jobNumber)}
           emptyMessage="No jobs with a quoted value."
+        />
+      </ChartCard>
+
+      <SectionHeading>Completed jobs</SectionHeading>
+
+      <ChartCard
+        title="GP per hour, by person"
+        question="Who is earning the most per hour on finished jobs?"
+        footnote={`Across ${completedJobs.length} completed jobs. Each person's labour profit is their part of every job they worked on — that job's GP/hr × their hours — summed, then divided by their total hours, so someone who did a few hours on a good job ranks by those few hours. Sort by GP/hr, labour profit, hours or jobs (click again to flip the order) — the bars show what it is sorted by. A red bar is below zero. The full breakdown is in the Completed jobs tab.`}
+        table={
+          <table>
+            <caption>GP per hour by person, completed jobs</caption>
+            <tbody>
+              {people.map((r) => (
+                <tr key={r.label}>
+                  <th scope="row">{r.label}</th>
+                  <td>{r.p.count} jobs</td>
+                  <td>{r.p.hours} h</td>
+                  <td>{money(r.p.profit)}</td>
+                  <td>{money(r.values[0])}/hr</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        }
+      >
+        <div className="mb-3 flex flex-wrap items-center gap-1.5" role="group" aria-label="Sort people by">
+          <span className="mr-1 text-[12px] text-neutral-500">Sort by</span>
+          {PERSON_SORTS.map((s) => {
+            const on = personSort.key === s.key
+            return (
+              <button
+                key={s.key}
+                type="button"
+                onClick={() => sortPeople(s.key)}
+                aria-pressed={on}
+                className={`rounded-full border px-3 py-1 text-[12px] font-medium transition-colors ${
+                  on ? 'border-brand-green/50 bg-brand-green/10 text-brand-green' : 'border-white/10 text-neutral-400 hover:border-white/20 hover:text-white'
+                }`}
+              >
+                {s.label}{on && (personSort.dir === 1 ? ' ▲' : ' ▼')}
+              </button>
+            )
+          })}
+        </div>
+        <HBarChart
+          rows={people}
+          series={[{ name: personMetric.series, color: SERIES_1 }]}
+          labelWidth={150}
+          valueFormat={personMetric.format}
+          axisFormat={personMetric.axis}
+          emptyMessage="No completed jobs added yet."
         />
       </ChartCard>
 
