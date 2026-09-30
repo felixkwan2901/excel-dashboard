@@ -1438,5 +1438,145 @@
     "addedAt": "2026-09-30",
     "sourceFile": "Q-9570-pl.xlsx",
     "month": "2026-09"
+  },
+  {
+    "jobNumber": "9921",
+    "jobName": "Supply & Install Exterior Light",
+    "type": "chargeup",
+    "profit": 151.14499999999998,
+    "hours": 0.25,
+    "gpPerHour": 604.58,
+    "quotedHours": 0.75,
+    "unsoldHours": 0.5,
+    "workers": [
+      {
+        "name": "Doug Stevens",
+        "hours": 0.25
+      }
+    ],
+    "labour": {
+      "actualCost": 46.49,
+      "actualSell": 24.75
+    },
+    "pl": {
+      "actualCost": 114.3,
+      "profitToDate": 151.14,
+      "marginToDate": 0.5694
+    },
+    "addedAt": "2026-09-30",
+    "sourceFile": "CU-9921.xlsx",
+    "month": "2026-09"
+  },
+  {
+    "jobNumber": "9849",
+    "jobName": "Disconnect Sign",
+    "type": "chargeup",
+    "profit": 177.865,
+    "hours": 2,
+    "gpPerHour": 88.93,
+    "quotedHours": 2.5,
+    "unsoldHours": 0.5,
+    "workers": [
+      {
+        "name": "Ethan van Tuinen",
+        "hours": 1.25
+      },
+      {
+        "name": "Sean Baines",
+        "hours": 0.75
+      }
+    ],
+    "labour": {
+      "actualCost": 129.13,
+      "actualSell": 168
+    },
+    "pl": {
+      "actualCost": 129.14,
+      "profitToDate": 177.87,
+      "marginToDate": 0.5794
+    },
+    "addedAt": "2026-09-30",
+    "sourceFile": "CU-9849.xlsx",
+    "month": "2026-09"
+  },
+  {
+    "jobNumber": "9911",
+    "jobName": "Clear water Kitchenette Decom",
+    "type": "chargeup",
+    "profit": 422.42750000000007,
+    "hours": 7.25,
+    "gpPerHour": 58.27,
+    "quotedHours": 7.75,
+    "unsoldHours": 0.5,
+    "workers": [
+      {
+        "name": "Andy Schweizer",
+        "hours": 7.25
+      }
+    ],
+    "labour": {
+      "actualCost": 446.01,
+      "actualSell": 717.75
+    },
+    "pl": {
+      "actualCost": 469.52,
+      "profitToDate": 422.43,
+      "marginToDate": 0.4736
+    },
+    "addedAt": "2026-09-30",
+    "sourceFile": "CU-9911.xlsx",
+    "month": "2026-09"
+  },
+  {
+    "jobNumber": "9918",
+    "jobName": "Supply of Lights & Dimmers for Stock",
+    "flags": [
+      "no-sold-hours"
+    ],
+    "type": "chargeup",
+    "profit": 191.82000000000005,
+    "hours": 0,
+    "gpPerHour": null,
+    "quotedHours": 0,
+    "unsoldHours": 0,
+    "workers": [],
+    "labour": {
+      "actualCost": 0,
+      "actualSell": 0
+    },
+    "pl": {
+      "actualCost": 383.64,
+      "profitToDate": 191.82,
+      "marginToDate": 0.3333
+    },
+    "addedAt": "2026-09-30",
+    "sourceFile": "CU-9918.xlsx",
+    "month": "2026-09"
+  },
+  {
+    "jobNumber": "9935",
+    "jobName": "Warehouse Silverdale",
+    "flags": [
+      "no-sold-hours"
+    ],
+    "type": "chargeup",
+    "profit": 0,
+    "hours": 0,
+    "gpPerHour": null,
+    "quotedHours": 0,
+    "unsoldHours": 0,
+    "workers": [],
+    "labour": {
+      "actualCost": 0,
+      "actualSell": 0
+    },
+    "pl": {
+      "actualCost": 765,
+      "profitToDate": 0,
+      "marginToDate": 0
+    },
+    "addedAt": "2026-09-30",
+    "sourceFile": "CU-9935.xlsx",
+    "month": "2026-09"
   }
 ]
