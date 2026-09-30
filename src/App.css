@@ -455,6 +455,25 @@
   font-size: 11px;
 }
 
+/* Completed jobs: header text a notch bigger and brighter than the other tables,
+   and the sub-row in sentence case — "Quoted profit", not a row of caps. */
+.table-freeze thead th {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.table-freeze thead th.th-sub {
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-primary);
+}
+
+.table-freeze thead th.sortable:hover {
+  color: var(--text-primary);
+}
+
 /* The Total row for ticked jobs sits pinned to the bottom of the scrolling box. */
 .table-freeze tfoot td {
   position: sticky;

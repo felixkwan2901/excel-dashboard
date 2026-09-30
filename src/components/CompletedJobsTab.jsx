@@ -9,7 +9,7 @@ import { fetchJobOwners, saveJobOwner } from '../lib/jobOwnerStore'
 import { fetchJobCategories, saveJobCategory } from '../lib/jobCategoryStore'
 import { OwnerCell, CategoryCell } from './JobTable'
 import { JOB_CATEGORIES } from '../lib/jobCategories'
-import { contributors, projectGpPerHour, projectProfit } from '../lib/completedJobPeople'
+import { contributors, monthName, projectGpPerHour, projectProfit } from '../lib/completedJobPeople'
 import { jobsToReview, overruns } from '../lib/completedJobReview'
 
 // Loaded by scripts/lib/completed-job.mjs — labour only: a quoted job's profit is
@@ -29,7 +29,7 @@ const COLUMNS = [
   { key: 'gpPerHour', group: 'gp', label: 'GP/hr', num: true, get: projectGpPerHour, fmt: cents, strong: true },
   { key: 'quotedHours', group: 'gp', label: 'Quoted h', num: true },
   { key: 'hours', group: 'gp', label: 'Actual h', num: true },
-  { key: 'hoursDiff', group: 'gp', label: 'Diff h', num: true, get: (j) => hoursDiff(j) },
+  { key: 'hoursDiff', group: 'gp', label: 'Diff h', num: true, get: (j) => hoursDiff(j) },   // label/tooltip vary by job type: DIFF_LABEL
   { key: 'quotedProfit', group: 'margin', label: 'Quoted profit', num: true, get: (j) => j.pl?.quotedProfit, fmt: money },
   { key: 'quotedMargin', group: 'margin', label: 'Quoted margin', num: true, get: (j) => j.pl?.quotedMargin, fmt: pct },
   { key: 'profitToDate', group: 'margin', label: 'Profit to date', num: true, get: (j) => j.pl?.profitToDate, fmt: money },
@@ -50,6 +50,23 @@ const GROUPS = [
   { key: 'cost', label: 'Total cost' },
   { key: 'people', label: 'Worked by, type of work, owner', flat: true },
 ]
+// "Diff h" = quoted − actual, but it means a different thing per job type: hours
+// under quote for a quoted job, unsold hours for a charge-up job. The header and
+// each cell's tooltip say which.
+const DIFF_LABEL = { all: 'Diff h', quoted: 'Under quote h', chargeup: 'Unsold h' }
+const DIFF_TITLE = {
+  all: 'Quoted h − actual h. Quoted job: hours under quote (minus = over quote). Charge-up job: hours booked but not sold.',
+  quoted: 'Quoted h − actual h: hours under quote (minus = over quote).',
+  chargeup: 'Hours booked but not sold (quoted h = sold + unsold).',
+}
+const colLabel = (col, typeFilter) => (col.key === 'hoursDiff' ? DIFF_LABEL[typeFilter] ?? col.label : col.label)
+const colTitle = (col, typeFilter) => (col.key === 'hoursDiff' ? DIFF_TITLE[typeFilter] : undefined)
+
+// "Simple" shows the columns every job has a figure for. The quoted-only columns
+// (quoted profit/margin, quoted labour and cost) are blank for charge-up jobs —
+// most rows — so they wait behind "Full".
+const SIMPLE_KEYS = new Set(['jobNumber', 'jobName', 'type', 'gpPerHour', 'quotedHours', 'hours', 'hoursDiff', 'profitToDate', 'marginToDate'])
+
 // Which cells turn red when a quoted job came in over quote on that measure.
 const OVER_CELLS = { hours: ['hours', 'hoursDiff'], labour: ['labourActual'], cost: ['costActual'] }
 const OVER = 'var(--viz-critical)'
@@ -57,7 +74,7 @@ const OVER_TINT = 'color-mix(in srgb, var(--viz-critical) 12%, transparent)'
 const fmtOver = (o) => (o.unit === 'h' ? `${o.label} ${o.quoted} → ${o.actual} h` : `${o.label} ${money(o.quoted)} → ${money(o.actual)}`)
 
 // Frozen leading columns (Job #, Job name) — widths so the second knows its left.
-const STICKY_W = [98, 186]
+const STICKY_W = [98, 260]
 const STICKY_LEFT = [0, STICKY_W[0]]
 
 // Difference = quoted − actual hours. A charge-up job's quoted hours are Sold +
@@ -66,7 +83,28 @@ const hoursDiff = (j) => (j.quotedHours == null ? null : Math.round((j.quotedHou
 function DiffHours({ job }) {
   const d = hoursDiff(job)
   if (d === null) return <span className="text-neutral-500">—</span>
-  return <span className={d > 0 ? 'text-brand-green' : d < 0 ? 'text-red-400' : 'text-neutral-400'}>{d > 0 ? '+' : ''}{d}</span>
+  const title = job.type === 'chargeup'
+    ? `${d} h booked but not sold (quoted ${job.quotedHours} h = ${job.hours} h sold + ${d} h unsold)`
+    : d > 0 ? `${d} h under quote (${job.quotedHours} h quoted, ${job.hours} h worked)`
+      : d < 0 ? `${-d} h over quote (${job.quotedHours} h quoted, ${job.hours} h worked)` : 'On quote'
+  return <span title={title} className={d > 0 ? 'text-brand-green' : d < 0 ? 'text-red-400' : 'text-neutral-400'}>{d > 0 ? '+' : ''}{d}</span>
+}
+
+// The key figure: bigger than the rest of the row, with a bar against the best
+// job shown. Green when at or above the overall rate of the jobs shown, red when
+// the job lost money, otherwise plain.
+function GpCell({ value, max, benchmark }) {
+  if (value == null) return <span className="text-neutral-500">—</span>
+  const w = max > 0 ? Math.min(100, (Math.max(0, value) / max) * 100) : 0
+  const tone = value < 0 ? OVER : benchmark != null && value >= benchmark ? 'var(--brand-green)' : 'var(--text-secondary)'
+  return (
+    <span className="flex flex-col items-end gap-[3px]">
+      <span className="text-[15px] font-semibold tabular-nums leading-none" style={{ color: tone }}>{cents(value)}</span>
+      <span className="block h-[3px] w-16 overflow-hidden rounded-full bg-white/[0.07]" aria-hidden="true">
+        <span className="block h-full rounded-full" style={{ width: `${w}%`, background: tone, opacity: 0.85 }} />
+      </span>
+    </span>
+  )
 }
 
 const TYPE_LABEL = { quoted: 'Quoted', chargeup: 'Charge-up' }
@@ -184,29 +222,62 @@ function typeStats(all) {
   return { count: all.length, profit, hours: Math.round(hours * 100) / 100, gp: hours ? profit / hours : null }
 }
 
-function TypeSummary({ type, jobs, active, onSelect }) {
-  const st = typeStats(jobs)
+function Stat({ label, value, sub, tone, big, onClick, title }) {
+  const Tag = onClick ? 'button' : 'div'
   return (
-    <button
-      type="button"
-      onClick={onSelect}
-      aria-pressed={active}
-      className={`flex min-w-0 flex-1 flex-col gap-1 rounded-[18px] border p-5 text-left transition-colors ${
-        active ? 'border-brand-green/50 bg-brand-green/[0.06]' : 'border-white/[0.06] bg-[#11161c] hover:border-white/20'
-      }`}
-    >
-      <span className="text-[12px] font-medium uppercase tracking-wide text-neutral-400">
-        {TYPE_LABEL[type]} · {st.count} job{st.count === 1 ? '' : 's'}
-      </span>
-      <span className="text-2xl font-semibold tabular-nums text-white">{st.gp === null ? '—' : `${cents(st.gp)}/hr`}</span>
-      <span className="text-[12px] tabular-nums text-neutral-500">
-        {money(st.profit)} profit to date ÷ {st.hours} actual h
-      </span>
-    </button>
+    <Tag type={onClick ? 'button' : undefined} onClick={onClick} title={title}
+      className={`flex min-w-0 flex-col gap-0.5 text-left ${onClick ? 'rounded-lg transition-colors hover:text-white' : ''}`}>
+      <span className="text-[11px] font-medium uppercase tracking-wide text-neutral-500">{label}</span>
+      <span className={`${big ? 'text-[26px]' : 'text-[18px]'} font-semibold tabular-nums leading-tight text-white`} style={tone ? { color: tone } : undefined}>{value}</span>
+      {sub && <span className="text-[12px] tabular-nums text-neutral-500">{sub}</span>}
+    </Tag>
+  )
+}
+
+// One strip instead of two cards: which month, the project GP/hr of the jobs
+// shown, how many there are, how many are over quote, and how the month compares
+// with the one before (when there is one).
+function SummaryStrip({ jobs, previousJobs, previousMonth, typeFilter, toReview, onReview, month, months, onMonth }) {
+  const st = typeStats(jobs)
+  const prev = previousJobs ? typeStats(previousJobs) : null
+  const delta = prev && st.gp != null && prev.gp != null ? st.gp - prev.gp : null
+  const cu = jobs.filter((j) => j.type === 'chargeup'), q = jobs.filter((j) => j.type === 'quoted')
+  const what = typeFilter === 'all' ? 'completed' : TYPE_LABEL[typeFilter].toLowerCase()
+  return (
+    <div className="flex flex-wrap items-center gap-x-8 gap-y-3 rounded-[18px] border border-white/[0.06] bg-[#11161c] px-5 py-4">
+      <label className="flex flex-col gap-1 text-[11px] font-medium uppercase tracking-wide text-neutral-500">
+        Month
+        <select value={month} onChange={(e) => onMonth(e.target.value)}
+          className="rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-[14px] font-medium normal-case tracking-normal text-white">
+          {months.map((m) => <option key={m} value={m}>{monthName(m)}</option>)}
+          {months.length > 1 && <option value="all">All months</option>}
+        </select>
+      </label>
+      <Stat big label={`Project GP/hr · ${what} jobs`} value={st.gp === null ? '—' : `${cents(st.gp)}/hr`}
+        sub={`${money(st.profit)} profit to date ÷ ${st.hours} actual h`} />
+      <Stat label="Jobs" value={st.count}
+        sub={typeFilter === 'all' ? `${cu.length} charge-up · ${q.length} quoted` : undefined} />
+      {typeFilter === 'all' && (
+        <Stat label="By type" value={
+          <span className="text-[14px] font-medium">
+            <span className="text-neutral-300">Charge-up</span> {typeStats(cu).gp == null ? '—' : cents(typeStats(cu).gp)}
+            <span className="mx-2 text-neutral-600">·</span>
+            <span className="text-neutral-300">Quoted</span> {typeStats(q).gp == null ? '—' : cents(typeStats(q).gp)}
+          </span>} sub="GP/hr" />
+      )}
+      <Stat label="Over quote" value={toReview.length} tone={toReview.length ? OVER : undefined}
+        sub={toReview.length ? 'quoted jobs — review' : 'no quoted job over quote'}
+        onClick={toReview.length ? onReview : undefined} title={toReview.length ? 'Show which jobs' : undefined} />
+      {delta != null && (
+        <Stat label={`vs ${monthName(previousMonth, 'short')}`} value={`${delta >= 0 ? '+' : '−'}${cents(Math.abs(delta))}/hr`}
+          tone={delta >= 0 ? 'var(--brand-green)' : OVER} sub={`${cents(prev.gp)}/hr then`} />
+      )}
+    </div>
   )
 }
 
 const NOT_SET = 'Not set'
+const SELECT = 'rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1 text-[13px] font-medium text-white'
 
 // Data to check, set when the job was loaded — shown as a tooltip on the type:
 // no name in Katipolt (named by its number), or no sold hours (so no GP/hr).
@@ -252,7 +323,7 @@ function selectionTotals(jobs) {
 }
 const round2 = (v) => Math.round(v * 100) / 100
 
-function HeadCell({ col, rowSpan, sub, sort, onSort, children }) {
+function HeadCell({ col, rowSpan, sub, sort, onSort, typeFilter, children }) {
   const on = sort.key === col.key
   const sticky = col.sticky !== undefined
   return (
@@ -262,9 +333,10 @@ function HeadCell({ col, rowSpan, sub, sort, onSort, children }) {
       style={sticky ? { left: STICKY_LEFT[col.sticky], minWidth: STICKY_W[col.sticky], maxWidth: STICKY_W[col.sticky] } : undefined}
       onClick={() => onSort(col.key)}
       aria-sort={on ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'}
+      title={colTitle(col, typeFilter)}
     >
       {children}
-      {col.label}
+      {colLabel(col, typeFilter)}{col.key === 'hoursDiff' && <span className="ml-1 text-neutral-500" aria-hidden="true">ⓘ</span>}
       {on && (sort.dir === 1 ? ' ▲' : ' ▼')}
     </th>
   )
@@ -273,7 +345,17 @@ function HeadCell({ col, rowSpan, sub, sort, onSort, children }) {
 export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
   const [sort, setSort] = useState({ key: 'gpPerHour', dir: -1 })
   const [typeFilter, setTypeFilter] = useLocalStorageState('completedJobs.typeFilter', 'all')
-  const [workFilter, setWorkFilter] = useState(null)   // a type of work picked in the counts table
+  const [workFilter, setWorkFilter] = useState(null)   // a type of work picked in the filter
+  // Months with jobs, latest first; the page opens on the latest month.
+  const months = useMemo(() => [...new Set(completedJobs.map((j) => j.month).filter(Boolean))].sort().reverse(), [completedJobs])
+  const [monthPick, setMonthPick] = useState('latest')
+  const month = monthPick === 'latest' ? (months[0] ?? 'all') : monthPick
+  const inMonth = useMemo(() => (month === 'all' ? completedJobs : completedJobs.filter((j) => j.month === month)), [completedJobs, month])
+  const previousMonth = month !== 'all' ? months[months.indexOf(month) + 1] : undefined
+  const [howOpen, setHowOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const [compareOpen, setCompareOpen] = useState(false)
+  const [reviewOpen, setReviewOpen] = useState(false)
   // Owner and type of work are the same per-job stores the Projects dropdowns
   // write to, so a job set in either place shows the same value in both.
   const [owners, setOwners] = useState(null)
@@ -312,14 +394,18 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
   })
   // Column groups the viewer has hidden (saved in this browser).
   const [hiddenGroups, setHiddenGroups] = useLocalStorageState('completedJobs.hiddenGroups.v2', ['people'])
+  // "Simple" (the default) or "Full"; choosing groups in the picker means Full.
+  const [preset, setPreset] = useLocalStorageState('completedJobs.columnPreset', 'simple')
   const [pickerOpen, setPickerOpen] = useState(false)
   // Ticked jobs: a Total row sums them, and "Show selected only" filters to them.
   const [selected, setSelected] = useState(() => new Set())
   const [selectedOnly, setSelectedOnly] = useState(false)
   const toggleSelected = (n) => setSelected((prev) => { const next = new Set(prev); next.has(n) ? next.delete(n) : next.add(n); return next })
   const hidden = new Set(hiddenGroups)
-  const visibleCols = COLUMNS.filter((c) => !c.group || !hidden.has(c.group))
-  const toggleGroup = (key) => setHiddenGroups(hidden.has(key) ? hiddenGroups.filter((g) => g !== key) : [...hiddenGroups, key])
+  const visibleCols = preset === 'simple'
+    ? COLUMNS.filter((c) => SIMPLE_KEYS.has(c.key))
+    : COLUMNS.filter((c) => !c.group || !hidden.has(c.group))
+  const toggleGroup = (key) => { setPreset('full'); setHiddenGroups(hidden.has(key) ? hiddenGroups.filter((g) => g !== key) : [...hiddenGroups, key]) }
   // Header row 1: ungrouped columns span both rows; each visible group spans its columns.
   const headRow1 = []
   for (const c of visibleCols) {
@@ -330,12 +416,14 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
   }
   const subCols = visibleCols.filter((c) => c.group && !GROUPS.find((x) => x.key === c.group)?.flat)
 
-  const toReview = useMemo(() => jobsToReview(completedJobs), [completedJobs])
+  const toReview = useMemo(() => jobsToReview(inMonth), [inMonth])
   const [open, setOpen] = useState(() => new Set(focusJob ? [focusJob.job] : []))
   // Opened from the notifications bell: show that job's row, expanded, in view.
   function reviewJob(jobNumber) {
     setTypeFilter('all')
     setWorkFilter(null)
+    const job = completedJobs.find((j) => j.jobNumber === jobNumber)
+    if (job?.month && job.month !== month) setMonthPick(job.month)
     setOpen((prev) => new Set(prev).add(jobNumber))
     // The row may not be laid out yet (tab just opened, filters just reset), so
     // wait for it before scrolling it into the middle of the screen.
@@ -361,13 +449,16 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
   }
 
   const byType = useMemo(() => ({
-    chargeup: completedJobs.filter((j) => j.type === 'chargeup'),
-    quoted: completedJobs.filter((j) => j.type === 'quoted'),
-  }), [completedJobs])
-  const byTypeShown = typeFilter === 'all' ? completedJobs : (byType[typeFilter] ?? completedJobs)
-  const shown = useMemo(() => (workFilter
-    ? byTypeShown.filter((j) => (categories?.[j.jobNumber] || NOT_SET) === workFilter)
-    : byTypeShown), [byTypeShown, workFilter, categories])
+    chargeup: inMonth.filter((j) => j.type === 'chargeup'),
+    quoted: inMonth.filter((j) => j.type === 'quoted'),
+  }), [inMonth])
+  const byTypeShown = typeFilter === 'all' ? inMonth : (byType[typeFilter] ?? inMonth)
+  const untyped = loaded ? byTypeShown.filter((j) => !categories?.[j.jobNumber]).length : 0
+  const q = query.trim().toLowerCase()
+  const shown = useMemo(() => {
+    const pool = workFilter ? byTypeShown.filter((j) => (categories?.[j.jobNumber] || NOT_SET) === workFilter) : byTypeShown
+    return q ? pool.filter((j) => String(j.jobNumber).includes(q) || (j.jobName ?? '').toLowerCase().includes(q)) : pool
+  }, [byTypeShown, workFilter, categories, q])
 
   const rows = useMemo(() => {
     const pool = selectedOnly ? shown.filter((j) => selected.has(j.jobNumber)) : shown
@@ -395,6 +486,9 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
   const selectedJobs = completedJobs.filter((j) => selected.has(j.jobNumber))
   const totals = selectedJobs.length ? selectionTotals(selectedJobs) : null
   const allShownTicked = rows.length > 0 && rows.every((j) => selected.has(j.jobNumber))
+  // For the GP/hr bars: the best rate shown, and the overall rate of what's shown.
+  const gpMax = Math.max(0, ...shown.map((j) => projectGpPerHour(j) ?? 0))
+  const gpBenchmark = typeStats(shown).gp
 
   return (
     <div className="mx-auto flex w-full max-w-[1800px] flex-col gap-6">
@@ -407,174 +501,232 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
       </nav>
 
       <div>
-        <h1 className="text-2xl font-semibold text-white">Completed jobs — GP per hour</h1>
+        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+          <h1 className="text-2xl font-semibold text-white">Completed jobs — GP per hour</h1>
+          <button type="button" onClick={() => setHowOpen((v) => !v)} aria-expanded={howOpen}
+            className="text-[13px] font-medium text-brand-green hover:underline">
+            How this works {howOpen ? '▾' : '▸'}
+          </button>
+        </div>
         <div className="mt-1"><LastSynced kind="completed" /></div>
-        <p className="mt-1 text-sm text-neutral-400">
-          Project GP per hour for each finished job: its profit to date (the P&amp;L&apos;s actual
-          profit) ÷ actual hours — for a charge-up job, the Sold tab&apos;s labour hours. Quoted h
-          is a quoted job&apos;s quoted hours, or a charge-up job&apos;s sold + unsold hours; difference h
-          is quoted − actual. Click a job to see the working and who worked on it. Add a month&apos;s jobs in Update data → Completed jobs.
-        </p>
+        {howOpen && (
+          <div className="mt-3 flex max-w-3xl flex-col gap-2 rounded-[14px] border border-white/[0.06] bg-white/[0.02] p-4 text-sm text-neutral-400">
+            <p>
+              Project GP per hour for each finished job: its profit to date (the P&amp;L&apos;s actual
+              profit) ÷ actual hours — for a charge-up job, the Sold tab&apos;s labour hours.
+            </p>
+            <p>
+              Quoted h is a quoted job&apos;s quoted hours, or a charge-up job&apos;s sold + unsold hours.
+              The difference column is quoted − actual: hours under quote for a quoted job, unsold hours for a charge-up job.
+            </p>
+            <p>
+              GP/hr in <span className="text-brand-green">green</span> is at or above the overall rate of the jobs shown; the bar is against the best job shown.
+              <span className="ml-1 inline-block h-3 w-3 translate-y-0.5 rounded-sm" style={{ background: OVER_TINT, boxShadow: `inset 4px 0 0 ${OVER}` }} aria-hidden="true" />{' '}
+              Red rows are quoted jobs that came in over quote — the blinking figures are what went over.
+            </p>
+            <p>Click a job to see the working and who worked on it. Add a month&apos;s jobs in Update data → Completed jobs.</p>
+          </div>
+        )}
       </div>
 
+      <SummaryStrip jobs={byTypeShown} typeFilter={typeFilter} toReview={toReview}
+        onReview={() => setReviewOpen(true)}
+        month={month} months={months} onMonth={setMonthPick}
+        previousMonth={previousMonth}
+        previousJobs={previousMonth ? completedJobs.filter((j) => j.month === previousMonth && (typeFilter === 'all' || j.type === typeFilter)) : null} />
+
       {toReview.length > 0 && (
-        <div className="rounded-[14px] border p-4" style={{ borderColor: `color-mix(in srgb, ${OVER} 45%, transparent)`, background: `color-mix(in srgb, ${OVER} 7%, transparent)` }}>
-          <p className="text-[14px] font-medium" style={{ color: OVER }}>
-            {toReview.length} quoted job{toReview.length === 1 ? '' : 's'} came in over quote — please review
-          </p>
-          <ul className="mt-2 flex flex-col gap-1 text-[13px]">
-            {toReview.map(({ job, over }) => (
-              <li key={job.jobNumber}>
-                <button type="button" onClick={() => reviewJob(job.jobNumber)} className="text-left hover:underline">
-                  <span className="font-medium text-white">{job.jobNumber}</span>{' '}
-                  <span className="text-neutral-300">{job.jobName}</span>
-                  <span className="text-neutral-400"> — {over.map(fmtOver).join(' · ')}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
+        <div className="rounded-[14px] border" style={{ borderColor: `color-mix(in srgb, ${OVER} 45%, transparent)`, background: `color-mix(in srgb, ${OVER} 7%, transparent)` }}>
+          <button type="button" onClick={() => setReviewOpen((v) => !v)} aria-expanded={reviewOpen}
+            className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-[13px] font-medium" style={{ color: OVER }}>
+            <span className="blink-over inline-block h-2 w-2 rounded-full" style={{ background: OVER }} aria-hidden="true" />
+            {toReview.length} quoted job{toReview.length === 1 ? '' : 's'} over quote — review
+            <span className="ml-1 text-neutral-400" aria-hidden="true">{reviewOpen ? '▾' : '▸'}</span>
+          </button>
+          {reviewOpen && (
+            <ul className="flex flex-col gap-1 px-4 pb-3 text-[13px]">
+              {toReview.map(({ job, over }) => (
+                <li key={job.jobNumber}>
+                  <button type="button" onClick={() => reviewJob(job.jobNumber)} className="text-left hover:underline">
+                    <span className="font-medium text-white">{job.jobNumber}</span>{' '}
+                    <span className="text-neutral-300">{job.jobName}</span>
+                    <span className="text-neutral-400"> — {over.map(fmtOver).join(' · ')}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 
-      <div className="flex flex-col gap-3">
-        <p className="flex items-center gap-2 text-[12px] text-neutral-500">
-          <span className="inline-block h-3 w-3 rounded-sm" style={{ background: OVER_TINT, boxShadow: `inset 4px 0 0 ${OVER}` }} aria-hidden="true" />
-          Red rows are quoted jobs that came in over quote — the blinking figures are what went over.
-        </p>
-        {saveError && <p className="text-sm text-red-400">{saveError}</p>}
-        <div className="flex flex-col gap-3 sm:flex-row">
-          {(typeFilter === 'all' ? ['chargeup', 'quoted'] : [typeFilter]).map((t) => (
-            <TypeSummary key={t} type={t} jobs={byType[t] ?? []} active={typeFilter === t}
-              onSelect={() => setTypeFilter(typeFilter === t ? 'all' : t)} />
-          ))}
-        </div>
-      </div>
-
+      {saveError && <p className="text-sm text-red-400">{saveError}</p>}
 
       <CollapsibleSection
         className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6"
         storageKey="completed-jobs.table"
-        title={`${rows.length} ${typeFilter === 'all' ? 'completed' : TYPE_LABEL[typeFilter].toLowerCase()} job${rows.length === 1 ? '' : 's'}${workFilter ? ` · ${workFilter}` : ''}`}
+        title={`${rows.length} ${typeFilter === 'all' ? 'completed' : TYPE_LABEL[typeFilter].toLowerCase()} job${rows.length === 1 ? '' : 's'}${month !== 'all' ? ` · ${monthName(month)}` : ''}${workFilter ? ` · ${workFilter}` : ''}`}
       >
-        {/* Filters right above the table: job type, then type of work. Counts in
-            each button are for what the other filter currently leaves. */}
-        <div className="mt-3 flex flex-col gap-2">
-          <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Job type">
-            <span className="mr-1 w-24 text-[12px] text-neutral-500">Job type</span>
-            {TYPE_FILTERS.map((f) => {
-              const pool = workFilter ? completedJobs.filter((j) => (categories?.[j.jobNumber] || NOT_SET) === workFilter) : completedJobs
-              const n = f.key === 'all' ? pool.length : pool.filter((j) => j.type === f.key).length
-              const on = typeFilter === f.key
-              return (
-                <button key={f.key} type="button" onClick={() => setTypeFilter(f.key)} aria-pressed={on}
-                  className={`rounded-full border px-3 py-1 text-[13px] font-medium transition-colors ${
-                    on ? 'border-brand-green/50 bg-brand-green/10 text-brand-green' : 'border-white/10 text-neutral-400 hover:border-white/20 hover:text-white'
-                  }`}>
-                  {f.label} ({n})
-                </button>
-              )
-            })}
+        {/* Selection bar: pinned to the top while jobs are ticked, with Compare
+            right here rather than a long scroll below the table. */}
+        {selected.size > 0 && (
+          <div className="sticky top-0 z-30 -mx-6 mt-3 flex flex-wrap items-center gap-2 border-b border-brand-green/30 bg-inherit px-6 py-2.5">
+            <span className="text-[13px] font-semibold text-brand-green">{selected.size} selected</span>
+            <button type="button" onClick={() => setCompareOpen((v) => !v)} aria-expanded={compareOpen}
+              className={`rounded-full border px-3 py-1 text-[12px] font-medium transition-colors ${
+                compareOpen ? 'border-brand-green/50 bg-brand-green/15 text-brand-green' : 'border-brand-green/50 bg-brand-green/10 text-brand-green hover:bg-brand-green/15'
+              }`}>
+              Compare &amp; AI summary {compareOpen ? '▾' : '▸'}
+            </button>
+            <button type="button" onClick={() => setSelectedOnly((v) => !v)} aria-pressed={selectedOnly}
+              className={`rounded-full border px-3 py-1 text-[12px] font-medium transition-colors ${
+                selectedOnly ? 'border-brand-green/50 bg-brand-green/10 text-brand-green' : 'border-white/10 text-neutral-300 hover:border-white/20 hover:text-white'
+              }`}>
+              Show selected only
+            </button>
+            <button type="button" onClick={() => { setSelected(new Set()); setSelectedOnly(false); setCompareOpen(false) }}
+              className="rounded-full border border-white/10 px-3 py-1 text-[12px] font-medium text-neutral-300 hover:border-white/20 hover:text-white">
+              Clear
+            </button>
+            <span className="hidden text-[12px] text-neutral-500 sm:inline">The Total row at the foot of the table adds them up.</span>
           </div>
-          <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Type of work">
-            <span className="mr-1 w-24 text-[12px] text-neutral-500">Type of work</span>
-            {[null, ...JOB_CATEGORIES, NOT_SET].map((c) => {
-              const pool = typeFilter === 'all' ? completedJobs : completedJobs.filter((j) => j.type === typeFilter)
-              const n = c === null ? pool.length : pool.filter((j) => (categories?.[j.jobNumber] || NOT_SET) === c).length
-              if (c !== null && !completedJobs.some((j) => (categories?.[j.jobNumber] || NOT_SET) === c)) return null
-              const on = workFilter === c
-              return (
-                <button key={c ?? 'all'} type="button" onClick={() => setWorkFilter(c)} aria-pressed={on} disabled={!n && !on}
-                  className={`rounded-full border px-3 py-1 text-[13px] font-medium transition-colors disabled:opacity-35 ${
-                    on ? 'border-brand-green/50 bg-brand-green/10 text-brand-green' : 'border-white/10 text-neutral-400 hover:border-white/20 hover:text-white'
-                  }`}>
-                  {c ?? 'All'} ({n})
-                </button>
-              )
-            })}
-          </div>
+        )}
+        {selected.size > 0 && compareOpen && <CompletedCompare jobs={selectedJobs} />}
+
+        {/* Filters right above the table: search, job type, type of work. Counts in
+            each option are for what the other filter currently leaves. On a phone
+            this bar stays pinned while the cards scroll. */}
+        <div className="sticky top-0 z-20 -mx-6 mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 bg-inherit px-6 py-2 sm:static sm:mx-0 sm:gap-x-5 sm:gap-y-2 sm:bg-transparent sm:px-0 sm:py-0">
+          <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search job # or name"
+            aria-label="Search completed jobs" className={`${SELECT} basis-full sm:basis-auto sm:w-56`} />
+          <label className="flex min-w-0 basis-[47%] items-center gap-1.5 text-[12px] text-neutral-500 sm:basis-auto sm:gap-2">
+            <span className="sm:hidden">Type</span><span className="hidden sm:inline">Job type</span>
+            <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className={`${SELECT} min-w-0 flex-1 sm:flex-none`}>
+              {TYPE_FILTERS.map((f) => {
+                const pool = workFilter ? inMonth.filter((j) => (categories?.[j.jobNumber] || NOT_SET) === workFilter) : inMonth
+                const n = f.key === 'all' ? pool.length : pool.filter((j) => j.type === f.key).length
+                return <option key={f.key} value={f.key}>{f.label} ({n})</option>
+              })}
+            </select>
+          </label>
+          <label className="flex min-w-0 basis-[47%] items-center gap-1.5 text-[12px] text-neutral-500 sm:basis-auto sm:gap-2">
+            <span className="sm:hidden">Work</span><span className="hidden sm:inline">Type of work</span>
+            <select value={workFilter ?? ''} onChange={(e) => setWorkFilter(e.target.value || null)} className={`${SELECT} min-w-0 flex-1 sm:flex-none`}>
+              {[null, ...JOB_CATEGORIES, NOT_SET].map((c) => {
+                const pool = typeFilter === 'all' ? inMonth : inMonth.filter((j) => j.type === typeFilter)
+                const n = c === null ? pool.length : pool.filter((j) => (categories?.[j.jobNumber] || NOT_SET) === c).length
+                if (c !== null && c !== workFilter && !inMonth.some((j) => (categories?.[j.jobNumber] || NOT_SET) === c)) return null
+                return <option key={c ?? 'all'} value={c ?? ''}>{c ?? 'All'} ({n})</option>
+              })}
+            </select>
+          </label>
+          {/* Phone: no column headers to click, so a sort picker instead. */}
+          <label className="flex min-w-0 basis-[47%] items-center gap-1.5 text-[12px] text-neutral-500 sm:hidden">
+            Sort
+            <select value={sort.key} onChange={(e) => setSort({ key: e.target.value, dir: TEXT_SORTS.has(e.target.value) ? 1 : -1 })} className={`${SELECT} min-w-0 flex-1`}>
+              {COLUMNS.map((c) => <option key={c.key} value={c.key}>{colLabel(c, typeFilter)}</option>)}
+            </select>
+            <button type="button" onClick={() => setSort((prev) => ({ ...prev, dir: -prev.dir }))}
+              className="rounded-lg border border-white/10 px-2 py-1 text-[13px] text-neutral-300"
+              aria-label={sort.dir === 1 ? 'Ascending — switch to descending' : 'Descending — switch to ascending'}>
+              {sort.dir === 1 ? '▲' : '▼'}
+            </button>
+          </label>
+          {untyped > 0 && workFilter !== NOT_SET && (
+            <button type="button" onClick={() => setWorkFilter(NOT_SET)}
+              className="min-w-0 flex-1 truncate rounded-full border border-amber-400/40 bg-amber-400/10 px-3 py-1 text-left text-[12px] font-medium text-amber-300 hover:bg-amber-400/15 sm:flex-none">
+              {untyped} job{untyped === 1 ? '' : 's'} need{untyped === 1 ? 's' : ''} a type of work — show them
+            </button>
+          )}
+          {workFilter === NOT_SET && untyped > 0 && (
+            <span className="text-[12px] text-amber-300">Pick a type of work for each job in the Type of work column (Full columns).</span>
+          )}
         </div>
 
-        {/* Mobile: no column headers to click, so a sort picker instead. */}
-        <div className="mt-4 flex items-center gap-2 sm:hidden">
-          <label htmlFor="completed-sort" className="text-[12px] text-neutral-500">Sort by</label>
-          <select
-            id="completed-sort"
-            value={sort.key}
-            onChange={(e) => setSort({ key: e.target.value, dir: TEXT_SORTS.has(e.target.value) ? 1 : -1 })}
-            className="rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1 text-[13px] text-white"
-          >
-            {COLUMNS.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
-          </select>
-          <button
-            type="button"
-            onClick={() => setSort((prev) => ({ ...prev, dir: -prev.dir }))}
-            className="rounded-lg border border-white/10 px-2 py-1 text-[13px] text-neutral-300"
-            aria-label={sort.dir === 1 ? 'Ascending — switch to descending' : 'Descending — switch to ascending'}
-          >
-            {sort.dir === 1 ? '▲' : '▼'}
-          </button>
-        </div>
-        {/* Mobile: one stacked card per job. */}
-        <div className="mt-4 flex flex-col gap-3 sm:hidden">
-          {rows.map((j) => (
-            <div
-              key={j.jobNumber}
-              role="button"
-              tabIndex={0}
-              aria-expanded={open.has(j.jobNumber)}
-              onClick={() => toggleOpen(j.jobNumber)}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleOpen(j.jobNumber) } }}
-              className="flex cursor-pointer flex-col gap-3 rounded-[14px] border border-white/[0.06] bg-white/[0.02] p-4"
-              style={overruns(j).length ? { background: OVER_TINT, boxShadow: `inset 4px 0 0 ${OVER}` } : undefined}
-            >
-              <div>
-                <p className="text-[14px] font-medium text-white">
-                  <span className="text-neutral-400">{j.jobNumber}</span> {j.jobName}
-                </p>
-                <p className="mt-0.5 text-[12px] text-neutral-500" title={checkNote(j)}>{TYPE_LABEL[j.type] ?? j.type}</p>
-                {overruns(j).length > 0 && (
-                  <p className="mt-1 text-[12px] font-medium" style={{ color: OVER }}>Over quote — review: {overruns(j).map(fmtOver).join(' · ')}</p>
+        {/* Phone: one compact card per job — number, name, GP/hr and the hours
+            line; tap for the rest (type of work, owner, the other figures, who
+            worked on it). */}
+        <div className="mt-3 flex flex-col gap-2 sm:hidden">
+          {rows.map((j) => {
+            const isOpen = open.has(j.jobNumber)
+            const over = overruns(j)
+            const d = hoursDiff(j)
+            return (
+              <div key={j.jobNumber}
+                className="rounded-[12px] border border-white/[0.06] bg-white/[0.02]"
+                style={over.length ? { background: OVER_TINT, boxShadow: `inset 4px 0 0 ${OVER}` } : undefined}>
+                <div role="button" tabIndex={0} aria-expanded={isOpen}
+                  onClick={() => toggleOpen(j.jobNumber)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleOpen(j.jobNumber) } }}
+                  className="flex cursor-pointer items-start gap-3 p-3">
+                  <input type="checkbox" className="mt-1 h-4 w-4 shrink-0" aria-label={`Select job ${j.jobNumber}`}
+                    checked={selected.has(j.jobNumber)}
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => e.stopPropagation()}
+                    onChange={() => toggleSelected(j.jobNumber)} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11px] text-neutral-500" title={checkNote(j)}>
+                      {j.jobNumber} · {TYPE_LABEL[j.type] ?? j.type}
+                      {over.length > 0 && <span className="ml-1.5 font-medium" style={{ color: OVER }}>· over quote</span>}
+                    </p>
+                    <p className="line-clamp-2 text-[13px] font-medium leading-snug text-white">{j.jobName}</p>
+                    <p className="mt-1 text-[12px] tabular-nums text-neutral-400">
+                      {j.hours} h{j.quotedHours != null && <> of {j.quotedHours} h</>}
+                      {d !== null && <> · <DiffHours job={j} /> {j.type === 'chargeup' ? 'unsold' : d >= 0 ? 'under' : 'over'}</>}
+                      {j.pl?.profitToDate != null && <> · {money(j.pl.profitToDate)} · {pct(j.pl.marginToDate)}</>}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <GpCell value={projectGpPerHour(j)} max={gpMax} benchmark={gpBenchmark} />
+                    <span className="mt-1 block text-[10px] uppercase tracking-wide text-neutral-500">GP/hr</span>
+                  </div>
+                </div>
+                {isOpen && (
+                  <div className="flex flex-col gap-3 border-t border-white/10 p-3">
+                    {over.length > 0 && (
+                      <p className="text-[12px] font-medium" style={{ color: OVER }}>Over quote — review: {over.map(fmtOver).join(' · ')}</p>
+                    )}
+                    <div className="grid grid-cols-2 gap-2">
+                      {cells(j).category}
+                      {cells(j).owner}
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[13px]">
+                      <span className="text-neutral-400">Quoted profit · margin</span>
+                      <span className="text-right tabular-nums text-neutral-200">{j.pl?.quotedProfit == null ? '—' : `${money(j.pl.quotedProfit)} · ${pct(j.pl.quotedMargin)}`}</span>
+                      <span className="text-neutral-400">Profit · margin to date</span>
+                      <span className="text-right tabular-nums text-neutral-200">{j.pl?.profitToDate == null ? '—' : `${money(j.pl.profitToDate)} · ${pct(j.pl.marginToDate)}`}</span>
+                      <span className="text-neutral-400">Labour cost (quoted · actual)</span>
+                      <span className="text-right tabular-nums text-neutral-200">{j.labour?.quotedCost == null ? '—' : money(j.labour.quotedCost)} · {j.labour?.actualCost == null ? '—' : money(j.labour.actualCost)}</span>
+                      <span className="text-neutral-400">Total cost (quoted · actual)</span>
+                      <span className="text-right tabular-nums text-neutral-200">{j.pl?.quotedCost == null ? '—' : money(j.pl.quotedCost)} · {j.pl?.actualCost == null ? '—' : money(j.pl.actualCost)}</span>
+                      <span className="text-neutral-400">{DIFF_LABEL[j.type]}</span>
+                      <span className="text-right tabular-nums"><DiffHours job={j} /></span>
+                    </div>
+                    <Breakdown job={j} />
+                  </div>
                 )}
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                {cells(j).category}
-                {cells(j).owner}
-              </div>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[13px]">
-                <span className="text-neutral-400">Quoted profit · margin</span>
-                <span className="text-right tabular-nums text-neutral-200">{j.pl?.quotedProfit == null ? '—' : `${money(j.pl.quotedProfit)} · ${pct(j.pl.quotedMargin)}`}</span>
-                <span className="text-neutral-400">Profit · margin to date</span>
-                <span className="text-right tabular-nums text-neutral-200">{j.pl?.profitToDate == null ? '—' : `${money(j.pl.profitToDate)} · ${pct(j.pl.marginToDate)}`}</span>
-                <span className="text-neutral-400">Labour cost (quoted · actual)</span>
-                <span className="text-right tabular-nums text-neutral-200">{j.labour?.quotedCost == null ? '—' : money(j.labour.quotedCost)} · {j.labour?.actualCost == null ? '—' : money(j.labour.actualCost)}</span>
-                <span className="text-neutral-400">Total cost (quoted · actual)</span>
-                <span className="text-right tabular-nums text-neutral-200">{j.pl?.quotedCost == null ? '—' : money(j.pl.quotedCost)} · {j.pl?.actualCost == null ? '—' : money(j.pl.actualCost)}</span>
-                <span className="text-neutral-400">Actual h</span>
-                <span className="text-right tabular-nums text-neutral-200">{j.hours}</span>
-                <span className="text-neutral-400">Quoted h</span>
-                <span className="text-right tabular-nums text-neutral-200">{j.quotedHours ?? '—'}</span>
-                <span className="text-neutral-400">Difference h</span>
-                <span className="text-right tabular-nums"><DiffHours job={j} /></span>
-                <span className="text-neutral-400">GP $/hr</span>
-                <span className="text-right tabular-nums font-medium text-white">{cents(projectGpPerHour(j))}</span>
-              </div>
-              <p className="text-[12px] text-neutral-500">
-                <WorkedBy job={j} /> · {open.has(j.jobNumber) ? 'Hide' : 'Show'} who worked on it
-              </p>
-              {open.has(j.jobNumber) && <div className="border-t border-white/10 pt-3"><Breakdown job={j} /></div>}
-            </div>
-          ))}
-          {rows.length === 0 && <p className="empty-row">No completed jobs added yet.</p>}
+            )
+          })}
+          {rows.length === 0 && <p className="empty-row">{q || workFilter ? 'No jobs match.' : 'No completed jobs added yet.'}</p>}
         </div>
 
         <div className="relative mt-3 hidden items-center gap-2 sm:flex">
+          <span className="text-[12px] text-neutral-500">Columns</span>
+          <div className="flex overflow-hidden rounded-full border border-white/10 text-[12px] font-medium" role="group" aria-label="Column preset">
+            {[['simple', 'Simple'], ['full', 'Full']].map(([k, label]) => (
+              <button key={k} type="button" onClick={() => setPreset(k)} aria-pressed={preset === k}
+                className={`px-3 py-1 transition-colors ${preset === k ? 'bg-brand-green/15 text-brand-green' : 'text-neutral-400 hover:text-white'}`}>
+                {label}
+              </button>
+            ))}
+          </div>
           <button
             type="button"
             onClick={() => setPickerOpen((v) => !v)}
             aria-expanded={pickerOpen}
             className="rounded-full border border-white/10 px-3 py-1 text-[12px] font-medium text-neutral-300 hover:border-white/20 hover:text-white"
           >
-            Columns{hiddenGroups.length ? ` · ${hiddenGroups.length} hidden` : ''} ▾
+            Choose{preset === 'full' && hiddenGroups.length ? ` · ${hiddenGroups.length} hidden` : ''} ▾
           </button>
           {pickerOpen && (
             <div className="absolute left-0 top-full z-20 mt-1 flex w-72 flex-col gap-1 rounded-xl border border-white/10 bg-[#11161c] p-3 shadow-xl">
@@ -585,30 +737,10 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
                   {g.label}
                 </label>
               ))}
-              <p className="mt-1 text-[11px] text-neutral-500">Job #, job name and type always show.</p>
+              <p className="mt-1 text-[11px] text-neutral-500">Job #, job name and type always show. Ticking here switches to Full.</p>
             </div>
           )}
-          {selected.size > 0 ? (
-            <>
-              <span className="text-[12px] font-medium text-brand-green">{selected.size} selected</span>
-              <button type="button" onClick={() => setSelectedOnly((v) => !v)} aria-pressed={selectedOnly}
-                className={`rounded-full border px-3 py-1 text-[12px] font-medium transition-colors ${
-                  selectedOnly ? 'border-brand-green/50 bg-brand-green/10 text-brand-green' : 'border-white/10 text-neutral-300 hover:border-white/20 hover:text-white'
-                }`}>
-                Show selected only
-              </button>
-              <button type="button" onClick={() => document.getElementById('completed-compare')?.scrollIntoView({ block: 'start', behavior: 'smooth' })}
-                className="rounded-full border border-brand-green/50 bg-brand-green/10 px-3 py-1 text-[12px] font-medium text-brand-green hover:bg-brand-green/15">
-                Compare &amp; AI summary ↓
-              </button>
-              <button type="button" onClick={() => { setSelected(new Set()); setSelectedOnly(false) }}
-                className="rounded-full border border-white/10 px-3 py-1 text-[12px] font-medium text-neutral-300 hover:border-white/20 hover:text-white">
-                Clear
-              </button>
-            </>
-          ) : (
-            <span className="text-[12px] text-neutral-500">Tick jobs to add them up. Scroll inside the table — the header and job columns stay put.</span>
-          )}
+          <span className="text-[12px] text-neutral-500">Tick jobs to add them up and compare. Scroll inside the table — the header and job columns stay put.</span>
         </div>
 
         <div className="table-scroll table-freeze mt-2 hidden sm:block">
@@ -619,7 +751,7 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
                   if (h.group) return <th key={h.group.key} colSpan={h.span} className="th-group">{h.group.label}</th>
                   const col = h.col
                   return (
-                    <HeadCell key={col.key} col={col} rowSpan={subCols.length ? 2 : 1} sort={sort} onSort={toggleSort}>
+                    <HeadCell key={col.key} col={col} rowSpan={subCols.length ? 2 : 1} sort={sort} onSort={toggleSort} typeFilter={typeFilter}>
                       {col.key === 'jobNumber' && (
                         <input type="checkbox" className="mr-2 align-[-2px]" aria-label="Select every job shown"
                           checked={allShownTicked}
@@ -636,7 +768,7 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
               </tr>
               {subCols.length > 0 && (
                 <tr>
-                  {subCols.map((col) => <HeadCell key={col.key} col={col} sub sort={sort} onSort={toggleSort} />)}
+                  {subCols.map((col) => <HeadCell key={col.key} col={col} sub sort={sort} onSort={toggleSort} typeFilter={typeFilter} />)}
                 </tr>
               )}
             </thead>
@@ -677,6 +809,7 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
                             break
                           case 'jobName': content = <span className="block truncate" title={j.jobName}>{j.jobName}</span>; break
                           case 'hoursDiff': content = <DiffHours job={j} />; break
+                          case 'gpPerHour': content = <GpCell value={projectGpPerHour(j)} max={gpMax} benchmark={gpBenchmark} />; break
                           case 'type':
                             // Kept tight: the red row already marks a job to review; the
                             // no-name / no-sold-hours notes live in the tooltip.
@@ -716,7 +849,7 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
               {rows.length === 0 && (
                 <tr>
                   <td colSpan={visibleCols.length} className="empty-row">
-                    No completed jobs added yet.
+                    {q || workFilter ? 'No jobs match.' : 'No completed jobs added yet.'}
                   </td>
                 </tr>
               )}
@@ -739,7 +872,6 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
             )}
           </table>
         </div>
-        {selectedJobs.length > 0 && <CompletedCompare jobs={selectedJobs} />}
       </CollapsibleSection>
     </div>
   )

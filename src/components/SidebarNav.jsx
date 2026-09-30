@@ -90,6 +90,12 @@ export function Sidebar({ view, onGoHome, ...handlers }) {
     setCollapsed((prev) => applySidebarCollapsed(!prev))
   }
 
+  // On a phone the nav is a sideways strip, and the page you're on can be off the
+// end of it — so the active link is scrolled into view whenever the view changes.
+  useEffect(() => {
+    if (!window.matchMedia?.('(max-width: 860px)').matches) return
+    document.querySelector('.side-nav__link.is-active')?.scrollIntoView({ inline: 'center', block: 'nearest' })
+  }, [view])
   return (
     <aside className="side-nav" aria-label="Primary">
       <button className="side-nav__brand" onClick={onGoHome} title="Operations overview">
