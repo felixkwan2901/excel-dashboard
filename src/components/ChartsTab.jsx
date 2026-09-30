@@ -47,7 +47,7 @@ function monthLong(key) {
 // Eight charts in one column with no grouping is a wall.
 const PERSON_SORTS = [
   { key: 'gpPerHour', label: 'GP $/hr', series: 'GP/hr', format: (v) => `${money(v)}/hr`, axis: compactMoney },
-  { key: 'profit', label: 'Labour profit', series: 'Labour profit', format: money, axis: compactMoney },
+  { key: 'profit', label: 'Profit share', series: 'Profit share', format: money, axis: compactMoney },
   { key: 'hours', label: 'Hours', series: 'Hours', format: (v) => `${roundHours(v)} h`, axis: compactHours },
   { key: 'count', label: 'Jobs', series: 'Jobs', format: (v) => `${v} jobs`, axis: (v) => String(v) },
   { key: 'name', label: 'Name' },
@@ -64,8 +64,8 @@ function SectionHeading({ children }) {
 export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, completedJobs = [], onSelectJob, onBack }) {
   const capacity = upcomingWork?.capacity
 
-  // Completed quoted jobs, per person: their part of each job's labour profit (split
-  // by hours) summed, over their hours summed — same maths as the
+  // Completed quoted jobs, per person: their part of each job (its project GP/hr ×
+  // their hours) summed, over their hours summed — same maths as the
   // Completed jobs tab's "By person" table.
   // The bars show whatever the chart is sorted by; sorting by name keeps GP/hr.
   const [personSort, setPersonSort] = useState({ key: 'gpPerHour', dir: -1 })
@@ -77,7 +77,7 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, co
       : a[personSort.key] - b[personSort.key]) * personSort.dir)
     .map((p) => ({
       label: p.name,
-      fullLabel: `${p.name} — ${p.count} job${p.count === 1 ? '' : 's'}, ${p.hours} h, ${money(p.profit)} labour profit, ${money(p.gpPerHour)}/hr`,
+      fullLabel: `${p.name} — ${p.count} job${p.count === 1 ? '' : 's'}, ${p.hours} h, ${money(p.profit)} profit share, ${money(p.gpPerHour)}/hr`,
       values: [Math.round(p[personMetric.key] * 100) / 100],
       colors: [p[personMetric.key] < 0 ? CRITICAL : SERIES_1],
       p,
@@ -463,7 +463,7 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, co
       <ChartCard
         title="GP per hour, by person"
         question="Who is earning the most per hour on finished jobs?"
-        footnote={`Quoted jobs only — ${completedJobs.filter((j) => j.type === 'quoted').length} of the ${completedJobs.length} completed jobs; charge-up jobs aren't split per person. Each person's labour profit is their part of every job they worked on — each job's labour profit split by hours — summed, then divided by their total hours, so someone who did a few hours on a good job ranks by those few hours. Sort by GP/hr, labour profit, hours or jobs (click again to flip the order) — the bars show what it is sorted by. A red bar is below zero. The full breakdown is in the Completed jobs tab.`}
+        footnote={`Quoted jobs only — ${completedJobs.filter((j) => j.type === 'quoted').length} of the ${completedJobs.length} completed jobs; charge-up jobs aren't split per person. Each person's profit share is their part of every job they worked on — each job's profit to date split by hours — summed, then divided by their total hours, so someone who did a few hours on a good job ranks by those few hours. Sort by GP/hr, profit share, hours or jobs (click again to flip the order) — the bars show what it is sorted by. A red bar is below zero. The full breakdown is in the Completed jobs tab.`}
         table={
           <table>
             <caption>GP per hour by person, completed jobs</caption>

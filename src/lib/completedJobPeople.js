@@ -1,9 +1,18 @@
 // Per-person maths for completed jobs, shared by the Completed jobs tab and the
 // Dashboard chart so both show the same figures.
 
+// Project GP/hr — what the Completed jobs page and Completed insights show for a
+// job: the whole job's profit to date (the P&L's actual profit) ÷ actual hours. A
+// charge-up job's profit to date is its total profit, so it equals its own GP/hr.
+// A person's part of a job is this rate × their hours. The labour-only rate
+// (job.gpPerHour on a quoted job) is not shown or used for people.
+export const projectProfit = (job) => (job.type === 'chargeup' ? job.profit : job.pl?.profitToDate ?? job.profit) ?? null
+export const projectGpPerHour = (job) => (job.hours > 0 && projectProfit(job) != null ? projectProfit(job) / job.hours : null)
+
 // Who did the job and who contributed: each person's hours, their share of the
-// job's hours, and the job's GP/hr × their hours — so the people on a job add back
-// up to the job's labour profit.
+// job's hours, and their PART of the job = the job's project GP/hr × their hours —
+// so the people on a job add back up to the job's profit to date. (The labour-only
+// rate is not used for people any more, and is shown nowhere.)
 //
 // Katipolt lists a person's after-hours or overtime rate as its own line ("Sean
 // Baines After Hours", "Sean Baines Overtime") and corrections as negative lines, so lines are merged per person and
@@ -25,17 +34,18 @@ export function contributors(job) {
   const all = [...people.values()].map((p) => ({ ...p, hours: Math.round(p.hours * 100) / 100 }))
   const worked = all.filter((p) => p.hours > 0).sort((a, b) => b.hours - a.hours)
   const total = worked.reduce((sum, p) => sum + p.hours, 0)
+  const rate = projectGpPerHour(job)
   return {
-    // gpTimesHours = the job's GP/hr × their hours (adds up to its labour profit).
-    // (unrounded rate, so the parts add back to the job's labour profit exactly)
-    worked: worked.map((p) => ({ ...p, share: p.hours / total, gpTimesHours: (job.profit / job.hours) * p.hours })),
+    // part = the job's project GP/hr × their hours (unrounded rate, so the parts
+    // add back to the job's profit to date exactly).
+    worked: worked.map((p) => ({ ...p, share: p.hours / total, part: rate == null ? 0 : rate * p.hours })),
     adjustments: all.filter((p) => p.hours <= 0),
   }
 }
 
 // Each person's totals across the jobs shown: their hours and their part of each
-// job's labour profit (that job's GP/hr × their hours), summed. Their GP/hr is
-// total part ÷ total hours — so a person is weighted by the time they put in.
+// job (its project GP/hr × their hours), summed. Their GP/hr is total part ÷ total
+// hours — so a person is weighted by the time they put in.
 // Quoted jobs only — a charge-up job's profit isn't split per person.
 export function personTotals(jobs) {
   const people = new Map()
@@ -43,8 +53,8 @@ export function personTotals(jobs) {
     for (const p of contributors(job).worked) {
       const t = people.get(p.name) ?? { name: p.name, hours: 0, profit: 0, jobs: [] }
       t.hours += p.hours
-      t.profit += p.gpTimesHours
-      t.jobs.push({ job, hours: p.hours, part: p.gpTimesHours })
+      t.profit += p.part
+      t.jobs.push({ job, hours: p.hours, part: p.part })
       people.set(p.name, t)
     }
   }
@@ -80,11 +90,3 @@ export function personMonthly(jobs) {
 export function monthName(ym, style = 'long') {
   return ym ? new Date(`${ym}-01T00:00:00Z`).toLocaleDateString('en-NZ', { month: style, year: 'numeric', timeZone: 'UTC' }) : ''
 }
-
-// Project GP/hr — what the Completed jobs page and Completed insights show for a
-// job: the whole job's profit to date (the P&L's actual profit) ÷ actual hours. A
-// charge-up job's profit to date is its total profit, so it equals its own GP/hr.
-// The labour-only GP/hr (job.gpPerHour) is not shown anywhere; personTotals and
-// contributors() use it behind the scenes to split a job between its people.
-export const projectProfit = (job) => (job.type === 'chargeup' ? job.profit : job.pl?.profitToDate ?? job.profit) ?? null
-export const projectGpPerHour = (job) => (job.hours > 0 && projectProfit(job) != null ? projectProfit(job) / job.hours : null)

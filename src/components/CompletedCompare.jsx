@@ -95,7 +95,7 @@ function summaryPayload(jobs, peopleRows) {
     quotedMarginPercent: j.pl?.quotedMargin == null ? null : Math.round(j.pl.quotedMargin * 10000) / 100,
     profitToDate: j.pl?.profitToDate ?? null,
     marginToDatePercent: j.pl?.marginToDate == null ? null : Math.round(j.pl.marginToDate * 10000) / 100,
-    people: contributors(j).worked.map((p) => ({ name: p.name, hours: p.hours, part: j.type === 'quoted' ? Math.round(p.gpTimesHours * 100) / 100 : null })),
+    people: contributors(j).worked.map((p) => ({ name: p.name, hours: p.hours, part: j.type === 'quoted' ? Math.round(p.part * 100) / 100 : null })),
   }))
   const r2 = (v) => Math.round(v * 100) / 100
   return {
@@ -121,9 +121,9 @@ export default function CompletedCompare({ jobs }) {
   for (const j of jobs) {
     for (const p of contributors(j).worked) {
       const t = people.get(p.name) ?? { name: p.name, perJob: {}, hours: 0, part: 0, partHours: 0 }
-      t.perJob[j.jobNumber] = { hours: p.hours, part: j.type === 'quoted' ? p.gpTimesHours : null }
+      t.perJob[j.jobNumber] = { hours: p.hours, part: j.type === 'quoted' ? p.part : null }
       t.hours += p.hours
-      if (j.type === 'quoted') { t.part += p.gpTimesHours; t.partHours += p.hours }
+      if (j.type === 'quoted') { t.part += p.part; t.partHours += p.hours }
       people.set(p.name, t)
     }
   }
@@ -220,7 +220,7 @@ export default function CompletedCompare({ jobs }) {
               ))}
             </tbody>
           </table>
-          <p className="mt-1 text-[11px] text-neutral-500">The small figure is their part of that job&apos;s labour profit, split by hours — quoted jobs only.</p>
+          <p className="mt-1 text-[11px] text-neutral-500">The small figure is their part of that job&apos;s profit to date, split by hours — quoted jobs only.</p>
         </div>
       )}
 

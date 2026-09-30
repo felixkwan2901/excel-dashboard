@@ -19,7 +19,7 @@ Upload path: page → `POST /completed-jobs` (upload worker, proxied by the site
 
 ## The numbers — the owner's rules
 - **Project GP/hr** (what the pages show): a job's **profit to date** ÷ **actual hours**. Quoted: `pl.profitToDate ÷ hours`. Charge-up: `profit ÷ Sold hours`. `projectGpPerHour()` is the single definition.
-- **Labour GP/hr** (`job.gpPerHour` on a quoted job = quoted labour cost − actual labour cost, ÷ actual hours) is **never displayed**. It only splits a job between its people: a person's part = that rate × their hours; a person's GP/hr = Σ parts ÷ Σ hours. **Quoted jobs only** — charge-up jobs aren't split per person.
+- **People:** a person's **part** of a job = the job's **project GP/hr × their hours** (the parts add back to the job's profit to date); their GP/hr = Σ parts ÷ Σ hours. **Quoted jobs only** — charge-up jobs aren't split per person. The owner corrected this on 1 Oct: people used to be split with the *labour-only* rate (`job.gpPerHour` on a quoted job = quoted labour cost − actual labour cost ÷ hours — e.g. $1.17/hr on 9635), which gave absurdly small figures. **The labour GP/hr is not shown or used for people anywhere.**
 - **Figures come from Katipolt's Profit & Loss Summary report** (`pl.*`, charge-up `profit`). Its labour pricing differs from the per-job P&L exports (e.g. job 10035, same 0.75 h: $29.25 cost in the Summary vs $46.49 in the export), and the owner confirmed the Summary matches Katipolt's screens. The per-job P&L/Timesheets files supply only: which job it is, who worked, for how many hours, and labour cost.
 - **Hours:** quoted job actual = timesheet hours, quoted h = Budgeted "Quoted Quantity". Charge-up actual = **Sold** labour hours; quoted h = Sold + Unsold; "Diff h" = quoted − actual (so for charge-up it is the unsold hours).
 - **Over quote (red, blinking, in the bell):** a *quoted* job whose actual hours, labour cost or total cost exceeds quoted.
@@ -28,7 +28,7 @@ Upload path: page → `POST /completed-jobs` (upload worker, proxied by the site
 - By person: one GP/hr column per month + a Total; a person whose latest month is below the month before is flagged. `month` ("YYYY-MM") is picked on the upload form.
 
 ## Do not
-- Change any calculation above, or display labour GP/hr, without asking.
+- Change any calculation above, or display the labour GP/hr anywhere, without asking.
 - Put test data in `completed-jobs.json`, or change owner / type-of-work dropdowns, while testing: the local preview reads and writes the **real** KV and the real workers. (Local console shows CORS errors on `/whoami` — normal.)
 - Push, deploy or run `wrangler deploy` without asking. Deploy the upload worker only as `cd upload-worker && npx wrangler deploy --config ./wrangler.toml` — a plain `wrangler deploy` once deployed the wrong worker. Secrets (`GEMINI_API_KEY`, `CLOUDFLARE_API_TOKEN` …) are set by the owner with `gh secret set` / `wrangler secret put`; never ask for them in chat. There is no Anthropic API key.
 - Reorder/rename record fields or the `completedJobs.*` / `completed-jobs.*` localStorage keys casually — saved preferences depend on them.

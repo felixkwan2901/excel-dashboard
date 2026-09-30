@@ -136,7 +136,7 @@ function WorkTypeBreakdown({ jobs, categories, onOpenJob }) {
 const TOTAL_COLS = [
   { key: 'count', label: 'Jobs' },
   { key: 'hours', label: 'Hours' },
-  { key: 'profit', label: 'Labour profit' },
+  { key: 'profit', label: 'Profit share' },
   { key: 'gpPerHour', label: 'GP $/hr' },
 ]
 const OVER = 'var(--viz-critical)'
@@ -172,7 +172,7 @@ function PeopleSummary({ jobs, scope, onOpenJob }) {
       className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6"
       storageKey="completed-jobs.people"
       title={`By person — ${all.length} ${all.length === 1 ? 'person' : 'people'}`}
-      description={`Quoted jobs only — charge-up jobs aren't split per person. Each person's GP/hr month by month, and in Total for every month added together: their part of each job's labour profit (split by their hours) ÷ their hours, across ${scope}. Red = worse than the month before. Click a person to see their jobs, and a job to open it.`}
+      description={`Quoted jobs only — charge-up jobs aren't split per person. Each person's GP/hr month by month, and in Total for every month added together: their share of each job's profit to date (split by their hours) ÷ their hours, across ${scope}. Red = worse than the month before. Click a person to see their jobs, and a job to open it.`}
     >
       {flagged.length > 0 && (
         <div className="mt-2 rounded-[12px] border p-3 text-[13px]" style={{ borderColor: `color-mix(in srgb, ${OVER} 45%, transparent)`, background: `color-mix(in srgb, ${OVER} 7%, transparent)` }}>

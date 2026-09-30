@@ -127,7 +127,7 @@ function Breakdown({ job }) {
         {people.length === 1
           ? 'One person did all the hours on this job.'
           : split
-            ? `${people.length} people worked on this job — their part of the job's labour profit is split by their hours.`
+            ? `${people.length} people worked on this job — their part of the job's profit is split by their hours.`
             : `${people.length} people worked on this job.`}
       </p>
       {people.length > 1 && (
@@ -153,7 +153,7 @@ function Breakdown({ job }) {
           </span>
           <span className="text-right tabular-nums text-neutral-300">{Math.round(p.hours * 100) / 100} h</span>
           <span className="text-right tabular-nums text-neutral-400">{Math.round(p.share * 100)}%</span>
-          {split && <span className="text-right tabular-nums font-medium text-white">{cents(p.gpTimesHours)}</span>}
+          {split && <span className="text-right tabular-nums font-medium text-white">{cents(p.part)}</span>}
         </div>
       ))}
       {adjustments.map((p) => (
