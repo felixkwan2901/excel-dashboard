@@ -34,9 +34,9 @@
     "jobNumber": "10016",
     "jobName": "BUPA Parklands - Remu 12 Toilet Light",
     "type": "chargeup",
-    "profit": 158.07500000000002,
+    "profit": 158.08,
     "hours": 0.25,
-    "gpPerHour": 632.3,
+    "gpPerHour": 632.32,
     "quotedHours": 0.75,
     "unsoldHours": 0.5,
     "workers": [
@@ -56,15 +56,16 @@
     },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-10016.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9964",
     "jobName": "CALLOUT - University of Canterbury",
     "type": "chargeup",
-    "profit": 254.06500000000003,
+    "profit": 254.07,
     "hours": 0.5,
-    "gpPerHour": 508.13,
+    "gpPerHour": 508.14,
     "quotedHours": 1.5,
     "unsoldHours": 1,
     "workers": [
@@ -88,15 +89,16 @@
     },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9964.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "10007",
     "jobName": "Bathroom heater replacement",
     "type": "chargeup",
-    "profit": 114.23500000000001,
+    "profit": 137.22,
     "hours": 0.25,
-    "gpPerHour": 456.94,
+    "gpPerHour": 548.88,
     "quotedHours": 1.25,
     "unsoldHours": 1,
     "workers": [
@@ -110,13 +112,14 @@
       "actualSell": 24.75
     },
     "pl": {
-      "actualCost": 189.37,
-      "profitToDate": 114.24,
-      "marginToDate": 0.3763
+      "actualCost": 166.39,
+      "profitToDate": 137.22,
+      "marginToDate": 0.452
     },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-10007.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9939",
@@ -125,9 +128,9 @@
       "no-name"
     ],
     "type": "chargeup",
-    "profit": 135.37,
+    "profit": 131.93,
     "hours": 0.5,
-    "gpPerHour": 270.74,
+    "gpPerHour": 263.86,
     "quotedHours": 1,
     "unsoldHours": 0.5,
     "workers": [
@@ -141,13 +144,14 @@
       "actualSell": 49.5
     },
     "pl": {
-      "actualCost": 53.13,
-      "profitToDate": 135.37,
-      "marginToDate": 0.7181
+      "actualCost": 56.57,
+      "profitToDate": 131.93,
+      "marginToDate": 0.6999
     },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9939.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9923",
@@ -156,9 +160,9 @@
       "no-name"
     ],
     "type": "chargeup",
-    "profit": 185.72,
+    "profit": 182.28,
     "hours": 1,
-    "gpPerHour": 185.72,
+    "gpPerHour": 182.28,
     "quotedHours": 1.5,
     "unsoldHours": 0.5,
     "workers": [
@@ -172,21 +176,22 @@
       "actualSell": 99
     },
     "pl": {
-      "actualCost": 107.1,
-      "profitToDate": 185.72,
-      "marginToDate": 0.6342
+      "actualCost": 110.54,
+      "profitToDate": 182.28,
+      "marginToDate": 0.6225
     },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9923.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9984",
     "jobName": "Supply & Install Exterior Power Outlet",
     "type": "chargeup",
-    "profit": 285.46,
+    "profit": 282.02,
     "hours": 2,
-    "gpPerHour": 142.73,
+    "gpPerHour": 141.01,
     "quotedHours": 2.5,
     "unsoldHours": 0.5,
     "workers": [
@@ -200,21 +205,22 @@
       "actualSell": 198
     },
     "pl": {
-      "actualCost": 295.44,
-      "profitToDate": 285.46,
-      "marginToDate": 0.4914
+      "actualCost": 298.88,
+      "profitToDate": 282.02,
+      "marginToDate": 0.4855
     },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9984.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9975",
     "jobName": "Jumper Links",
     "type": "chargeup",
-    "profit": 163.53,
+    "profit": 175.02,
     "hours": 1.5,
-    "gpPerHour": 109.02,
+    "gpPerHour": 116.68,
     "quotedHours": 2,
     "unsoldHours": 0.5,
     "workers": [
@@ -228,13 +234,14 @@
       "actualSell": 148.5
     },
     "pl": {
-      "actualCost": 123.97,
-      "profitToDate": 163.53,
-      "marginToDate": 0.5688
+      "actualCost": 112.48,
+      "profitToDate": 175.02,
+      "marginToDate": 0.6088
     },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9975.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9734",
@@ -265,15 +272,16 @@
     "addedAt": "2026-09-28",
     "sourceFile": "Q-9734-pl.xlsx",
     "timesheetFile": "Q-9734-ts.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9965",
     "jobName": "Power Loss Investigation",
     "type": "chargeup",
-    "profit": 172.785,
+    "profit": 184.28,
     "hours": 1.75,
-    "gpPerHour": 98.73,
+    "gpPerHour": 105.3,
     "quotedHours": 2.25,
     "unsoldHours": 0.5,
     "workers": [
@@ -287,19 +295,20 @@
       "actualSell": 173.25
     },
     "pl": {
-      "actualCost": 139.47,
-      "profitToDate": 172.79,
-      "marginToDate": 0.5534
+      "actualCost": 127.98,
+      "profitToDate": 184.28,
+      "marginToDate": 0.5902
     },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9965.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9938",
     "jobName": "Power Alterations",
     "type": "chargeup",
-    "profit": 193.115,
+    "profit": 193.12,
     "hours": 2,
     "gpPerHour": 96.56,
     "quotedHours": 2.5,
@@ -321,15 +330,16 @@
     },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9938.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9986",
     "jobName": "Various Lighting Repairs",
     "type": "chargeup",
-    "profit": 93.37,
+    "profit": 104.86,
     "hours": 1,
-    "gpPerHour": 93.37,
+    "gpPerHour": 104.86,
     "quotedHours": 2.75,
     "unsoldHours": 1.75,
     "workers": [
@@ -347,21 +357,22 @@
       "actualSell": 99
     },
     "pl": {
-      "actualCost": 144.63,
-      "profitToDate": 93.37,
-      "marginToDate": 0.3923
+      "actualCost": 133.14,
+      "profitToDate": 104.86,
+      "marginToDate": 0.4406
     },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9986.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9901",
     "jobName": "Wire & Install new extract system",
     "type": "chargeup",
-    "profit": 669.2149999999999,
+    "profit": 680.71,
     "hours": 7.75,
-    "gpPerHour": 86.35,
+    "gpPerHour": 87.83,
     "quotedHours": 8.25,
     "unsoldHours": 0.5,
     "workers": [
@@ -375,21 +386,22 @@
       "actualSell": 767.25
     },
     "pl": {
-      "actualCost": 857.11,
-      "profitToDate": 669.21,
-      "marginToDate": 0.4384
+      "actualCost": 845.62,
+      "profitToDate": 680.71,
+      "marginToDate": 0.446
     },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9901.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9959",
     "jobName": "Isolate & Remove 1200mm Round Light Box",
     "type": "chargeup",
-    "profit": 137.0325,
+    "profit": 133.59,
     "hours": 1.75,
-    "gpPerHour": 78.3,
+    "gpPerHour": 76.34,
     "quotedHours": 2.25,
     "unsoldHours": 0.5,
     "workers": [
@@ -403,19 +415,20 @@
       "actualSell": 117.56
     },
     "pl": {
-      "actualCost": 119.53,
-      "profitToDate": 137.03,
-      "marginToDate": 0.5341
+      "actualCost": 122.97,
+      "profitToDate": 133.59,
+      "marginToDate": 0.5207
     },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9959.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9910",
     "jobName": "Gas Fire Works in Lobby Area",
     "type": "chargeup",
-    "profit": 551.1025000000001,
+    "profit": 551.1,
     "hours": 8.25,
     "gpPerHour": 66.8,
     "quotedHours": 8.25,
@@ -441,15 +454,16 @@
     },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9910.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9776",
     "jobName": "Kitchen Renovation & Switchboard Upgrade",
     "type": "chargeup",
-    "profit": 1510.0524999999998,
+    "profit": 1508.86,
     "hours": 26.75,
-    "gpPerHour": 56.45,
+    "gpPerHour": 56.41,
     "quotedHours": 27.25,
     "unsoldHours": 0.5,
     "workers": [
@@ -467,19 +481,20 @@
       "actualSell": 2312.25
     },
     "pl": {
-      "actualCost": 2323.51,
-      "profitToDate": 1510.05,
-      "marginToDate": 0.3939
+      "actualCost": 2324.7,
+      "profitToDate": 1508.86,
+      "marginToDate": 0.3936
     },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9776.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9900",
     "jobName": "Inslab data/ power boxes",
     "type": "chargeup",
-    "profit": 1266.5499999999997,
+    "profit": 1266.55,
     "hours": 23.25,
     "gpPerHour": 54.48,
     "quotedHours": 23.25,
@@ -505,7 +520,8 @@
     },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9900.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9980",
@@ -514,9 +530,9 @@
       "no-name"
     ],
     "type": "chargeup",
-    "profit": 80.95000000000002,
+    "profit": 79.76,
     "hours": 1.5,
-    "gpPerHour": 53.97,
+    "gpPerHour": 53.17,
     "quotedHours": 2,
     "unsoldHours": 0.5,
     "workers": [
@@ -534,19 +550,20 @@
       "actualSell": 37.5
     },
     "pl": {
-      "actualCost": 150.92,
-      "profitToDate": 80.95,
-      "marginToDate": 0.3491
+      "actualCost": 152.12,
+      "profitToDate": 79.76,
+      "marginToDate": 0.344
     },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9980.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9666",
     "jobName": "Supply & install additional power outlet",
     "type": "chargeup",
-    "profit": 498.3649999999999,
+    "profit": 498.37,
     "hours": 10.25,
     "gpPerHour": 48.62,
     "quotedHours": 10.25,
@@ -567,18 +584,19 @@
     },
     "pl": {
       "actualCost": 713.7,
-      "profitToDate": 498.36,
+      "profitToDate": 498.37,
       "marginToDate": 0.4112
     },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9666.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9940",
     "jobName": "Vapo Bush inn extra fit off works",
     "type": "chargeup",
-    "profit": 970.9649999999997,
+    "profit": 970.97,
     "hours": 20.75,
     "gpPerHour": 46.79,
     "quotedHours": 20.75,
@@ -607,18 +625,19 @@
     },
     "pl": {
       "actualCost": 1474.76,
-      "profitToDate": 970.96,
+      "profitToDate": 970.97,
       "marginToDate": 0.397
     },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9940.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9934",
     "jobName": "Burside High School - Onsite electrical assessment",
     "type": "chargeup",
-    "profit": 991.0274999999999,
+    "profit": 991.03,
     "hours": 21.25,
     "gpPerHour": 46.64,
     "quotedHours": 21.75,
@@ -640,7 +659,8 @@
     },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9934.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9983",
@@ -668,13 +688,14 @@
     },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9983.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9966",
     "jobName": "Supply & Install LED Downlight in place of failed one",
     "type": "chargeup",
-    "profit": 44.39999999999999,
+    "profit": 44.4,
     "hours": 1,
     "gpPerHour": 44.4,
     "quotedHours": 1,
@@ -696,15 +717,16 @@
     },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9966.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9950",
     "jobName": "Go-Bus Em Lighting Repair/Replacement",
     "type": "chargeup",
-    "profit": 80.5,
+    "profit": 92.6,
     "hours": 2,
-    "gpPerHour": 40.25,
+    "gpPerHour": 46.3,
     "quotedHours": 4,
     "unsoldHours": 2,
     "workers": [
@@ -722,13 +744,14 @@
       "actualSell": 165
     },
     "pl": {
-      "actualCost": 418.2,
-      "profitToDate": 80.5,
-      "marginToDate": 0.1614
+      "actualCost": 406.1,
+      "profitToDate": 92.6,
+      "marginToDate": 0.1857
     },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9950.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9987",
@@ -750,16 +773,17 @@
     },
     "pl": {
       "quotedCost": 244.16,
-      "actualCost": 245.26,
+      "actualCost": 222.28,
       "quotedProfit": 94.93,
       "quotedMargin": 0.28,
-      "profitToDate": 93.83,
-      "marginToDate": 0.2767
+      "profitToDate": 116.81,
+      "marginToDate": 0.3445
     },
     "addedAt": "2026-09-28",
     "sourceFile": "Q-9987-pl.xlsx",
     "timesheetFile": "Q-9987-ts.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9944",
@@ -791,13 +815,14 @@
     },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9944.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9955",
     "jobName": "Various Electrical Repairs",
     "type": "chargeup",
-    "profit": 39.39500000000001,
+    "profit": 39.4,
     "hours": 2.5,
     "gpPerHour": 15.76,
     "quotedHours": 2.5,
@@ -819,13 +844,14 @@
     },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9955.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9922",
     "jobName": "Contracting to Smart Sparks September",
     "type": "chargeup",
-    "profit": 649.6525000000001,
+    "profit": 649.65,
     "hours": 57.25,
     "gpPerHour": 11.35,
     "quotedHours": 57.25,
@@ -851,7 +877,8 @@
     },
     "addedAt": "2026-09-28",
     "sourceFile": "CU-9922.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9519",
@@ -877,16 +904,17 @@
     },
     "pl": {
       "quotedCost": 4291.31,
-      "actualCost": 3881.79,
+      "actualCost": 3892.11,
       "quotedProfit": 2682.44,
       "quotedMargin": 0.3846,
-      "profitToDate": 3091.96,
-      "marginToDate": 0.4434
+      "profitToDate": 3081.64,
+      "marginToDate": 0.4419
     },
     "addedAt": "2026-09-28",
     "sourceFile": "Q-9519-pl.xlsx",
     "timesheetFile": "Q-9519-ts.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9703",
@@ -912,16 +940,17 @@
     },
     "pl": {
       "quotedCost": 4761.71,
-      "actualCost": 4649.47,
+      "actualCost": 4575.11,
       "quotedProfit": 1393.72,
       "quotedMargin": 0.2264,
-      "profitToDate": 1505.96,
-      "marginToDate": 0.2447
+      "profitToDate": 1580.32,
+      "marginToDate": 0.2567
     },
     "addedAt": "2026-09-28",
     "sourceFile": "Q-9703-pl.xlsx",
     "timesheetFile": "Q-9703-ts.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "8337",
@@ -972,7 +1001,8 @@
     "addedAt": "2026-09-28",
     "sourceFile": "Q-8337-pl.xlsx",
     "timesheetFile": "Q-8337-ts.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9635",
@@ -1014,16 +1044,17 @@
     },
     "pl": {
       "quotedCost": 18422.21,
-      "actualCost": 11361.86,
+      "actualCost": 10947.37,
       "quotedProfit": 5136.45,
       "quotedMargin": 0.218,
-      "profitToDate": 12196.8,
-      "marginToDate": 0.5177
+      "profitToDate": 12611.29,
+      "marginToDate": 0.5353
     },
     "addedAt": "2026-09-28",
     "sourceFile": "Q-9635-pl.xlsx",
     "timesheetFile": "Q-9635-ts.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9802",
@@ -1053,16 +1084,17 @@
     },
     "pl": {
       "quotedCost": 635.06,
-      "actualCost": 485.95,
+      "actualCost": 488.18,
       "quotedProfit": 485.14,
       "quotedMargin": 0.4331,
-      "profitToDate": 634.25,
-      "marginToDate": 0.5662
+      "profitToDate": 632.02,
+      "marginToDate": 0.5642
     },
     "addedAt": "2026-09-28",
     "sourceFile": "Q-9802-pl.xlsx",
     "timesheetFile": "Q-9802-ts.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9698",
@@ -1088,16 +1120,17 @@
     },
     "pl": {
       "quotedCost": 2942.91,
-      "actualCost": 4876.88,
+      "actualCost": 4895.41,
       "quotedProfit": 1041.23,
       "quotedMargin": 0.2613,
-      "profitToDate": -892.74,
-      "marginToDate": -0.2241
+      "profitToDate": -911.27,
+      "marginToDate": -0.2287
     },
     "addedAt": "2026-09-28",
     "sourceFile": "Q-9698-pl.xlsx",
     "timesheetFile": "Q-9698-ts.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9814",
@@ -1128,7 +1161,8 @@
     "addedAt": "2026-09-30",
     "sourceFile": "Q-9814-pl.xlsx",
     "timesheetFile": "Q-9814-ts.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9985",
@@ -1159,7 +1193,8 @@
     "addedAt": "2026-09-30",
     "sourceFile": "Q-9985-pl.xlsx",
     "timesheetFile": "Q-9985-ts.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "8840",
@@ -1175,16 +1210,14 @@
       "actualCost": 21905.94
     },
     "pl": {
-      "quotedCost": 37601.88,
       "actualCost": 45312.11,
-      "quotedProfit": 21300.68,
-      "quotedMargin": 0.3616,
       "profitToDate": 23657.73,
       "marginToDate": 0.343
     },
     "addedAt": "2026-09-30",
     "sourceFile": "Q-8840-pl.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9883",
@@ -1215,7 +1248,8 @@
     "addedAt": "2026-09-30",
     "sourceFile": "Q-9883-pl.xlsx",
     "timesheetFile": "Q-9883-ts.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9570",
@@ -1242,15 +1276,16 @@
     },
     "addedAt": "2026-09-30",
     "sourceFile": "Q-9570-pl.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9921",
     "jobName": "Supply & Install Exterior Light",
     "type": "chargeup",
-    "profit": 151.14499999999998,
+    "profit": 151.15,
     "hours": 0.25,
-    "gpPerHour": 604.58,
+    "gpPerHour": 604.6,
     "quotedHours": 0.75,
     "unsoldHours": 0.5,
     "workers": [
@@ -1265,20 +1300,21 @@
     },
     "pl": {
       "actualCost": 114.3,
-      "profitToDate": 151.14,
+      "profitToDate": 151.15,
       "marginToDate": 0.5694
     },
     "addedAt": "2026-09-30",
     "sourceFile": "CU-9921.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9849",
     "jobName": "Disconnect Sign",
     "type": "chargeup",
-    "profit": 177.865,
+    "profit": 177.87,
     "hours": 2,
-    "gpPerHour": 88.93,
+    "gpPerHour": 88.94,
     "quotedHours": 2.5,
     "unsoldHours": 0.5,
     "workers": [
@@ -1302,13 +1338,14 @@
     },
     "addedAt": "2026-09-30",
     "sourceFile": "CU-9849.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9911",
     "jobName": "Clear water Kitchenette Decom",
     "type": "chargeup",
-    "profit": 422.42750000000007,
+    "profit": 422.43,
     "hours": 7.25,
     "gpPerHour": 58.27,
     "quotedHours": 7.75,
@@ -1330,7 +1367,8 @@
     },
     "addedAt": "2026-09-30",
     "sourceFile": "CU-9911.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9918",
@@ -1339,7 +1377,7 @@
       "no-sold-hours"
     ],
     "type": "chargeup",
-    "profit": 191.82000000000005,
+    "profit": 191.82,
     "hours": 0,
     "gpPerHour": null,
     "quotedHours": 0,
@@ -1356,7 +1394,8 @@
     },
     "addedAt": "2026-09-30",
     "sourceFile": "CU-9918.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9935",
@@ -1382,15 +1421,16 @@
     },
     "addedAt": "2026-09-30",
     "sourceFile": "CU-9935.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "10033",
     "jobName": "Camera recorder call out",
     "type": "chargeup",
-    "profit": 129.46,
+    "profit": 128.27,
     "hours": 0.5,
-    "gpPerHour": 258.92,
+    "gpPerHour": 256.54,
     "quotedHours": 1,
     "unsoldHours": 0.5,
     "workers": [
@@ -1404,13 +1444,14 @@
       "actualSell": 49.5
     },
     "pl": {
-      "actualCost": 59.04,
-      "profitToDate": 129.46,
-      "marginToDate": 0.6868
+      "actualCost": 60.24,
+      "profitToDate": 128.27,
+      "marginToDate": 0.6805
     },
     "addedAt": "2026-09-29",
     "sourceFile": "CU-10033.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9988",
@@ -1419,7 +1460,7 @@
       "no-name"
     ],
     "type": "chargeup",
-    "profit": 126.50999999999999,
+    "profit": 126.51,
     "hours": 0.5,
     "gpPerHour": 253.02,
     "quotedHours": 1,
@@ -1441,15 +1482,16 @@
     },
     "addedAt": "2026-09-30",
     "sourceFile": "CU-9988.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "10015",
     "jobName": "Dishwasher plug issue",
     "type": "chargeup",
-    "profit": 111.015,
+    "profit": 111.02,
     "hours": 0.5,
-    "gpPerHour": 222.03,
+    "gpPerHour": 222.04,
     "quotedHours": 1.25,
     "unsoldHours": 0.75,
     "workers": [
@@ -1469,7 +1511,8 @@
     },
     "addedAt": "2026-09-30",
     "sourceFile": "CU-10015.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "10017",
@@ -1478,7 +1521,7 @@
       "no-name"
     ],
     "type": "chargeup",
-    "profit": 151.66500000000002,
+    "profit": 151.67,
     "hours": 1,
     "gpPerHour": 151.67,
     "quotedHours": 1.5,
@@ -1500,15 +1543,16 @@
     },
     "addedAt": "2026-09-29",
     "sourceFile": "CU-10017.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "10024",
     "jobName": "Decommission 3 x Heat Pumps",
     "type": "chargeup",
-    "profit": 154.275,
+    "profit": 165.77,
     "hours": 1.25,
-    "gpPerHour": 123.42,
+    "gpPerHour": 132.62,
     "quotedHours": 1.75,
     "unsoldHours": 0.5,
     "workers": [
@@ -1522,13 +1566,14 @@
       "actualSell": 123.75
     },
     "pl": {
-      "actualCost": 108.48,
-      "profitToDate": 154.28,
-      "marginToDate": 0.5872
+      "actualCost": 96.99,
+      "profitToDate": 165.77,
+      "marginToDate": 0.6309
     },
     "addedAt": "2026-09-29",
     "sourceFile": "CU-10024.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9992",
@@ -1559,7 +1604,8 @@
     },
     "addedAt": "2026-09-30",
     "sourceFile": "CU-9992.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "10022",
@@ -1587,7 +1633,8 @@
     },
     "addedAt": "2026-09-30",
     "sourceFile": "CU-10022.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "10004",
@@ -1615,13 +1662,14 @@
     },
     "addedAt": "2026-09-30",
     "sourceFile": "CU-10004.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "10028",
     "jobName": "Various Lighting Replacement",
     "type": "chargeup",
-    "profit": 93.26249999999999,
+    "profit": 93.26,
     "hours": 2.25,
     "gpPerHour": 41.45,
     "quotedHours": 2.25,
@@ -1643,13 +1691,14 @@
     },
     "addedAt": "2026-09-29",
     "sourceFile": "CU-10028.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "10036",
     "jobName": "Cable Repairs",
     "type": "chargeup",
-    "profit": 64.785,
+    "profit": 64.79,
     "hours": 1.75,
     "gpPerHour": 37.02,
     "quotedHours": 1.75,
@@ -1671,13 +1720,14 @@
     },
     "addedAt": "2026-09-29",
     "sourceFile": "CU-10036.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9945",
     "jobName": "Fitting Off Units for VIP",
     "type": "chargeup",
-    "profit": 873.375,
+    "profit": 873.38,
     "hours": 84.5,
     "gpPerHour": 10.34,
     "quotedHours": 84.5,
@@ -1703,13 +1753,14 @@
     },
     "addedAt": "2026-09-30",
     "sourceFile": "CU-9945.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9976",
     "jobName": "ERS Contracting",
     "type": "chargeup",
-    "profit": 21.800000000000182,
+    "profit": 21.8,
     "hours": 54.5,
     "gpPerHour": 0.4,
     "quotedHours": 54.5,
@@ -1731,7 +1782,8 @@
     },
     "addedAt": "2026-09-30",
     "sourceFile": "CU-9976.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "10029",
@@ -1740,7 +1792,7 @@
       "no-sold-hours"
     ],
     "type": "chargeup",
-    "profit": -53.12,
+    "profit": -60,
     "hours": 0,
     "gpPerHour": null,
     "quotedHours": 1,
@@ -1751,13 +1803,13 @@
       "actualSell": 0
     },
     "pl": {
-      "actualCost": 53.12,
-      "profitToDate": -53.12,
-      "marginToDate": 0
+      "actualCost": 60,
+      "profitToDate": -60
     },
     "addedAt": "2026-09-29",
     "sourceFile": "CU-10029.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "10031",
@@ -1766,7 +1818,7 @@
       "no-sold-hours"
     ],
     "type": "chargeup",
-    "profit": -39.84,
+    "profit": -45,
     "hours": 0,
     "gpPerHour": null,
     "quotedHours": 0.75,
@@ -1777,13 +1829,13 @@
       "actualSell": 0
     },
     "pl": {
-      "actualCost": 39.84,
-      "profitToDate": -39.84,
-      "marginToDate": 0
+      "actualCost": 45,
+      "profitToDate": -45
     },
     "addedAt": "2026-09-29",
     "sourceFile": "CU-10031.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "10012",
@@ -1792,7 +1844,7 @@
       "no-sold-hours"
     ],
     "type": "chargeup",
-    "profit": -77.475,
+    "profit": -77.48,
     "hours": 0,
     "gpPerHour": null,
     "quotedHours": 1.25,
@@ -1804,12 +1856,12 @@
     },
     "pl": {
       "actualCost": 77.47,
-      "profitToDate": -77.47,
-      "marginToDate": 0
+      "profitToDate": -77.48
     },
     "addedAt": "2026-09-30",
     "sourceFile": "CU-10012.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9951",
@@ -1818,7 +1870,7 @@
       "no-sold-hours"
     ],
     "type": "chargeup",
-    "profit": -77.475,
+    "profit": -77.48,
     "hours": 0,
     "gpPerHour": null,
     "quotedHours": 1.5,
@@ -1830,12 +1882,12 @@
     },
     "pl": {
       "actualCost": 77.47,
-      "profitToDate": -77.47,
-      "marginToDate": 0
+      "profitToDate": -77.48
     },
     "addedAt": "2026-09-30",
     "sourceFile": "CU-9951.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "9943",
@@ -1844,7 +1896,7 @@
       "no-sold-hours"
     ],
     "type": "chargeup",
-    "profit": -77.475,
+    "profit": -77.48,
     "hours": 0,
     "gpPerHour": null,
     "quotedHours": 1.25,
@@ -1856,12 +1908,12 @@
     },
     "pl": {
       "actualCost": 77.47,
-      "profitToDate": -77.47,
-      "marginToDate": 0
+      "profitToDate": -77.48
     },
     "addedAt": "2026-09-30",
     "sourceFile": "CU-9943.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   },
   {
     "jobNumber": "10051",
@@ -1870,7 +1922,7 @@
       "no-sold-hours"
     ],
     "type": "chargeup",
-    "profit": 25.199999999999996,
+    "profit": 25.2,
     "hours": 0,
     "gpPerHour": null,
     "quotedHours": 0,
@@ -1887,6 +1939,7 @@
     },
     "addedAt": "2026-09-30",
     "sourceFile": "CU-10051.xlsx",
-    "month": "2026-09"
+    "month": "2026-09",
+    "plSummaryDate": "2026-10-01"
   }
 ]
