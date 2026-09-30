@@ -46,7 +46,7 @@ function monthLong(key) {
 // business billed, what the crew is committed to, and how the book is doing.
 // Eight charts in one column with no grouping is a wall.
 const PERSON_SORTS = [
-  { key: 'profit', label: 'Their GP', series: 'Their GP', format: money, axis: compactMoney },
+  { key: 'weightedGp', label: 'Their GP', series: 'Their GP', format: money, axis: compactMoney },
   { key: 'hours', label: 'Hours', series: 'Hours', format: (v) => `${roundHours(v)} h`, axis: compactHours },
   { key: 'count', label: 'Jobs', series: 'Jobs', format: (v) => `${v} jobs`, axis: (v) => String(v) },
   { key: 'name', label: 'Name' },
@@ -63,20 +63,19 @@ function SectionHeading({ children }) {
 export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, completedJobs = [], onSelectJob, onBack }) {
   const capacity = upcomingWork?.capacity
 
-  // Completed quoted jobs, per person: their GP on each job (labour GP/hr ×
-  // their hours) summed, over their hours summed — same maths as the
-  // Completed jobs tab's "By person" table.
+  // Completed quoted jobs, per person: for each job, their share of their own time
+  // × their GP on it, added up — same maths as the By person table.
   // The bars show whatever the chart is sorted by; sorting by name keeps Their GP.
-  const [personSort, setPersonSort] = useState({ key: 'profit', dir: -1 })
+  const [personSort, setPersonSort] = useState({ key: 'weightedGp', dir: -1 })
   const personMetric = PERSON_SORTS.find((s) => s.key === personSort.key && s.key !== 'name') ?? PERSON_SORTS[0]
   const people = useMemo(() => personTotals(completedJobs)
-    .filter((p) => p.gpPerHour !== null)
+    .filter((p) => p.weightedGp !== null)
     .sort((a, b) => (personSort.key === 'name'
       ? a.name.localeCompare(b.name)
       : a[personSort.key] - b[personSort.key]) * personSort.dir)
     .map((p) => ({
       label: p.name,
-      fullLabel: `${p.name} — ${p.count} job${p.count === 1 ? '' : 's'}, ${p.hours} h, ${money(p.profit)} GP`,
+      fullLabel: `${p.name} — ${p.count} job${p.count === 1 ? '' : 's'}, ${p.hours} h, ${money(p.weightedGp)} GP`,
       values: [Math.round(p[personMetric.key] * 100) / 100],
       colors: [p[personMetric.key] < 0 ? CRITICAL : SERIES_1],
       p,
@@ -462,7 +461,7 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, co
       <ChartCard
         title="GP by person"
         question="Who has brought in the most GP on finished jobs?"
-        footnote={`Quoted jobs only — ${completedJobs.filter((j) => j.type === 'quoted').length} of the ${completedJobs.length} completed jobs; charge-up jobs aren't split per person. Each person's GP is their share of every job they worked on, split by the hours they worked, summed. Sort by their GP, hours or jobs (click again to flip the order) — the bars show what it is sorted by. A red bar is below zero. The full breakdown is in the Completed jobs tab.`}
+        footnote={`Quoted jobs only — ${completedJobs.filter((j) => j.type === 'quoted').length} of the ${completedJobs.length} completed jobs; charge-up jobs aren't split per person. Each person's GP: for every job they worked on, the share of their time spent on it × their GP on that job, added up. Sort by their GP, hours or jobs (click again to flip the order) — the bars show what it is sorted by. A red bar is below zero. The full breakdown is in the Completed jobs tab.`}
         table={
           <table>
             <caption>GP by person, completed jobs</caption>
@@ -472,7 +471,7 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, co
                   <th scope="row">{r.label}</th>
                   <td>{r.p.count} jobs</td>
                   <td>{r.p.hours} h</td>
-                  <td>{money(r.p.profit)} GP</td>
+                  <td>{money(r.p.weightedGp)} GP</td>
                 </tr>
               ))}
             </tbody>

@@ -44,6 +44,15 @@ export function contributors(job) {
   }
 }
 
+// A person's number across several jobs, weighted by their time: for each job,
+// (their hours on it ÷ their hours on all the jobs) × their GP on that job, added
+// up. E.g. 10 of 20.25 hours on one job = 49.4% of that job's GP. A person with a
+// single job is 100% of it. entries = [{ hours, part }].
+export function timeWeighted(entries) {
+  const total = entries.reduce((t, e) => t + e.hours, 0)
+  return total > 0 ? entries.reduce((t, e) => t + (e.hours / total) * e.part, 0) : null
+}
+
 // Each person's totals across the jobs shown: their hours and their part of each
 // job (labour GP/hr × their hours), summed. Their GP/hr is total part ÷ total
 // hours — so a person is weighted by the time they put in.
@@ -59,20 +68,24 @@ export function personTotals(jobs) {
       people.set(p.name, t)
     }
   }
-  return [...people.values()].map((t) => ({
-    ...t,
-    hours: Math.round(t.hours * 100) / 100,
-    count: t.jobs.length,
-    gpPerHour: t.hours ? t.profit / t.hours : null,
-    jobs: t.jobs.sort((a, b) => b.hours - a.hours),
-  }))
+  return [...people.values()].map((t) => {
+    const hours = t.jobs.reduce((s, j) => s + j.hours, 0)
+    return {
+      ...t,
+      hours: Math.round(t.hours * 100) / 100,
+      count: t.jobs.length,
+      gpPerHour: t.hours ? t.profit / t.hours : null,        // hidden; nothing displays it
+      weightedGp: timeWeighted(t.jobs),                      // the person's number
+      jobs: t.jobs.map((j) => ({ ...j, timeShare: hours ? j.hours / hours : 0 })).sort((a, b) => b.hours - a.hours),
+    }
+  })
 }
 
 // Per person, month by month. Each job carries the month it was completed in
 // ("YYYY-MM"); every person gets their totals for each month and for all months
-// together (Total = every month added up). A person is flagged when their GP/hr
-// in the latest month is below their GP/hr the month before — only when they
-// worked in both, since no work last month is not a drop.
+// together (Total = every month added up). A person is flagged when their number
+// in the latest month is below the month before — only when they worked in both,
+// since no work last month is not a drop.
 export function personMonthly(jobs) {
   const months = [...new Set(jobs.map((j) => j.month).filter(Boolean))].sort()
   const byMonth = new Map(months.map((m) => [m, new Map(personTotals(jobs.filter((j) => j.month === m)).map((p) => [p.name, p]))]))
@@ -80,8 +93,8 @@ export function personMonthly(jobs) {
   const people = personTotals(jobs).map((total) => {
     const monthly = Object.fromEntries(months.map((m) => [m, byMonth.get(m).get(total.name) ?? null]))
     const now = latest && monthly[latest], before = previous && monthly[previous]
-    const flag = now && before && now.gpPerHour !== null && before.gpPerHour !== null && now.gpPerHour < before.gpPerHour
-      ? { month: latest, previousMonth: previous, now: now.gpPerHour, before: before.gpPerHour }
+    const flag = now && before && now.weightedGp !== null && before.weightedGp !== null && now.weightedGp < before.weightedGp
+      ? { month: latest, previousMonth: previous, now: now.weightedGp, before: before.weightedGp }
       : null
     return { ...total, monthly, flag }
   })

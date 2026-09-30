@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Sparkles } from 'lucide-react'
 import { cents, money, percent } from '../lib/format'
-import { contributors, projectGpPerHour } from '../lib/completedJobPeople'
+import { contributors, projectGpPerHour, timeWeighted } from '../lib/completedJobPeople'
 import { overruns } from '../lib/completedJobReview'
 import { workerFetch } from '@/lib/workerClient'
 
@@ -104,8 +104,7 @@ function summaryPayload(jobs, peopleRows) {
       name: p.name,
       totalHours: r2(p.hours),
       jobs: Object.keys(p.perJob),
-      totalPartOnQuotedJobs: p.partHours ? r2(p.part) : null,
-      totalGpOnQuotedJobs: p.partHours ? r2(p.part) : null,
+      totalGpOnQuotedJobs: p.weighted == null ? null : r2(p.weighted),
     })),
   }
 }
@@ -120,14 +119,15 @@ export default function CompletedCompare({ jobs }) {
   const people = new Map()
   for (const j of jobs) {
     for (const p of contributors(j).worked) {
-      const t = people.get(p.name) ?? { name: p.name, perJob: {}, hours: 0, part: 0, partHours: 0 }
+      const t = people.get(p.name) ?? { name: p.name, perJob: {}, hours: 0, part: 0, partHours: 0, entries: [] }
       t.perJob[j.jobNumber] = { hours: p.hours, part: j.type === 'quoted' ? p.part : null }
       t.hours += p.hours
-      if (j.type === 'quoted') { t.part += p.part; t.partHours += p.hours }
+      if (j.type === 'quoted') { t.part += p.part; t.partHours += p.hours; t.entries.push({ hours: p.hours, part: p.part }) }
       people.set(p.name, t)
     }
   }
-  const peopleRows = [...people.values()].sort((a, b) => b.hours - a.hours)
+  // Their GP across these jobs: share of their time on each × their GP on it, added up.
+  const peopleRows = [...people.values()].map((p) => ({ ...p, weighted: timeWeighted(p.entries) })).sort((a, b) => b.hours - a.hours)
   const shared = peopleRows.filter((p) => Object.keys(p.perJob).length > 1)
 
   async function summarise() {
@@ -215,12 +215,12 @@ export default function CompletedCompare({ jobs }) {
                     )
                   })}
                   <td className="num font-medium">{Math.round(p.hours * 100) / 100} h</td>
-                  <td className="num font-medium">{p.partHours ? cents(p.part) : '—'}</td>
+                  <td className="num font-medium">{p.weighted == null ? '—' : cents(p.weighted)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <p className="mt-1 text-[11px] text-neutral-500">The small figure is their GP on that job, split by hours worked — quoted jobs only.</p>
+          <p className="mt-1 text-[11px] text-neutral-500">The small figure is their GP on that job. Their GP (right) = for each job, the share of their time on it × their GP on it, added up — quoted jobs only.</p>
         </div>
       )}
 

@@ -136,20 +136,21 @@ function WorkTypeBreakdown({ jobs, categories, onOpenJob }) {
 const TOTAL_COLS = [
   { key: 'count', label: 'Jobs' },
   { key: 'hours', label: 'Hours' },
-  { key: 'profit', label: 'Their GP' },
+  { key: 'weightedGp', label: 'Their GP' },
 ]
 const OVER = 'var(--viz-critical)'
 
-// One column per month (their GP, hours beside it) and a Total that adds every
-// month together. The per-hour rate behind it is never shown. Someone whose
-// latest-month rate is below the month before is flagged red (no figures shown).
+// One column per month (their GP, hours beside it) and a Total across all months.
+// Their GP = for each job, the share of their time spent on it × their GP on that
+// job, added up (see timeWeighted). Someone whose latest-month number is below the
+// month before is flagged red.
 // Sorting: name, any month's GP, or any total column.
 function PeopleSummary({ jobs, scope, onOpenJob }) {
-  const [sort, setSort] = useState({ key: 'profit', dir: -1 })
+  const [sort, setSort] = useState({ key: 'weightedGp', dir: -1 })
   const [open, setOpen] = useState(() => new Set())
   const { months, latest, previous, people: all } = useMemo(() => personMonthly(jobs), [jobs])
   const people = useMemo(() => {
-    const val = (p) => (sort.key.startsWith('m:') ? p.monthly[sort.key.slice(2)]?.profit ?? null : p[sort.key])
+    const val = (p) => (sort.key.startsWith('m:') ? p.monthly[sort.key.slice(2)]?.weightedGp ?? null : p[sort.key])
     return [...all].sort((a, b) => {
       if (sort.key === 'name') return a.name.localeCompare(b.name) * sort.dir
       const av = val(a), bv = val(b)
@@ -172,7 +173,7 @@ function PeopleSummary({ jobs, scope, onOpenJob }) {
       className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6"
       storageKey="completed-jobs.people"
       title={`By person — ${all.length} ${all.length === 1 ? 'person' : 'people'}`}
-      description={`Quoted jobs only — charge-up jobs aren't split per person. Each person's GP month by month, and in Total for every month added together: their GP on each job, split by the hours they worked, across ${scope}. Red = they did worse than the month before. Click a person to see their jobs, and a job to open it.`}
+      description={`Quoted jobs only — charge-up jobs aren't split per person. Each person's GP month by month, and in Total for every month added together: for each job, the share of their time they spent on it × their GP on that job, added up across ${scope}. Red = they did worse than the month before. Click a person to see their jobs, and a job to open it.`}
     >
       {flagged.length > 0 && (
         <div className="mt-2 rounded-[12px] border p-3 text-[13px]" style={{ borderColor: `color-mix(in srgb, ${OVER} 45%, transparent)`, background: `color-mix(in srgb, ${OVER} 7%, transparent)` }}>
@@ -222,7 +223,7 @@ function PeopleSummary({ jobs, scope, onOpenJob }) {
                           title={down ? `Down on ${monthName(previous)}` : undefined}>
                           {v ? (
                             <span className={down ? 'blink-over' : ''}>
-                              {down && '↓ '}{cents(v.profit)}
+                              {down && '↓ '}{cents(v.weightedGp)}
                               <span className="ml-1 text-[11px] font-normal text-neutral-500">{v.hours} h</span>
                             </span>
                           ) : <span className="text-neutral-600">—</span>}
@@ -231,22 +232,23 @@ function PeopleSummary({ jobs, scope, onOpenJob }) {
                     })}
                     <td className="num">{p.count}</td>
                     <td className="num">{p.hours}</td>
-                    <td className="num">{cents(p.profit)}</td>
+                    <td className="num font-medium">{p.weightedGp === null ? '—' : cents(p.weightedGp)}</td>
                   </tr>
                   {isOpen && (
                     <tr>
                       <td colSpan={span} className="bg-white/[0.02]">
                         <div className="flex max-w-3xl flex-col gap-1.5 py-2 pl-6 text-[13px]">
-                          <div className="grid grid-cols-[4rem_minmax(0,1fr)_5rem_4rem_6rem] gap-x-4 text-[11px] uppercase tracking-wide text-neutral-500">
-                            <span>Job #</span><span>Job name</span><span>Month</span><span className="text-right">Hours</span><span className="text-right">Their GP</span>
+                          <div className="grid grid-cols-[4rem_minmax(0,1fr)_5rem_4rem_8rem_6rem] gap-x-4 text-[11px] uppercase tracking-wide text-neutral-500">
+                            <span>Job #</span><span>Job name</span><span>Month</span><span className="text-right">Hours</span><span className="text-right">Share of their time</span><span className="text-right">Their GP</span>
                           </div>
-                          {[...p.jobs].sort((a, b) => (b.job.month ?? '').localeCompare(a.job.month ?? '')).map(({ job, hours, part }) => (
+                          {[...p.jobs].sort((a, b) => (b.job.month ?? '').localeCompare(a.job.month ?? '')).map(({ job, hours, part, timeShare }) => (
                             <button type="button" key={job.jobNumber} onClick={() => onOpenJob(job.jobNumber)} title="Open on the Completed jobs tab"
-                              className="grid grid-cols-[4rem_minmax(0,1fr)_5rem_4rem_6rem] gap-x-4 rounded text-left tabular-nums hover:bg-white/[0.05]">
+                              className="grid grid-cols-[4rem_minmax(0,1fr)_5rem_4rem_8rem_6rem] gap-x-4 rounded text-left tabular-nums hover:bg-white/[0.05]">
                               <span className="text-neutral-400">{job.jobNumber}</span>
                               <span className="truncate text-neutral-200">{job.jobName}</span>
                               <span className="text-neutral-400">{monthName(job.month, 'short')}</span>
                               <span className="text-right text-neutral-300">{hours} h</span>
+                              <span className="text-right text-neutral-400">{Math.round(timeShare * 1000) / 10}%</span>
                               <span className="text-right text-white">{cents(part)}</span>
                             </button>
                           ))}
