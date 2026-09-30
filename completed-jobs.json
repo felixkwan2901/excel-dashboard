@@ -1941,5 +1941,92 @@
     "sourceFile": "CU-10051.xlsx",
     "month": "2026-09",
     "plSummaryDate": "2026-10-01"
+  },
+  {
+    "jobNumber": "10046",
+    "jobName": "Supply & install 2 Gang Switch",
+    "type": "chargeup",
+    "profit": 170.95,
+    "hours": 1,
+    "gpPerHour": 170.95,
+    "quotedHours": 1.5,
+    "unsoldHours": 0.5,
+    "workers": [
+      {
+        "name": "Andy Schweizer",
+        "hours": 1
+      }
+    ],
+    "labour": {
+      "actualCost": 86.33,
+      "actualSell": 99
+    },
+    "pl": {
+      "actualCost": 124.9,
+      "profitToDate": 170.95,
+      "marginToDate": 0.5778
+    },
+    "addedAt": "2026-09-30",
+    "sourceFile": "CU-10046.xlsx",
+    "plSummaryDate": "2026-09-30",
+    "month": "2026-09"
+  },
+  {
+    "jobNumber": "9810",
+    "jobName": "Replace some lights, Power points. List of about 7 things",
+    "type": "quoted",
+    "profit": 56.545000000000016,
+    "hours": 3.25,
+    "gpPerHour": 17.4,
+    "quotedHours": 4.57,
+    "workers": [
+      {
+        "name": "Kyle Williams",
+        "hours": 3.25
+      }
+    ],
+    "labour": {
+      "quotedCost": 229.19,
+      "actualCost": 172.64
+    },
+    "pl": {
+      "quotedCost": 510.81,
+      "actualCost": 442.39,
+      "quotedProfit": 269.15,
+      "quotedMargin": 0.3451,
+      "profitToDate": 337.57,
+      "marginToDate": 0.4328
+    },
+    "addedAt": "2026-09-30",
+    "sourceFile": "Q-9810-pl.xlsx",
+    "timesheetFile": "Q-9810-ts.xlsx",
+    "plSummaryDate": "2026-09-30",
+    "month": "2026-09"
+  },
+  {
+    "jobNumber": "10035",
+    "jobName": "Power point Disconnect and make safe",
+    "flags": [
+      "no-sold-hours"
+    ],
+    "type": "chargeup",
+    "profit": -29.25,
+    "hours": 0,
+    "gpPerHour": null,
+    "quotedHours": 0.75,
+    "unsoldHours": 0.75,
+    "workers": [],
+    "labour": {
+      "actualCost": 46.49,
+      "actualSell": 0
+    },
+    "pl": {
+      "actualCost": 29.25,
+      "profitToDate": -29.25
+    },
+    "addedAt": "2026-09-30",
+    "sourceFile": "CU-10035.xlsx",
+    "plSummaryDate": "2026-09-30",
+    "month": "2026-09"
   }
 ]
