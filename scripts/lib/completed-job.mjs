@@ -389,7 +389,7 @@ const totalHours = (rows) => {
 // with the report row that has the same total sell, the same total hours and the
 // nearest profit; a timesheet with the quoted job whose actual hours equal its
 // total. Files that can't be paired confidently are left for the caller to list.
-function matchFromSummary(folder, files, renamed, summary, notes) {
+function matchFromSummary(folder, files, renamed, summary, notes, known = new Set()) {
   const taken = new Set([...renamed.values()])
   const used = new Set([...renamed.values()].map((n) => n.match(/^(?:CU|Q)-(\d+)/i)?.[1]).filter(Boolean))
   const pairs = []                                   // [file, job, kind]
@@ -407,28 +407,37 @@ function matchFromSummary(folder, files, renamed, summary, notes) {
       chargeups.push({ f, sell: toNumber(tot[2]), profit: toNumber(tot[3]), hours: totalHours(sheetRows(wb, 'Sold')) + totalHours(sheetRows(wb, 'Unsold') ?? []) })
     }
   }
-  // charge-up files ↔ report rows, best (smallest profit gap) pairs first
+  // charge-up files ↔ report rows. Three passes, each best (smallest profit gap)
+  // first: (1) exact — the file's profit equals the report's to the cent, so it's
+  // certain whichever job it is; (2) jobs not loaded yet, profit within $50 (labour
+  // is priced differently in the two reports, so a file can be a little off) —
+  // a new file is almost always a new job; (3) jobs already loaded, for re-uploads.
   const cands = [...summary.rows.values()].filter((r) => r.type === 'chargeup' && !used.has(r.job))
-  const scored = []
-  for (const x of chargeups) for (const c of cands) {
-    if (x.sell == null || c.actualSell == null || Math.abs(x.sell - c.actualSell) > 0.02) continue
-    if (Math.abs(x.hours - (c.actualHours ?? 0)) > 0.011) continue
-    const gap = Math.abs((x.profit ?? 0) - (c.actualProfit ?? 0))
-    if (gap <= 50) scored.push({ x, c, gap })
-  }
-  scored.sort((a, b) => a.gap - b.gap)
   const doneFiles = new Set(), doneJobs = new Set(), noted = new Set()
-  for (const { x, c, gap } of scored) {
-    if (doneFiles.has(x.f) || doneJobs.has(c.job)) continue
-    doneFiles.add(x.f); doneJobs.add(c.job); used.add(c.job)
-    renamed.set(x.f, `CU-${c.job}.xlsx`); pairs.push([x.f, c.job])
-    const twins = scored.filter((o) => o.x !== x && o.c !== c && o.gap === gap && o.x.sell === x.sell && o.x.hours === x.hours && Math.abs(o.x.profit - x.profit) < 0.011)
-    const pairKey = twins.length ? [c.job, twins[0].c.job].sort().join('/') : ''
-    if (twins.length && !noted.has(pairKey)) {
-      noted.add(pairKey)
-      notes.push(`${x.f} and another file have identical figures, so jobs ${c.job} and ${twins[0].c.job} were paired arbitrarily — the numbers are the same either way`)
+  const pass = (allow, maxGap) => {
+    const scored = []
+    for (const x of chargeups) for (const c of cands) {
+      if (!allow(c) || x.sell == null || c.actualSell == null || Math.abs(x.sell - c.actualSell) > 0.02) continue
+      if (Math.abs(x.hours - (c.actualHours ?? 0)) > 0.011) continue
+      const gap = Math.abs((x.profit ?? 0) - (c.actualProfit ?? 0))
+      if (gap <= maxGap) scored.push({ x, c, gap })
+    }
+    scored.sort((a, b) => a.gap - b.gap)
+    for (const { x, c, gap } of scored) {
+      if (doneFiles.has(x.f) || doneJobs.has(c.job)) continue
+      doneFiles.add(x.f); doneJobs.add(c.job); used.add(c.job)
+      renamed.set(x.f, `CU-${c.job}.xlsx`); pairs.push([x.f, c.job])
+      const twins = scored.filter((o) => o.x !== x && o.c !== c && o.gap === gap && o.x.sell === x.sell && o.x.hours === x.hours && Math.abs(o.x.profit - x.profit) < 0.011)
+      const pairKey = twins.length ? [c.job, twins[0].c.job].sort().join('/') : ''
+      if (twins.length && !noted.has(pairKey)) {
+        noted.add(pairKey)
+        notes.push(`${x.f} and another file have identical figures, so jobs ${c.job} and ${twins[0].c.job} were paired arbitrarily — the numbers are the same either way`)
+      }
     }
   }
+  pass(() => true, 0.06)
+  pass((c) => !known.has(c.job), 50)
+  pass(() => true, 50)
   // timesheets ↔ quoted jobs, by total hours
   const tsFiles = files.filter((f) => !renamed.has(f) && /^Timesheets/i.test(f))
   const quotedNoTs = [...used].filter((j) => summary.rows.get(j)?.type === 'quoted' && [...taken].includes(`Q-${j}-pl.xlsx`) && !taken.has(`Q-${j}-ts.xlsx`))
@@ -469,7 +478,7 @@ if (manifestFile) {
 }
 const summary = readSummaryReport(folder, files)
 if (summary) {
-  matchFromSummary(folder, files, renamed, summary, notes)
+  matchFromSummary(folder, files, renamed, summary, notes, known)
   for (let i = unresolved.length - 1; i >= 0; i--) if (renamed.has(unresolved[i].file)) unresolved.splice(i, 1)
   notes.push(`Figures taken from ${summary.file}.`)
 }
