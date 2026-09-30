@@ -4,15 +4,16 @@
 // Project GP/hr — what the Completed jobs page and Completed insights show for a
 // job: the whole job's profit to date (the P&L's actual profit) ÷ actual hours. A
 // charge-up job's profit to date is its total profit, so it equals its own GP/hr.
-// A person's part of a job is this rate × their hours. The labour-only rate
-// (job.gpPerHour on a quoted job) is not shown or used for people.
+// The labour-only rate (job.gpPerHour on a quoted job = quoted − actual labour
+// cost, ÷ actual hours) is never displayed; it only works out each person's GP
+// below. Project GP/hr is what the pages show for a job.
 export const projectProfit = (job) => (job.type === 'chargeup' ? job.profit : job.pl?.profitToDate ?? job.profit) ?? null
 export const projectGpPerHour = (job) => (job.hours > 0 && projectProfit(job) != null ? projectProfit(job) / job.hours : null)
 
 // Who did the job and who contributed: each person's hours, their share of the
-// job's hours, and their PART of the job = the job's project GP/hr × their hours —
-// so the people on a job add back up to the job's profit to date. (The labour-only
-// rate is not used for people any more, and is shown nowhere.)
+// job's hours, and their GP on the job = the job's labour GP/hr × their hours — so
+// the people on a job add back up to its labour profit. The rate itself stays in
+// the background and is never displayed.
 //
 // Katipolt lists a person's after-hours or overtime rate as its own line ("Sean
 // Baines After Hours", "Sean Baines Overtime") and corrections as negative lines, so lines are merged per person and
@@ -34,17 +35,17 @@ export function contributors(job) {
   const all = [...people.values()].map((p) => ({ ...p, hours: Math.round(p.hours * 100) / 100 }))
   const worked = all.filter((p) => p.hours > 0).sort((a, b) => b.hours - a.hours)
   const total = worked.reduce((sum, p) => sum + p.hours, 0)
-  const rate = projectGpPerHour(job)
+  const rate = job.hours > 0 ? job.profit / job.hours : null   // labour GP/hr (hidden)
   return {
-    // part = the job's project GP/hr × their hours (unrounded rate, so the parts
-    // add back to the job's profit to date exactly).
+    // part = the job's labour GP/hr × their hours (unrounded rate, so the parts add
+    // back to the job's labour profit exactly).
     worked: worked.map((p) => ({ ...p, share: p.hours / total, part: rate == null ? 0 : rate * p.hours })),
     adjustments: all.filter((p) => p.hours <= 0),
   }
 }
 
 // Each person's totals across the jobs shown: their hours and their part of each
-// job (its project GP/hr × their hours), summed. Their GP/hr is total part ÷ total
+// job (labour GP/hr × their hours), summed. Their GP/hr is total part ÷ total
 // hours — so a person is weighted by the time they put in.
 // Quoted jobs only — a charge-up job's profit isn't split per person.
 export function personTotals(jobs) {

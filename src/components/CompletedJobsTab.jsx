@@ -127,7 +127,7 @@ function Breakdown({ job }) {
         {people.length === 1
           ? 'One person did all the hours on this job.'
           : split
-            ? `${people.length} people worked on this job — their part of the job's profit is split by their hours.`
+            ? `${people.length} people worked on this job — each person's GP is split by the hours they worked.`
             : `${people.length} people worked on this job.`}
       </p>
       {people.length > 1 && (
@@ -136,7 +136,7 @@ function Breakdown({ job }) {
           <span />
           <span className="text-right">Hours</span>
           <span className="text-right">Share</span>
-          {split && <span className="text-right">Their part</span>}
+          {split && <span className="text-right">Their GP</span>}
         </div>
       )}
       {people.map((p, i) => (

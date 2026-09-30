@@ -220,7 +220,7 @@ export default function CompletedCompare({ jobs }) {
               ))}
             </tbody>
           </table>
-          <p className="mt-1 text-[11px] text-neutral-500">The small figure is their part of that job&apos;s profit to date, split by hours — quoted jobs only.</p>
+          <p className="mt-1 text-[11px] text-neutral-500">The small figure is their GP on that job, split by hours worked — quoted jobs only.</p>
         </div>
       )}
 
