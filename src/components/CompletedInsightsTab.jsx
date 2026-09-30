@@ -4,7 +4,7 @@ import CollapsibleSection from './CollapsibleSection'
 import LastSynced from './LastSynced'
 import { fetchJobCategories } from '../lib/jobCategoryStore'
 import { JOB_CATEGORIES } from '../lib/jobCategories'
-import { monthName, personMonthly } from '../lib/completedJobPeople'
+import { monthName, personMonthly, projectGpPerHour, projectProfit } from '../lib/completedJobPeople'
 
 // The summaries that used to sit on top of the Completed jobs table: how many
 // jobs of each type of work (split charge-up / quoted), and each person's
@@ -14,12 +14,9 @@ import { monthName, personMonthly } from '../lib/completedJobPeople'
 const TYPE_LABEL = { quoted: 'Quoted', chargeup: 'Charge-up' }
 const NOT_SET = 'Not set'
 
-// Project GP/hr — the whole job's result, not just labour: profit to date (the
-// P&L's actual profit) ÷ actual hours. For a charge-up job that's the same as
-// its GP/hr. The labour-only GP/hr stays on the Completed jobs table and in the
-// By person figures below.
-const projectProfit = (j) => j.pl?.profitToDate ?? j.profit ?? null
-const projectGp = (j) => (j.hours > 0 && projectProfit(j) != null ? projectProfit(j) / j.hours : null)
+// Project GP/hr (profit to date ÷ actual hours) — see completedJobPeople.js. The
+// labour-only rate isn't shown; it only splits a job between its people.
+const projectGp = projectGpPerHour
 // Over a set of jobs, weighted by hours: total profit to date ÷ total actual
 // hours. Jobs with no actual hours have no GP/hr and are left out.
 function rate(all) {
@@ -112,7 +109,7 @@ function WorkTypeBreakdown({ jobs, categories, onOpenJob }) {
           <div className="table-scroll">
             <table className="data-table data-table--compact">
               <thead>
-                <tr><th>Job #</th><th>Job name</th><th>Type</th><th className="num">Project GP/hr</th><th className="num">Profit to date</th><th className="num">Actual h</th><th className="num">Labour GP/hr</th></tr>
+                <tr><th>Job #</th><th>Job name</th><th>Type</th><th className="num">Project GP/hr</th><th className="num">Profit to date</th><th className="num">Actual h</th></tr>
               </thead>
               <tbody>
                 {picked.map((j) => (
@@ -125,7 +122,6 @@ function WorkTypeBreakdown({ jobs, categories, onOpenJob }) {
                     <td className="num font-medium">{projectGp(j) === null ? '—' : `${cents(projectGp(j))}/hr`}</td>
                     <td className="num">{projectProfit(j) == null ? '—' : money(projectProfit(j))}</td>
                     <td className="num">{j.hours}</td>
-                    <td className="num text-neutral-400">{j.type === 'quoted' ? `${cents(j.gpPerHour)}/hr` : '—'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -176,7 +172,7 @@ function PeopleSummary({ jobs, scope, onOpenJob }) {
       className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6"
       storageKey="completed-jobs.people"
       title={`By person — ${all.length} ${all.length === 1 ? 'person' : 'people'}`}
-      description={`Quoted jobs only — charge-up jobs aren't split per person. Each person's GP/hr month by month, and in Total for every month added together: their part of the labour profit (each job's GP/hr × their hours) ÷ their hours, across ${scope}. Red = worse than the month before. Click a person to see their jobs, and a job to open it.`}
+      description={`Quoted jobs only — charge-up jobs aren't split per person. Each person's GP/hr month by month, and in Total for every month added together: their part of each job's labour profit (split by their hours) ÷ their hours, across ${scope}. Red = worse than the month before. Click a person to see their jobs, and a job to open it.`}
     >
       {flagged.length > 0 && (
         <div className="mt-2 rounded-[12px] border p-3 text-[13px]" style={{ borderColor: `color-mix(in srgb, ${OVER} 45%, transparent)`, background: `color-mix(in srgb, ${OVER} 7%, transparent)` }}>
@@ -242,16 +238,15 @@ function PeopleSummary({ jobs, scope, onOpenJob }) {
                     <tr>
                       <td colSpan={span} className="bg-white/[0.02]">
                         <div className="flex max-w-3xl flex-col gap-1.5 py-2 pl-6 text-[13px]">
-                          <div className="grid grid-cols-[4rem_minmax(0,1fr)_5rem_5rem_4rem_6rem] gap-x-4 text-[11px] uppercase tracking-wide text-neutral-500">
-                            <span>Job #</span><span>Job name</span><span>Month</span><span className="text-right">GP/hr</span><span className="text-right">Hours</span><span className="text-right">Their part</span>
+                          <div className="grid grid-cols-[4rem_minmax(0,1fr)_5rem_4rem_6rem] gap-x-4 text-[11px] uppercase tracking-wide text-neutral-500">
+                            <span>Job #</span><span>Job name</span><span>Month</span><span className="text-right">Hours</span><span className="text-right">Their part</span>
                           </div>
                           {[...p.jobs].sort((a, b) => (b.job.month ?? '').localeCompare(a.job.month ?? '')).map(({ job, hours, part }) => (
                             <button type="button" key={job.jobNumber} onClick={() => onOpenJob(job.jobNumber)} title="Open on the Completed jobs tab"
-                              className="grid grid-cols-[4rem_minmax(0,1fr)_5rem_5rem_4rem_6rem] gap-x-4 rounded text-left tabular-nums hover:bg-white/[0.05]">
+                              className="grid grid-cols-[4rem_minmax(0,1fr)_5rem_4rem_6rem] gap-x-4 rounded text-left tabular-nums hover:bg-white/[0.05]">
                               <span className="text-neutral-400">{job.jobNumber}</span>
                               <span className="truncate text-neutral-200">{job.jobName}</span>
                               <span className="text-neutral-400">{monthName(job.month, 'short')}</span>
-                              <span className="text-right text-neutral-400">{cents(job.gpPerHour)}</span>
                               <span className="text-right text-neutral-300">{hours} h</span>
                               <span className="text-right text-white">{cents(part)}</span>
                             </button>

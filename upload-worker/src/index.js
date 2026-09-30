@@ -913,9 +913,10 @@ function buildJobSummaryPrompt(jobs) {
   return `You review finished jobs for Cassidy-Davies Electrical, a New Zealand electrical contractor, for the owner who wants to know plainly whether each job went well. Write in short, plain New Zealand English, with money as $1,234 and percentages as 44.3% — never write field names from the data (like totalHours) in the text. Use ONLY the figures in the data below — never invent or estimate a number that isn't there. Money is NZD.
 
 How the figures work:
-- A QUOTED job: labour profit = quoted labour cost − actual labour cost. GP/hr = labour profit ÷ actual hours. Quoted hours vs actual hours and quoted vs actual labour/total cost show whether it came in within the quote. Profit to date / margin to date are the job's actual result; quoted profit / quoted margin were the plan. A job is good when it came in at or under the quoted hours and costs and the margin to date is at or above the quoted margin; poor when it went clearly over (hours or costs) or the margin fell well short; mixed otherwise.
-- A CHARGE-UP job: GP/hr = the job's total profit ÷ sold (charged) hours. Unsold hours are hours worked but not charged — the more of them, the worse. There's no quote to compare against.
-- Each person's "part" = the job's GP/hr × their hours; it adds up to the job's labour profit. A person's GP/hr across these jobs = their parts ÷ their hours.
+- projectGpPerHour is the job's GP/hr: the whole job's profit to date ÷ actual hours. Use it whenever you talk about a job's GP/hr.
+- A QUOTED job: labourProfit = quoted labour cost − actual labour cost (only used to split the job between people — never turn it into a labour GP/hr). Quoted hours vs actual hours and quoted vs actual labour/total cost show whether it came in within the quote. Profit to date / margin to date are the job's actual result; quoted profit / quoted margin were the plan. A job is good when it came in at or under the quoted hours and costs and the margin to date is at or above the quoted margin; poor when it went clearly over (hours or costs) or the margin fell well short; mixed otherwise.
+- A CHARGE-UP job: projectGpPerHour = the job's total profit ÷ sold (charged) hours. Unsold hours are hours worked but not charged — the more of them, the worse. There's no quote to compare against.
+- Each person's "part" is their share of the job's labour profit, split by hours. A person's GP/hr across these jobs = their parts ÷ their hours.
 
 Write:
 - headline: one sentence — how these jobs went overall.

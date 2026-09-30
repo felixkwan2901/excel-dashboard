@@ -9,7 +9,7 @@ import { fetchJobOwners, saveJobOwner } from '../lib/jobOwnerStore'
 import { fetchJobCategories, saveJobCategory } from '../lib/jobCategoryStore'
 import { OwnerCell, CategoryCell } from './JobTable'
 import { JOB_CATEGORIES } from '../lib/jobCategories'
-import { contributors } from '../lib/completedJobPeople'
+import { contributors, projectGpPerHour, projectProfit } from '../lib/completedJobPeople'
 import { jobsToReview, overruns } from '../lib/completedJobReview'
 
 // Loaded by scripts/lib/completed-job.mjs — labour only: a quoted job's profit is
@@ -26,7 +26,7 @@ const COLUMNS = [
   { key: 'jobNumber', label: 'Job #', get: (j) => Number(j.jobNumber), sticky: 0 },
   { key: 'jobName', label: 'Job name', sticky: 1 },
   { key: 'type', label: 'Type', get: (j) => TYPE_LABEL[j.type] ?? j.type },
-  { key: 'gpPerHour', group: 'gp', label: 'GP/hr', num: true, fmt: cents, strong: true },
+  { key: 'gpPerHour', group: 'gp', label: 'GP/hr', num: true, get: projectGpPerHour, fmt: cents, strong: true },
   { key: 'quotedHours', group: 'gp', label: 'Quoted h', num: true },
   { key: 'hours', group: 'gp', label: 'Actual h', num: true },
   { key: 'hoursDiff', group: 'gp', label: 'Diff h', num: true, get: (j) => hoursDiff(j) },
@@ -98,19 +98,17 @@ function WorkedBy({ job }) {
 const GRID = 'grid grid-cols-[minmax(0,1.6fr)_minmax(0,1.6fr)_4rem_3rem_6rem] gap-x-4'
 const GRID_ONE = 'grid grid-cols-[minmax(0,1.6fr)_minmax(0,1.6fr)_4rem_3rem] gap-x-4'
 
-// How the job's GP/hr was worked out, straight from its P&L export.
+// How the job's project GP/hr was worked out: its profit to date (P&L) over its
+// actual hours. (The labour-only rate stays behind the scenes, splitting a job
+// between its people.)
 function LabourSum({ job }) {
-  const rate = job.hours > 0
-    ? <> ÷ {job.hours} actual h = <span className="font-medium text-white">{cents(job.gpPerHour)}/hr</span></>
-    : <> — no sold (actual) hours, so no GP/hr{job.unsoldHours ? ` (${job.unsoldHours} h unsold)` : ''}</>
-  if (job.type === 'chargeup') {
-    return <p className="text-[12px] tabular-nums text-neutral-400"><span className="text-neutral-200">{cents(job.profit)}</span> profit (P&amp;L total){rate}</p>
+  const profit = projectProfit(job)
+  if (!(job.hours > 0) || profit == null) {
+    return <p className="text-[12px] text-neutral-400">No sold (actual) hours, so no GP/hr{job.unsoldHours ? ` (${job.unsoldHours} h unsold)` : ''}.</p>
   }
-  const l = job.labour
-  if (!l) return null
   return (
     <p className="text-[12px] tabular-nums text-neutral-400">
-      {money(l.quotedCost)} quoted labour cost − {money(l.actualCost)} actual labour cost = <span className="text-neutral-200">{cents(job.profit)}</span> labour profit{rate}
+      <span className="text-neutral-200">{cents(profit)}</span> profit to date (P&amp;L) ÷ {job.hours} actual h = <span className="font-medium text-white">{cents(projectGpPerHour(job))}/hr</span>
     </p>
   )
 }
@@ -129,7 +127,7 @@ function Breakdown({ job }) {
         {people.length === 1
           ? 'One person did all the hours on this job.'
           : split
-            ? `${people.length} people worked on this job — each person's part is the job's ${cents(job.gpPerHour)}/hr × their hours.`
+            ? `${people.length} people worked on this job — their part of the job's labour profit is split by their hours.`
             : `${people.length} people worked on this job.`}
       </p>
       {people.length > 1 && (
@@ -138,7 +136,7 @@ function Breakdown({ job }) {
           <span />
           <span className="text-right">Hours</span>
           <span className="text-right">Share</span>
-          {split && <span className="text-right">GP/hr × hours</span>}
+          {split && <span className="text-right">Their part</span>}
         </div>
       )}
       {people.map((p, i) => (
@@ -180,8 +178,8 @@ const TYPE_FILTERS = [
 // Jobs with no actual hours (flagged 'no-sold-hours') have no GP/hr, so they're
 // left out of the rate — their profit over zero hours would only inflate it.
 function typeStats(all) {
-  const jobs = all.filter((j) => j.hours > 0)
-  const profit = jobs.reduce((sum, j) => sum + (j.profit ?? 0), 0)
+  const jobs = all.filter((j) => projectGpPerHour(j) !== null)
+  const profit = jobs.reduce((sum, j) => sum + projectProfit(j), 0)
   const hours = jobs.reduce((sum, j) => sum + (j.hours ?? 0), 0)
   return { count: all.length, profit, hours: Math.round(hours * 100) / 100, gp: hours ? profit / hours : null }
 }
@@ -202,7 +200,7 @@ function TypeSummary({ type, jobs, active, onSelect }) {
       </span>
       <span className="text-2xl font-semibold tabular-nums text-white">{st.gp === null ? '—' : `${cents(st.gp)}/hr`}</span>
       <span className="text-[12px] tabular-nums text-neutral-500">
-        {money(st.profit)} {type === 'quoted' ? 'labour profit' : 'profit'} ÷ {st.hours} actual h
+        {money(st.profit)} profit to date ÷ {st.hours} actual h
       </span>
     </button>
   )
@@ -236,7 +234,7 @@ function selectionTotals(jobs) {
     jobNumber: 'Total',
     jobName: `${jobs.length} job${jobs.length === 1 ? '' : 's'} selected`,
     type: [cu && `${cu} charge-up`, jobs.length - cu && `${jobs.length - cu} quoted`].filter(Boolean).join(' · '),
-    gpPerHour: gpH ? withHours.reduce((t, j) => t + (j.profit ?? 0), 0) / gpH : null,
+    gpPerHour: gpH ? withHours.reduce((t, j) => t + (projectProfit(j) ?? 0), 0) / gpH : null,
     quotedHours: sum((j) => j.quotedHours),
     hours: sum((j) => j.hours),
     hoursDiff: withQuote.length ? withQuote.reduce((t, j) => t + j.quotedHours - j.hours, 0) : null,
@@ -412,12 +410,10 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
         <h1 className="text-2xl font-semibold text-white">Completed jobs — GP per hour</h1>
         <div className="mt-1"><LastSynced kind="completed" /></div>
         <p className="mt-1 text-sm text-neutral-400">
-          GP per hour for each finished job. A quoted job&apos;s is its labour profit (quoted
-          labour cost − actual labour cost) ÷ actual hours, and on a job with more than one
-          person each person&apos;s part is that GP/hr × their hours. A charge-up job&apos;s is its
-          profit ÷ actual hours (the Sold tab&apos;s labour hours). Quoted h is a quoted job&apos;s
-          quoted hours, or a charge-up job&apos;s sold + unsold hours; difference h is quoted −
-          actual. Click a job to see the working and who worked on it. Add a month&apos;s jobs in Update data → Completed jobs.
+          Project GP per hour for each finished job: its profit to date (the P&amp;L&apos;s actual
+          profit) ÷ actual hours — for a charge-up job, the Sold tab&apos;s labour hours. Quoted h
+          is a quoted job&apos;s quoted hours, or a charge-up job&apos;s sold + unsold hours; difference h
+          is quoted − actual. Click a job to see the working and who worked on it. Add a month&apos;s jobs in Update data → Completed jobs.
         </p>
       </div>
 
@@ -560,7 +556,7 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
                 <span className="text-neutral-400">Difference h</span>
                 <span className="text-right tabular-nums"><DiffHours job={j} /></span>
                 <span className="text-neutral-400">GP $/hr</span>
-                <span className="text-right tabular-nums font-medium text-white">{cents(j.gpPerHour)}</span>
+                <span className="text-right tabular-nums font-medium text-white">{cents(projectGpPerHour(j))}</span>
               </div>
               <p className="text-[12px] text-neutral-500">
                 <WorkedBy job={j} /> · {open.has(j.jobNumber) ? 'Hide' : 'Show'} who worked on it

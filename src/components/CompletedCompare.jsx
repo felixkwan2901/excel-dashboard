@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Sparkles } from 'lucide-react'
 import { cents, money, percent } from '../lib/format'
-import { contributors } from '../lib/completedJobPeople'
+import { contributors, projectGpPerHour } from '../lib/completedJobPeople'
 import { overruns } from '../lib/completedJobReview'
 import { workerFetch } from '@/lib/workerClient'
 
@@ -52,7 +52,7 @@ function Verdict({ v }) {
 
 const ROWS = [
   { label: 'Type', get: (j) => TYPE_LABEL[j.type] },
-  { label: 'GP/hr', get: (j) => (j.gpPerHour == null ? '—' : `${cents(j.gpPerHour)}/hr`), strong: true },
+  { label: 'GP/hr', get: (j) => (projectGpPerHour(j) == null ? '—' : `${cents(projectGpPerHour(j))}/hr`), strong: true },
   { label: 'Quoted h', get: (j) => h(j.quotedHours) },
   { label: 'Actual h', get: (j) => h(j.hours) },
   {
@@ -81,7 +81,7 @@ function summaryPayload(jobs, peopleRows) {
     jobNumber: j.jobNumber,
     jobName: j.jobName,
     type: j.type,
-    gpPerHour: j.gpPerHour,
+    projectGpPerHour: projectGpPerHour(j) == null ? null : Math.round(projectGpPerHour(j) * 100) / 100,
     quotedHours: j.quotedHours ?? null,
     actualHours: j.hours,
     unsoldHours: j.unsoldHours ?? null,
@@ -220,7 +220,7 @@ export default function CompletedCompare({ jobs }) {
               ))}
             </tbody>
           </table>
-          <p className="mt-1 text-[11px] text-neutral-500">The small figure is their part of that job&apos;s labour profit (the job&apos;s GP/hr × their hours) — quoted jobs only.</p>
+          <p className="mt-1 text-[11px] text-neutral-500">The small figure is their part of that job&apos;s labour profit, split by hours — quoted jobs only.</p>
         </div>
       )}
 

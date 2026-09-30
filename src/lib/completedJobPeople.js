@@ -80,3 +80,11 @@ export function personMonthly(jobs) {
 export function monthName(ym, style = 'long') {
   return ym ? new Date(`${ym}-01T00:00:00Z`).toLocaleDateString('en-NZ', { month: style, year: 'numeric', timeZone: 'UTC' }) : ''
 }
+
+// Project GP/hr — what the Completed jobs page and Completed insights show for a
+// job: the whole job's profit to date (the P&L's actual profit) ÷ actual hours. A
+// charge-up job's profit to date is its total profit, so it equals its own GP/hr.
+// The labour-only GP/hr (job.gpPerHour) is not shown anywhere; personTotals and
+// contributors() use it behind the scenes to split a job between its people.
+export const projectProfit = (job) => (job.type === 'chargeup' ? job.profit : job.pl?.profitToDate ?? job.profit) ?? null
+export const projectGpPerHour = (job) => (job.hours > 0 && projectProfit(job) != null ? projectProfit(job) / job.hours : null)
