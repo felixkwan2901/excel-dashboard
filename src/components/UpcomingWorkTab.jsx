@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { saveUpcomingWorkField } from '../lib/upcomingWorkStore'
 import { roundHours } from '../lib/format'
 import { useSharedState } from '../lib/useSharedState'
 import CollapsibleSection from './CollapsibleSection'
+import DataTable from './table/DataTable'
+import { useDataTable } from './table/useDataTable'
 
 // Jan-Dec hours-allocation columns (cols F-Q, 0-indexed 5-16) plus the
 // notes column (S, 0-indexed 18) — the only manual entry on this sheet.
@@ -20,10 +22,6 @@ const NOTES_COL = 18
 // three hours columns — so they stay put while the Jan-Dec months scroll
 // underneath. Widths here match the min-widths given to those columns below.
 const STICKY_WIDTHS = [220, 100, 100, 110]
-const STICKY_LEFTS = STICKY_WIDTHS.reduce((acc, w, i) => {
-  acc.push(i === 0 ? 0 : acc[i - 1] + STICKY_WIDTHS[i - 1])
-  return acc
-}, [])
 
 function EditableCell({ value, saving, numeric, onChange }) {
   const [text, setText] = useState(value)
@@ -50,12 +48,7 @@ const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'S
 //
 // The sort is a view, not a change: it never writes, so the workbook keeps
 // its own order whatever is picked here.
-const SORT_OPTIONS = [
-  { key: 'sheet', label: 'Sheet order' },
-  { key: 'number', label: 'Job #' },
-  { key: 'planned', label: 'Most planned' },
-  { key: 'remaining', label: 'Most hours left' },
-]
+const UPCOMING_GROUPS = [{ key: 'months', label: 'Planned hours by month', flat: true }]
 
 // Which column is "now". Twelve near-identical columns of numbers give the eye
 // nothing to anchor on, and the month header scrolls out of sight on a long
@@ -304,8 +297,6 @@ export default function UpcomingWorkTab({ upcomingWork, onBack }) {
   })
   const [savingKeys, setSavingKeys] = useState(() => new Set())
   const [status, setStatus] = useState({ kind: 'idle', message: '' })
-  const [sort, setSort] = useState('sheet')
-
   // Sorted from the editable values rather than the parsed workbook, so
   // "most planned" reflects what is on screen right now, including an edit
   // made a moment ago.
@@ -314,15 +305,6 @@ export default function UpcomingWorkTab({ upcomingWork, onBack }) {
       const n = Number(values[job.jobNumber]?.[f.key])
       return total + (Number.isFinite(n) ? n : 0)
     }, 0)
-
-  const sortedJobs =
-    sort === 'sheet'
-      ? jobs
-      : [...jobs].sort((a, b) => {
-          if (sort === 'number') return Number(a.jobNumber) - Number(b.jobNumber)
-          if (sort === 'planned') return plannedForJob(b) - plannedForJob(a)
-          return (b.remainingHours ?? 0) - (a.remainingHours ?? 0)
-        })
 
 
   // Summed from the editable values rather than the parsed workbook, so
@@ -367,6 +349,30 @@ export default function UpcomingWorkTab({ upcomingWork, onBack }) {
     })
   }
 
+  const editable = (key, col, numeric) => (job) => (
+    <EditableCell
+      value={values[job.jobNumber][key]}
+      saving={savingKeys.has(`${job.jobNumber}:${key}`)}
+      numeric={numeric}
+      onChange={(newValue) => handleChange(job, key, col, newValue)}
+    />
+  )
+  const hoursCell = (key) => (job) => (job[key] === null ? '—' : roundHours(job[key]))
+  const monthValue = (key) => (job) => { const n = Number(values[job.jobNumber]?.[key]); return values[job.jobNumber]?.[key] === '' || !Number.isFinite(n) ? null : n }
+  // No sort by default = the order the rows sit in the workbook. Every header
+  // sorts (a month sorts by the hours planned in it); "Sheet order" puts it back.
+  const columns = useMemo(() => [
+    { key: 'jobNumber', label: 'Job', sticky: true, width: STICKY_WIDTHS[0], always: true, cellClass: 'whitespace-nowrap',
+      get: (j) => Number(j.jobNumber), render: (j) => `${j.jobNumber} ${j.jobName}` },
+    { key: 'quotedHours', label: 'Quoted hrs', num: true, sticky: true, width: STICKY_WIDTHS[1], always: true, render: hoursCell('quotedHours') },
+    { key: 'usedHours', label: 'Used hrs', num: true, sticky: true, width: STICKY_WIDTHS[2], always: true, render: hoursCell('usedHours') },
+    { key: 'remainingHours', label: 'Remaining hrs', num: true, sticky: true, width: STICKY_WIDTHS[3], always: true, render: hoursCell('remainingHours') },
+    { key: 'planned', label: 'Planned hrs', title: 'The twelve months added up, from what is on screen now', num: true, get: plannedForJob, render: (j) => roundHours(plannedForJob(j)) },
+    ...MONTH_FIELDS.map((f) => ({ key: f.key, label: f.key, num: true, group: 'months', cellClass: 'min-w-[80px] p-1', get: monthValue(f.key), render: editable(f.key, f.col, true) })),
+    { key: 'notes', label: 'Notes', sortable: false, always: true, cellClass: 'min-w-[160px] p-1', render: editable('notes', NOTES_COL, false) },
+  ], [values, savingKeys]) // eslint-disable-line react-hooks/exhaustive-deps
+  const table = useDataTable({ id: 'upcomingWork', columns, rows: jobs, defaultSort: { key: null, dir: 1 }, numbersFirst: 'desc' })
+
   return (
     <div className="mx-auto flex w-full max-w-[1800px] flex-col gap-6">
       <nav className="flex items-center gap-1.5 text-sm text-text-muted">
@@ -398,110 +404,30 @@ export default function UpcomingWorkTab({ upcomingWork, onBack }) {
         storageKey="upcoming-work.jobs"
         title="Planned hours by job"
         actions={
-          <div className="flex flex-wrap items-center gap-1.5">
-            {SORT_OPTIONS.map((option) => (
-              <button
-                key={option.key}
-                type="button"
-                onClick={() => setSort(option.key)}
-                aria-pressed={sort === option.key}
-                title={
-                  option.key === 'sheet'
-                    ? 'The order the rows sit in the workbook'
-                    : `Sort by ${option.label.toLowerCase()} — changes what you see, not the workbook`
-                }
-                className={`rounded-md border px-2.5 py-1.5 text-[12px] font-medium transition-colors ${
-                  sort === option.key
-                    ? 'border-brand-green/50 bg-brand-green/10 text-brand-green'
-                    : 'border-white/10 text-neutral-300 hover:border-brand-green/50 hover:text-brand-green'
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
+          <button
+            type="button"
+            onClick={() => table.setSort({ key: null, dir: 1 })}
+            aria-pressed={table.sort.key === null}
+            title="The order the rows sit in the workbook"
+            className={`rounded-md border px-2.5 py-1.5 text-[12px] font-medium transition-colors ${
+              table.sort.key === null
+                ? 'border-brand-green/50 bg-brand-green/10 text-brand-green'
+                : 'border-white/10 text-neutral-300 hover:border-brand-green/50 hover:text-brand-green'
+            }`}
+          >
+            Sheet order
+          </button>
         }
       >
-        <div className="table-scroll mt-4">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th className="sticky-col" style={{ left: STICKY_LEFTS[0], minWidth: STICKY_WIDTHS[0] }}>
-                  Job
-                </th>
-                <th className="num sticky-col" style={{ left: STICKY_LEFTS[1], minWidth: STICKY_WIDTHS[1] }}>
-                  Quoted hrs
-                </th>
-                <th className="num sticky-col" style={{ left: STICKY_LEFTS[2], minWidth: STICKY_WIDTHS[2] }}>
-                  Used hrs
-                </th>
-                <th
-                  className="num sticky-col sticky-col-end"
-                  style={{ left: STICKY_LEFTS[3], minWidth: STICKY_WIDTHS[3] }}
-                >
-                  Remaining hrs
-                </th>
-                {MONTH_FIELDS.map((f) => (
-                  <th key={f.key} className="num">
-                    {f.key}
-                  </th>
-                ))}
-                <th>Notes</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedJobs.map((job) => (
-                <tr key={job.jobNumber}>
-                  <td
-                    className="sticky-col whitespace-nowrap"
-                    style={{ left: STICKY_LEFTS[0], minWidth: STICKY_WIDTHS[0] }}
-                  >
-                    {job.jobNumber} {job.jobName}
-                  </td>
-                  <td className="num tabular sticky-col" style={{ left: STICKY_LEFTS[1], minWidth: STICKY_WIDTHS[1] }}>
-                    {job.quotedHours === null ? '—' : roundHours(job.quotedHours)}
-                  </td>
-                  <td className="num tabular sticky-col" style={{ left: STICKY_LEFTS[2], minWidth: STICKY_WIDTHS[2] }}>
-                    {job.usedHours === null ? '—' : roundHours(job.usedHours)}
-                  </td>
-                  <td
-                    className="num tabular sticky-col sticky-col-end"
-                    style={{ left: STICKY_LEFTS[3], minWidth: STICKY_WIDTHS[3] }}
-                  >
-                    {job.remainingHours === null ? '—' : roundHours(job.remainingHours)}
-                  </td>
-                  {MONTH_FIELDS.map((field) => {
-                    return (
-                      <td key={field.key} className="min-w-[80px] p-1">
-                        <EditableCell
-                          value={values[job.jobNumber][field.key]}
-                          saving={savingKeys.has(`${job.jobNumber}:${field.key}`)}
-                          numeric
-                          onChange={(newValue) => handleChange(job, field.key, field.col, newValue)}
-                        />
-                      </td>
-                    )
-                  })}
-                  <td className="min-w-[160px] p-1">
-                    <EditableCell
-                      value={values[job.jobNumber].notes}
-                      saving={savingKeys.has(`${job.jobNumber}:notes`)}
-                      numeric={false}
-                      onChange={(newValue) => handleChange(job, 'notes', NOTES_COL, newValue)}
-                    />
-                  </td>
-                </tr>
-              ))}
-              {jobs.length === 0 && (
-                <tr>
-                  <td colSpan={5 + MONTH_FIELDS.length} className="empty-row">
-                    No jobs to show.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          table={table}
+          groups={UPCOMING_GROUPS}
+          rowKey={(j) => j.jobNumber}
+          exportName="planned-hours"
+          emptyText="No jobs to show."
+          showOnMobile
+          toolbar={<span className="text-[12px] text-neutral-500">Click a month heading to sort by the hours planned in it. Cells save when you leave them.</span>}
+        />
       </CollapsibleSection>
     </div>
   )

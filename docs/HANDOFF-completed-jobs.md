@@ -38,6 +38,13 @@ Upload path: page → `POST /completed-jobs` (upload worker, proxied by the site
 - Two jobs with identical figures (e.g. the −$77.47 pair) are paired arbitrarily; the numbers are identical either way.
 - Exports download in **ascending** job order; Chrome's "(1)" numbering within one minute is not always the real order — the loader tries each order against the manifest's checks.
 
+## The shared table (1 Oct 2026)
+Every job table — Projects (`JobTable.jsx`), Monthly claims, Upcoming work's planned hours, Completed jobs — is now `src/components/table/DataTable.jsx` driven by `useDataTable.js`. One place for frozen columns, two-row group headers, Simple/Full presets, the grouped column picker, sorting (blanks last), ticked rows + pinned totals, expandable rows, and "Export CSV" of the rows and columns shown (via `downloadCsv`). Column shape and props are documented at the top of each file. Pages keep their own data, filters, editing and phone cards; `useDataTable` returns `rows` (sorted) and `sort` for those. Storage is per table id: `<id>.hiddenColumns`, `<id>.columnPreset`, and `<id>.sort` only when `persistSort` is on. The old keys (`completedJobs.hiddenGroups.v2`, `jobTable.visibleColumns`, `jobTable.showTrend`, `monthlyClaims.showWorkings`) are read once to seed the new ones — don't delete that migration for a while. Upcoming work's capacity grid (7 fixed rows × 12 months) is not a data list and stays hand-written.
+
+## Still to do (owner's list, 1 Oct 2026)
+- **Completed insights → "Jobs by type and type of work"**: the owner doesn't like the look (grey count pills, `—/hr`, the tooltip). Redo it after the shared-table work — probably on DataTable with plain numbers.
+- Then, in the owner's order: friendlier upload (preview before load, plain-word errors, expected-files checklist, "Done, 64 jobs"), a needs-attention home screen grown from the bell, screenshot tests (dark/light × laptop/phone), plain words + tooltips everywhere, PDF/Excel month report, month-end review flow, charts pass, accessibility (skeletons, saved-with-undo, empty states, icon beside red, calmer blink, keyboard), field app for outdoors.
+
 ## UI conventions you'll hit
 - `.table-scroll` (App.css) scrolls both ways, max 70vh, header row pinned; `.table-freeze` adds the two-row header and pinned Total row; `.sticky-col` freezes Job #/Job name. Print turns the scroll box off.
 - Theme colours via CSS vars (`--viz-critical` red, `--viz-1`, `--brand-green`); keep both dark and light working.

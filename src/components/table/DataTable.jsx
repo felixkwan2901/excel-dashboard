@@ -22,13 +22,14 @@ import { downloadCsv } from '../../lib/tableauExport'
 //   exportName    'completed-jobs' → an "Export CSV" button (visible columns, sorted rows)
 //   toolbar       extra nodes on the toolbar's right; toolbarLeft on the left
 //   hideToolbar
+//   showOnMobile  the table (and toolbar) show below the sm breakpoint too, for pages with no card view
 //   cellCtx       passed to column render(row, ctx)
 export default function DataTable({
   table, groups = [], rowKey, rowProps, onRowClick,
   selectable = false, selected, onSelectedChange, totals,
   expandable = false, expanded, onToggleExpanded, renderDetail,
   compact = false, emptyText = 'Nothing to show.', exportName,
-  toolbar, toolbarLeft, hideToolbar = false, cellCtx, className = '',
+  toolbar, toolbarLeft, hideToolbar = false, showOnMobile = false, cellCtx, className = '',
 }) {
   const { visibleCols, rows, sort, toggleSort } = table
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -113,7 +114,7 @@ export default function DataTable({
   return (
     <div className={className}>
       {!hideToolbar && (
-        <div className="relative mt-3 hidden flex-wrap items-center gap-2 sm:flex">
+        <div className={`relative mt-3 flex-wrap items-center gap-2 ${showOnMobile ? 'flex' : 'hidden sm:flex'}`}>
           {toolbarLeft}
           {table.hasPresets && (
             <>
@@ -171,7 +172,7 @@ export default function DataTable({
         </div>
       )}
 
-      <div className={`table-scroll ${twoRows ? 'table-freeze' : ''} mt-2 hidden sm:block`}>
+      <div className={`table-scroll ${twoRows ? 'table-freeze' : ''} mt-2 ${showOnMobile ? '' : 'hidden sm:block'}`}>
         <table className={`data-table ${compact ? 'data-table--compact' : ''}`}>
           <thead>
             <tr>

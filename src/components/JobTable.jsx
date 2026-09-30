@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react'
-import { Settings2, AlertTriangle } from 'lucide-react'
+import { AlertTriangle } from 'lucide-react'
 import TrendBadge from './TrendBadge'
 import { money, percent } from '../lib/format'
 import { useLocalStorageState } from '../lib/useLocalStorageState'
+import DataTable from './table/DataTable'
+import { useDataTable } from './table/useDataTable'
 
 // Always shown, not part of the toggle panel.
 import { JOB_OWNERS } from '../lib/jobOwners'
@@ -404,18 +406,21 @@ export default function JobTable({
   onCategorySaved,
   onDetailSaved,
 }) {
-  const [sort, setSort] = useState({ key: 'jobNumber', dir: 1 })
   // Remembered, because the person using it is nearly always the same person
   // asking the same question: "which of these are mine?"
   const [owner, setOwner] = useLocalStorageState('jobTable.owner', 'all')
-  const [visibleKeys, setVisibleKeys] = useLocalStorageState(
-    'jobTable.visibleColumns',
-    new Set(DEFAULT_OPTIONAL_KEYS),
-    { serialize: (s) => JSON.stringify([...s]), deserialize: (s) => new Set(JSON.parse(s)) }
-  )
-  const [showTrend, setShowTrend] = useLocalStorageState('jobTable.showTrend', true)
-  const [panelOpen, setPanelOpen] = useState(false)
-
+  // Which optional columns start hidden: whatever this browser had chosen in
+  // the old per-column picker (jobTable.visibleColumns / jobTable.showTrend),
+  // else everything but the at-a-glance set.
+  const defaultHidden = useMemo(() => {
+    let visible = new Set(DEFAULT_OPTIONAL_KEYS), trend = true
+    try {
+      const stored = JSON.parse(localStorage.getItem('jobTable.visibleColumns') ?? 'null')
+      if (Array.isArray(stored)) visible = new Set(stored)
+      trend = localStorage.getItem('jobTable.showTrend') !== 'false'
+    } catch { /* defaults */ }
+    return [...OPTIONAL_COLUMNS.filter((c) => !visible.has(c.key)).map((c) => c.key), ...(trend ? [] : ['trend'])]
+  }, [])
   const [ownerSaving, setOwnerSaving] = useState(() => new Set())
   const [ownerError, setOwnerError] = useState('')
   const [categorySaving, setCategorySaving] = useState(() => new Set())
@@ -496,20 +501,6 @@ export default function JobTable({
     }
   }
 
-  const columns = useMemo(
-    () => [...FIXED_COLUMNS, ...OPTIONAL_COLUMNS.filter((c) => visibleKeys.has(c.key))],
-    [visibleKeys]
-  )
-
-  function toggleColumn(key) {
-    setVisibleKeys((prev) => {
-      const next = new Set(prev)
-      if (next.has(key)) next.delete(key)
-      else next.add(key)
-      return next
-    })
-  }
-
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     return jobs
@@ -522,16 +513,7 @@ export default function JobTable({
           job.jobName.toLowerCase().includes(q) ||
           job.jobNumber.toLowerCase().includes(q)
       )
-      .sort((a, b) => {
-        const av = sortValue(a, sort.key)
-        const bv = sortValue(b, sort.key)
-        if (av === null && bv === null) return 0
-        if (av === null) return 1
-        if (bv === null) return -1
-        if (typeof av === 'number') return (av - bv) * sort.dir
-        return String(av).localeCompare(String(bv)) * sort.dir
-      })
-  }, [jobs, query, statusFilter, owner, sort])
+  }, [jobs, query, statusFilter, owner])
 
   const statusCounts = useMemo(
     () => ({
@@ -564,9 +546,26 @@ export default function JobTable({
     detailSaving, onDetailSave: handleDetailSave,
   }
 
-  function toggleSort(key) {
-    setSort((prev) => (prev.key === key ? { key, dir: -prev.dir } : { key, dir: 1 }))
-  }
+  // The shared table: Job number and name frozen, every workbook figure a
+  // hideable column (the picker groups them as before), plus the Data badge
+  // and the optional Trend badge.
+  const columns = useMemo(() => [
+    { key: 'jobNumber', label: 'Job Number', sticky: true, width: 96, always: true },
+    { key: 'jobName', label: 'Job Name', text: true, sticky: true, width: 220, always: true,
+      render: (job) => <span className="block max-w-[220px] truncate" title={job.jobName}>{job.jobName}</span> },
+    ...OPTIONAL_COLUMNS.map((c) => ({
+      key: c.key, label: c.label, num: c.num, group: c.group, center: c.centerHeader,
+      get: (job) => sortValue(job, c.key),
+      export: (job) => (c.detail ? job[c.key] || '' : job[c.key]),
+      render: (job, ctx) => renderCell(job, c, ctx),
+    })),
+    { key: 'data', label: 'Data', sortable: false, always: true, export: (job) => (job.isStale ? `stale — ${job.lastUpdatedLabel}` : ''), render: (job) => <StaleBadge job={job} /> },
+    { key: 'trend', label: 'Trend', group: 'Job', sortable: false, export: (job) => job.marginTrend ?? '', render: (job) => <TrendBadge marginTrend={job.marginTrend} /> },
+  ], [])
+  const table = useDataTable({ id: 'jobTable', columns, rows: filtered, defaultSort: { key: 'jobNumber', dir: 1 }, defaultHidden })
+  const { sort, setSort } = table
+  const showTrend = !table.hidden.has('trend')
+  const mobileCols = table.visibleCols.filter((c) => !['jobNumber', 'jobName', 'data', 'trend'].includes(c.key)).map((c) => OPTIONAL_COLUMNS.find((o) => o.key === c.key))
 
   return (
     <div>
@@ -618,19 +617,6 @@ export default function JobTable({
           )}
         </div>
 
-        <button
-          type="button"
-          onClick={() => setPanelOpen((v) => !v)}
-          aria-pressed={panelOpen}
-          className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors ${
-            panelOpen
-              ? 'border-brand-green/50 bg-brand-green/10 text-brand-green'
-              : 'border-white/10 text-neutral-400 hover:border-white/20 hover:text-white'
-          }`}
-        >
-          <Settings2 size={14} aria-hidden="true" />
-          Columns shown
-        </button>
       </div>
 
       <div className="table-filters">
@@ -642,7 +628,7 @@ export default function JobTable({
           className="filter-input"
         />
         <span className="table-filters__count">
-          {filtered.length} of {jobs.length} jobs
+          {table.rows.length} of {jobs.length} jobs
         </span>
       </div>
 
@@ -662,7 +648,7 @@ export default function JobTable({
               onChange={(e) => setSort((prev) => ({ key: e.target.value, dir: prev.dir }))}
               className="min-w-0 flex-1 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-[13px] text-neutral-200 focus:border-brand-green/50 focus:outline-none"
             >
-              {[...FIXED_COLUMNS, ...columns.filter((c) => c.key !== 'jobNumber' && c.key !== 'jobName')].map((c) => (
+              {[...FIXED_COLUMNS, ...mobileCols].map((c) => (
                 <option key={c.key} value={c.key} className="bg-[#11161c]">
                   Sort: {c.label}
                 </option>
@@ -678,8 +664,7 @@ export default function JobTable({
             </button>
           </div>
 
-          {filtered.map((job) => {
-            const mobileCols = columns.filter((c) => c.key !== 'jobNumber' && c.key !== 'jobName')
+          {table.rows.map((job) => {
             const wideCols = mobileCols.filter((c) => WIDE_MOBILE_KEYS.has(c.key))
             const compactCols = mobileCols.filter((c) => !WIDE_MOBILE_KEYS.has(c.key))
             return (
@@ -724,116 +709,20 @@ export default function JobTable({
               </div>
             )
           })}
-          {filtered.length === 0 && <p className="empty-row">No jobs match your filters.</p>}
+          {table.rows.length === 0 && <p className="empty-row">No jobs match your filters.</p>}
         </div>
 
-        <div className="table-scroll hidden min-w-0 flex-1 sm:block">
-          <table className="data-table">
-            <thead>
-              <tr>
-                {columns.map((col) => (
-                  <th
-                    key={col.key}
-                    className={`${col.num ? 'num' : ''} ${col.centerHeader ? 'center-header' : ''} sortable`}
-                    onClick={() => toggleSort(col.key)}
-                    aria-sort={
-                      sort.key === col.key ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'
-                    }
-                  >
-                    {col.label}
-                    {sort.key === col.key && (sort.dir === 1 ? ' ▲' : ' ▼')}
-                  </th>
-                ))}
-                <th>Data</th>
-                {showTrend && <th>Trend</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((job) => (
-                <tr
-                  key={job.jobNumber}
-                  onClick={() => onSelectJob?.(job.jobNumber)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault()
-                      onSelectJob?.(job.jobNumber)
-                    }
-                  }}
-                  tabIndex={onSelectJob ? 0 : undefined}
-                  role={onSelectJob ? 'button' : undefined}
-                  // A job over budget or losing margin was styled exactly like
-                  // a healthy one — the only tell was a colour buried in the
-                  // margin column, which you had to read row by row. A red edge
-                  // makes the handful that need attention findable at a glance
-                  // in a list of thirty.
-                  className={`${onSelectJob ? 'row-clickable' : ''} ${
-                    job.flagged ? 'job-row-flagged' : ''
-                  }`.trim()}
-                >
-                  {columns.map((col) => (
-                    <td key={col.key} className={col.num ? 'num tabular' : undefined}>
-                      {renderCell(job, col, cellCtx)}
-                    </td>
-                  ))}
-                  <td>
-                    <StaleBadge job={job} />
-                  </td>
-                  {showTrend && (
-                    <td>
-                      <TrendBadge marginTrend={job.marginTrend} />
-                    </td>
-                  )}
-                </tr>
-              ))}
-              {filtered.length === 0 && (
-                <tr>
-                  <td colSpan={columns.length + 1 + (showTrend ? 1 : 0)} className="empty-row">
-                    No jobs match your filters.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {panelOpen && (
-          <div className="order-first w-full rounded-[18px] border border-white/[0.06] bg-[#11161c] p-5 sm:order-none sm:w-64 sm:shrink-0">
-            <h2 className="mb-3 text-[13px] font-semibold tracking-wide text-neutral-400 uppercase">
-              Columns shown
-            </h2>
-            <div className="flex max-h-[420px] flex-col gap-4 overflow-y-auto">
-              <div className="flex flex-col gap-2">
-                <label className="flex items-start gap-2 text-[13px] text-neutral-300">
-                  <input
-                    type="checkbox"
-                    checked={showTrend}
-                    onChange={() => setShowTrend((v) => !v)}
-                    className="mt-0.5"
-                  />
-                  Trend
-                </label>
-              </div>
-              {COLUMN_GROUP_ORDER.map((group) => (
-                <div key={group} className="flex flex-col gap-2">
-                  <h3 className="text-[11px] font-semibold tracking-wide text-neutral-400 uppercase">
-                    {group}
-                  </h3>
-                  {OPTIONAL_COLUMNS.filter((c) => c.group === group).map((c) => (
-                    <label key={c.key} className="flex items-start gap-2 text-[13px] text-neutral-300">
-                      <input
-                        type="checkbox"
-                        checked={visibleKeys.has(c.key)}
-                        onChange={() => toggleColumn(c.key)}
-                        className="mt-0.5"
-                      />
-                      {c.label}
-                    </label>
-                  ))}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        <DataTable
+          className="min-w-0 flex-1"
+          table={table}
+          groups={COLUMN_GROUP_ORDER.map((g) => ({ key: g, label: g, flat: true }))}
+          rowKey={(job) => job.jobNumber}
+          onRowClick={onSelectJob ? (job) => onSelectJob(job.jobNumber) : undefined}
+          rowProps={(job) => ({ className: job.flagged ? 'job-row-flagged' : undefined })}
+          cellCtx={cellCtx}
+          exportName="projects"
+          emptyText="No jobs match your filters."
+        />
       </div>
     </div>
   )
