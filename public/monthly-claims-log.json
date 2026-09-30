@@ -584,9 +584,9 @@
     },
     "7428": {
       "jobName": "FAB Pegasus Lakeside",
-      "claim": 0,
+      "claim": 4365.459999999992,
       "costs": 0,
-      "profit": 0
+      "profit": 4365.459999999992
     },
     "7429": {
       "jobName": "Taggart House",
@@ -615,8 +615,8 @@
     "7901": {
       "jobName": "St Albans Street",
       "claim": 0,
-      "costs": 0,
-      "profit": 0
+      "costs": 48.57999999999447,
+      "profit": -48.57999999999447
     },
     "7912": {
       "jobName": "71A Fendalton Road ",
@@ -633,8 +633,8 @@
     "8142": {
       "jobName": "Fisher Developements",
       "claim": 0,
-      "costs": 0,
-      "profit": 0
+      "costs": 44.070000000006985,
+      "profit": -44.070000000006985
     },
     "8183": {
       "jobName": "Murney Custodian - 1 Freight Drive",
@@ -651,14 +651,14 @@
     "8234": {
       "jobName": "Melhuish House",
       "claim": 0,
-      "costs": 0,
-      "profit": 0
+      "costs": 1060.7700000000004,
+      "profit": -1060.7700000000004
     },
     "8308": {
       "jobName": "Roydvale",
       "claim": 0,
-      "costs": 0,
-      "profit": 0
+      "costs": 352.5,
+      "profit": -352.5
     },
     "8337": {
       "jobName": "Waimak Dairys ",
@@ -687,26 +687,26 @@
     "8530": {
       "jobName": "224 Cashel St - Eastern WC Block Reno",
       "claim": 0,
-      "costs": 0,
-      "profit": 0
+      "costs": 172.5,
+      "profit": -172.5
     },
     "8670": {
       "jobName": "Studio DB - tautara fit out",
       "claim": 0,
-      "costs": 0,
-      "profit": 0
+      "costs": 797.9000000000087,
+      "profit": -797.9000000000087
     },
     "8769": {
       "jobName": "Percival Bach",
       "claim": 0,
-      "costs": 0,
-      "profit": 0
+      "costs": 3041.7799999999997,
+      "profit": -3041.7799999999997
     },
     "8824": {
       "jobName": "3 Innovation Road",
       "claim": 0,
-      "costs": 0,
-      "profit": 0
+      "costs": 768.4200000000001,
+      "profit": -768.4200000000001
     },
     "8829": {
       "jobName": "Resi Reno at 124 Chapter Street",
@@ -723,14 +723,14 @@
     "8886": {
       "jobName": "Monkey Toe - Fisher fit out",
       "claim": 0,
-      "costs": 0,
-      "profit": 0
+      "costs": 1155.719999999994,
+      "profit": -1155.719999999994
     },
     "8887": {
       "jobName": "Tenancy 2 - Fisher Fit out",
       "claim": 0,
-      "costs": 0,
-      "profit": 0
+      "costs": 575.9099999999999,
+      "profit": -575.9099999999999
     },
     "8907": {
       "jobName": "35 Mania",
@@ -765,8 +765,8 @@
     "9259": {
       "jobName": "Andrew Reeve Stage 2",
       "claim": 0,
-      "costs": 0,
-      "profit": 0
+      "costs": 1106.1800000000003,
+      "profit": -1106.1800000000003
     },
     "9351": {
       "jobName": "Harewood Golf Club",
