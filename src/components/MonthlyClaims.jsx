@@ -4,6 +4,8 @@ import { saveClaimField } from '../lib/claimFieldsStore'
 import { useSharedState } from '../lib/useSharedState'
 import { useLocalStorageState } from '../lib/useLocalStorageState'
 import CollapsibleSection from './CollapsibleSection'
+import DataTable from './table/DataTable'
+import { useDataTable } from './table/useDataTable'
 
 // Claim and Costs used to be here too, but they're now auto-computed by
 // scripts/update-jobs.mjs on every weekly upload (this month's cumulative
@@ -45,7 +47,6 @@ function EditableCell({ id, value, saving, numeric, onChange }) {
 // view while the rest of the row scrolls sideways — same pattern as
 // Upcoming work's frozen leading columns.
 const STICKY_WIDTHS = [80, 200]
-const STICKY_LEFTS = [0, STICKY_WIDTHS[0]]
 
 function hours(v) {
   return v === null ? '—' : v.toFixed(1)
@@ -77,6 +78,10 @@ const READONLY_COLUMNS = [
 const WORKINGS = new Set(['hoursToComeCost', 'costExclGp', 'gpToAdd'])
 
 const TOTAL_COLUMN = { key: 'total', label: 'Total cost', num: true, format: money }
+const GROUPS = [
+  { key: 'month', label: 'This month', flat: true },
+  { key: 'workings', label: 'Workings behind Total cost', flat: true },
+]
 
 function currentMonthKey() {
   const d = new Date()
@@ -97,10 +102,6 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
     return map
   }, [monthlyHours])
 
-  // Default to margin ascending (worst first) rather than profit descending
-  // (best first) — for a full per-job table, "which jobs are underperforming"
-  // is the more actionable starting question than "which job made the most".
-  const [tableSort, setTableSort] = useState({ key: 'margin', dir: 1 })
 
   // A job with no claim and no cost this month is hidden by default (see
   // below), which is right for reading the month but wrong for entering it:
@@ -114,8 +115,9 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
   // claimed jobs" would be an empty table with nothing to type into. Until
   // something is claimed, every job is listed.
   const newMonth = jobs.length > 0 && jobs.every((j) => j.claim === 0 && j.costs === 0)
-  // The three columns that are just workings behind Total cost start hidden.
-  const [showWorkings, setShowWorkings] = useLocalStorageState('monthlyClaims.showWorkings', false)
+  // The three columns that are just workings behind Total cost start hidden
+  // (the shared table remembers per column; the old on/off key seeds it once).
+  const workingsWereShown = useMemo(() => { try { return localStorage.getItem('monthlyClaims.showWorkings') === 'true' } catch { return false } }, [])
 
   // In-session optimistic edits to the four manual fields, applied straight
   // in the table the instant you type — saveEdit() itself also writes an
@@ -242,23 +244,42 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
     [jobs, quotedGpPerHourByJob, hoursThisMonthByJob, rate, fieldOverrides, showAllJobs, newMonth]
   )
   const inactiveCount = jobs.filter((j) => j.claim === 0 && j.costs === 0).length
-  const lateCols = READONLY_COLUMNS.slice(2).filter((c) => showWorkings || !WORKINGS.has(c.key))
-
-  const tableRows = useMemo(() => {
-    return [...activeJobs].sort((a, b) => {
-      const av = a[tableSort.key]
-      const bv = b[tableSort.key]
-      if (av === null && bv === null) return 0
-      if (av === null) return 1
-      if (bv === null) return -1
-      if (typeof av === 'number') return (av - bv) * tableSort.dir
-      return String(av).localeCompare(String(bv)) * tableSort.dir
-    })
-  }, [activeJobs, tableSort])
-
-  function toggleTableSort(key) {
-    setTableSort((prev) => (prev.key === key ? { key, dir: -prev.dir } : { key, dir: 1 }))
-  }
+  // Editable cells save on blur; the id keeps the input stable between renders.
+  const editable = (field, extra) => (j) => (
+    <>
+      <EditableCell
+        id={`claim-calc-table-${j.jobNumber}-${field.key}`}
+        value={j[field.key] ?? ''}
+        saving={savingKeys.has(`${j.jobNumber}:${field.key}`)}
+        numeric={field.num}
+        onChange={(newValue) => saveField(j, field, newValue)}
+      />
+      {extra?.(j)}
+    </>
+  )
+  const columns = useMemo(() => [
+    { key: 'jobNumber', label: 'Job #', sticky: true, width: STICKY_WIDTHS[0], always: true, cellClass: 'whitespace-nowrap' },
+    { key: 'jobName', label: 'Job name', text: true, sticky: true, width: STICKY_WIDTHS[1], always: true },
+    { key: 'retention', label: 'Ret%', num: true, sortable: false, always: true, cellClass: 'min-w-[90px] p-1',
+      render: editable(EDITABLE_FIELDS[0], (j) => (j.retentionAddOn
+        ? <p className="mt-0.5 text-right text-[11px] tabular-nums text-neutral-400">{money(j.retentionAddOn)}</p> : null)) },
+    ...READONLY_COLUMNS.slice(0, 2).map((c) => ({ key: c.key, label: c.label, num: true, fmt: c.format, group: 'month' })),
+    // Sorted by margin, worst first, by default — "which jobs are underperforming"
+    // is the more useful starting question than "which made the most".
+    { key: 'margin', label: 'Margin', num: true, fmt: percent, group: 'month' },
+    { key: 'hoursToCompleteBeforeEom', label: 'Hours to come', num: true, sortable: false, always: true, cellClass: 'min-w-[90px] p-1', render: editable(EDITABLE_FIELDS[1]) },
+    { key: 'costsToComeBeforeEom', label: 'Cost to come', num: true, sortable: false, always: true, cellClass: 'min-w-[90px] p-1', render: editable(EDITABLE_FIELDS[2]) },
+    ...READONLY_COLUMNS.slice(2).map((c) => ({ key: c.key, label: c.label, num: true, fmt: c.format, group: WORKINGS.has(c.key) ? 'workings' : 'month' })),
+    { key: 'notes', label: 'Notes', sortable: false, always: true, cellClass: 'min-w-[160px] p-1', render: editable(EDITABLE_FIELDS[3]) },
+    { key: 'total', label: TOTAL_COLUMN.label, num: true, always: true, stickyRight: true, cellClass: 'text-[14px] font-semibold text-white', fmt: money },
+  ], [savingKeys]) // eslint-disable-line react-hooks/exhaustive-deps
+  const table = useDataTable({
+    id: 'monthlyClaims', columns, rows: activeJobs,
+    defaultSort: { key: 'margin', dir: 1 },
+    defaultHidden: workingsWereShown ? [] : [...WORKINGS],
+  })
+  const tableRows = table.rows
+  const workingsHidden = [...WORKINGS].every((k) => table.hidden.has(k))
 
   return (
     <div className="mx-auto flex w-full max-w-[1800px] flex-col gap-6">
@@ -313,11 +334,11 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
           <div className="flex flex-wrap items-end gap-3">
             <button
               type="button"
-              onClick={() => setShowWorkings(!showWorkings)}
-              aria-pressed={showWorkings}
+              onClick={() => table.toggleGroup([...WORKINGS])}
+              aria-pressed={!workingsHidden}
               className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm text-neutral-200 transition-colors hover:border-brand-green/50 hover:text-white"
             >
-              {showWorkings ? 'Hide workings' : 'Show workings'}
+              {workingsHidden ? 'Show workings' : 'Hide workings'}
             </button>
             {inactiveCount > 0 && !newMonth && (
               <button
@@ -395,141 +416,14 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
           {tableRows.length === 0 && <p className="empty-row">No jobs to show.</p>}
         </div>
 
-        <div className="table-scroll hidden sm:block">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th
-                  className="sortable sticky-col"
-                  style={{ left: STICKY_LEFTS[0], minWidth: STICKY_WIDTHS[0] }}
-                  onClick={() => toggleTableSort('jobNumber')}
-                  aria-sort={tableSort.key === 'jobNumber' ? (tableSort.dir === 1 ? 'ascending' : 'descending') : 'none'}
-                >
-                  Job #{tableSort.key === 'jobNumber' && (tableSort.dir === 1 ? ' ▲' : ' ▼')}
-                </th>
-                <th
-                  className="sortable sticky-col sticky-col-end"
-                  style={{ left: STICKY_LEFTS[1], minWidth: STICKY_WIDTHS[1] }}
-                  onClick={() => toggleTableSort('jobName')}
-                  aria-sort={tableSort.key === 'jobName' ? (tableSort.dir === 1 ? 'ascending' : 'descending') : 'none'}
-                >
-                  Job name{tableSort.key === 'jobName' && (tableSort.dir === 1 ? ' ▲' : ' ▼')}
-                </th>
-                <th className="num">Ret%</th>
-                {READONLY_COLUMNS.slice(0, 2).map((col) => (
-                  <th
-                    key={col.key}
-                    className="num sortable"
-                    onClick={() => toggleTableSort(col.key)}
-                    aria-sort={tableSort.key === col.key ? (tableSort.dir === 1 ? 'ascending' : 'descending') : 'none'}
-                  >
-                    {col.label}
-                    {tableSort.key === col.key && (tableSort.dir === 1 ? ' ▲' : ' ▼')}
-                  </th>
-                ))}
-                <th className="num">Hours to come</th>
-                <th className="num">Cost to come</th>
-                {lateCols.map((col) => (
-                  <th
-                    key={col.key}
-                    className="num sortable"
-                    onClick={() => toggleTableSort(col.key)}
-                    aria-sort={tableSort.key === col.key ? (tableSort.dir === 1 ? 'ascending' : 'descending') : 'none'}
-                  >
-                    {col.label}
-                    {tableSort.key === col.key && (tableSort.dir === 1 ? ' ▲' : ' ▼')}
-                  </th>
-                ))}
-                <th>Notes</th>
-                <th
-                  className="num sortable sticky-col-right"
-                  onClick={() => toggleTableSort(TOTAL_COLUMN.key)}
-                  aria-sort={tableSort.key === TOTAL_COLUMN.key ? (tableSort.dir === 1 ? 'ascending' : 'descending') : 'none'}
-                >
-                  {TOTAL_COLUMN.label}
-                  {tableSort.key === TOTAL_COLUMN.key && (tableSort.dir === 1 ? ' ▲' : ' ▼')}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {tableRows.map((j) => (
-                <tr key={j.jobNumber}>
-                  <td className="sticky-col whitespace-nowrap" style={{ left: STICKY_LEFTS[0], minWidth: STICKY_WIDTHS[0] }}>
-                    {j.jobNumber}
-                  </td>
-                  <td className="sticky-col sticky-col-end" style={{ left: STICKY_LEFTS[1], minWidth: STICKY_WIDTHS[1] }}>
-                    {j.jobName}
-                  </td>
-                  <td className="min-w-[90px] p-1">
-                    <EditableCell
-                      id={`claim-calc-table-${j.jobNumber}-retention`}
-                      value={j.retention ?? ''}
-                      saving={savingKeys.has(`${j.jobNumber}:retention`)}
-                      numeric
-                      onChange={(newValue) => saveField(j, EDITABLE_FIELDS[0], newValue)}
-                    />
-                    {j.retentionAddOn ? (
-                      <p className="mt-0.5 text-right text-[11px] tabular-nums text-neutral-400">
-                        {money(j.retentionAddOn)}
-                      </p>
-                    ) : null}
-                  </td>
-                  {READONLY_COLUMNS.slice(0, 2).map((col) => (
-                    <td key={col.key} className="num tabular">
-                      {col.format(j[col.key])}
-                    </td>
-                  ))}
-                  <td className="min-w-[90px] p-1">
-                    <EditableCell
-                      id={`claim-calc-table-${j.jobNumber}-hoursToCompleteBeforeEom`}
-                      value={j.hoursToCompleteBeforeEom ?? ''}
-                      saving={savingKeys.has(`${j.jobNumber}:hoursToCompleteBeforeEom`)}
-                      numeric
-                      onChange={(newValue) => saveField(j, EDITABLE_FIELDS[1], newValue)}
-                    />
-                  </td>
-                  <td className="min-w-[90px] p-1">
-                    <EditableCell
-                      id={`claim-calc-table-${j.jobNumber}-costsToComeBeforeEom`}
-                      value={j.costsToComeBeforeEom ?? ''}
-                      saving={savingKeys.has(`${j.jobNumber}:costsToComeBeforeEom`)}
-                      numeric
-                      onChange={(newValue) => saveField(j, EDITABLE_FIELDS[2], newValue)}
-                    />
-                  </td>
-                  {lateCols.map((col) => (
-                    <td key={col.key} className="num tabular">
-                      {col.format(j[col.key])}
-                    </td>
-                  ))}
-                  <td className="min-w-[160px] p-1">
-                    <EditableCell
-                      id={`claim-calc-table-${j.jobNumber}-notes`}
-                      value={j.notes ?? ''}
-                      saving={savingKeys.has(`${j.jobNumber}:notes`)}
-                      numeric={false}
-                      onChange={(newValue) => saveField(j, EDITABLE_FIELDS[3], newValue)}
-                    />
-                  </td>
-                  <td className="num tabular sticky-col-right text-[14px] font-semibold text-white">
-                    {TOTAL_COLUMN.format(j[TOTAL_COLUMN.key])}
-                  </td>
-                </tr>
-              ))}
-              {tableRows.length === 0 && (
-                <tr>
-                  {/* Job + Job name + the read-only columns + the editable
-                      fields + Total cost. Counted rather than hardcoded — the
-                      literal 12 was already one short the moment a column was
-                      added, which silently narrows the empty-state row. */}
-                  <td colSpan={3 + 2 + lateCols.length + 3} className="empty-row">
-                    No jobs to show.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          table={table}
+          groups={GROUPS}
+          rowKey={(j) => j.jobNumber}
+          exportName="monthly-claims"
+          emptyText="No jobs to show."
+          toolbar={<span className="text-[12px] text-neutral-500">Type into Ret%, Hours to come, Cost to come or Notes to save.</span>}
+        />
       </CollapsibleSection>
     </div>
   )
