@@ -137,19 +137,19 @@ const TOTAL_COLS = [
   { key: 'count', label: 'Jobs' },
   { key: 'hours', label: 'Hours' },
   { key: 'profit', label: 'Their GP' },
-  { key: 'gpPerHour', label: 'GP $/hr' },
 ]
 const OVER = 'var(--viz-critical)'
 
-// One column per month (GP/hr, with hours under it) and a Total that adds every
-// month together. Someone whose latest-month GP/hr is below the month before is
-// flagged red. Sorting: name, any month's GP/hr, or any total column.
+// One column per month (their GP, hours beside it) and a Total that adds every
+// month together. The per-hour rate behind it is never shown. Someone whose
+// latest-month rate is below the month before is flagged red (no figures shown).
+// Sorting: name, any month's GP, or any total column.
 function PeopleSummary({ jobs, scope, onOpenJob }) {
-  const [sort, setSort] = useState({ key: 'gpPerHour', dir: -1 })
+  const [sort, setSort] = useState({ key: 'profit', dir: -1 })
   const [open, setOpen] = useState(() => new Set())
   const { months, latest, previous, people: all } = useMemo(() => personMonthly(jobs), [jobs])
   const people = useMemo(() => {
-    const val = (p) => (sort.key.startsWith('m:') ? p.monthly[sort.key.slice(2)]?.gpPerHour ?? null : p[sort.key])
+    const val = (p) => (sort.key.startsWith('m:') ? p.monthly[sort.key.slice(2)]?.profit ?? null : p[sort.key])
     return [...all].sort((a, b) => {
       if (sort.key === 'name') return a.name.localeCompare(b.name) * sort.dir
       const av = val(a), bv = val(b)
@@ -172,7 +172,7 @@ function PeopleSummary({ jobs, scope, onOpenJob }) {
       className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6"
       storageKey="completed-jobs.people"
       title={`By person — ${all.length} ${all.length === 1 ? 'person' : 'people'}`}
-      description={`Quoted jobs only — charge-up jobs aren't split per person. Each person's GP/hr month by month, and in Total for every month added together: their GP on each job (split by the hours they worked) ÷ their hours, across ${scope}. Red = worse than the month before. Click a person to see their jobs, and a job to open it.`}
+      description={`Quoted jobs only — charge-up jobs aren't split per person. Each person's GP month by month, and in Total for every month added together: their GP on each job, split by the hours they worked, across ${scope}. Red = they did worse than the month before. Click a person to see their jobs, and a job to open it.`}
     >
       {flagged.length > 0 && (
         <div className="mt-2 rounded-[12px] border p-3 text-[13px]" style={{ borderColor: `color-mix(in srgb, ${OVER} 45%, transparent)`, background: `color-mix(in srgb, ${OVER} 7%, transparent)` }}>
@@ -182,7 +182,7 @@ function PeopleSummary({ jobs, scope, onOpenJob }) {
           <ul className="mt-1 flex flex-col gap-0.5 text-neutral-300">
             {flagged.map((p) => (
               <li key={p.name}>
-                <span className="font-medium text-white">{p.name}</span> — {cents(p.flag.now)}/hr, down from {cents(p.flag.before)}/hr
+                <span className="font-medium text-white">{p.name}</span> — down on {monthName(previous)}
               </li>
             ))}
           </ul>
@@ -198,7 +198,7 @@ function PeopleSummary({ jobs, scope, onOpenJob }) {
           <thead>
             <tr>
               {th('name', 'Person')}
-              {months.map((m) => th(`m:${m}`, `${monthName(m, 'short')} GP/hr`, 'num'))}
+              {months.map((m) => th(`m:${m}`, `${monthName(m, 'short')} GP`, 'num'))}
               {TOTAL_COLS.map((c) => th(c.key, `${months.length > 1 ? 'Total ' : ''}${c.label}`, 'num'))}
             </tr>
           </thead>
@@ -219,10 +219,10 @@ function PeopleSummary({ jobs, scope, onOpenJob }) {
                       const down = p.flag && m === latest
                       return (
                         <td key={m} className="num" style={down ? { color: OVER, fontWeight: 700 } : undefined}
-                          title={down ? `Down from ${cents(p.flag.before)}/hr in ${monthName(previous)}` : undefined}>
+                          title={down ? `Down on ${monthName(previous)}` : undefined}>
                           {v ? (
                             <span className={down ? 'blink-over' : ''}>
-                              {down && '↓ '}{cents(v.gpPerHour)}
+                              {down && '↓ '}{cents(v.profit)}
                               <span className="ml-1 text-[11px] font-normal text-neutral-500">{v.hours} h</span>
                             </span>
                           ) : <span className="text-neutral-600">—</span>}
@@ -232,7 +232,6 @@ function PeopleSummary({ jobs, scope, onOpenJob }) {
                     <td className="num">{p.count}</td>
                     <td className="num">{p.hours}</td>
                     <td className="num">{cents(p.profit)}</td>
-                    <td className="num font-medium">{p.gpPerHour === null ? '—' : `${cents(p.gpPerHour)}/hr`}</td>
                   </tr>
                   {isOpen && (
                     <tr>

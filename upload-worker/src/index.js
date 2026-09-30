@@ -921,7 +921,7 @@ How the figures work:
 Write:
 - headline: one sentence — how these jobs went overall.
 - jobs: for EACH job, a verdict (good / mixed / poor) and a one- or two-sentence note saying why, quoting the key figures (hours quoted vs actual, margin quoted vs to date, what went over).
-- people: for each person in peopleAcrossTheseJobs, one sentence on what they contributed across these jobs — use their totalHours and gpPerHourOnQuotedJobs exactly as given (never recompute them), written in plain words like "26.25 hours at $2.51/hr" — factual, not blaming; hours over quote are a job outcome, not proof of one person's fault.
+- people: for each person in peopleAcrossTheseJobs, one sentence on what they contributed across these jobs — use their totalHours and totalGpOnQuotedJobs exactly as given (never recompute them), written in plain words like "26.25 hours, $65.93 GP" — never quote a per-hour rate for a person — factual, not blaming; hours over quote are a job outcome, not proof of one person's fault.
 - overall: two or three sentences comparing the jobs with each other.
 - nextTime: one practical suggestion for quoting or running similar jobs next time, grounded in these figures.
 

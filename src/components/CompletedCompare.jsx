@@ -105,7 +105,7 @@ function summaryPayload(jobs, peopleRows) {
       totalHours: r2(p.hours),
       jobs: Object.keys(p.perJob),
       totalPartOnQuotedJobs: p.partHours ? r2(p.part) : null,
-      gpPerHourOnQuotedJobs: p.partHours ? r2(p.part / p.partHours) : null,
+      totalGpOnQuotedJobs: p.partHours ? r2(p.part) : null,
     })),
   }
 }
@@ -199,7 +199,7 @@ export default function CompletedCompare({ jobs }) {
                 <th>Person</th>
                 {jobs.map((j) => <th key={j.jobNumber} className="num">{j.jobNumber}</th>)}
                 <th className="num">Total h</th>
-                <th className="num">GP/hr (quoted jobs)</th>
+                <th className="num">Their GP (quoted jobs)</th>
               </tr>
             </thead>
             <tbody>
@@ -215,7 +215,7 @@ export default function CompletedCompare({ jobs }) {
                     )
                   })}
                   <td className="num font-medium">{Math.round(p.hours * 100) / 100} h</td>
-                  <td className="num font-medium">{p.partHours ? `${cents(p.part / p.partHours)}/hr` : '—'}</td>
+                  <td className="num font-medium">{p.partHours ? cents(p.part) : '—'}</td>
                 </tr>
               ))}
             </tbody>
