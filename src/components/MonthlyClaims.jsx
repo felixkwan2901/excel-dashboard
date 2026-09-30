@@ -72,6 +72,10 @@ const READONLY_COLUMNS = [
 // inputs change was off-screen to the right. Pulled out, moved to the end
 // and pinned to the right edge, so the inputs and the result are visible
 // together.
+// Cost of month / Hours / Quoted GP $/hr stay; these three only show the sum
+// behind Total cost, and come back with "Show workings".
+const WORKINGS = new Set(['hoursToComeCost', 'costExclGp', 'gpToAdd'])
+
 const TOTAL_COLUMN = { key: 'total', label: 'Total cost', num: true, format: money }
 
 function currentMonthKey() {
@@ -106,6 +110,12 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
   // doing data entry wants it on for the whole session, and whoever is
   // reading the month wants it off.
   const [showAllJobs, setShowAllJobs] = useLocalStorageState('monthlyClaims.showAllJobs', false)
+  // The first of a new month nothing has been claimed or costed yet, so "only
+  // claimed jobs" would be an empty table with nothing to type into. Until
+  // something is claimed, every job is listed.
+  const newMonth = jobs.length > 0 && jobs.every((j) => j.claim === 0 && j.costs === 0)
+  // The three columns that are just workings behind Total cost start hidden.
+  const [showWorkings, setShowWorkings] = useLocalStorageState('monthlyClaims.showWorkings', false)
 
   // In-session optimistic edits to the four manual fields, applied straight
   // in the table the instant you type — saveEdit() itself also writes an
@@ -187,7 +197,7 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
   const activeJobs = useMemo(
     () =>
       jobs
-        .filter((j) => showAllJobs || j.claim !== 0 || j.costs !== 0)
+        .filter((j) => showAllJobs || newMonth || j.claim !== 0 || j.costs !== 0)
         .map((j) => {
           const override = fieldOverrides[j.jobNumber]
           const retention = override?.retention !== undefined ? Number(override.retention) || 0 : j.retention
@@ -229,9 +239,10 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
             total,
           }
         }),
-    [jobs, quotedGpPerHourByJob, hoursThisMonthByJob, rate, fieldOverrides, showAllJobs]
+    [jobs, quotedGpPerHourByJob, hoursThisMonthByJob, rate, fieldOverrides, showAllJobs, newMonth]
   )
   const inactiveCount = jobs.filter((j) => j.claim === 0 && j.costs === 0).length
+  const lateCols = READONLY_COLUMNS.slice(2).filter((c) => showWorkings || !WORKINGS.has(c.key))
 
   const tableRows = useMemo(() => {
     return [...activeJobs].sort((a, b) => {
@@ -279,25 +290,36 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
         title="Jobs claimed this month — full figures"
         description={
           <>
-            Type into Ret%, Hours to come, Cost to come, or Notes to save — no need to open
-            anything first. Total cost = cost of month + (hours to come x the rate here) + cost
-            to come + ((hours actual + hours to come) x quoted GP $/hr), plus retention % of
-            cost of month if set. Cost excl. GP is that same total with the gross profit
-            taken back out, so Cost excl. GP + GP to add = Total cost.
-            {inactiveCount > 0 && (
-              <>
-                {' '}
-                {inactiveCount} job{inactiveCount === 1 ? '' : 's'}{' '}
-                {inactiveCount === 1 ? 'has' : 'have'} nothing claimed or costed this
-                month, {showAllJobs ? 'shown below' : 'hidden'} — use the button above to
-                switch, which is how a job added mid-month gets its first figures typed in.
-              </>
-            )}
+            Type into Ret%, Hours to come, Cost to come or Notes to save — no need to open
+            anything first.{' '}
+            {newMonth
+              ? "It's a new month and nothing is claimed yet, so every job is listed to type figures into."
+              : inactiveCount > 0 && (
+                <>
+                  {inactiveCount} job{inactiveCount === 1 ? '' : 's'} with nothing claimed or costed
+                  this month {showAllJobs ? 'are shown' : 'are hidden — use the button to show them'}.
+                </>
+              )}
+            <details className="mt-1">
+              <summary className="cursor-pointer text-neutral-300">How Total cost is worked out</summary>
+              Total cost = cost of month + (hours to come × the rate here) + cost to come +
+              ((hours actual + hours to come) × quoted GP $/hr), plus retention % of cost of month
+              if set. Cost excl. GP is that total with the gross profit taken back out, so Cost
+              excl. GP + GP to add = Total cost.
+            </details>
           </>
         }
         actions={
           <div className="flex flex-wrap items-end gap-3">
-            {inactiveCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowWorkings(!showWorkings)}
+              aria-pressed={showWorkings}
+              className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm text-neutral-200 transition-colors hover:border-brand-green/50 hover:text-white"
+            >
+              {showWorkings ? 'Hide workings' : 'Show workings'}
+            </button>
+            {inactiveCount > 0 && !newMonth && (
               <button
                 type="button"
                 onClick={() => setShowAllJobs(!showAllJobs)}
@@ -407,7 +429,7 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
                 ))}
                 <th className="num">Hours to come</th>
                 <th className="num">Cost to come</th>
-                {READONLY_COLUMNS.slice(2).map((col) => (
+                {lateCols.map((col) => (
                   <th
                     key={col.key}
                     className="num sortable"
@@ -475,7 +497,7 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
                       onChange={(newValue) => saveField(j, EDITABLE_FIELDS[2], newValue)}
                     />
                   </td>
-                  {READONLY_COLUMNS.slice(2).map((col) => (
+                  {lateCols.map((col) => (
                     <td key={col.key} className="num tabular">
                       {col.format(j[col.key])}
                     </td>
@@ -500,7 +522,7 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
                       fields + Total cost. Counted rather than hardcoded — the
                       literal 12 was already one short the moment a column was
                       added, which silently narrows the empty-state row. */}
-                  <td colSpan={3 + READONLY_COLUMNS.length + EDITABLE_FIELDS.length} className="empty-row">
+                  <td colSpan={3 + 2 + lateCols.length + 3} className="empty-row">
                     No jobs to show.
                   </td>
                 </tr>

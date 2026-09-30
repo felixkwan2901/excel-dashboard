@@ -114,6 +114,8 @@ order,job,type,file,check
 - `check`: Charge Up P&L → total profit as a plain number (no `$` or commas; negative with `-`). Timesheets → total hours. Quoted P&L → empty.
 - One `none` row per job where nothing was exported, so the order stays true.
 - No commas inside values.
+- **Every row needs its job number — charge-up rows too.** A charge-up P&L has no job number inside it, so the manifest is the only place it exists. A charge-up row with a blank `job` can't be loaded (the dashboard lists it as "needs a job number" instead of guessing).
+- `file` is `pl`, `ts` or `none` — the word, not the file name. Keep the job as a plain number (`9814`, not `9814.0`), and only write timesheet rows for **quoted** jobs. A timesheet `check` of 0 is ignored, so don't write 0 when the hours couldn't be read — leave it empty.
 
 When finished, **show the whole manifest in a code block** and ask the user to save it as `manifest.csv` in the same folder as the downloads (Notepad: File → Save As → *All files* → `manifest.csv`).
 

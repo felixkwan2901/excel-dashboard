@@ -1293,5 +1293,123 @@
     "addedAt": "2026-09-29",
     "sourceFile": "CU-10031.xlsx",
     "month": "2026-09"
+  },
+  {
+    "jobNumber": "9814",
+    "jobName": "Smart Vent System",
+    "type": "quoted",
+    "profit": 369.6568,
+    "hours": 2.5,
+    "gpPerHour": 147.86,
+    "quotedHours": 10.05,
+    "workers": [
+      {
+        "name": "Kyle Williams",
+        "hours": 2.5
+      }
+    ],
+    "labour": {
+      "quotedCost": 502.46,
+      "actualCost": 132.8
+    },
+    "pl": {
+      "quotedCost": 1958.41,
+      "actualCost": 1539.3,
+      "quotedProfit": 510.98,
+      "quotedMargin": 0.2069,
+      "profitToDate": 930.09,
+      "marginToDate": 0.3766
+    },
+    "addedAt": "2026-09-30",
+    "sourceFile": "Q-9814-pl.xlsx",
+    "timesheetFile": "Q-9814-ts.xlsx",
+    "month": "2026-09"
+  },
+  {
+    "jobNumber": "9985",
+    "jobName": "Supply & Install Exterior Power Outlet",
+    "type": "quoted",
+    "profit": 69.82400000000001,
+    "hours": 4,
+    "gpPerHour": 17.46,
+    "quotedHours": 6,
+    "workers": [
+      {
+        "name": "Andy Schweizer",
+        "hours": 4
+      }
+    ],
+    "labour": {
+      "quotedCost": 300.02,
+      "actualCost": 230.2
+    },
+    "pl": {
+      "quotedCost": 542.9,
+      "actualCost": 426.83,
+      "quotedProfit": 409.56,
+      "quotedMargin": 0.43,
+      "profitToDate": 525.63,
+      "marginToDate": 0.5519
+    },
+    "addedAt": "2026-09-30",
+    "sourceFile": "Q-9985-pl.xlsx",
+    "timesheetFile": "Q-9985-ts.xlsx",
+    "month": "2026-09"
+  },
+  {
+    "jobNumber": "8840",
+    "jobName": "Inline Architecture - Office Renovation",
+    "type": "quoted",
+    "profit": -5719.912199999999,
+    "hours": 472.75,
+    "gpPerHour": -12.1,
+    "quotedHours": 324.19,
+    "workers": null,
+    "labour": {
+      "quotedCost": 16186.03,
+      "actualCost": 21905.94
+    },
+    "pl": {
+      "quotedCost": 37601.88,
+      "actualCost": 45312.11,
+      "quotedProfit": 21300.68,
+      "quotedMargin": 0.3616,
+      "profitToDate": 23657.73,
+      "marginToDate": 0.343
+    },
+    "addedAt": "2026-09-30",
+    "sourceFile": "Q-8840-pl.xlsx",
+    "month": "2026-09"
+  },
+  {
+    "jobNumber": "9883",
+    "jobName": "2 smart light switches installed",
+    "type": "quoted",
+    "profit": -65.798,
+    "hours": 3.75,
+    "gpPerHour": -17.55,
+    "quotedHours": 3,
+    "workers": [
+      {
+        "name": "Andy Schweizer",
+        "hours": 3.75
+      }
+    ],
+    "labour": {
+      "quotedCost": 150.01,
+      "actualCost": 215.81
+    },
+    "pl": {
+      "quotedCost": 1359.96,
+      "actualCost": 1584.27,
+      "quotedProfit": 203.21,
+      "quotedMargin": 0.13,
+      "profitToDate": -21.09,
+      "marginToDate": -0.0135
+    },
+    "addedAt": "2026-09-30",
+    "sourceFile": "Q-9883-pl.xlsx",
+    "timesheetFile": "Q-9883-ts.xlsx",
+    "month": "2026-09"
   }
 ]

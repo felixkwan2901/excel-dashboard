@@ -200,6 +200,125 @@ export function quotedJobNumber(workbook) {
   return row ? String(row[0]).trim() : null
 }
 
+// ---------------------------------------------------------------- manifest matching
+// manifest.csv: order,job,type,file,check. `file` is pl | ts | none (the download is
+// found by ORDER) or an actual file name (found by NAME). Forgiving about what
+// can't hurt, strict about what could put a number on the wrong job:
+//   · job numbers like "8840.0" (saved from a spreadsheet) are read as 8840
+//   · a blank job is fine for a quoted P&L (the job number is inside the file);
+//     a charge-up export with no job number can't be loaded, so it's listed in
+//     `unresolved` instead of guessed, and everything else still loads
+//   · a timesheet hours check of 0 or blank is ignored (it's a failed screen read)
+//   · Chrome numbers same-minute downloads "(1)", "(2)" — the order they really
+//     came in isn't always the obvious one, so each such group is tried in every
+//     order and the one that satisfies the manifest's checks is used
+//   · any row that has a job number or check and still contradicts its file is a
+//     problem, and then nothing is loaded
+const cleanJob = (v) => String(v ?? '').trim().replace(/\.0+$/, '')
+const baseAndNum = (f) => { const m = f.match(/^(.*?)(?: \((\d+)\))?\.xlsx$/i); return [m?.[1] ?? f, Number(m?.[2] ?? 0)] }
+const byConvention = (a, b) => { const [ba, na] = baseAndNum(a), [bb, nb] = baseAndNum(b); return ba < bb ? -1 : ba > bb ? 1 : na - nb }
+
+function permutations(arr) {
+  if (arr.length <= 1) return [arr]
+  const out = []
+  arr.forEach((x, i) => permutations([...arr.slice(0, i), ...arr.slice(i + 1)]).forEach((rest) => out.push([x, ...rest])))
+  return out
+}
+
+export function matchManifest(folder, files, manifestText, manifestName = 'manifest.csv') {
+  const lines = manifestText.replace(/^\uFEFF/, '').split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith('#'))
+  const header = (lines.shift() ?? '').split(',').map((h) => h.trim().toLowerCase())
+  const rows = lines
+    .map((l) => Object.fromEntries(l.split(',').map((v, i) => [header[i], v.trim()])))
+    .map((r) => ({ ...r, job: cleanJob(r.job), type: (r.type ?? '').toLowerCase(), fileKey: (r.file ?? '').toLowerCase() }))
+    .sort((a, b) => Number(a.order) - Number(b.order))
+  const byLowerName = new Map(files.map((f) => [f.toLowerCase(), f]))
+  const renamed = new Map(), problems = [], notes = [], unresolved = []
+  const cache = new Map()
+  const wbOf = (f) => { if (!cache.has(f)) cache.set(f, readWorkbook(join(folder, f))); return cache.get(f) }
+  const near = (a, b, tol) => Math.abs(a - b) <= tol
+  const hoursOf = (f) => readTimesheetWorkers(wbOf(f)).reduce((t, w) => t + w.hours, 0)
+
+  // Why this file can't be the one this manifest row describes (null = it can).
+  function contradiction(kind, r, f) {
+    if (kind === 'pl') {
+      const wb = wbOf(f), k = exportKind(wb)
+      if (r.type && k !== r.type) return `is a ${k ?? 'unknown'} export, manifest says ${r.type}`
+      if (k === 'quoted') {
+        const inFile = quotedJobNumber(wb)
+        if (r.job && inFile !== r.job) return `is for job ${inFile}`
+      } else if (r.check !== '' && Number.isFinite(Number(r.check))) {
+        const p = chargeUpTotalProfit(wb)
+        if (!near(p, Number(r.check), 1)) return `has profit ${p.toFixed(2)}, screen showed ${r.check}`
+      }
+      return null
+    }
+    const c = Number(r.check)
+    if (r.check !== '' && Number.isFinite(c) && c !== 0) {
+      let h; try { h = hoursOf(f) } catch { return null }
+      if (!near(h, c, 0.01)) return `has ${h} h, screen showed ${r.check} h`
+    }
+    return null
+  }
+
+  const pairs = []                                   // [kind, row, file]
+  const claimed = new Set()
+  for (const r of rows) {                            // rows that name their file
+    const f = byLowerName.get(r.fileKey)
+    if (!f) continue
+    const kind = /^timesheets/i.test(f) ? 'ts' : 'pl'
+    const why = contradiction(kind, r, f)
+    if (why) problems.push(`#${r.order} job ${r.job || '?'}: ${f} ${why}`)
+    else { pairs.push([kind, r, f]); claimed.add(f) }
+  }
+  for (const kind of ['pl', 'ts']) {                 // rows that rely on download order
+    const want = rows.filter((r) => r.fileKey === kind)
+    const have = files.filter((f) => (kind === 'pl' ? /^ProfitAndLoss/i : /^Timesheets/i).test(f) && !claimed.has(f)).sort(byConvention)
+    if (!want.length && !have.length) continue
+    if (have.length !== want.length) {
+      problems.push(kind === 'pl'
+        ? `${have.length} ProfitAndLoss file(s) but the manifest lists ${want.length} — move any older Katipolt downloads out of the folder`
+        : `${have.length} Timesheets file(s) but the manifest lists ${want.length}`)
+      continue
+    }
+    const groups = []
+    for (const f of have) { const base = baseAndNum(f)[0]; if (groups.at(-1)?.base === base) groups.at(-1).files.push(f); else groups.push({ base, files: [f] }) }
+    let at = 0
+    for (const g of groups) {
+      const slice = want.slice(at, at + g.files.length); at += g.files.length
+      const orders = g.files.length <= 5 ? permutations(g.files) : [g.files]
+      const ok = orders.find((o) => o.every((f, i) => !contradiction(kind, slice[i], f)))
+      if (ok) ok.forEach((f, i) => pairs.push([kind, slice[i], f]))
+      else g.files.forEach((f, i) => problems.push(`#${slice[i].order} job ${slice[i].job || '?'}: ${f} ${contradiction(kind, slice[i], f)}`))
+    }
+  }
+  if (problems.length) return { renamed, problems, notes, unresolved }
+
+  const taken = new Set()
+  const give = (f, logical, note) => {
+    if (taken.has(logical)) { notes.push(`${note} — ${f} is a repeat, so the first one was used`); return }
+    taken.add(logical); renamed.set(f, logical)
+  }
+  for (const [kind, r, f] of pairs) {
+    if (kind === 'pl') {
+      const wb = wbOf(f), k = exportKind(wb)
+      if (k === 'quoted') {
+        const job = quotedJobNumber(wb)
+        give(f, `Q-${job}-pl.xlsx`, `Job ${job} was exported more than once`)
+      } else if (r.job) give(f, `CU-${r.job}.xlsx`, `Job ${r.job} was exported more than once`)
+      else {
+        let detail = ''
+        try { const c = parseChargeUp(wb); detail = `, ${c.hours} sold h (${[...new Set(c.workers.map((w) => w.name))].join(', ')})` } catch { detail = ', no sold hours' }
+        unresolved.push({ job: 'Charge-up', file: f, reason: `${f}: profit $${chargeUpTotalProfit(wb).toFixed(2)}${detail} — put its job number in manifest.csv and upload again` })
+      }
+    } else if (r.type === 'quoted' && r.job) give(f, `Q-${r.job}-ts.xlsx`, `Job ${r.job}'s timesheet was listed more than once`)
+    else notes.push(`${f} is a timesheet with no quoted job in the manifest, so it was left out`)
+  }
+  for (const r of rows.filter((r) => r.fileKey === 'none')) notes.push(`job ${r.job} had nothing to export in Katipolt`)
+  notes.push(`Matched ${renamed.size} download(s) to jobs using ${manifestName}.`)
+  return { renamed, problems, notes, unresolved }
+}
+
 // ---------------------------------------------------------------- whole-folder loading
 // Reads a folder of completed-job exports (see scripts/add-completed-jobs.mjs for the
 // accepted layouts). Returns { records, skipped, problems, notes }; `problems` means the
@@ -217,54 +336,21 @@ for (const f of files.filter((f) => /^jobs/i.test(f))) {
 
 // ---------- manifest mode: map Katipolt's raw download names to CU-/Q- names in memory
 const notes = []
-const renamed = new Map()          // raw file name → CU-<job>.xlsx / Q-<job>-pl.xlsx / Q-<job>-ts.xlsx
+let renamed = new Map()            // raw file name → CU-<job>.xlsx / Q-<job>-pl.xlsx / Q-<job>-ts.xlsx
+const unresolved = []              // charge-up exports the manifest couldn't put a job number on
 const manifestFile = files.length && readdirSync(folder).find((f) => f.toLowerCase() === 'manifest.csv')
 if (manifestFile) {
-  const lines = readFileSync(join(folder, manifestFile), 'utf8').split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith('#'))
-  const header = lines.shift().split(',').map((h) => h.trim().toLowerCase())
-  const rows = lines.map((l) => Object.fromEntries(l.split(',').map((v, i) => [header[i], v.trim()])))
-    .sort((a, b) => Number(a.order) - Number(b.order))
-  // Chrome's own ordering: base name (P&L names carry the export minute), then " (n)"
-  const orderKey = (f) => { const m = f.match(/^(.*?)(?: \((\d+)\))?\.xlsx$/i); return [m[1], Number(m[2] ?? 0)] }
-  const byOrder = (a, b) => { const [ba, na] = orderKey(a), [bb, nb] = orderKey(b); return ba < bb ? -1 : ba > bb ? 1 : na - nb }
-  const pls = files.filter((f) => /^ProfitAndLoss/i.test(f)).sort(byOrder)
-  const tss = files.filter((f) => /^Timesheets/i.test(f)).sort(byOrder)
-  const want = { pl: rows.filter((r) => r.file === 'pl'), ts: rows.filter((r) => r.file === 'ts') }
-  const problems = []
-  if (pls.length !== want.pl.length) problems.push(`${pls.length} ProfitAndLoss file(s) but the manifest lists ${want.pl.length} — move any older Katipolt downloads out of the folder`)
-  if (tss.length !== want.ts.length) problems.push(`${tss.length} Timesheets file(s) but the manifest lists ${want.ts.length}`)
-  const near = (a, b, tol) => Math.abs(a - b) <= tol
-  if (!problems.length) {
-    want.pl.forEach((r, i) => {
-      const f = pls[i], wb = readWorkbook(join(folder, f)), kind = exportKind(wb)
-      if (kind !== r.type) return problems.push(`#${r.order} job ${r.job}: ${f} is a ${kind ?? 'unknown'} export, manifest says ${r.type}`)
-      if (kind === 'quoted') {
-        const inFile = quotedJobNumber(wb)
-        if (inFile !== r.job) return problems.push(`#${r.order} job ${r.job}: ${f} is for job ${inFile}`)
-      } else if (r.check) {
-        const p = chargeUpTotalProfit(wb)
-        if (!near(p, Number(r.check), 1)) return problems.push(`#${r.order} job ${r.job}: ${f} has profit ${p.toFixed(2)}, screen showed ${r.check}`)
-      }
-      renamed.set(f, r.type === 'quoted' ? `Q-${r.job}-pl.xlsx` : `CU-${r.job}.xlsx`)
-    })
-    want.ts.forEach((r, i) => {
-      const f = tss[i]
-      if (r.check) {
-        const h = readTimesheetWorkers(readWorkbook(join(folder, f))).reduce((s, w) => s + w.hours, 0)
-        if (!near(h, Number(r.check), 0.01)) return problems.push(`#${r.order} job ${r.job}: ${f} has ${h} h, screen showed ${r.check} h`)
-      }
-      renamed.set(f, `Q-${r.job}-ts.xlsx`)
-    })
-  }
-  if (problems.length) return { records: [], skipped: [], problems, notes }
-  for (const r of rows.filter((r) => r.file === 'none')) notes.push(`job ${r.job} had nothing to export in Katipolt`)
-  notes.push(`Matched ${renamed.size} download(s) to jobs using ${manifestFile}.`)
+  const m = matchManifest(folder, files, readFileSync(join(folder, manifestFile), 'utf8'), manifestFile)
+  if (m.problems.length) return { records: [], skipped: [], problems: m.problems, notes: m.notes }
+  renamed = m.renamed
+  notes.push(...m.notes)
+  unresolved.push(...m.unresolved)
 }
 const logical = (f) => renamed.get(f) ?? f
 const physical = new Map([...renamed].map(([raw, name]) => [name.toLowerCase(), raw]))
 const pathOf = (name) => join(folder, physical.get(name.toLowerCase()) ?? name)
 
-const records = [], skipped = []
+const records = [], skipped = [...unresolved]
 for (const raw of files) {
   const f = logical(raw)
   let m
