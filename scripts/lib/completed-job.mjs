@@ -101,7 +101,9 @@ export function parseQuoted(workbook, timesheetWorkbook = null) {
     hours = workers.reduce((sum, w) => sum + w.hours, 0)
     hoursSource = 'timesheet'
   }
-  if (hours === null || hours <= 0) throw new Error('No actual hours recorded for this quoted job.')
+  // No actual hours (nothing booked yet): still loaded with its costs and profit,
+  // flagged 'no-sold-hours' by toRecord, with no GP/hr — same as a charge-up job.
+  hours = hours ?? 0
   return { jobNumber, jobName, type: 'quoted', profit, hours, quotedHours, workers, hoursSource, labour: { quotedCost, actualCost }, pl }
 }
 

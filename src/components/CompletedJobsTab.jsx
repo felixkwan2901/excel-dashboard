@@ -210,7 +210,7 @@ const NOT_SET = 'Not set'
 
 // Data to check, set when the job was loaded — shown as a tooltip on the type:
 // no name in Katipolt (named by its number), or no sold hours (so no GP/hr).
-const CHECK_NOTE = { 'no-name': 'No name in Katipolt — add one there and re-upload.', 'no-sold-hours': 'No sold hours, so no GP/hr.' }
+const CHECK_NOTE = { 'no-name': 'No name in Katipolt — add one there and re-upload.', 'no-sold-hours': 'No actual hours, so no GP/hr.' }
 const checkNote = (job) => (job.flags ?? []).map((f) => CHECK_NOTE[f] ?? f).join(' ') || undefined
 
 // Totals for the ticked jobs, per column. Sums for money and hours; GP/hr and the
