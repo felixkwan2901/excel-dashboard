@@ -1,10 +1,12 @@
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Users } from 'lucide-react'
 import { cents, money, percent } from '../lib/format'
 import CollapsibleSection from './CollapsibleSection'
 import LastSynced from './LastSynced'
 import CompletedCompare from './CompletedCompare'
 import { useLocalStorageState } from '../lib/useLocalStorageState'
+import DataTable from './table/DataTable'
+import { useDataTable } from './table/useDataTable'
 import { fetchJobOwners, saveJobOwner } from '../lib/jobOwnerStore'
 import { fetchJobCategories, saveJobCategory } from '../lib/jobCategoryStore'
 import { OwnerCell, CategoryCell } from './JobTable'
@@ -20,29 +22,44 @@ import { jobsToReview, overruns } from '../lib/completedJobReview'
 // a small quick job can easily out-earn a big one per hour.
 // Every column sorts; text columns start A–Z, numbers high to low. `group` puts a
 // column under a two-row header; the groups can be shown or hidden from Columns.
-const TEXT_SORTS = new Set(['jobName', 'type', 'workedBy', 'category', 'owner'])
 const pct = (v) => (v == null ? '—' : percent(v))
-const COLUMNS = [
-  { key: 'jobNumber', label: 'Job #', get: (j) => Number(j.jobNumber), sticky: 0 },
-  { key: 'jobName', label: 'Job name', sticky: 1 },
-  { key: 'type', label: 'Type', get: (j) => TYPE_LABEL[j.type] ?? j.type },
-  { key: 'gpPerHour', group: 'gp', label: 'GP/hr', num: true, get: projectGpPerHour, fmt: cents, strong: true },
-  { key: 'quotedHours', group: 'gp', label: 'Quoted h', num: true },
-  { key: 'hours', group: 'gp', label: 'Actual h', num: true },
-  { key: 'hoursDiff', group: 'gp', label: 'Diff h', num: true, get: (j) => hoursDiff(j) },   // label/tooltip vary by job type: DIFF_LABEL
-  { key: 'quotedProfit', group: 'margin', label: 'Quoted profit', num: true, get: (j) => j.pl?.quotedProfit, fmt: money },
-  { key: 'quotedMargin', group: 'margin', label: 'Quoted margin', num: true, get: (j) => j.pl?.quotedMargin, fmt: pct },
-  { key: 'profitToDate', group: 'margin', label: 'Profit to date', num: true, get: (j) => j.pl?.profitToDate, fmt: money },
-  { key: 'marginToDate', group: 'margin', label: 'Margin to date', num: true, get: (j) => j.pl?.marginToDate, fmt: pct },
-  { key: 'labourQuoted', group: 'labour', label: 'Quoted $', num: true, get: (j) => j.labour?.quotedCost, fmt: money },
-  { key: 'labourActual', group: 'labour', label: 'Actual $', num: true, get: (j) => j.labour?.actualCost, fmt: money },
-  { key: 'costQuoted', group: 'cost', label: 'Quoted', num: true, get: (j) => j.pl?.quotedCost, fmt: money },
-  { key: 'costActual', group: 'cost', label: 'Actual', num: true, get: (j) => j.pl?.actualCost, fmt: money },
-  { key: 'workedBy', group: 'people', label: 'Worked by' },
-  { key: 'category', group: 'people', label: 'Type of work' },
-  { key: 'owner', group: 'people', label: 'Owner' },
-  { key: 'addedAt', group: 'people', label: 'Date added', num: true },
-]
+// Cells that turn red (and blink) when a quoted job came in over quote on that measure.
+const OVER_BY_COL = { hours: 'hours', hoursDiff: 'hours', labourActual: 'labour', costActual: 'cost' }
+const overStyle = (key) => (j) => (overruns(j).some((o) => o.key === OVER_BY_COL[key]) ? { color: OVER, fontWeight: 700 } : undefined)
+const blink = (key, content) => (j) => (overruns(j).some((o) => o.key === OVER_BY_COL[key]) ? <span className="blink-over">{content(j)}</span> : content(j))
+const numCell = (get, fmt) => (j) => { const v = get(j); return v == null ? <span className="text-neutral-500">—</span> : fmt(v) }
+function buildColumns(typeFilter) {
+  return [
+    { key: 'jobNumber', label: 'Job #', get: (j) => Number(j.jobNumber), sticky: true, width: 98, always: true,
+      cellStyle: (j) => (overruns(j).length ? { boxShadow: `inset 4px 0 0 ${OVER}` } : undefined) },
+    { key: 'jobName', label: 'Job name', text: true, sticky: true, width: 260, always: true,
+      render: (j) => <span className="block truncate" title={j.jobName}>{j.jobName}</span> },
+    { key: 'type', label: 'Type', text: true, always: true, get: (j) => TYPE_LABEL[j.type] ?? j.type,
+      // Kept tight: the red row already marks a job to review; the no-name /
+      // no-sold-hours notes live in the tooltip.
+      render: (j) => <span title={checkNote(j)}>{TYPE_LABEL[j.type] ?? j.type}</span> },
+    { key: 'gpPerHour', group: 'gp', label: 'GP/hr', num: true, get: projectGpPerHour, fmt: cents, fmtTotal: (v) => `${cents(v)}/hr`,
+      render: (j, ctx) => <GpCell value={projectGpPerHour(j)} max={ctx.gpMax} benchmark={ctx.gpBenchmark} /> },
+    { key: 'quotedHours', group: 'gp', label: 'Quoted h', num: true },
+    { key: 'hours', group: 'gp', label: 'Actual h', num: true, cellStyle: overStyle('hours'), render: blink('hours', (j) => j.hours) },
+    { key: 'hoursDiff', group: 'gp', label: DIFF_LABEL[typeFilter] ?? 'Diff h', title: DIFF_TITLE[typeFilter], num: true, get: hoursDiff,
+      fmtTotal: (v) => `${v > 0 ? '+' : ''}${round2(v)}`, cellStyle: overStyle('hoursDiff'), render: blink('hoursDiff', (j) => <DiffHours job={j} />) },
+    { key: 'quotedProfit', group: 'margin', label: 'Quoted profit', num: true, get: (j) => j.pl?.quotedProfit, fmt: money },
+    { key: 'quotedMargin', group: 'margin', label: 'Quoted margin', num: true, get: (j) => j.pl?.quotedMargin, fmt: pct },
+    { key: 'profitToDate', group: 'margin', label: 'Profit to date', num: true, get: (j) => j.pl?.profitToDate, fmt: money },
+    { key: 'marginToDate', group: 'margin', label: 'Margin to date', num: true, get: (j) => j.pl?.marginToDate, fmt: pct },
+    { key: 'labourQuoted', group: 'labour', label: 'Quoted $', num: true, get: (j) => j.labour?.quotedCost, fmt: money },
+    { key: 'labourActual', group: 'labour', label: 'Actual $', num: true, get: (j) => j.labour?.actualCost, fmt: money,
+      cellStyle: overStyle('labourActual'), render: blink('labourActual', numCell((j) => j.labour?.actualCost, money)) },
+    { key: 'costQuoted', group: 'cost', label: 'Quoted', num: true, get: (j) => j.pl?.quotedCost, fmt: money },
+    { key: 'costActual', group: 'cost', label: 'Actual', num: true, get: (j) => j.pl?.actualCost, fmt: money,
+      cellStyle: overStyle('costActual'), render: blink('costActual', numCell((j) => j.pl?.actualCost, money)) },
+    { key: 'workedBy', group: 'people', label: 'Worked by', text: true, get: (j) => contributors(j).worked[0]?.name ?? '', render: (j) => <WorkedBy job={j} /> },
+    { key: 'category', group: 'people', label: 'Type of work', text: true, sortable: true, render: (j, ctx) => ctx.cells(j).category },
+    { key: 'owner', group: 'people', label: 'Owner', text: true, render: (j, ctx) => ctx.cells(j).owner },
+    { key: 'addedAt', group: 'people', label: 'Date added', text: true },
+  ]
+}
 const GROUPS = [
   { key: 'gp', label: 'GP $/hr' },
   { key: 'margin', label: 'GP $ / %' },
@@ -50,6 +67,15 @@ const GROUPS = [
   { key: 'cost', label: 'Total cost' },
   { key: 'people', label: 'Worked by, type of work, owner', flat: true },
 ]
+const PEOPLE_KEYS = ['workedBy', 'category', 'owner', 'addedAt']
+// Before the shared table, hidden columns were saved per group; carry that over once.
+function migratedHidden() {
+  try {
+    const old = JSON.parse(localStorage.getItem('completedJobs.hiddenGroups.v2') ?? 'null')
+    if (Array.isArray(old)) return buildColumns('all').filter((c) => old.includes(c.group)).map((c) => c.key)
+  } catch { /* fall through */ }
+  return PEOPLE_KEYS
+}
 // "Diff h" = quoted − actual, but it means a different thing per job type: hours
 // under quote for a quoted job, unsold hours for a charge-up job. The header and
 // each cell's tooltip say which.
@@ -59,23 +85,16 @@ const DIFF_TITLE = {
   quoted: 'Quoted h − actual h: hours under quote (minus = over quote).',
   chargeup: 'Hours booked but not sold (quoted h = sold + unsold).',
 }
-const colLabel = (col, typeFilter) => (col.key === 'hoursDiff' ? DIFF_LABEL[typeFilter] ?? col.label : col.label)
-const colTitle = (col, typeFilter) => (col.key === 'hoursDiff' ? DIFF_TITLE[typeFilter] : undefined)
 
 // "Simple" shows the columns every job has a figure for. The quoted-only columns
 // (quoted profit/margin, quoted labour and cost) are blank for charge-up jobs —
 // most rows — so they wait behind "Full".
-const SIMPLE_KEYS = new Set(['jobNumber', 'jobName', 'type', 'gpPerHour', 'quotedHours', 'hours', 'hoursDiff', 'profitToDate', 'marginToDate'])
+const SIMPLE_KEYS = ['jobNumber', 'jobName', 'type', 'gpPerHour', 'quotedHours', 'hours', 'hoursDiff', 'profitToDate', 'marginToDate']
 
-// Which cells turn red when a quoted job came in over quote on that measure.
-const OVER_CELLS = { hours: ['hours', 'hoursDiff'], labour: ['labourActual'], cost: ['costActual'] }
 const OVER = 'var(--viz-critical)'
 const OVER_TINT = 'color-mix(in srgb, var(--viz-critical) 12%, transparent)'
 const fmtOver = (o) => (o.unit === 'h' ? `${o.label} ${o.quoted} → ${o.actual} h` : `${o.label} ${money(o.quoted)} → ${money(o.actual)}`)
 
-// Frozen leading columns (Job #, Job name) — widths so the second knows its left.
-const STICKY_W = [98, 260]
-const STICKY_LEFT = [0, STICKY_W[0]]
 
 // Difference = quoted − actual hours. A charge-up job's quoted hours are Sold +
 // Unsold and its actual hours are Sold, so its difference is its Unsold hours.
@@ -323,27 +342,7 @@ function selectionTotals(jobs) {
 }
 const round2 = (v) => Math.round(v * 100) / 100
 
-function HeadCell({ col, rowSpan, sub, sort, onSort, typeFilter, children }) {
-  const on = sort.key === col.key
-  const sticky = col.sticky !== undefined
-  return (
-    <th
-      rowSpan={rowSpan}
-      className={[col.num && 'num', 'sortable', sub && 'th-sub', sticky && 'sticky-col', col.sticky === 1 && 'sticky-col-end'].filter(Boolean).join(' ')}
-      style={sticky ? { left: STICKY_LEFT[col.sticky], minWidth: STICKY_W[col.sticky], maxWidth: STICKY_W[col.sticky] } : undefined}
-      onClick={() => onSort(col.key)}
-      aria-sort={on ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'}
-      title={colTitle(col, typeFilter)}
-    >
-      {children}
-      {colLabel(col, typeFilter)}{col.key === 'hoursDiff' && <span className="ml-1 text-neutral-500" aria-hidden="true">ⓘ</span>}
-      {on && (sort.dir === 1 ? ' ▲' : ' ▼')}
-    </th>
-  )
-}
-
 export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
-  const [sort, setSort] = useState({ key: 'gpPerHour', dir: -1 })
   const [typeFilter, setTypeFilter] = useLocalStorageState('completedJobs.typeFilter', 'all')
   const [workFilter, setWorkFilter] = useState(null)   // a type of work picked in the filter
   // Months with jobs, latest first; the page opens on the latest month.
@@ -392,29 +391,10 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
     category: <CategoryCell job={j} value={categories?.[j.jobNumber] ?? ''} saving={!loaded || saving.has(`category:${j.jobNumber}`)} onChange={(job, v) => saveField('category', job, v)} />,
     owner: <OwnerCell job={j} value={owners?.[j.jobNumber] ?? ''} saving={!loaded || saving.has(`owner:${j.jobNumber}`)} onChange={(job, v) => saveField('owner', job, v)} />,
   })
-  // Column groups the viewer has hidden (saved in this browser).
-  const [hiddenGroups, setHiddenGroups] = useLocalStorageState('completedJobs.hiddenGroups.v2', ['people'])
-  // "Simple" (the default) or "Full"; choosing groups in the picker means Full.
-  const [preset, setPreset] = useLocalStorageState('completedJobs.columnPreset', 'simple')
-  const [pickerOpen, setPickerOpen] = useState(false)
   // Ticked jobs: a Total row sums them, and "Show selected only" filters to them.
   const [selected, setSelected] = useState(() => new Set())
   const [selectedOnly, setSelectedOnly] = useState(false)
   const toggleSelected = (n) => setSelected((prev) => { const next = new Set(prev); next.has(n) ? next.delete(n) : next.add(n); return next })
-  const hidden = new Set(hiddenGroups)
-  const visibleCols = preset === 'simple'
-    ? COLUMNS.filter((c) => SIMPLE_KEYS.has(c.key))
-    : COLUMNS.filter((c) => !c.group || !hidden.has(c.group))
-  const toggleGroup = (key) => { setPreset('full'); setHiddenGroups(hidden.has(key) ? hiddenGroups.filter((g) => g !== key) : [...hiddenGroups, key]) }
-  // Header row 1: ungrouped columns span both rows; each visible group spans its columns.
-  const headRow1 = []
-  for (const c of visibleCols) {
-    const g = c.group && GROUPS.find((x) => x.key === c.group)
-    if (!g || g.flat) headRow1.push({ col: c })
-    else if (headRow1.at(-1)?.group !== g) headRow1.push({ group: g, span: 1 })
-    else headRow1.at(-1).span += 1
-  }
-  const subCols = visibleCols.filter((c) => c.group && !GROUPS.find((x) => x.key === c.group)?.flat)
 
   const toReview = useMemo(() => jobsToReview(inMonth), [inMonth])
   const [open, setOpen] = useState(() => new Set(focusJob ? [focusJob.job] : []))
@@ -444,10 +424,6 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
     setOpen((prev) => { const next = new Set(prev); next.has(jobNumber) ? next.delete(jobNumber) : next.add(jobNumber); return next })
   }
 
-  function toggleSort(key) {
-    setSort((prev) => (prev.key === key ? { key, dir: -prev.dir } : { key, dir: TEXT_SORTS.has(key) ? 1 : -1 }))
-  }
-
   const byType = useMemo(() => ({
     chargeup: inMonth.filter((j) => j.type === 'chargeup'),
     quoted: inMonth.filter((j) => j.type === 'quoted'),
@@ -460,32 +436,18 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
     return q ? pool.filter((j) => String(j.jobNumber).includes(q) || (j.jobName ?? '').toLowerCase().includes(q)) : pool
   }, [byTypeShown, workFilter, categories, q])
 
-  const rows = useMemo(() => {
-    const pool = selectedOnly ? shown.filter((j) => selected.has(j.jobNumber)) : shown
-    return [...pool].sort((a, b) => {
-      const av = sortValue(a)
-      const bv = sortValue(b)
-      // blanks (no owner, no type of work, …) always go last
-      const blank = (v) => v === null || v === undefined || v === ''
-      if (blank(av) || blank(bv)) return blank(av) - blank(bv)
-      if (typeof av === 'string') return av.localeCompare(bv) * sort.dir
-      return (av - bv) * sort.dir
-    })
-    function sortValue(j) {
-      switch (sort.key) {
-        case 'workedBy': return contributors(j).worked[0]?.name ?? ''
-        case 'category': return categories?.[j.jobNumber] ?? ''
-        case 'owner': return owners?.[j.jobNumber] ?? ''
-        default: {
-          const col = COLUMNS.find((c) => c.key === sort.key)
-          return col?.get ? col.get(j) : j[sort.key]
-        }
-      }
-    }
-  }, [shown, sort, owners, categories, selectedOnly, selected])
+  const columns = useMemo(() => buildColumns(typeFilter), [typeFilter])
+  const pool = useMemo(() => (selectedOnly ? shown.filter((j) => selected.has(j.jobNumber)) : shown), [shown, selectedOnly, selected])
+  // Type of work and owner sort by the fetched maps, which the columns can't see.
+  const sortValue = useMemo(() => (j, col) => (col.key === 'category' ? categories?.[j.jobNumber] ?? '' : col.key === 'owner' ? owners?.[j.jobNumber] ?? '' : undefined), [categories, owners])
+  const table = useDataTable({
+    id: 'completedJobs', columns, rows: pool, groups: GROUPS,
+    defaultSort: { key: 'gpPerHour', dir: -1 }, numbersFirst: 'desc',
+    simpleKeys: SIMPLE_KEYS, defaultHidden: migratedHidden(), sortValue,
+  })
+  const { rows, sort, setSort } = table
   const selectedJobs = completedJobs.filter((j) => selected.has(j.jobNumber))
   const totals = selectedJobs.length ? selectionTotals(selectedJobs) : null
-  const allShownTicked = rows.length > 0 && rows.every((j) => selected.has(j.jobNumber))
   // For the GP/hr bars: the best rate shown, and the overall rate of what's shown.
   const gpMax = Math.max(0, ...shown.map((j) => projectGpPerHour(j) ?? 0))
   const gpBenchmark = typeStats(shown).gp
@@ -622,8 +584,8 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
           {/* Phone: no column headers to click, so a sort picker instead. */}
           <label className="flex min-w-0 basis-[47%] items-center gap-1.5 text-[12px] text-neutral-500 sm:hidden">
             Sort
-            <select value={sort.key} onChange={(e) => setSort({ key: e.target.value, dir: TEXT_SORTS.has(e.target.value) ? 1 : -1 })} className={`${SELECT} min-w-0 flex-1`}>
-              {COLUMNS.map((c) => <option key={c.key} value={c.key}>{colLabel(c, typeFilter)}</option>)}
+            <select value={sort.key} onChange={(e) => setSort({ key: e.target.value, dir: columns.find((c) => c.key === e.target.value)?.num ? -1 : 1 })} className={`${SELECT} min-w-0 flex-1`}>
+              {columns.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
             </select>
             <button type="button" onClick={() => setSort((prev) => ({ ...prev, dir: -prev.dir }))}
               className="rounded-lg border border-white/10 px-2 py-1 text-[13px] text-neutral-300"
@@ -710,168 +672,28 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
           {rows.length === 0 && <p className="empty-row">{q || workFilter ? 'No jobs match.' : 'No completed jobs added yet.'}</p>}
         </div>
 
-        <div className="relative mt-3 hidden items-center gap-2 sm:flex">
-          <span className="text-[12px] text-neutral-500">Columns</span>
-          <div className="flex overflow-hidden rounded-full border border-white/10 text-[12px] font-medium" role="group" aria-label="Column preset">
-            {[['simple', 'Simple'], ['full', 'Full']].map(([k, label]) => (
-              <button key={k} type="button" onClick={() => setPreset(k)} aria-pressed={preset === k}
-                className={`px-3 py-1 transition-colors ${preset === k ? 'bg-brand-green/15 text-brand-green' : 'text-neutral-400 hover:text-white'}`}>
-                {label}
-              </button>
-            ))}
-          </div>
-          <button
-            type="button"
-            onClick={() => setPickerOpen((v) => !v)}
-            aria-expanded={pickerOpen}
-            className="rounded-full border border-white/10 px-3 py-1 text-[12px] font-medium text-neutral-300 hover:border-white/20 hover:text-white"
-          >
-            Choose{preset === 'full' && hiddenGroups.length ? ` · ${hiddenGroups.length} hidden` : ''} ▾
-          </button>
-          {pickerOpen && (
-            <div className="absolute left-0 top-full z-20 mt-1 flex w-72 flex-col gap-1 rounded-xl border border-white/10 bg-[#11161c] p-3 shadow-xl">
-              <p className="mb-1 text-[11px] uppercase tracking-wide text-neutral-500">Show columns</p>
-              {GROUPS.map((g) => (
-                <label key={g.key} className="flex cursor-pointer items-center gap-2 text-[13px] text-neutral-200">
-                  <input type="checkbox" checked={!hidden.has(g.key)} onChange={() => toggleGroup(g.key)} />
-                  {g.label}
-                </label>
-              ))}
-              <p className="mt-1 text-[11px] text-neutral-500">Job #, job name and type always show. Ticking here switches to Full.</p>
-            </div>
-          )}
-          <span className="text-[12px] text-neutral-500">Tick jobs to add them up and compare. Scroll inside the table — the header and job columns stay put.</span>
-        </div>
-
-        <div className="table-scroll table-freeze mt-2 hidden sm:block">
-          <table className="data-table data-table--compact">
-            <thead>
-              <tr>
-                {headRow1.map((h) => {
-                  if (h.group) return <th key={h.group.key} colSpan={h.span} className="th-group">{h.group.label}</th>
-                  const col = h.col
-                  return (
-                    <HeadCell key={col.key} col={col} rowSpan={subCols.length ? 2 : 1} sort={sort} onSort={toggleSort} typeFilter={typeFilter}>
-                      {col.key === 'jobNumber' && (
-                        <input type="checkbox" className="mr-2 align-[-2px]" aria-label="Select every job shown"
-                          checked={allShownTicked}
-                          onClick={(e) => e.stopPropagation()}
-                          onChange={() => setSelected((prev) => {
-                            const next = new Set(prev)
-                            for (const j of rows) allShownTicked ? next.delete(j.jobNumber) : next.add(j.jobNumber)
-                            return next
-                          })} />
-                      )}
-                    </HeadCell>
-                  )
-                })}
-              </tr>
-              {subCols.length > 0 && (
-                <tr>
-                  {subCols.map((col) => <HeadCell key={col.key} col={col} sub sort={sort} onSort={toggleSort} typeFilter={typeFilter} />)}
-                </tr>
-              )}
-            </thead>
-            <tbody>
-              {rows.map((j) => {
-                const isOpen = open.has(j.jobNumber)
-                const over = overruns(j)
-                const redCells = new Set(over.flatMap((o) => OVER_CELLS[o.key]))
-                const edge = over.length ? OVER : null
-                return (
-                  <Fragment key={j.jobNumber}>
-                    <tr
-                      id={`cj-${j.jobNumber}`}
-                      title={over.length ? `Over quote — review: ${over.map(fmtOver).join(' · ')}` : undefined}
-                      className={`cursor-pointer ${edge ? 'is-over' : ''} ${selected.has(j.jobNumber) ? 'is-selected' : ''}`}
-                      style={edge ? { background: OVER_TINT } : undefined}
-                      tabIndex={0}
-                      aria-expanded={isOpen}
-                      onClick={() => toggleOpen(j.jobNumber)}
-                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleOpen(j.jobNumber) } }}
-                    >
-                      {visibleCols.map((col) => {
-                        const cls = [col.num && 'num', col.strong && 'font-medium', col.sticky !== undefined && 'sticky-col', col.sticky === 1 && 'sticky-col-end'].filter(Boolean).join(' ')
-                        const style = col.sticky !== undefined ? { left: STICKY_LEFT[col.sticky], minWidth: STICKY_W[col.sticky], maxWidth: STICKY_W[col.sticky] } : undefined
-                        let content
-                        switch (col.key) {
-                          case 'jobNumber':
-                            content = (
-                              <>
-                                <input type="checkbox" className="mr-2 align-[-2px]" aria-label={`Select job ${j.jobNumber}`}
-                                  checked={selected.has(j.jobNumber)}
-                                  onClick={(e) => e.stopPropagation()}
-                                  onKeyDown={(e) => e.stopPropagation()}
-                                  onChange={() => toggleSelected(j.jobNumber)} />
-                                <span className={`mr-1.5 inline-block text-neutral-500 transition-transform ${isOpen ? 'rotate-90' : ''}`} aria-hidden="true">›</span>{j.jobNumber}
-                              </>
-                            )
-                            break
-                          case 'jobName': content = <span className="block truncate" title={j.jobName}>{j.jobName}</span>; break
-                          case 'hoursDiff': content = <DiffHours job={j} />; break
-                          case 'gpPerHour': content = <GpCell value={projectGpPerHour(j)} max={gpMax} benchmark={gpBenchmark} />; break
-                          case 'type':
-                            // Kept tight: the red row already marks a job to review; the
-                            // no-name / no-sold-hours notes live in the tooltip.
-                            content = <span title={checkNote(j)}>{TYPE_LABEL[j.type] ?? j.type}</span>
-                            break
-                          case 'workedBy': content = <WorkedBy job={j} />; break
-                          case 'category': content = cells(j).category; break
-                          case 'owner': content = cells(j).owner; break
-                          default: {
-                            const v = col.get ? col.get(j) : j[col.key]
-                            content = v == null ? <span className="text-neutral-500">—</span> : col.fmt ? col.fmt(v) : v
-                          }
-                        }
-                        return (
-                          <td key={col.key} className={cls}
-                            style={{
-                              ...style,
-                              ...(col.key === 'jobNumber' && edge ? { boxShadow: `inset 4px 0 0 ${edge}` } : {}),
-                              ...(redCells.has(col.key) ? { color: OVER, fontWeight: 700 } : {}),
-                            }}>
-                            {redCells.has(col.key) ? <span className="blink-over">{content}</span> : content}
-                          </td>
-                        )
-                      })}
-                    </tr>
-                    {isOpen && (
-                      <tr className={edge ? 'is-over' : ''} style={edge ? { background: OVER_TINT } : undefined}>
-                        <td colSpan={visibleCols.length} className="bg-white/[0.02]" style={edge ? { boxShadow: `inset 4px 0 0 ${edge}` } : undefined}>
-                          {/* sticky so the breakdown stays in view when the table is scrolled sideways */}
-                          <div className="sticky left-0 max-w-3xl py-2 pl-6"><Breakdown job={j} /></div>
-                        </td>
-                      </tr>
-                    )}
-                  </Fragment>
-                )
-              })}
-              {rows.length === 0 && (
-                <tr>
-                  <td colSpan={visibleCols.length} className="empty-row">
-                    {q || workFilter ? 'No jobs match.' : 'No completed jobs added yet.'}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-            {totals && (
-              <tfoot>
-                <tr className="totals-row">
-                  {visibleCols.map((col) => {
-                    const v = totals[col.key]
-                    const sticky = col.sticky !== undefined
-                    const cls = [col.num && 'num', sticky && 'sticky-col', col.sticky === 1 && 'sticky-col-end'].filter(Boolean).join(' ')
-                    const style = sticky ? { left: STICKY_LEFT[col.sticky], minWidth: STICKY_W[col.sticky], maxWidth: STICKY_W[col.sticky] } : undefined
-                    let content = v == null || v === '' ? '' : typeof v === 'string' ? v : col.fmt ? col.fmt(v) : round2(v)
-                    if (col.key === 'hoursDiff' && v != null) content = `${v > 0 ? '+' : ''}${round2(v)}`
-                    if (col.key === 'gpPerHour' && v != null) content = `${cents(v)}/hr`
-                    return <td key={col.key} className={cls} style={style}>{content}</td>
-                  })}
-                </tr>
-              </tfoot>
-            )}
-          </table>
-        </div>
+        <DataTable
+          table={table}
+          groups={GROUPS}
+          compact
+          rowKey={(j) => j.jobNumber}
+          rowProps={(j) => {
+            const over = overruns(j)
+            return {
+              id: `cj-${j.jobNumber}`,
+              title: over.length ? `Over quote — review: ${over.map(fmtOver).join(' · ')}` : undefined,
+              className: over.length ? 'is-over' : undefined,
+              style: over.length ? { background: OVER_TINT } : undefined,
+            }
+          }}
+          selectable selected={selected} onSelectedChange={setSelected}
+          totals={totals}
+          expandable expanded={open} onToggleExpanded={toggleOpen} renderDetail={(j) => <Breakdown job={j} />}
+          cellCtx={{ cells, gpMax, gpBenchmark }}
+          exportName="completed-jobs"
+          emptyText={q || workFilter ? 'No jobs match.' : 'No completed jobs added yet.'}
+          toolbar={<span className="text-[12px] text-neutral-500">Tick jobs to add them up and compare. Scroll inside the table — the header and job columns stay put.</span>}
+        />
       </CollapsibleSection>
     </div>
   )
