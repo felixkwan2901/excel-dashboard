@@ -33,6 +33,7 @@ function summarise(files) {
     pl: names.filter((n) => /^ProfitAndLoss/i.test(n) || /^CU-\d+\.xlsx$/i.test(n) || /^Q-\d+-pl\.xlsx$/i.test(n)).length,
     ts: names.filter((n) => /^Timesheets/i.test(n) || /^Q-\d+-ts\.xlsx$/i.test(n)).length,
     lists: names.filter((n) => /^Jobs/i.test(n)).length,
+    summary: names.filter((n) => /^Profit\s*&\s*Loss Summary/i.test(n)).length,
     manifest: names.some((n) => n.toLowerCase() === 'manifest.csv'),
     renamed: names.some((n) => /^(CU|Q)-\d+/i.test(n)),
     other: names.filter((n) => !/\.xlsx$/i.test(n) && n.toLowerCase() !== 'manifest.csv'),
@@ -82,9 +83,11 @@ export default function CompletedJobsUpload() {
       <CardHeader>
         <CardTitle className="text-sm">Completed jobs</CardTitle>
         <p className="text-xs text-text-muted">
-          This month&apos;s completed-job downloads from Katipolt — every ProfitAndLoss and Timesheets file, both
-          Jobs lists, and manifest.csv — selected together. Each file is matched to its job and checked against the
-          manifest; if anything doesn&apos;t line up, nothing is loaded and you&apos;ll see why.
+          This month&apos;s completed-job downloads from Katipolt, selected together: every ProfitAndLoss and
+          Timesheets file, the Jobs list, and the <b>Profit &amp; Loss Summary</b> report. The report gives every job&apos;s
+          figures and lets each charge-up file find its own job number (by its sell and hours), so manifest.csv is
+          optional. If a manifest is included it&apos;s checked against the files; a job that can&apos;t be placed is
+          listed below instead of being guessed.
         </p>
       </CardHeader>
       <CardContent>
@@ -108,7 +111,7 @@ export default function CompletedJobsUpload() {
 
           <div>
             <label htmlFor="completed-files" className="mb-1.5 block text-xs text-text-muted">
-              Completed-job exports + manifest.csv (select all)
+              Completed-job exports + Profit & Loss Summary (select all)
             </label>
             <input
               id="completed-files"
@@ -124,13 +127,14 @@ export default function CompletedJobsUpload() {
           {sum && (
             <p className="text-xs text-text-muted">
               {sum.pl} Profit &amp; Loss · {sum.ts} Timesheets · {sum.lists} Jobs list{sum.lists === 1 ? '' : 's'} ·{' '}
-              {sum.manifest ? 'manifest.csv ✓' : <span className="text-status-warning">no manifest.csv</span>}
-              {!sum.manifest && !sum.renamed && ' — without it the files can’t be matched to jobs'}
+              {sum.summary ? 'Profit & Loss Summary ✓' : <span className="text-status-warning">no Profit &amp; Loss Summary</span>} ·{' '}
+              {sum.manifest ? 'manifest.csv ✓' : 'no manifest.csv'}
+              {!sum.manifest && !sum.renamed && !sum.summary && <span className="text-status-warning"> — without either, the files can’t be matched to jobs</span>}
               {sum.other.length > 0 && <span className="text-status-warning"> · not accepted: {sum.other.join(', ')}</span>}
             </p>
           )}
 
-          <Button type="submit" disabled={busy || (sum && !sum.manifest && !sum.renamed)} className="mt-1">
+          <Button type="submit" disabled={busy || (sum && !sum.manifest && !sum.renamed && !sum.summary)} className="mt-1">
             {status === 'staging' ? 'Uploading…' : status === 'processing' ? 'Processing…' : 'Upload completed jobs'}
           </Button>
 

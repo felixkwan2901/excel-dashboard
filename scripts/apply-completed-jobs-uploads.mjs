@@ -41,7 +41,8 @@ for (const name of bundles) {
   const tmp = mkdtempSync(join(tmpdir(), 'completed-'))
   try {
     for (const f of bundle.files ?? []) writeFileSync(join(tmp, basename(f.name)), Buffer.from(f.base64, 'base64'))
-    const { records, skipped, problems, notes } = loadCompletedFolder(tmp)
+    const known = new Set(existsSync(OUT) ? JSON.parse(readFileSync(OUT, 'utf8')).map((j) => j.jobNumber) : [])
+    const { records, skipped, problems, notes } = loadCompletedFolder(tmp, { known })
     if (problems.length) { fail(name, 'The files and manifest.csv do not line up, so nothing was loaded: ' + problems.join(' · ')); continue }
     if (!records.length) { fail(name, 'No completed jobs could be read from these files. ' + skipped.map((s) => `${s.job}: ${s.reason}`).join(' · ')); continue }
     // the month picked on the Update data page (older bundles: the upload's month)

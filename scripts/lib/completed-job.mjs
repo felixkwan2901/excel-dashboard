@@ -321,11 +321,130 @@ export function matchManifest(folder, files, manifestText, manifestName = 'manif
   return { renamed, problems, notes, unresolved }
 }
 
+// ---------------------------------------------------------------- Profit & Loss Summary
+// Katipolt's "Profit & Loss Summary" report has one row per job — job number, stage,
+// type, quoted/actual hours, cost, sell, profit and margin — priced at Katipolt's
+// current rates. It is the source of every job's FIGURES; the per-job P&L exports
+// are only needed to tell who worked on a job and for how long (and, for a
+// charge-up job, to know which job a file is — the file itself doesn't say, so it's
+// matched to a report row by its sell and hours).
+const r2 = (v) => (v == null ? null : Math.round(v * 100) / 100)
+const r4 = (v) => (v == null ? null : Math.round(v * 10000) / 10000)
+
+export function readSummaryReport(folder, files) {
+  for (const f of files) {
+    let wb
+    try { wb = readWorkbook(join(folder, f)) } catch { continue }
+    const rows = sheetRows(wb, 'Data')
+    const h = rows ? rows.findIndex((r) => r.includes('Job Number') && r.includes('Actual Profit')) : -1
+    if (h === -1) continue
+    const ix = (k) => rows[h].indexOf(k)
+    const n = (v) => (v === '' || v == null || !Number.isFinite(Number(v)) ? null : Number(v))
+    const map = new Map()
+    for (const r of rows.slice(h + 1)) {
+      const job = cleanJob(r[ix('Job Number')])
+      if (!/^\d+$/.test(job)) continue                       // the Total row, blanks
+      const t = String(r[ix('Type')]).trim()
+      map.set(job, {
+        job, stage: String(r[ix('Job Stage')]).trim(), customer: String(r[ix('Customer')] ?? '').trim(),
+        type: t === 'Quoted' ? 'quoted' : t === 'Charge Up' ? 'chargeup' : null,
+        quotedHours: n(r[ix('Quoted Hours')]), actualHours: n(r[ix('Actual Hours')]),
+        quotedCost: n(r[ix('Quoted Cost')]), actualCost: n(r[ix('Actual Cost')]),
+        quotedSell: n(r[ix('Quoted Sell')]), actualSell: n(r[ix('Actual Sell')]),
+        quotedProfit: n(r[ix('Quoted Profit')]), actualProfit: n(r[ix('Actual Profit')]),
+        quotedMargin: n(r[ix('Quoted Margin')]), actualMargin: n(r[ix('Actual Margin')]),
+      })
+    }
+    return { file: f, rows: map }
+  }
+  return null
+}
+
+// Overwrite a record's figures with the report's row for that job.
+export function applySummary(record, row, date) {
+  const pl = { ...(record.pl ?? {}) }
+  pl.actualCost = r2(row.actualCost); pl.profitToDate = r2(row.actualProfit); pl.marginToDate = r4(row.actualMargin)
+  if (record.type === 'quoted') { pl.quotedCost = r2(row.quotedCost); pl.quotedProfit = r2(row.quotedProfit); pl.quotedMargin = r4(row.quotedMargin) }
+  for (const k of Object.keys(pl)) if (pl[k] == null) delete pl[k]
+  record.pl = pl
+  if (record.type === 'chargeup' && row.actualProfit != null) {
+    record.profit = row.actualProfit
+    record.gpPerHour = record.hours > 0 ? r2(record.profit / record.hours) : null
+  }
+  record.plSummaryDate = date
+}
+
+const totalHours = (rows) => {
+  let on = false, t = 0
+  for (const r of rows ?? []) {
+    if (r[0] === 'Product Category: Labour') { on = true; continue }
+    if (on && typeof r[0] === 'string' && r[0].startsWith('Total: Product Category')) break
+    if (on && r[2] && toNumber(r[6]) != null) t += toNumber(r[6])
+  }
+  return t
+}
+
+// Give the files no manifest named (or whose manifest row had no job number) their
+// job from the report: a quoted P&L says its own job; a charge-up P&L is paired
+// with the report row that has the same total sell, the same total hours and the
+// nearest profit; a timesheet with the quoted job whose actual hours equal its
+// total. Files that can't be paired confidently are left for the caller to list.
+function matchFromSummary(folder, files, renamed, summary, notes) {
+  const taken = new Set([...renamed.values()])
+  const used = new Set([...renamed.values()].map((n) => n.match(/^(?:CU|Q)-(\d+)/i)?.[1]).filter(Boolean))
+  const pairs = []                                   // [file, job, kind]
+  const rest = files.filter((f) => !renamed.has(f) && /^ProfitAndLoss/i.test(f))
+  const chargeups = []
+  for (const f of rest.sort(byConvention)) {
+    let wb; try { wb = readWorkbook(join(folder, f)) } catch { continue }
+    const k = exportKind(wb)
+    if (k === 'quoted') {
+      const job = quotedJobNumber(wb), logical = `Q-${job}-pl.xlsx`
+      if (taken.has(logical)) { notes.push(`Job ${job} was exported more than once — ${f} is a repeat, so the first one was used`); continue }
+      taken.add(logical); used.add(job); renamed.set(f, logical)
+    } else if (k === 'chargeup') {
+      const tot = (sheetRows(wb, 'Summary') ?? []).find((r) => r[0] === 'Total') ?? []
+      chargeups.push({ f, sell: toNumber(tot[2]), profit: toNumber(tot[3]), hours: totalHours(sheetRows(wb, 'Sold')) + totalHours(sheetRows(wb, 'Unsold') ?? []) })
+    }
+  }
+  // charge-up files ↔ report rows, best (smallest profit gap) pairs first
+  const cands = [...summary.rows.values()].filter((r) => r.type === 'chargeup' && !used.has(r.job))
+  const scored = []
+  for (const x of chargeups) for (const c of cands) {
+    if (x.sell == null || c.actualSell == null || Math.abs(x.sell - c.actualSell) > 0.02) continue
+    if (Math.abs(x.hours - (c.actualHours ?? 0)) > 0.011) continue
+    const gap = Math.abs((x.profit ?? 0) - (c.actualProfit ?? 0))
+    if (gap <= 50) scored.push({ x, c, gap })
+  }
+  scored.sort((a, b) => a.gap - b.gap)
+  const doneFiles = new Set(), doneJobs = new Set(), noted = new Set()
+  for (const { x, c, gap } of scored) {
+    if (doneFiles.has(x.f) || doneJobs.has(c.job)) continue
+    doneFiles.add(x.f); doneJobs.add(c.job); used.add(c.job)
+    renamed.set(x.f, `CU-${c.job}.xlsx`); pairs.push([x.f, c.job])
+    const twins = scored.filter((o) => o.x !== x && o.c !== c && o.gap === gap && o.x.sell === x.sell && o.x.hours === x.hours && Math.abs(o.x.profit - x.profit) < 0.011)
+    const pairKey = twins.length ? [c.job, twins[0].c.job].sort().join('/') : ''
+    if (twins.length && !noted.has(pairKey)) {
+      noted.add(pairKey)
+      notes.push(`${x.f} and another file have identical figures, so jobs ${c.job} and ${twins[0].c.job} were paired arbitrarily — the numbers are the same either way`)
+    }
+  }
+  // timesheets ↔ quoted jobs, by total hours
+  const tsFiles = files.filter((f) => !renamed.has(f) && /^Timesheets/i.test(f))
+  const quotedNoTs = [...used].filter((j) => summary.rows.get(j)?.type === 'quoted' && [...taken].includes(`Q-${j}-pl.xlsx`) && !taken.has(`Q-${j}-ts.xlsx`))
+  for (const f of tsFiles) {
+    let h; try { h = readTimesheetWorkers(readWorkbook(join(folder, f))).reduce((t, w) => t + w.hours, 0) } catch { continue }
+    const hit = quotedNoTs.filter((j) => Math.abs((summary.rows.get(j).actualHours ?? -1) - h) <= 0.011 && !taken.has(`Q-${j}-ts.xlsx`))
+    if (hit.length === 1) { renamed.set(f, `Q-${hit[0]}-ts.xlsx`); taken.add(`Q-${hit[0]}-ts.xlsx`) }
+  }
+  if (pairs.length) notes.push(`Matched ${pairs.length} charge-up file(s) to jobs using the Profit & Loss Summary (same sell and hours).`)
+}
+
 // ---------------------------------------------------------------- whole-folder loading
 // Reads a folder of completed-job exports (see scripts/add-completed-jobs.mjs for the
 // accepted layouts). Returns { records, skipped, problems, notes }; `problems` means the
 // manifest and the downloads disagree and nothing should be loaded.
-export function loadCompletedFolder(folder) {
+export function loadCompletedFolder(folder, { known = new Set() } = {}) {
 const files = readdirSync(folder).filter((f) => f.toLowerCase().endsWith('.xlsx'))
 const names = new Map()
 for (const f of files.filter((f) => /^jobs/i.test(f))) {
@@ -347,6 +466,12 @@ if (manifestFile) {
   renamed = m.renamed
   notes.push(...m.notes)
   unresolved.push(...m.unresolved)
+}
+const summary = readSummaryReport(folder, files)
+if (summary) {
+  matchFromSummary(folder, files, renamed, summary, notes)
+  for (let i = unresolved.length - 1; i >= 0; i--) if (renamed.has(unresolved[i].file)) unresolved.splice(i, 1)
+  notes.push(`Figures taken from ${summary.file}.`)
 }
 const logical = (f) => renamed.get(f) ?? f
 const physical = new Map([...renamed].map(([raw, name]) => [name.toLowerCase(), raw]))
@@ -376,6 +501,15 @@ for (const raw of files) {
   }
 }
 
+const today = new Date().toISOString().slice(0, 10)
+if (summary) for (const r of records) { const row = summary.rows.get(r.jobNumber); if (row) applySummary(r, row, today) }
+// completed jobs the report lists that nobody uploaded a P&L for (and aren't loaded already)
+const loadedNow = new Set(records.map((r) => r.jobNumber))
+const summaryMissing = summary
+  ? [...summary.rows.values()].filter((r) => r.type && /completed/i.test(r.stage) && !loadedNow.has(r.job) && !known.has(r.job) && !skipped.some((s) => String(s.job) === r.job))
+    .map((r) => ({ job: r.job, reason: `in the Profit & Loss Summary (${r.type === 'quoted' ? 'quoted' : 'charge-up'}, ${r.customer}) but no P&L file was uploaded for it` }))
+  : []
+
 records.sort((a, b) => (b.gpPerHour ?? -Infinity) - (a.gpPerHour ?? -Infinity))
-return { records, skipped, problems: [], notes }
+return { records, skipped: [...skipped, ...summaryMissing], problems: [], notes }
 }

@@ -32,7 +32,9 @@ const dryRun = args.includes('--dry-run')
 const month = completedMonth(args.find((a) => a.startsWith('--month='))?.slice(8))
 if (!folder) { console.error('Usage: node scripts/add-completed-jobs.mjs <folder> [--dry-run]'); process.exit(1) }
 
-const { records, skipped, problems, notes } = loadCompletedFolder(folder)
+import { existsSync, readFileSync } from 'node:fs'
+const known = new Set(existsSync(resolve('public/completed-jobs.json')) ? JSON.parse(readFileSync(resolve('public/completed-jobs.json'), 'utf8')).map((j) => j.jobNumber) : [])
+const { records, skipped, problems, notes } = loadCompletedFolder(folder, { known })
 if (problems.length) {
   console.error('Manifest does not match the downloads — nothing loaded:\n  ' + problems.join('\n  '))
   process.exit(1)

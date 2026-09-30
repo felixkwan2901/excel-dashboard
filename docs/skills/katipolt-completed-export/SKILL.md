@@ -95,6 +95,10 @@ For each quoted job:
 
 On the first quoted job, take extra screenshots to find the Sales & Costs → Timesheets → Export positions, then reuse them (re-checking whenever the layout looks different).
 
+## The Profit & Loss Summary (recommended — makes the manifest optional)
+
+Also download Katipolt's **Profit & Loss Summary** report for the month (the report with one row per job: job number, stage, type, quoted/actual hours, cost, sell, profit, margin). The dashboard takes every job's figures from it — it prices labour at Katipolt's current rates, which the per-job P&L exports don't always — and uses it to find which job each charge-up P&L file is (same total sell and hours), so a charge-up file no longer needs its job number written down. Upload it with the rest. The per-job P&L and Timesheets files are still needed for who worked on each job and for how long.
+
 ## The manifest
 
 Keep it as you go, one row per attempted file, numbered in the exact order you did them:
