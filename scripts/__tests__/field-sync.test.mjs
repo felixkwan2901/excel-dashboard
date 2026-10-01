@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { buildFieldJobs, summariseFieldRecord } from '../../src/lib/fieldSync.js'
+import { buildFieldJobs, jobTaskRows, summariseFieldRecord } from '../../src/lib/fieldSync.js'
 
 test('the field job list keeps what a phone already knows and drops archived jobs', () => {
   const existing = [
@@ -30,9 +30,19 @@ test('a field record becomes a percentage, who is on site, and whether it is sta
     visits: [{ by: 'Doug', action: 'arrived', at: old }, { by: 'Doug', action: 'left', at: fresh }, { by: 'Kyle', action: 'arrived', at: fresh }],
     log: [{ t: 'rough-in', at: old }],
   })
-  assert.equal(r.percent, 25, 'N/A tasks are left out of the average')
+  assert.equal(r.percent, 25, 'N/A tasks are left out of the average (no catalogue given: only recorded tasks count)')
   assert.deepEqual(r.onSite, ['Kyle'], 'only whoever last arrived and has not left')
   assert.equal(r.stale, true, 'nothing changed for ten days')
   assert.equal(summariseFieldRecord(null), null)
+  // With the phone's checklist in hand, untouched tasks count as 0 — one task
+  // at 25% out of twenty-one is 1%, as the phone's ring says.
+  const catalogue = Array.from({ length: 21 }, (_, i) => ({ id: `t${i}`, label: `Task ${i}` }))
+  const one = summariseFieldRecord({ tasks: { t0: { pct: 25 } } }, catalogue)
+  assert.equal(one.percent, 1)
+  assert.equal(one.total, 21)
+  // Archived catalogue tasks are skipped; office extras and on-site extras are included once.
+  const rows = jobTaskRows({ tasks: { t0: { pct: 50 }, gone: { pct: 100 } }, extraTasks: [{ id: 'x1' }] },
+    [{ id: 't0' }, { id: 'old', archived: true }], { extra: [{ id: 'x1' }, { id: 'x2' }] })
+  assert.deepEqual(rows.map((r) => r.id), ['t0', 'x1', 'x2', 'gone'])
   assert.equal(summariseFieldRecord({ tasks: {} }).state, 'no-data')
 })

@@ -13,6 +13,8 @@
 //                           the page is open.
 import { getAppData, setAppData } from './appData'
 import { buildFieldJobs, summariseFieldRecord } from './fieldSync'
+import { CATEGORY_SITE_TYPE } from './jobCategories'
+import { FIELD_CHECKLIST_OVERRIDES_KEY } from './fieldChecklistOverrides'
 
 export { buildFieldJobs, summariseFieldRecord }
 
@@ -31,8 +33,20 @@ export async function publishFieldJobs({ jobs, archivedJobs = [] }) {
   return (await setAppData(FIELD_JOBS_KEY, next)) ? 'published' : 'failed'
 }
 
-// Every job's record at once — one read per job, in parallel.
-export async function fetchFieldProgress(jobNumbers) {
-  const entries = await Promise.all(jobNumbers.map(async (n) => [String(n), summariseFieldRecord(await getAppData(`field:${n}`))]))
+// Every job's record at once — one read per job, in parallel — summarised
+// against the same checklist the phone shows (the catalogue for the job's
+// type plus the office's extra tasks), so the percentage here is the one on
+// the phone's ring.
+export async function fetchFieldProgress(jobs) {
+  const [commercial, residential, overrides] = await Promise.all([
+    getAppData('fieldTasks:commercial'), getAppData('fieldTasks:residential'), getAppData(FIELD_CHECKLIST_OVERRIDES_KEY),
+  ])
+  const catalogues = { commercial: commercial ?? [], residential: residential ?? [] }
+  const entries = await Promise.all(jobs.map(async (j) => {
+    const n = String(j.jobNumber)
+    const record = await getAppData(`field:${n}`)
+    const type = record?.template ?? CATEGORY_SITE_TYPE[(j.jobCategory || '').trim()]
+    return [n, summariseFieldRecord(record, catalogues[type] ?? [], overrides?.[n] ?? null)]
+  }))
   return new Map(entries.filter(([, v]) => v))
 }

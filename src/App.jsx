@@ -204,11 +204,13 @@ export default function App() {
   useEffect(() => {
     if (state.status !== 'ready' || !jobs.length) return undefined
     let live = true
-    const load = () => { if (document.visibilityState === 'visible') fetchFieldProgress(jobs.map((j) => j.jobNumber)).then((m) => { if (live) setFieldProgress(m) }).catch(() => {}) }
+    const load = () => fetchFieldProgress(jobs).then((m) => { if (live) setFieldProgress(m) }).catch(() => {})
     load()
+    // The timer only reads while the tab is in view; a background tab reads when it comes back.
+    const tick = () => { if (document.visibilityState === 'visible') load() }
     const onVisible = () => load()
     document.addEventListener('visibilitychange', onVisible)
-    const timer = setInterval(load, 3 * 60 * 1000)
+    const timer = setInterval(tick, 3 * 60 * 1000)
     return () => { live = false; document.removeEventListener('visibilitychange', onVisible); clearInterval(timer) }
   }, [state.status, jobs])
   const completedJobs = useMemo(() => (state.status === 'ready' ? state.completedJobs : []), [state])
