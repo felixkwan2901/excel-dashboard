@@ -23,6 +23,7 @@ const PAGES = [
   { name: 'completed-insights', url: '?v=completed-insights' },
   { name: 'month-report', url: '?v=month-report' },
   { name: 'month-end', url: '?v=month-end' },
+  { name: 'employee-kpi', url: '?v=employee-kpi' },
   { name: 'charts', url: '?v=charts' },
   { name: 'update-data', url: '?v=update' },
 ]

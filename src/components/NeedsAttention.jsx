@@ -79,7 +79,7 @@ export default function NeedsAttention({ jobs, completedJobs, completedReviews, 
     if (down.length) out.push({ key: 'people', icon: TrendingDown, tone: OVER, count: down.length,
       label: `${down.length === 1 ? 'Person' : 'People'} with a lower profit per hour than ${monthName(pm.previous, 'short')}`,
       detail: down.slice(0, 3).map((p) => `${p.name} ${cents(p.flag.before)} → ${cents(p.flag.now)}`).join(' · ') + (down.length > 3 ? ' …' : ''),
-      action: 'By person', onClick: onInsights })
+      action: 'Employee KPI', onClick: onInsights })
     return out
   }, [jobs, completedJobs, completedReviews, monthlyClaims, categories, fieldProgress, onProjects, onCompleted, onMonthlyClaims, onInsights])
 

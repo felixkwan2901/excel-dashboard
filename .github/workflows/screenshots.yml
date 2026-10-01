@@ -38,8 +38,17 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm run build
-      - name: Compare with the baselines (writing any that are missing)
-        run: npx playwright test --update-snapshots=${{ inputs.update && 'all' || 'missing' }}
+      # Playwright writes a missing baseline but still fails the test, so a
+      # first run on a fresh platform folder could never pass: when there are
+      # no Linux baselines yet, this run creates them all (and commits them
+      # below); after that it compares, unless "update" was ticked.
+      - name: Compare with the baselines (or create them on the first run)
+        run: |
+          if [ ! -d tests/screenshots/__screenshots__/linux ] || [ "${{ inputs.update }}" = "true" ]; then
+            npx playwright test --update-snapshots
+          else
+            npx playwright test
+          fi
       - name: Commit new baselines
         if: success()
         run: |

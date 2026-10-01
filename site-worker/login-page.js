@@ -27,10 +27,10 @@ const escape = (s) =>
 // panel's own dark fill takes over — an <img> in the same spot is a
 // broken-image icon in the middle of the sign-in screen. This page has one
 // job, and it cannot depend on the marketing site being up to do it.
-// The 2560px original for a laptop's half-screen, the 1536px copy for a phone's
-// band — the 600px file this started with went soft at any real size.
-const HERO_PHOTO = 'https://www.cdelectrical.co.nz/wp-content/uploads/2024/12/IMG_6354-scaled.jpg'
-const HERO_PHOTO_SMALL = 'https://www.cdelectrical.co.nz/wp-content/uploads/2024/12/IMG_6354-1536x1152.jpg'
+// Two of the crew on the Kōawa Studios job (University of Canterbury) — people
+// doing the work, not a finished house. 940px, the largest the site has.
+const HERO_PHOTO = 'https://www.cdelectrical.co.nz/wp-content/uploads/2025/08/1.png'
+const HERO_PHOTO_SMALL = HERO_PHOTO
 
 // The company's own wordmark, hotlinked for the same reason as the photo:
 // one file to keep in sync, and it degrades to the plain text mark beside it

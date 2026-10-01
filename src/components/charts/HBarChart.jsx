@@ -13,7 +13,7 @@ import { ChartTooltip } from './ChartCard'
 const M = { top: 8, right: 54, bottom: 24 }
 const SPARK_W = 72
 const TONE = { bad: 'var(--viz-critical)', good: 'var(--brand-green)' }
-const ROW_H = 34
+const ROW_H = 40
 const BAR_GAP = 2
 
 // Horizontal bars, one or two series per row. Horizontal because the category
@@ -95,7 +95,7 @@ export default function HBarChart({
                 x={gutter + wOf(t)}
                 y={height - 8}
                 textAnchor="middle"
-                className="fill-[var(--text-muted)] text-[11px] tabular-nums"
+                className="fill-[var(--text-muted)] text-[12.5px] tabular-nums"
               >
                 {axisFormat(t)}
               </text>
@@ -110,7 +110,7 @@ export default function HBarChart({
                   x={gutter - 10}
                   y={top + (ROW_H - 10) / 2 + 4}
                   textAnchor="end"
-                  className={`text-[12px] ${hover === i ? 'fill-[var(--text-primary)]' : 'fill-[var(--text-muted)]'}`}
+                  className={`text-[13px] ${hover === i ? 'fill-[var(--text-primary)]' : 'fill-[var(--text-secondary)]'}`}
                 >
                   {fit(r.label)}
                 </text>
@@ -134,7 +134,7 @@ export default function HBarChart({
                       key={`v-${series[s2].name}`}
                       x={Math.min(gutter + wOf(Math.max(0, v)) + 6, width - sparkW - 2)}
                       y={top + s2 * (barH + BAR_GAP) + barH - 1}
-                      className={`text-[10.5px] tabular-nums ${r.tones?.[s2] ? 'font-semibold' : ''}`}
+                      className={`text-[12px] tabular-nums ${r.tones?.[s2] ? 'font-semibold' : 'font-medium'}`}
                       style={{ fill: TONE[r.tones?.[s2]] ?? 'var(--text-secondary)' }}
                     >
                       {r.tones?.[s2] === 'bad' ? '▲ ' : ''}{axisFormat(v)}

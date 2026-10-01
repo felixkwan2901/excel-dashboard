@@ -20,7 +20,7 @@ export default function ChartCard({ title, question, series, footnote, table, ch
     <section className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6">
       <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
         <div className="min-w-0">
-          <h2 className="text-[15px] font-medium text-neutral-100">{title}</h2>
+          <h2 className="text-[17px] font-semibold text-neutral-100">{title}</h2>
           {question && <p className="mt-0.5 text-[12px] text-neutral-400">{question}</p>}
         </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">

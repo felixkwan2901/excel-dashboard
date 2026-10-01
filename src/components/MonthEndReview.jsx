@@ -136,7 +136,7 @@ export default function MonthEndReview({ completedJobs, onBack, onCompleted, onI
       <Step n={4} title="See who moved up or down" done={steps[3].done} onTick={() => tick('people')}
         detail={!jobs.length ? 'After the upload.' : !people.prev ? `No earlier month to compare with yet — ${monthName(month)} is the first month loaded. Have a look at the by-person figures, then tick this step.`
           : `${people.down.length} ${people.down.length === 1 ? 'person is' : 'people are'} below ${monthName(people.prev, 'short')}, ${people.up.length} at or above.`}
-        action={jobs.length ? { label: 'Completed insights', onClick: onInsights } : undefined}>
+        action={jobs.length ? { label: 'Employee KPI', onClick: onInsights } : undefined}>
         {jobs.length > 0 && people.prev && (people.down.length > 0 || people.up.length > 0) && (
           <div className="grid grid-cols-1 gap-x-6 gap-y-1 text-[13px] sm:grid-cols-2">
             {people.down.map((p) => <p key={p.name}><span className="text-white">{p.name}</span> <span style={{ color: OVER }}>{money(p.before)} → {money(p.now)}</span></p>)}

@@ -10,6 +10,7 @@ import StatsRow from './components/StatsRow'
 import NeedsAttention from './components/NeedsAttention'
 import MonthReport from './components/MonthReport'
 import MonthEndReview from './components/MonthEndReview'
+import EmployeeKpiTab from './components/EmployeeKpiTab'
 import PageSkeleton from './components/PageSkeleton'
 import Toasts from './components/Toasts'
 import { fetchFieldProgress, publishFieldJobs } from './lib/fieldJobs'
@@ -296,6 +297,11 @@ export default function App() {
     pushUrlState({ view: 'completed-jobs', selectedJobId, dashboardQuery, dashboardFilter })
   }
 
+  function goEmployeeKpi() {
+    setView('employee-kpi')
+    pushUrlState({ view: 'employee-kpi', selectedJobId, dashboardQuery, dashboardFilter })
+  }
+
   function goMonthEnd() {
     setView('month-end')
     pushUrlState({ view: 'month-end', selectedJobId, dashboardQuery, dashboardFilter })
@@ -375,6 +381,7 @@ export default function App() {
     onGoCompletedInsights: goCompletedInsights,
     onGoMonthReport: goMonthReport,
     onGoMonthEnd: goMonthEnd,
+    onGoEmployeeKpi: goEmployeeKpi,
     onGoCharts: goCharts,
   }
   return (
@@ -458,8 +465,6 @@ export default function App() {
                 jobs={jobs}
                 monthlyClaimsHistory={monthlyClaimsHistory}
                 completedJobs={completedJobs}
-                fieldProgress={fieldProgress}
-                onSelectJob={openJob}
                 onBack={goHome}
               />
             </Reveal>
@@ -497,13 +502,25 @@ export default function App() {
         </main>
       )}
 
+      {view === 'employee-kpi' && (
+        <main className="dashboard">
+          {state.status !== 'ready' ? (
+            <LoadStatus status={state.status} error={state.error} onRetry={retryLoad} />
+          ) : (
+            <Reveal index={0}>
+              <EmployeeKpiTab completedJobs={completedJobs} onBack={goHome} onOpenJob={reviewCompletedJob} />
+            </Reveal>
+          )}
+        </main>
+      )}
+
       {view === 'month-end' && (
         <main className="dashboard">
           {state.status !== 'ready' ? (
             <LoadStatus status={state.status} error={state.error} onRetry={retryLoad} />
           ) : (
             <Reveal index={0}>
-              <MonthEndReview completedJobs={completedJobs} onBack={goHome} onCompleted={goCompletedJobs} onInsights={goCompletedInsights} onMonthReport={goMonthReport} />
+              <MonthEndReview completedJobs={completedJobs} onBack={goHome} onCompleted={goCompletedJobs} onInsights={goEmployeeKpi} onMonthReport={goMonthReport} />
             </Reveal>
           )}
         </main>
@@ -592,7 +609,7 @@ export default function App() {
               onProjects={goDashboard}
               onCompleted={goCompletedJobs}
               onMonthlyClaims={goMonthlyClaims}
-              onInsights={goCompletedInsights}
+              onInsights={goEmployeeKpi}
             />
           )}
 
@@ -610,7 +627,6 @@ export default function App() {
                 jobs={jobs}
                 onOwnerSaved={applyOwnerEdit}
                 onCategorySaved={applyCategoryEdit}
-                fieldProgress={fieldProgress}
                 onDetailSaved={applyDetailEdit}
                 query={dashboardQuery}
                 onQueryChange={updateDashboardQuery}

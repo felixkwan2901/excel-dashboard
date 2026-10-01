@@ -28,6 +28,7 @@ const KNOWN_VIEWS = new Set([
   'completed-insights',
   'month-report',
   'month-end',
+  'employee-kpi',
   'charts',
   'weekly-check-sheet',
   'job-completion-checklist',

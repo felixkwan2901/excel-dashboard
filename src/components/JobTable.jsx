@@ -37,7 +37,7 @@ const WIDE_MOBILE_KEYS = new Set([
 
 // Shown by default but still toggleable — the compact "at a glance" set
 // this table originally shipped with.
-const DEFAULT_OPTIONAL_KEYS = ['jobOwner', 'jobCategory', 'costProgress', 'gpPerHour', 'marginToDate', 'siteProgress']
+const DEFAULT_OPTIONAL_KEYS = ['jobOwner', 'jobCategory', 'costProgress', 'gpPerHour', 'marginToDate']
 
 // Every other optional column: derived/calculated figures the workbook
 // carries that the table doesn't show unless turned on, so the table stays
@@ -77,7 +77,6 @@ const OPTIONAL_COLUMNS = [
   { key: 'labourHoursRemaining', label: 'Labour hours remaining', num: true, group: 'Labour' },
   { key: 'labourHourPctRemaining', label: 'Labour hour % remaining', num: true, format: percent, group: 'Labour' },
 
-  { key: 'siteProgress', label: 'Site progress', tip: 'What the crew have recorded in the field app: how much of the install is done, and who is on site now.', group: 'Progress' },
   { key: 'gpPerHour', label: word('profitPerHour'), tip: tip('profitPerHour'), num: true, group: 'Margin' },
   { key: 'quotedGpPerHour', label: word('quotedProfitPerHour'), tip: tip('quotedProfitPerHour'), num: true, format: money, group: 'Margin' },
   { key: 'marginToDate', label: word('margin'), tip: tip('margin'), num: true, centerHeader: true, group: 'Margin' },
@@ -344,18 +343,6 @@ function renderCell(job, col, ctx) {
           formatValue={(v) => `${v} hrs`}
         />
       )
-    case 'siteProgress': {
-      const f = ctx?.fieldProgress?.get(String(job.jobNumber))
-      if (!f || f.state === 'no-data') return <span className="text-neutral-500">—</span>
-      return (
-        <span className="flex flex-col gap-0.5 text-[12px]">
-          <span className={`tabular-nums ${f.stale ? 'text-amber-400' : 'text-neutral-200'}`}>
-            {f.percent}%{f.stale && <span className="ml-1 text-[11px]" title="No change on site for over a week">· no change 7+ days</span>}
-          </span>
-          {f.onSite.length > 0 && <span className="text-[11px] text-brand-green">On site: {f.onSite.join(', ')}</span>}
-        </span>
-      )
-    }
     case 'marginToDate':
       return <MarginBar value={job.marginToDate} />
     case 'gpPerHour':
@@ -390,8 +377,7 @@ function StaleBadge({ job }) {
 
 // costProgress isn't a direct job field (it renders two fields as one
 // merged bar) — sort it by its underlying spend ratio instead.
-function sortValue(job, key, ctx) {
-  if (key === 'siteProgress') return ctx?.fieldProgress?.get(String(job.jobNumber))?.percent ?? null
+function sortValue(job, key) {
   if (key === 'costProgress') {
     if (!job.quotedPrice) return null
     return job.totalActualCost === null ? null : job.totalActualCost / job.quotedPrice
@@ -421,7 +407,6 @@ export default function JobTable({
   onOwnerSaved,
   onCategorySaved,
   onDetailSaved,
-  fieldProgress,
 }) {
   // Remembered, because the person using it is nearly always the same person
   // asking the same question: "which of these are mine?"
@@ -558,12 +543,10 @@ export default function JobTable({
 
   const unowned = useMemo(() => jobs.filter((j) => !(j.jobOwner || '').trim()).length, [jobs])
 
-  // Flagged rows carry an icon as well as the red edge, so the warning does not rest on colour alone.
   const cellCtx = {
     ownerOf, ownerSaving, onOwnerChange: handleOwnerChange,
     categoryOf, categorySaving, onCategoryChange: handleCategoryChange,
     detailSaving, onDetailSave: handleDetailSave,
-    fieldProgress,
   }
 
   // The shared table: Job number and name frozen, every workbook figure a
@@ -576,13 +559,13 @@ export default function JobTable({
       render: (job) => <span className="block max-w-[220px] truncate" title={job.jobName}>{job.jobName}</span> },
     ...OPTIONAL_COLUMNS.map((c) => ({
       key: c.key, label: c.label, title: c.tip, num: c.num, group: c.group, center: c.centerHeader,
-      get: (job) => sortValue(job, c.key, { fieldProgress }),
+      get: (job) => sortValue(job, c.key),
       export: (job) => (c.detail ? job[c.key] || '' : job[c.key]),
       render: (job, ctx) => renderCell(job, c, ctx),
     })),
     { key: 'data', label: 'Data', sortable: false, always: true, export: (job) => (job.isStale ? `stale — ${job.lastUpdatedLabel}` : ''), render: (job) => <StaleBadge job={job} /> },
     { key: 'trend', label: 'Trend', group: 'Job', sortable: false, export: (job) => job.marginTrend ?? '', render: (job) => <TrendBadge marginTrend={job.marginTrend} /> },
-  ], [fieldProgress])
+  ], [])
   const table = useDataTable({ id: 'jobTable', columns, rows: filtered, defaultSort: { key: 'jobNumber', dir: 1 }, defaultHidden })
   const { sort, setSort } = table
   const showTrend = !table.hidden.has('trend')

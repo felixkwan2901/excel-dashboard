@@ -12,7 +12,7 @@ const GROUP_GAP = 2 // the surface gap that keeps two bars from fusing into one
 // come out ~90px wide and read as slabs — the eye starts comparing areas
 // instead of heights. Capping the width keeps the mark thin however few
 // categories there are; the extra space becomes whitespace, not ink.
-const MAX_BAR = 44
+const MAX_BAR = 56
 
 // Vertical bars, one or two series. Two series are grouped side by side rather
 // than stacked: stacking answers "what do they add up to", and the question
@@ -76,7 +76,7 @@ export default function BarChart({
                 x={left - 8}
                 y={yOf(t) + 4}
                 textAnchor="end"
-                className="fill-[var(--text-muted)] text-[11px] tabular-nums"
+                className="fill-[var(--text-muted)] text-[12.5px] tabular-nums"
               >
                 {axisFormat(t)}
               </text>
@@ -116,7 +116,7 @@ export default function BarChart({
                           x={x + barW / 2}
                           y={y - 6}
                           textAnchor="middle"
-                          className="fill-[var(--text-secondary)] text-[10.5px] tabular-nums"
+                          className="fill-[var(--text-secondary)] text-[12px] font-medium tabular-nums"
                         >
                           {label}
                         </text>
@@ -129,7 +129,7 @@ export default function BarChart({
                     x={groupX + groupW / 2}
                     y={height - 8}
                     textAnchor="middle"
-                    className={`text-[11px] ${hover === i ? 'fill-[var(--text-primary)]' : 'fill-[var(--text-muted)]'}`}
+                    className={`text-[12.5px] ${hover === i ? 'fill-[var(--text-primary)]' : 'fill-[var(--text-muted)]'}`}
                   >
                     {(useShort && d.shortLabel) || d.label}
                   </text>
