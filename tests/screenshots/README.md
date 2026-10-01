@@ -18,5 +18,7 @@ What's held still so a diff means the code changed:
 
 Baselines are per OS (`-darwin` vs `-linux` in the file name is handled by
 Playwright's project folders): the CI workflow (`screenshots.yml`) generates and
-commits Linux baselines the first time it runs, and compares after that. On a
+commits Linux baselines the first time it runs, and compares after that. After a
+deliberate look change, refresh the Linux set with
+`gh workflow run screenshots.yml -f update=true`. On a
 Mac, run `npm run test:screens:update` once to create the local set.

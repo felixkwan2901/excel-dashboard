@@ -13,6 +13,11 @@ on:
       - 'pending-updates/**'
       - 'public/**'
   workflow_dispatch:
+    inputs:
+      update:
+        description: 'Accept what is on screen now as the new baselines (after a deliberate look change)'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -34,7 +39,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run build
       - name: Compare with the baselines (writing any that are missing)
-        run: npx playwright test --update-snapshots=missing
+        run: npx playwright test --update-snapshots=${{ inputs.update && 'all' || 'missing' }}
       - name: Commit new baselines
         if: success()
         run: |
