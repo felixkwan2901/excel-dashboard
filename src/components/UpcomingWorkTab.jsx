@@ -5,6 +5,7 @@ import { useSharedState } from '../lib/useSharedState'
 import CollapsibleSection from './CollapsibleSection'
 import DataTable from './table/DataTable'
 import { useDataTable } from './table/useDataTable'
+import { tip, word } from '../lib/words'
 
 // Jan-Dec hours-allocation columns (cols F-Q, 0-indexed 5-16) plus the
 // notes column (S, 0-indexed 18) — the only manual entry on this sheet.
@@ -21,7 +22,7 @@ const NOTES_COL = 18
 // Left offsets (px) for the frozen leading columns — job identity plus the
 // three hours columns — so they stay put while the Jan-Dec months scroll
 // underneath. Widths here match the min-widths given to those columns below.
-const STICKY_WIDTHS = [220, 100, 100, 110]
+const STICKY_WIDTHS = [180, 66, 60, 66]
 
 function EditableCell({ value, saving, numeric, onChange }) {
   const [text, setText] = useState(value)
@@ -363,15 +364,19 @@ export default function UpcomingWorkTab({ upcomingWork, onBack }) {
   // sorts (a month sorts by the hours planned in it); "Sheet order" puts it back.
   const columns = useMemo(() => [
     { key: 'jobNumber', label: 'Job', sticky: true, width: STICKY_WIDTHS[0], always: true, cellClass: 'whitespace-nowrap',
-      get: (j) => Number(j.jobNumber), render: (j) => `${j.jobNumber} ${j.jobName}` },
-    { key: 'quotedHours', label: 'Quoted hrs', num: true, sticky: true, width: STICKY_WIDTHS[1], always: true, render: hoursCell('quotedHours') },
-    { key: 'usedHours', label: 'Used hrs', num: true, sticky: true, width: STICKY_WIDTHS[2], always: true, render: hoursCell('usedHours') },
-    { key: 'remainingHours', label: 'Remaining hrs', num: true, sticky: true, width: STICKY_WIDTHS[3], always: true, render: hoursCell('remainingHours') },
-    { key: 'planned', label: 'Planned hrs', title: 'The twelve months added up, from what is on screen now', num: true, get: plannedForJob, render: (j) => roundHours(plannedForJob(j)) },
-    ...MONTH_FIELDS.map((f) => ({ key: f.key, label: f.key, num: true, group: 'months', cellClass: 'min-w-[80px] p-1', get: monthValue(f.key), render: editable(f.key, f.col, true) })),
-    { key: 'notes', label: 'Notes', sortable: false, always: true, cellClass: 'min-w-[160px] p-1', render: editable('notes', NOTES_COL, false) },
+      get: (j) => Number(j.jobNumber), render: (j) => <span className="block truncate" title={`${j.jobNumber} ${j.jobName}`}>{j.jobNumber} {j.jobName}</span> },
+    { key: 'quotedHours', label: 'Quoted', title: 'Quoted hours', num: true, sticky: true, width: STICKY_WIDTHS[1], always: true, render: hoursCell('quotedHours') },
+    { key: 'usedHours', label: 'Used', title: 'Used hours', num: true, sticky: true, width: STICKY_WIDTHS[2], always: true, render: hoursCell('usedHours') },
+    { key: 'remainingHours', label: 'Left', title: 'Remaining hours', num: true, sticky: true, width: STICKY_WIDTHS[3], always: true, render: hoursCell('remainingHours') },
+    { key: 'planned', label: 'Planned', title: 'The twelve months added up, from what is on screen now', num: true, get: plannedForJob, render: (j) => roundHours(plannedForJob(j)) },
+    ...MONTH_FIELDS.map((f) => ({ key: f.key, label: f.key, num: true, group: 'months', cellClass: 'min-w-[58px] p-1', get: monthValue(f.key), render: editable(f.key, f.col, true) })),
+    { key: 'notes', label: 'Notes', sortable: false, always: true, cellClass: 'min-w-[120px] p-1', render: editable('notes', NOTES_COL, false) },
   ], [values, savingKeys]) // eslint-disable-line react-hooks/exhaustive-deps
-  const table = useDataTable({ id: 'upcomingWork', columns, rows: jobs, defaultSort: { key: null, dir: 1 }, numbersFirst: 'desc' })
+  // Simple (the default) shows this month onwards — the months still to plan —
+  // so the table fits without scrolling sideways; Full shows all twelve.
+  const simpleKeys = useMemo(() => ['jobNumber', 'quotedHours', 'usedHours', 'remainingHours', 'planned',
+    ...MONTH_FIELDS.filter((f) => f.num >= new Date().getMonth() + 1).map((f) => f.key), 'notes'], [])
+  const table = useDataTable({ id: 'upcomingWork', columns, rows: jobs, defaultSort: { key: null, dir: 1 }, numbersFirst: 'desc', simpleKeys })
 
   return (
     <div className="mx-auto flex w-full max-w-[1800px] flex-col gap-6">
@@ -387,7 +392,7 @@ export default function UpcomingWorkTab({ upcomingWork, onBack }) {
         <h1 className="text-2xl font-semibold text-white">Upcoming work</h1>
         <p className="mt-1 text-sm text-neutral-400">
           Planned hours per month per job, from the workbook&apos;s Upcoming Work Calculator sheet.
-          Quoted/Used/Remaining hours are calculated; every month is a manual plan you can edit.
+          Quoted hours, hours worked and hours left are calculated; every month is a manual plan you can edit.
         </p>
       </div>
 
@@ -426,7 +431,7 @@ export default function UpcomingWorkTab({ upcomingWork, onBack }) {
           exportName="planned-hours"
           emptyText="No jobs to show."
           showOnMobile
-          toolbar={<span className="text-[12px] text-neutral-500">Click a month heading to sort by the hours planned in it. Cells save when you leave them.</span>}
+          toolbar={<span className="text-[12px] text-neutral-500">Simple shows this month onwards; Full shows all twelve. Click a month heading to sort by it. Cells save when you leave them.</span>}
         />
       </CollapsibleSection>
     </div>

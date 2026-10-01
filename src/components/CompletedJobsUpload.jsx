@@ -28,6 +28,11 @@ function nzMonth(offset = 0) {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`
 }
 const MONTHS = Array.from({ length: 24 }, (_, i) => nzMonth(i))
+// Completed jobs are exported on the last day of the month or in the first days
+// after it, so during the first week of a month the default is the month that
+// just ended (an upload on 1 Oct is September's jobs).
+const nzDay = Number(new Intl.DateTimeFormat('en-CA', { timeZone: 'Pacific/Auckland', day: 'numeric' }).format(new Date()))
+const DEFAULT_MONTH = nzDay <= 7 ? MONTHS[1] : MONTHS[0]
 const monthLabel = (ym) => new Date(`${ym}-01T00:00:00Z`).toLocaleDateString('en-NZ', { month: 'long', year: 'numeric', timeZone: 'UTC' })
 const TYPE_LABEL = { quoted: 'Quoted', chargeup: 'Charge-up' }
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
@@ -61,7 +66,7 @@ function Advice({ items, tone }) {
 
 export default function CompletedJobsUpload() {
   const [files, setFiles] = useState([])        // [{ name, bytes }]
-  const [month, setMonth] = useState(MONTHS[0])
+  const [month, setMonth] = useState(DEFAULT_MONTH)
   const [preview, setPreview] = useState(null)   // { records, problems, needsLook, info, notes, noHours, replacing } | { error }
   const [checking, setChecking] = useState(false)
   const [status, setStatus] = useState('idle')   // idle | staging | processing | done | error

@@ -6,6 +6,7 @@ import { useLocalStorageState } from '../lib/useLocalStorageState'
 import CollapsibleSection from './CollapsibleSection'
 import DataTable from './table/DataTable'
 import { useDataTable } from './table/useDataTable'
+import { tip, word } from '../lib/words'
 
 // Claim and Costs used to be here too, but they're now auto-computed by
 // scripts/update-jobs.mjs on every weekly upload (this month's cumulative
@@ -16,9 +17,9 @@ import { useDataTable } from './table/useDataTable'
 // derive automatically. Edited directly in the table now — a box to type
 // into, not a click-to-open-modal step in between.
 const EDITABLE_FIELDS = [
-  { key: 'retention', col: 5, label: 'Retention %', num: true },
-  { key: 'hoursToCompleteBeforeEom', col: 8, label: 'Hours to complete before E.O.M', num: true },
-  { key: 'costsToComeBeforeEom', col: 9, label: 'Costs to come before E.O.M', num: true },
+  { key: 'retention', col: 5, label: word('retention'), num: true },
+  { key: 'hoursToCompleteBeforeEom', col: 8, label: word('hoursToCome'), num: true },
+  { key: 'costsToComeBeforeEom', col: 9, label: word('costsToCome'), num: true },
   { key: 'notes', col: 16, label: 'Notes', num: false },
 ]
 
@@ -53,18 +54,18 @@ function hours(v) {
 }
 
 const READONLY_COLUMNS = [
-  { key: 'costs', label: 'Cost of month', num: true, format: money },
-  { key: 'hoursThisMonth', label: 'Hours', num: true, format: hours },
-  { key: 'quotedGpPerHour', label: 'Quoted GP $/hr', num: true, format: money },
-  { key: 'hoursToComeCost', label: 'Hours to come cost', num: true, format: money },
+  { key: 'costs', label: word('costsThisMonth'), tip: tip('costsThisMonth'), num: true, format: money },
+  { key: 'hoursThisMonth', label: word('hoursWorked'), tip: 'Hours booked to the job this month.', num: true, format: hours },
+  { key: 'quotedGpPerHour', label: word('quotedProfitPerHour'), tip: tip('quotedProfitPerHour'), num: true, format: money },
+  { key: 'hoursToComeCost', label: 'Cost of hours still to do', tip: 'Hours still to do × the average $/hr rate.', num: true, format: money },
   // Total cost with the gross profit taken back out — the cost side on its own.
   // Placed immediately before GP to add so the three columns read as the sum
   // they are: cost excl. GP + GP to add = Total cost.
-  { key: 'costExclGp', label: 'Cost excl. GP', num: true, format: money },
+  { key: 'costExclGp', label: 'Cost without profit', tip: 'Total cost with the profit on labour taken back out.', num: true, format: money },
   // (hours this month + hours to come) x quoted GP $/hr. This is the gross profit
   // added on top of cost to reach Total cost, so it is named for what it does
   // rather than for the hours it is derived from.
-  { key: 'gpToAdd', label: 'GP to add', num: true, format: money },
+  { key: 'gpToAdd', label: 'Profit to add', tip: '(Hours worked + hours still to do) × quoted profit/hr.', num: true, format: money },
 ]
 
 // "Total cost" is the answer this whole calculator produces, but it sat
@@ -77,7 +78,7 @@ const READONLY_COLUMNS = [
 // behind Total cost, and come back with "Show workings".
 const WORKINGS = new Set(['hoursToComeCost', 'costExclGp', 'gpToAdd'])
 
-const TOTAL_COLUMN = { key: 'total', label: 'Total cost', num: true, format: money }
+const TOTAL_COLUMN = { key: 'total', label: word('monthTotalCost'), num: true, format: money }
 const GROUPS = [
   { key: 'month', label: 'This month', flat: true },
   { key: 'workings', label: 'Workings behind Total cost', flat: true },
@@ -88,7 +89,53 @@ function currentMonthKey() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
-export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHours, onBack }) {
+// The month just closed, from the claims log: on the 1st (before anything is
+// claimed in the new month) the page would otherwise be empty, so last month's
+// final figures are shown read-only above the table until the new month starts.
+function LastMonthClaims({ history }) {
+  const thisMonth = currentMonthKey()
+  const month = [...(history?.months ?? [])].filter((m) => m < thisMonth).sort().at(-1)
+  if (!month) return null
+  const rows = history.jobs
+    .map((j) => ({ jobNumber: j.jobNumber, jobName: j.jobName, claim: j.claimByMonth[month] ?? 0, costs: j.costsByMonth[month] ?? 0, profit: j.profitByMonth[month] ?? 0 }))
+    .filter((r) => r.claim !== 0 || r.costs !== 0)
+    .sort((a, b) => b.claim - a.claim)
+  if (!rows.length) return null
+  const t = rows.reduce((s, r) => ({ claim: s.claim + r.claim, costs: s.costs + r.costs, profit: s.profit + r.profit }), { claim: 0, costs: 0, profit: 0 })
+  const label = new Date(`${month}-01T00:00:00Z`).toLocaleDateString('en-NZ', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+  const margin = (p, c) => (c ? percent(p / c) : '—')
+  return (
+    <CollapsibleSection
+      className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6"
+      storageKey="monthly-claims.last-month"
+      title={`${label} — final claims`}
+      description={`Nothing has been claimed this month yet, so here's how ${label} closed: ${rows.length} jobs, ${money(t.claim)} claimed, ${money(t.costs)} costs, ${money(t.profit)} profit (${margin(t.profit, t.claim)}). Read-only — it disappears once this month's first claims arrive.`}
+    >
+      <div className="table-scroll mt-2">
+        <table className="data-table data-table--compact">
+          <thead><tr><th>Job #</th><th>Job name</th><th className="num">Claim</th><th className="num">Costs</th><th className="num">Profit</th><th className="num">Margin</th></tr></thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.jobNumber}>
+                <td>{r.jobNumber}</td><td>{r.jobName}</td>
+                <td className="num">{money(r.claim)}</td><td className="num">{money(r.costs)}</td>
+                <td className={`num ${r.profit < 0 ? 'text-red-400' : ''}`}>{money(r.profit)}</td>
+                <td className="num">{margin(r.profit, r.claim)}</td>
+              </tr>
+            ))}
+            <tr className="font-medium">
+              <td>Total</td><td>{rows.length} jobs</td>
+              <td className="num">{money(t.claim)}</td><td className="num">{money(t.costs)}</td>
+              <td className="num">{money(t.profit)}</td><td className="num">{margin(t.profit, t.claim)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </CollapsibleSection>
+  )
+}
+
+export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHours, monthlyClaimsHistory, onBack }) {
   const { jobs } = monthlyClaims
 
   // The Claim Calculator sheet's own "Hours this month" cell is hand-typed
@@ -258,20 +305,20 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
     </>
   )
   const columns = useMemo(() => [
-    { key: 'jobNumber', label: 'Job #', sticky: true, width: STICKY_WIDTHS[0], always: true, cellClass: 'whitespace-nowrap' },
-    { key: 'jobName', label: 'Job name', text: true, sticky: true, width: STICKY_WIDTHS[1], always: true },
-    { key: 'retention', label: 'Ret%', num: true, sortable: false, always: true, cellClass: 'w-[72px] min-w-[72px] p-1',
+    { key: 'jobNumber', label: word('jobNumber'), sticky: true, width: STICKY_WIDTHS[0], always: true, cellClass: 'whitespace-nowrap' },
+    { key: 'jobName', label: word('jobName'), text: true, sticky: true, width: STICKY_WIDTHS[1], always: true },
+    { key: 'retention', label: word('retention'), title: tip('retention'), num: true, sortable: false, always: true, cellClass: 'w-[72px] min-w-[72px] p-1',
       render: editable(EDITABLE_FIELDS[0], (j) => (j.retentionAddOn
         ? <p className="mt-0.5 text-right text-[11px] tabular-nums text-neutral-400">{money(j.retentionAddOn)}</p> : null)) },
-    ...READONLY_COLUMNS.slice(0, 2).map((c) => ({ key: c.key, label: c.label, num: true, fmt: c.format, group: 'month' })),
+    ...READONLY_COLUMNS.slice(0, 2).map((c) => ({ key: c.key, label: c.label, title: c.tip, num: true, fmt: c.format, group: 'month' })),
     // Sorted by margin, worst first, by default — "which jobs are underperforming"
     // is the more useful starting question than "which made the most".
-    { key: 'margin', label: 'Margin', num: true, fmt: percent, group: 'month' },
-    { key: 'hoursToCompleteBeforeEom', label: 'Hours to come', num: true, sortable: false, always: true, cellClass: 'w-[72px] min-w-[72px] p-1', render: editable(EDITABLE_FIELDS[1]) },
-    { key: 'costsToComeBeforeEom', label: 'Cost to come', num: true, sortable: false, always: true, cellClass: 'w-[72px] min-w-[72px] p-1', render: editable(EDITABLE_FIELDS[2]) },
-    ...READONLY_COLUMNS.slice(2).map((c) => ({ key: c.key, label: c.label, num: true, fmt: c.format, group: WORKINGS.has(c.key) ? 'workings' : 'month' })),
+    { key: 'margin', label: word('margin'), title: 'This month\u2019s profit as a share of what was claimed.', num: true, fmt: percent, group: 'month' },
+    { key: 'hoursToCompleteBeforeEom', label: word('hoursToCome'), title: tip('hoursToCome'), num: true, sortable: false, always: true, cellClass: 'w-[72px] min-w-[72px] p-1', render: editable(EDITABLE_FIELDS[1]) },
+    { key: 'costsToComeBeforeEom', label: word('costsToCome'), title: tip('costsToCome'), num: true, sortable: false, always: true, cellClass: 'w-[72px] min-w-[72px] p-1', render: editable(EDITABLE_FIELDS[2]) },
+    ...READONLY_COLUMNS.slice(2).map((c) => ({ key: c.key, label: c.label, title: c.tip, num: true, fmt: c.format, group: WORKINGS.has(c.key) ? 'workings' : 'month' })),
     { key: 'notes', label: 'Notes', sortable: false, always: true, cellClass: 'min-w-[120px] p-1', render: editable(EDITABLE_FIELDS[3]) },
-    { key: 'total', label: TOTAL_COLUMN.label, num: true, always: true, stickyRight: true, cellClass: 'text-[14px] font-semibold text-white', fmt: money },
+    { key: 'total', label: TOTAL_COLUMN.label, title: tip('monthTotalCost'), num: true, always: true, stickyRight: true, cellClass: 'text-[14px] font-semibold text-white', fmt: money },
   ], [savingKeys]) // eslint-disable-line react-hooks/exhaustive-deps
   const table = useDataTable({
     id: 'monthlyClaims', columns, rows: activeJobs,
@@ -305,13 +352,15 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
         </p>
       )}
 
+      {newMonth && <LastMonthClaims history={monthlyClaimsHistory} />}
+
       <CollapsibleSection
         className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6"
         storageKey="monthly-claims.jobs"
         title="Jobs claimed this month — full figures"
         description={
           <>
-            Type into Ret%, Hours to come, Cost to come or Notes to save — no need to open
+            Type into Retention %, Hours still to do, Costs still to come or Notes to save — no need to open
             anything first.{' '}
             {newMonth
               ? "It's a new month and nothing is claimed yet, so every job is listed to type figures into."
@@ -323,10 +372,10 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
               )}
             <details className="mt-1">
               <summary className="cursor-pointer text-neutral-300">How Total cost is worked out</summary>
-              Total cost = cost of month + (hours to come × the rate here) + cost to come +
-              ((hours actual + hours to come) × quoted GP $/hr), plus retention % of cost of month
-              if set. Cost excl. GP is that total with the gross profit taken back out, so Cost
-              excl. GP + GP to add = Total cost.
+              Total cost = costs this month + (hours still to do × the rate here) + costs still to come +
+              ((hours worked + hours still to do) × quoted profit/hr), plus retention % of this month&apos;s costs
+              if set. Cost without profit is that total with the profit taken back out, so Cost
+              without profit + Profit to add = Total cost.
             </details>
           </>
         }
@@ -379,15 +428,15 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
                 <span className="text-neutral-400">{j.jobNumber}</span> {j.jobName}
               </p>
               <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[13px]">
-                <span className="text-neutral-400">Claim this month</span>
+                <span className="text-neutral-400">{word('claimedThisMonth')}</span>
                 <span className="text-right tabular-nums text-neutral-200">{money(j.claim)}</span>
-                <span className="text-neutral-400">Costs this month</span>
+                <span className="text-neutral-400">{word('costsThisMonth')}</span>
                 <span className="text-right tabular-nums text-neutral-200">{money(j.costs)}</span>
                 <span className="text-neutral-400">Profit</span>
                 <span className={`text-right tabular-nums ${j.profit !== null && j.profit < 0 ? 'text-red-400' : 'text-neutral-200'}`}>
                   {money(j.profit)}
                 </span>
-                <span className="text-neutral-400">Margin</span>
+                <span className="text-neutral-400">{word('margin')}</span>
                 <span className="text-right tabular-nums text-neutral-200">{percent(j.margin)}</span>
                 <span className="text-neutral-400">Total cost</span>
                 <span className="text-right tabular-nums font-medium text-white">{money(j.total)}</span>
@@ -423,7 +472,7 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
           rowKey={(j) => j.jobNumber}
           exportName="monthly-claims"
           emptyText="No jobs to show."
-          toolbar={<span className="text-[12px] text-neutral-500">Type into Ret%, Hours to come, Cost to come or Notes to save.</span>}
+          toolbar={<span className="text-[12px] text-neutral-500">Type into Retention %, Hours still to do, Costs still to come or Notes to save.</span>}
         />
       </CollapsibleSection>
     </div>
