@@ -330,7 +330,6 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob, pres
   const previousMonth = month !== 'all' ? months[months.indexOf(month) + 1] : undefined
   const [howOpen, setHowOpen] = useState(false)
   const [query, setQuery] = useState('')
-  const [compareOpen, setCompareOpen] = useState(false)
   const [reviewOpen, setReviewOpen] = useState(Boolean(preset?.review))
   // Owner and type of work are the same per-job stores the Projects dropdowns
   // write to, so a job set in either place shows the same value in both.
@@ -500,11 +499,11 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob, pres
         {selected.size > 0 && (
           <div className="sticky top-0 z-30 -mx-6 mt-3 flex flex-wrap items-center gap-2 border-b border-brand-green/30 bg-inherit px-6 py-2.5">
             <span className="text-[13px] font-semibold text-brand-green">{selected.size} selected</span>
-            <button type="button" onClick={() => setCompareOpen((v) => !v)} aria-expanded={compareOpen}
-              className={`rounded-full border px-3 py-1 text-[12px] font-medium transition-colors ${
-                compareOpen ? 'border-brand-green/50 bg-brand-green/15 text-brand-green' : 'border-brand-green/50 bg-brand-green/10 text-brand-green hover:bg-brand-green/15'
-              }`}>
-              Compare &amp; AI summary {compareOpen ? '▾' : '▸'}
+            {/* The comparison and AI summary sit under the table (shown as soon as jobs
+                are ticked); this jumps down to them. */}
+            <button type="button" onClick={() => document.getElementById('completed-compare')?.scrollIntoView({ block: 'start' })}
+              className="rounded-full border border-brand-green/50 bg-brand-green/10 px-3 py-1 text-[12px] font-medium text-brand-green transition-colors hover:bg-brand-green/15">
+              Compare &amp; AI summary ↓
             </button>
             <button type="button" onClick={() => setSelectedOnly((v) => !v)} aria-pressed={selectedOnly}
               className={`rounded-full border px-3 py-1 text-[12px] font-medium transition-colors ${
@@ -512,14 +511,13 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob, pres
               }`}>
               Show selected only
             </button>
-            <button type="button" onClick={() => { setSelected(new Set()); setSelectedOnly(false); setCompareOpen(false) }}
+            <button type="button" onClick={() => { setSelected(new Set()); setSelectedOnly(false) }}
               className="rounded-full border border-white/10 px-3 py-1 text-[12px] font-medium text-neutral-300 hover:border-white/20 hover:text-white">
               Clear
             </button>
             <span className="hidden text-[12px] text-neutral-500 sm:inline">The Total row at the foot of the table adds them up.</span>
           </div>
         )}
-        {selected.size > 0 && compareOpen && <CompletedCompare jobs={selectedJobs} />}
 
         {/* Filters right above the table: search, job type, type of work. Counts in
             each option are for what the other filter currently leaves. On a phone
@@ -661,6 +659,7 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob, pres
           emptyText={q || workFilter ? 'No jobs match.' : 'No completed jobs added yet.'}
           toolbar={<span className="text-[12px] text-neutral-500">Tick jobs to add them up and compare. Scroll inside the table — the header and job columns stay put.</span>}
         />
+        {selected.size > 0 && <CompletedCompare jobs={selectedJobs} />}
       </CollapsibleSection>
     </div>
   )
