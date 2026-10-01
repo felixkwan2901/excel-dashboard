@@ -6,6 +6,7 @@ import { useLocalStorageState } from '../lib/useLocalStorageState'
 import DataTable from './table/DataTable'
 import { useDataTable } from './table/useDataTable'
 import { tip, word } from '../lib/words'
+import { toast } from '../lib/toast'
 
 // Always shown, not part of the toggle panel.
 import { JOB_OWNERS } from '../lib/jobOwners'
@@ -451,7 +452,7 @@ export default function JobTable({
       // Put it back rather than leave a value on screen that was never saved.
       onOwnerSaved?.(job.jobNumber, previous)
       setOwnerError(`Could not save the owner for job ${job.jobNumber}. Nothing was changed.`)
-    }
+    } else toast.saved({ what: 'owner', job, undo: () => handleOwnerChange({ ...job, jobOwner: value }, previous) })
   }
 
   const categoryOf = (job) => (job.jobCategory || '').trim()
@@ -476,7 +477,7 @@ export default function JobTable({
     if (!saved) {
       onCategorySaved?.(job.jobNumber, previous)
       setOwnerError(`Could not save the type of work for job ${job.jobNumber}. Nothing was changed.`)
-    }
+    } else toast.saved({ what: 'type of work', job, undo: () => handleCategoryChange({ ...job, jobCategory: value }, previous) })
   }
 
   // Same optimistic write and rollback as the owner and the category: the
@@ -500,6 +501,7 @@ export default function JobTable({
       onDetailSaved?.(job.jobNumber, field, previous)
       setOwnerError(`Could not save that detail for job ${job.jobNumber}. Nothing was changed.`)
     }
+    if (saved) toast.saved({ what: JOB_DETAIL_FIELDS.find((f) => f.key === field)?.label?.toLowerCase() ?? field, job, undo: () => handleDetailSave({ ...job, [`detail_${field}`]: value }, field, previous) })
   }
 
   const filtered = useMemo(() => {
@@ -541,6 +543,7 @@ export default function JobTable({
 
   const unowned = useMemo(() => jobs.filter((j) => !(j.jobOwner || '').trim()).length, [jobs])
 
+  // Flagged rows carry an icon as well as the red edge, so the warning does not rest on colour alone.
   const cellCtx = {
     ownerOf, ownerSaving, onOwnerChange: handleOwnerChange,
     categoryOf, categorySaving, onCategoryChange: handleCategoryChange,
@@ -551,7 +554,8 @@ export default function JobTable({
   // hideable column (the picker groups them as before), plus the Data badge
   // and the optional Trend badge.
   const columns = useMemo(() => [
-    { key: 'jobNumber', label: word('jobNumber'), sticky: true, width: 96, always: true },
+    { key: 'jobNumber', label: word('jobNumber'), sticky: true, width: 96, always: true,
+      render: (job) => (<>{job.flagged && <AlertTriangle size={13} className="mr-1.5 inline align-[-2px] text-red-400" aria-label="Over budget or losing margin" />}{job.jobNumber}</>) },
     { key: 'jobName', label: word('jobName'), text: true, sticky: true, width: 220, always: true,
       render: (job) => <span className="block max-w-[220px] truncate" title={job.jobName}>{job.jobName}</span> },
     ...OPTIONAL_COLUMNS.map((c) => ({
@@ -722,7 +726,7 @@ export default function JobTable({
           rowProps={(job) => ({ className: job.flagged ? 'job-row-flagged' : undefined })}
           cellCtx={cellCtx}
           exportName="projects"
-          emptyText="No jobs match your filters."
+          emptyText={query || statusFilter !== 'all' || owner !== 'all' ? 'No jobs match — clear the search or the filters above.' : 'No jobs yet — add one in Update data → Add a new job.'}
         />
       </div>
     </div>

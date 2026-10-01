@@ -474,6 +474,14 @@
   color: var(--text-primary);
 }
 
+/* Keyboard focus on a row or a sortable heading — the same green ring the
+   clickable job rows already use. */
+.data-table tbody tr:focus-visible,
+.data-table th.sortable:focus-visible {
+  outline: 2px solid var(--brand-green);
+  outline-offset: -2px;
+}
+
 /* A heading with a tooltip: dotted underline, help cursor. */
 .data-table th.th-tip {
   cursor: help;
@@ -525,11 +533,13 @@
    to miss. Not for anyone who has asked their system for less motion. */
 @keyframes blink-over {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.25; }
+  50% { opacity: 0.5; }
 }
 
+/* A slow pulse that stops after a few cycles: enough to draw the eye when the
+   page opens, not a strobe for as long as the page stays open. */
 .blink-over {
-  animation: blink-over 1.2s ease-in-out infinite;
+  animation: blink-over 2.4s ease-in-out 6;
 }
 
 @media (prefers-reduced-motion: reduce) {

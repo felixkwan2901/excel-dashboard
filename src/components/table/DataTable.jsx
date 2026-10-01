@@ -97,6 +97,8 @@ export default function DataTable({
         className={[col.num && 'num', col.center && 'center-header', sortable && 'sortable', sub && 'th-sub', col.title && 'th-tip', stickyClass(col), col.headClass].filter(Boolean).join(' ')}
         style={stickyStyle(col)}
         onClick={sortable ? () => toggleSort(col.key) : undefined}
+        tabIndex={sortable ? 0 : undefined}
+        onKeyDown={sortable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSort(col.key) } } : undefined}
         aria-sort={sortable ? (on ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none') : undefined}
         title={col.title}
       >
@@ -197,7 +199,16 @@ export default function DataTable({
                     role={onRowClick && !expandable ? 'button' : undefined}
                     aria-expanded={expandable ? isOpen : undefined}
                     onClick={clickable ? activate : undefined}
-                    onKeyDown={clickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate() } } : undefined}
+                    onKeyDown={clickable ? (e) => {
+                      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate() }
+                      // Up/down move between rows, so a table can be walked from the keyboard.
+                      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                        e.preventDefault()
+                        const rowsEls = [...e.currentTarget.parentElement.querySelectorAll(':scope > tr[tabindex]')]
+                        const at = rowsEls.indexOf(e.currentTarget)
+                        rowsEls[at + (e.key === 'ArrowDown' ? 1 : -1)]?.focus()
+                      }
+                    } : undefined}
                   >
                     {visibleCols.map((col, i) => (
                       <td key={col.key}

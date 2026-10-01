@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Users } from 'lucide-react'
+import { AlertTriangle, Users } from 'lucide-react'
+import { toast } from '../lib/toast'
 import { cents, money, percent } from '../lib/format'
 import CollapsibleSection from './CollapsibleSection'
 import LastSynced from './LastSynced'
@@ -33,6 +34,8 @@ const numCell = (get, fmt) => (j) => { const v = get(j); return v == null ? <spa
 function buildColumns(typeFilter) {
   return [
     { key: 'jobNumber', label: word('jobNumber'), get: (j) => Number(j.jobNumber), sticky: true, width: 98, always: true,
+      // An icon as well as the red edge, so "over quote" does not rest on colour alone.
+      render: (j) => (<>{overruns(j).length > 0 && <AlertTriangle size={13} className="mr-1 inline align-[-2px]" style={{ color: OVER }} aria-label="Over quote" />}{j.jobNumber}</>),
       cellStyle: (j) => (overruns(j).length ? { boxShadow: `inset 4px 0 0 ${OVER}` } : undefined) },
     { key: 'jobName', label: word('jobName'), text: true, sticky: true, width: 260, always: true,
       render: (j) => <span className="block truncate" title={j.jobName}>{j.jobName}</span> },
@@ -361,8 +364,10 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob, pres
     setSaveError('')
     const saved = await save(job.jobNumber, value)
     setSaving((prev) => { const next = new Set(prev); next.delete(token); return next })
-    if (saved) setMap(saved)
-    else {
+    if (saved) {
+      setMap(saved)
+      toast.saved({ what: label, job, undo: () => saveField(kind, job, previous) })
+    } else {
       setMap((m) => ({ ...m, [job.jobNumber]: previous }))
       setSaveError(`Could not save the ${label} for job ${job.jobNumber}. Nothing was changed.`)
     }
@@ -645,7 +650,7 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob, pres
               </div>
             )
           })}
-          {rows.length === 0 && <p className="empty-row">{q || workFilter ? 'No jobs match.' : 'No completed jobs added yet.'}</p>}
+          {rows.length === 0 && <p className="empty-row">{q || workFilter ? 'No jobs match — clear the search or the filters above.' : 'No completed jobs yet — add a month in Update data → Completed jobs.'}</p>}
         </div>
 
         <DataTable
@@ -667,7 +672,7 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob, pres
           expandable expanded={open} onToggleExpanded={toggleOpen} renderDetail={(j) => <Breakdown job={j} />}
           cellCtx={{ cells, gpMax, gpBenchmark }}
           exportName="completed-jobs"
-          emptyText={q || workFilter ? 'No jobs match.' : 'No completed jobs added yet.'}
+          emptyText={q || workFilter ? 'No jobs match — clear the search or the filters above.' : 'No completed jobs yet — add a month in Update data → Completed jobs.'}
           toolbar={<span className="text-[12px] text-neutral-500">Tick jobs to add them up and compare. Scroll inside the table — the header and job columns stay put.</span>}
         />
         {selected.size > 0 && <CompletedCompare jobs={selectedJobs} />}

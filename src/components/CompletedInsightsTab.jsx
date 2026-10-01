@@ -128,7 +128,7 @@ function WorkTypeBreakdown({ jobs, categories, onOpenJob }) {
         expandable expanded={open} onToggleExpanded={toggle} renderDetail={detail}
         totals={all}
         cellCtx={{ max, benchmark: all.gp }}
-        emptyText="No completed jobs yet."
+        emptyText="No completed jobs yet — add a month in Update data → Completed jobs."
       />
     </CollapsibleSection>
   )

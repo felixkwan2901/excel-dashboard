@@ -6,6 +6,7 @@ import CollapsibleSection from './CollapsibleSection'
 import DataTable from './table/DataTable'
 import { useDataTable } from './table/useDataTable'
 import { tip, word } from '../lib/words'
+import { toast } from '../lib/toast'
 
 // Jan-Dec hours-allocation columns (cols F-Q, 0-indexed 5-16) plus the
 // notes column (S, 0-indexed 18) — the only manual entry on this sheet.
@@ -339,7 +340,8 @@ export default function UpcomingWorkTab({ upcomingWork, onBack }) {
     // uses, so the sheet column this used to be written to is not needed.
     const saved = await saveUpcomingWorkField(job.jobNumber, key, newValue)
     if (saved) {
-      setStatus({ kind: 'ok', message: `Saved "${key}" for ${job.jobNumber} ${job.jobName}.` })
+      setStatus({ kind: 'idle', message: '' })
+      toast.saved({ what: key === 'notes' ? 'notes' : `${key} hours`, job, undo: () => handleChange(job, key, col, previousValue) })
     } else {
       revert('Could not save — nothing was changed.')
     }
@@ -429,7 +431,7 @@ export default function UpcomingWorkTab({ upcomingWork, onBack }) {
           groups={UPCOMING_GROUPS}
           rowKey={(j) => j.jobNumber}
           exportName="planned-hours"
-          emptyText="No jobs to show."
+          emptyText="No jobs on the Upcoming Work sheet yet — add one in Update data → Add a new job."
           showOnMobile
           toolbar={<span className="text-[12px] text-neutral-500">Simple shows this month onwards; Full shows all twelve. Click a month heading to sort by it. Cells save when you leave them.</span>}
         />

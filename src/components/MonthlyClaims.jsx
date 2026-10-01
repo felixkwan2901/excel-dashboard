@@ -7,6 +7,7 @@ import CollapsibleSection from './CollapsibleSection'
 import DataTable from './table/DataTable'
 import { useDataTable } from './table/useDataTable'
 import { tip, word } from '../lib/words'
+import { toast } from '../lib/toast'
 
 // Claim and Costs used to be here too, but they're now auto-computed by
 // scripts/update-jobs.mjs on every weekly upload (this month's cumulative
@@ -197,10 +198,8 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
     // are worked out from whatever value this page holds.
     const saved = await saveClaimField(job.jobNumber, field.key, newValue)
     if (saved) {
-      setStatus({
-        kind: 'ok',
-        message: `Saved "${field.label}" for ${job.jobNumber} ${job.jobName}.`,
-      })
+      setStatus({ kind: 'idle', message: '' })
+      toast.saved({ what: field.label.toLowerCase(), job, undo: () => saveField({ ...job, [field.key]: newValue }, field, previousValue) })
     } else {
       revert('Could not save — nothing was changed.')
     }
@@ -471,7 +470,7 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
           compact
           rowKey={(j) => j.jobNumber}
           exportName="monthly-claims"
-          emptyText="No jobs to show."
+          emptyText="No jobs claimed this month yet — use “Show all jobs” above to type figures in."
           toolbar={<span className="text-[12px] text-neutral-500">Type into Retention %, Hours still to do, Costs still to come or Notes to save.</span>}
         />
       </CollapsibleSection>

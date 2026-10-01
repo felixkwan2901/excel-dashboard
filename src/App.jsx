@@ -10,6 +10,8 @@ import StatsRow from './components/StatsRow'
 import NeedsAttention from './components/NeedsAttention'
 import MonthReport from './components/MonthReport'
 import MonthEndReview from './components/MonthEndReview'
+import PageSkeleton from './components/PageSkeleton'
+import Toasts from './components/Toasts'
 import JobTable from './components/JobTable'
 import ProjectDetail from './components/ProjectDetail'
 import ReviewReport from './components/ReviewReport'
@@ -40,7 +42,7 @@ const initialTheme = applyTheme(readTheme())
 // "project" required a truthy selectedJob) and rendered nothing at all
 // otherwise, indistinguishable from a genuine crash.
 function LoadStatus({ status, error, onRetry }) {
-  if (status === 'loading') return <p className="dashboard__status">Loading workbook…</p>
+  if (status === 'loading') return <PageSkeleton />
   if (status === 'error') {
     return (
       <div className="dashboard__status flex flex-col items-start gap-3">
@@ -350,6 +352,7 @@ export default function App() {
   }
   return (
     <div className="site">
+      <Toasts />
       <Sidebar {...navProps} />
       <div className="flex min-w-0 flex-1 flex-col">
         <TopStrip
