@@ -7,6 +7,7 @@ import { ACTUAL, BAD, GOOD } from './charts/colors'
 import { monthName, personTotals, projectGpPerHour, projectProfit } from '../lib/completedJobPeople'
 import TeamAvatar from './TeamAvatar'
 import { teamMember } from '../lib/teamPhotos'
+import { typePhoto } from '../lib/typePhotos'
 import { jobsToReview } from '../lib/completedJobReview'
 import { fetchJobCategories } from '../lib/jobCategoryStore'
 import { JOB_CATEGORIES } from '../lib/jobCategories'
@@ -200,23 +201,51 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, completedJobs = 
           )}
         </section>
 
+        {/* By type of work: a bar per type with a photo of that kind of job, from
+            the company's own projects. Click a type for its jobs. */}
         <ChartCard title={`${word('profitPerHour')} by type of work — completed jobs`}
-          footnote={`${monthLabel}${work === 'all' ? '' : ` · ${work}`}. Profit ÷ hours worked, weighted by hours. Green is at or above the overall ${overall == null ? '' : cents(overall) + '/hr'}; red lost money. Click a bar to see that type's jobs.`}
+          footnote={`${monthLabel}${work === 'all' ? '' : ` · ${work}`}. Profit ÷ hours worked, weighted by hours. Green is at or above the overall ${overall == null ? '' : cents(overall) + '/hr'}; red lost money. The pictures are Cassidy-Davies jobs of that kind, from cdelectrical.co.nz. Click a type to see its jobs.`}
           table={<table><caption>Profit per hour by type of work, completed jobs</caption><tbody>{profitByType.map((r) => <tr key={r.label}><th scope="row">{r.label}</th><td>{r.jobs} job{r.jobs === 1 ? '' : 's'}</td><td>{r.hours} h</td><td>{cents(r.gp)}/hr</td></tr>)}</tbody></table>}>
-          <HBarChart rows={profitByType} series={[{ name: word('profitPerHour'), color: ACTUAL }]} labelWidth={190} valueFormat={(v) => `${cents(v)}/hr`} axisFormat={compactMoney}
-            onSelect={(r) => setOpenType(openType === r.label ? null : r.label)} emptyMessage="No completed jobs for this month and type of work." />
-          {openType && (
-            <div className="mt-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2">
-              <div className="mb-1 flex items-center justify-between text-[12px] text-neutral-400"><span>{typeJobs.length} job{typeJobs.length === 1 ? '' : 's'} · {openType}</span><button type="button" onClick={() => setOpenType(null)} className="hover:text-white">Close</button></div>
-              {typeJobs.map((j) => (
-                <button type="button" key={j.jobNumber} onClick={() => onOpenJob?.(j.jobNumber)} title="Open on Completed jobs"
-                  className="grid w-full grid-cols-[4.5rem_minmax(0,1fr)_5.5rem_4.5rem_6rem] gap-x-4 rounded py-0.5 text-left text-[13px] tabular-nums hover:bg-white/[0.05]">
-                  <span className="text-neutral-400">{j.jobNumber}</span><span className="truncate text-neutral-200">{j.jobName}</span>
-                  <span className="text-neutral-400">{j.type === 'quoted' ? 'Quoted' : 'Charge-up'}</span><span className="text-right text-neutral-300">{j.hours} h</span>
-                  <span className="text-right font-medium" style={{ color: projectGpPerHour(j) == null ? undefined : projectGpPerHour(j) < 0 ? BAD : 'var(--text-primary)' }}>{projectGpPerHour(j) == null ? '—' : cents(projectGpPerHour(j))}</span>
-                </button>
-              ))}
-            </div>
+          {profitByType.length === 0 ? <p className="py-8 text-center text-[13px] text-neutral-400">No completed jobs for this month and type of work.</p> : (
+            <ul className="flex flex-col gap-1">
+              {profitByType.map((r) => {
+                const isOpen = openType === r.label
+                const max = Math.max(0, ...profitByType.map((x) => x.gp))
+                const w = max > 0 ? Math.max(1.5, (Math.max(0, r.gp) / max) * 100) : 0
+                const tone = r.gp < 0 ? BAD : overall != null && r.gp >= overall ? GOOD : ACTUAL
+                const pic = typePhoto(r.label)
+                return (
+                  <li key={r.label}>
+                    <button type="button" onClick={() => setOpenType(isOpen ? null : r.label)} aria-expanded={isOpen}
+                      className={`grid w-full grid-cols-[auto_minmax(150px,240px)_minmax(0,1fr)_auto] items-center gap-4 rounded-xl px-2 py-1.5 text-left transition-colors hover:bg-white/[0.04] ${isOpen ? 'bg-white/[0.04]' : ''}`}>
+                      <span className="flex h-11 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-brand-green/15 text-[12px] font-semibold text-brand-green">
+                        {pic ? <img src={pic.photo} alt="" loading="lazy" className="h-full w-full object-cover" /> : r.label.split(/\s+/).map((x) => x[0]).join('').slice(0, 3)}
+                      </span>
+                      <span className="flex min-w-0 flex-col leading-tight">
+                        <span className="truncate text-[14px] font-medium text-white">{r.label}</span>
+                        <span className="truncate text-[11.5px] text-neutral-500">{r.jobs} job{r.jobs === 1 ? '' : 's'} · {r.hours} h{pic ? ` · ${pic.project}` : ''}</span>
+                      </span>
+                      <span className="h-3 overflow-hidden rounded-full bg-white/[0.06]" aria-hidden="true">
+                        <span className="block h-full rounded-full" style={{ width: `${w}%`, background: tone }} />
+                      </span>
+                      <span className="w-24 text-right text-[15px] font-semibold tabular-nums" style={{ color: r.gp < 0 ? BAD : r.gp >= (overall ?? Infinity) ? GOOD : 'var(--text-primary)' }}>{cents(r.gp)}/hr</span>
+                    </button>
+                    {isOpen && (
+                      <div className="ml-20 mr-2 mb-2 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+                        {typeJobs.map((j) => (
+                          <button type="button" key={j.jobNumber} onClick={() => onOpenJob?.(j.jobNumber)} title="Open on Completed jobs"
+                            className="grid w-full grid-cols-[4.5rem_minmax(0,1fr)_5.5rem_4.5rem_6rem] gap-x-4 rounded py-0.5 text-left text-[13px] tabular-nums hover:bg-white/[0.05]">
+                            <span className="text-neutral-400">{j.jobNumber}</span><span className="truncate text-neutral-200">{j.jobName}</span>
+                            <span className="text-neutral-400">{j.type === 'quoted' ? 'Quoted' : 'Charge-up'}</span><span className="text-right text-neutral-300">{j.hours} h</span>
+                            <span className="text-right font-medium" style={{ color: projectGpPerHour(j) == null ? undefined : projectGpPerHour(j) < 0 ? BAD : 'var(--text-primary)' }}>{projectGpPerHour(j) == null ? '—' : cents(projectGpPerHour(j))}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
           )}
         </ChartCard>
 

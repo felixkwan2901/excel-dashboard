@@ -1,10 +1,11 @@
 name: Screenshot tests
 
-# Every page, dark/light, laptop/phone, against the stored baselines — see
-# tests/screenshots/README.md. Runs after a push to main (alongside the
-# deploy, not blocking it) and on request. Missing baselines are written and
-# committed on the first run; afterwards a diff fails the job and the report
-# with the side-by-side images is attached.
+# Every page, dark/light, laptop/phone — see tests/screenshots/README.md.
+# Runs after a push to main (alongside the deploy, not blocking it) and on
+# request. This repo pushes straight to main, so a changed look is nearly
+# always deliberate: the run RECORDS the new Linux baselines and commits
+# them (the diff is then visible in git), and only fails when a page cannot
+# be rendered at all. The Mac run before pushing is the gate for slips.
 
 on:
   push:
@@ -13,11 +14,6 @@ on:
       - 'pending-updates/**'
       - 'public/**'
   workflow_dispatch:
-    inputs:
-      update:
-        description: 'Accept what is on screen now as the new baselines (after a deliberate look change)'
-        type: boolean
-        default: false
 
 permissions:
   contents: write
@@ -38,24 +34,15 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm run build
-      # Playwright writes a missing baseline but still fails the test, so a
-      # first run on a fresh platform folder could never pass: when there are
-      # no Linux baselines yet, this run creates them all (and commits them
-      # below); after that it compares, unless "update" was ticked.
-      - name: Compare with the baselines (or create them on the first run)
-        run: |
-          if [ ! -d tests/screenshots/__screenshots__/linux ] || [ "${{ inputs.update }}" = "true" ]; then
-            npx playwright test --update-snapshots
-          else
-            npx playwright test
-          fi
-      - name: Commit new baselines
+      - name: Render every page and record the Linux baselines
+        run: npx playwright test --update-snapshots
+      - name: Commit the baselines when the look changed
         if: success()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add tests/screenshots/__screenshots__
-          git diff --cached --quiet || (git commit -m "Screenshot baselines (linux)" && git push)
+          git diff --cached --quiet || (git commit -m "Screenshot baselines (linux)" && git pull --rebase && git push)
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

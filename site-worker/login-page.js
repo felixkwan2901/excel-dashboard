@@ -61,14 +61,19 @@ const STYLE = `
   .hero { position:relative; overflow:hidden; background:#13211a; display:flex; flex-direction:column; justify-content:space-between;
           padding:36px 40px; color:var(--hero-text); }
   /* The collage: three across, two down, a hairline between tiles. */
-  .hero__grid { position:absolute; inset:0; display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(2,1fr); gap:2px;
-                filter:saturate(0.95) brightness(0.8); }
+  .hero__grid { position:absolute; inset:0; display:grid; grid-template-columns:3fr 2fr 2fr; grid-template-rows:1fr 1fr; gap:0;
+                filter:saturate(0.8) brightness(0.72) contrast(1.05); }
   .hero__grid div { background:#1a2a21 center/cover no-repeat; }
+  /* The crew photo stands tall on the left; the others tile beside it. A
+     green wash over the lot ties six photos into one picture. */
+  .hero__grid div:first-child { grid-row:1 / span 2; }
+  .hero__wash { position:absolute; inset:0; z-index:1; background:#0f5c2d; mix-blend-mode:multiply; opacity:0.35; }
   /* Darken only where the words sit; the photo itself stays bright. */
   .hero::before { content:""; position:absolute; inset:0; z-index:1;
                   background: linear-gradient(180deg, rgba(11,21,16,0.62) 0%, rgba(11,21,16,0.12) 32%, rgba(11,21,16,0.15) 55%, rgba(11,21,16,0.86) 100%); }
   .hero > * { position:relative; z-index:2; }
-  .hero > .hero__grid { position:absolute; z-index:0; }
+  .hero > .hero__grid, .hero > .hero__wash { position:absolute; }
+  .hero > .hero__grid { z-index:0; }
   .brand { display:flex; align-items:center; gap:12px; }
   .brand img { display:block; height:38px; width:auto; }
   .brand .fallback { display:none; align-items:center; gap:10px; }
@@ -114,7 +119,7 @@ const STYLE = `
   @media (max-width: 879px) {
     .page { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
     .hero { min-height:220px; padding:22px 20px; }
-    .hero__grid { grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(2,1fr); }
+    .hero__grid { grid-template-columns:3fr 2fr 2fr; grid-template-rows:1fr 1fr; }
     .pitch h2 { font-size:22px; }
     .pitch p { display:none; }
     .panel { border-left:0; border-top:1px solid var(--line); padding:28px 20px 32px; justify-content:flex-start; }
@@ -140,6 +145,7 @@ const shell = (title, inner) => `<!doctype html>
       <div class="hero__grid">
 ${PROJECT_PHOTOS.map((url) => `        <div style="background-image:url('${url}')"></div>`).join('\n')}
       </div>
+      <div class="hero__wash"></div>
       <div class="brand">
         <!-- onerror is the one inline script on this page. It runs with no
              network access of its own — swap to the plain text mark, nothing
