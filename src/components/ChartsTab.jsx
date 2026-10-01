@@ -89,7 +89,10 @@ export default function ChartsTab({ jobs, completedJobs = [], onOpenJob, onBack 
   const bestWorst = useMemo(() => {
     const ranked = completed.filter((j) => projectGpPerHour(j) !== null).sort((a, b) => projectGpPerHour(b) - projectGpPerHour(a))
     const pick = ranked.length > 10 ? [...ranked.slice(0, 5), ...ranked.slice(-5)] : ranked
-    return pick.map((j) => ({ label: `${j.jobNumber} ${j.jobName}`, fullLabel: `${j.jobNumber} ${j.jobName}`, jobNumber: j.jobNumber,
+    // The rule between the two halves: without it the ten read as one ladder.
+    const worstFrom = ranked.length > 10 ? 5 : Math.ceil(pick.length / 2)
+    return pick.map((j, i) => ({ label: `${j.jobNumber} ${j.jobName}`, fullLabel: `${j.jobNumber} ${j.jobName}`, jobNumber: j.jobNumber,
+      ...(i === worstFrom && pick.length > 1 ? { dividerBefore: 'Worst' } : {}),
       values: [projectGpPerHour(j)], tones: [projectGpPerHour(j) < 0 ? 'bad' : overall != null && projectGpPerHour(j) >= overall ? 'good' : null],
       note: `${j.type === 'quoted' ? 'Quoted' : 'Charge-up'} · ${j.hours} h · ${money(projectProfit(j))} profit` }))
   }, [completed, overall])

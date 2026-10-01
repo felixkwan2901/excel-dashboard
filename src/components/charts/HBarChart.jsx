@@ -14,6 +14,8 @@ const M = { top: 8, right: 54, bottom: 24 }
 const SPARK_W = 72
 const TONE = { bad: 'var(--viz-critical)', good: 'var(--brand-green)' }
 const ROW_H = 40
+// Extra room above a row that carries `dividerBefore`: the rule and its word.
+const DIV_H = 22
 const BAR_GAP = 2
 
 // Horizontal bars, one or two series per row. Horizontal because the category
@@ -63,7 +65,10 @@ export default function HBarChart({
   const hasSpark = rows.some((r) => (r.spark ?? []).filter((v) => v != null).length >= 2)
   const sparkW = hasSpark ? SPARK_W : 0
   const plotW = Math.max(0, width - gutter - M.right - sparkW)
-  const height = M.top + rows.length * ROW_H + M.bottom
+  // Where each row starts: ROW_H per row, plus DIV_H for every divider above it.
+  const rowY = rows.reduce((acc, r, i) => { acc.push((i ? acc[i - 1] + ROW_H : M.top) + (r.dividerBefore ? DIV_H : 0)); return acc }, [])
+  const plotBottom = rows.length ? rowY[rows.length - 1] + ROW_H : M.top
+  const height = plotBottom + M.bottom
   const rawMax = Math.max(0, ...rows.flatMap((r) => r.values.map((v) => v ?? 0)))
   const { max, ticks } = niceTicks(rawMax, 3)
   const wOf = (v) => (v / max) * plotW
@@ -87,7 +92,7 @@ export default function HBarChart({
                 x1={gutter + wOf(t)}
                 x2={gutter + wOf(t)}
                 y1={M.top}
-                y2={M.top + rows.length * ROW_H}
+                y2={plotBottom}
                 stroke="var(--gridline)"
                 strokeWidth={1}
               />
@@ -103,9 +108,18 @@ export default function HBarChart({
           ))}
 
           {rows.map((r, i) => {
-            const top = M.top + i * ROW_H + 5
+            const top = rowY[i] + 5
             return (
               <g key={r.label}>
+                {/* A row can ask for a rule above it — "the best five stop
+                    here, the worst five start" — with a few words on the
+                    right so the break reads as a boundary, not a gridline. */}
+                {r.dividerBefore && (
+                  <g>
+                    <line x1={0} x2={width} y1={rowY[i] - DIV_H / 2} y2={rowY[i] - DIV_H / 2} stroke="var(--text-muted)" strokeWidth={1} strokeDasharray="4 4" />
+                    <text x={width - 2} y={rowY[i] - 2} textAnchor="end" className="text-[11px] font-medium uppercase tracking-wide fill-[var(--text-muted)]">{r.dividerBefore}</text>
+                  </g>
+                )}
                 <text
                   x={gutter - 10}
                   y={top + (ROW_H - 10) / 2 + 4}
@@ -144,7 +158,7 @@ export default function HBarChart({
                 {hasSpark && <Spark values={r.spark ?? []} x={width - sparkW + 8} y={top} w={sparkW - 14} h={ROW_H - 10} />}
                 <rect
                   x={0}
-                  y={M.top + i * ROW_H}
+                  y={rowY[i]}
                   width={width}
                   height={ROW_H}
                   fill="transparent"
@@ -171,7 +185,7 @@ export default function HBarChart({
       )}
 
       {hover !== null && rows[hover] && (
-        <ChartTooltip x={width * 0.5} y={M.top + hover * ROW_H} width={width}>
+        <ChartTooltip x={width * 0.5} y={rowY[hover]} width={width}>
           <p className="font-medium text-white">{rows[hover].fullLabel ?? rows[hover].label}</p>
           {series.map((s, i) => (
             <p key={s.name} className="mt-1 flex items-center justify-between gap-4">
