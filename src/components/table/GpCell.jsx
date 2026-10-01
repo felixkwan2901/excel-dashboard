@@ -10,8 +10,8 @@ export default function GpCell({ value, max, benchmark, suffix = '' }) {
   const tone = value < 0 ? 'var(--viz-critical)' : benchmark != null && value >= benchmark ? 'var(--brand-green)' : 'var(--text-secondary)'
   return (
     <span className="flex flex-col items-end gap-[3px]">
-      <span className="text-[15px] font-semibold tabular-nums leading-none" style={{ color: tone }}>{cents(value)}{suffix}</span>
-      <span className="block h-[3px] w-16 overflow-hidden rounded-full bg-white/[0.07]" aria-hidden="true">
+      <span className="text-[13px] font-semibold tabular-nums leading-none" style={{ color: tone }}>{cents(value)}{suffix}</span>
+      <span className="block h-[3px] w-14 overflow-hidden rounded-full bg-white/[0.07]" aria-hidden="true">
         <span className="block h-full rounded-full" style={{ width: `${w}%`, background: tone, opacity: 0.85 }} />
       </span>
     </span>

@@ -79,7 +79,7 @@ function ChecklistCell({ value, saving, onChange }) {
         disabled={saving}
         onClick={() => onChange(done ? '' : 'Yes')}
         aria-pressed={done}
-        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md border text-[14px] font-bold transition-colors disabled:opacity-50 ${
+        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md border text-[13px] font-bold transition-colors disabled:opacity-50 ${
           done
             ? 'border-brand-green bg-brand-green text-[#04170c]'
             : 'border-white/20 bg-white/[0.03] text-white/25 hover:border-brand-green/60 hover:bg-brand-green/10 hover:text-brand-green'
@@ -536,7 +536,7 @@ export default function MainSheetTab({
               </span>
             </div>
 
-            <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <div className="mt-3 grid grid-cols-1 gap-1.5 sm:grid-cols-2 2xl:grid-cols-3">
               {columns.map((c, i) => {
                 const item = ONBOARDING_ITEMS[i]
                 const label = item?.label ?? c.label
@@ -600,7 +600,7 @@ export default function MainSheetTab({
                   <div
                     key={c.key}
                     onClick={toggleRow}
-                    className={`flex cursor-pointer items-center justify-between gap-3 rounded-[10px] border p-3 transition-colors hover:border-white/25 ${rowStyle} ${
+                    className={`flex cursor-pointer items-center justify-between gap-3 rounded-[8px] border px-3 py-1.5 transition-colors hover:border-white/25 ${rowStyle} ${
                       rowSaving ? 'opacity-60' : ''
                     }`}
                   >
@@ -613,7 +613,7 @@ export default function MainSheetTab({
                               ? onOpenWeeklyCheckSheet(selectedJob)
                               : onOpenJobCompletionChecklist(selectedJob)
                           }
-                          className="text-left text-[13.5px] leading-snug text-brand-green underline decoration-brand-green/40 underline-offset-2 hover:text-white"
+                          className="text-left text-[13px] leading-snug text-brand-green underline decoration-brand-green/40 underline-offset-2 hover:text-white"
                         >
                           <span className="mr-2 font-semibold tabular-nums text-neutral-400">{i + 1}.</span>
                           {label}
@@ -625,7 +625,7 @@ export default function MainSheetTab({
                     ) : (
                       // Settled items step back so the eye lands on what is left.
                       <span
-                        className={`text-[13.5px] leading-snug ${
+                        className={`text-[13px] leading-snug ${
                           isDone ? 'text-neutral-400' : 'text-neutral-100'
                         }`}
                       >

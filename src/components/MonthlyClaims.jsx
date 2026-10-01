@@ -38,7 +38,7 @@ function EditableCell({ id, value, saving, numeric, onChange }) {
       onBlur={() => {
         if (text !== value) onChange(text)
       }}
-      className="w-full min-w-0 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[13px] text-neutral-200 focus:border-brand-green/50 focus:outline-none disabled:opacity-50"
+      className="w-full min-w-0 rounded-md border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[12.5px] text-neutral-200 [appearance:textfield] focus:border-brand-green/50 focus:outline-none disabled:opacity-50 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
     />
   )
 }
@@ -260,17 +260,17 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
   const columns = useMemo(() => [
     { key: 'jobNumber', label: 'Job #', sticky: true, width: STICKY_WIDTHS[0], always: true, cellClass: 'whitespace-nowrap' },
     { key: 'jobName', label: 'Job name', text: true, sticky: true, width: STICKY_WIDTHS[1], always: true },
-    { key: 'retention', label: 'Ret%', num: true, sortable: false, always: true, cellClass: 'min-w-[90px] p-1',
+    { key: 'retention', label: 'Ret%', num: true, sortable: false, always: true, cellClass: 'w-[72px] min-w-[72px] p-1',
       render: editable(EDITABLE_FIELDS[0], (j) => (j.retentionAddOn
         ? <p className="mt-0.5 text-right text-[11px] tabular-nums text-neutral-400">{money(j.retentionAddOn)}</p> : null)) },
     ...READONLY_COLUMNS.slice(0, 2).map((c) => ({ key: c.key, label: c.label, num: true, fmt: c.format, group: 'month' })),
     // Sorted by margin, worst first, by default — "which jobs are underperforming"
     // is the more useful starting question than "which made the most".
     { key: 'margin', label: 'Margin', num: true, fmt: percent, group: 'month' },
-    { key: 'hoursToCompleteBeforeEom', label: 'Hours to come', num: true, sortable: false, always: true, cellClass: 'min-w-[90px] p-1', render: editable(EDITABLE_FIELDS[1]) },
-    { key: 'costsToComeBeforeEom', label: 'Cost to come', num: true, sortable: false, always: true, cellClass: 'min-w-[90px] p-1', render: editable(EDITABLE_FIELDS[2]) },
+    { key: 'hoursToCompleteBeforeEom', label: 'Hours to come', num: true, sortable: false, always: true, cellClass: 'w-[72px] min-w-[72px] p-1', render: editable(EDITABLE_FIELDS[1]) },
+    { key: 'costsToComeBeforeEom', label: 'Cost to come', num: true, sortable: false, always: true, cellClass: 'w-[72px] min-w-[72px] p-1', render: editable(EDITABLE_FIELDS[2]) },
     ...READONLY_COLUMNS.slice(2).map((c) => ({ key: c.key, label: c.label, num: true, fmt: c.format, group: WORKINGS.has(c.key) ? 'workings' : 'month' })),
-    { key: 'notes', label: 'Notes', sortable: false, always: true, cellClass: 'min-w-[160px] p-1', render: editable(EDITABLE_FIELDS[3]) },
+    { key: 'notes', label: 'Notes', sortable: false, always: true, cellClass: 'min-w-[120px] p-1', render: editable(EDITABLE_FIELDS[3]) },
     { key: 'total', label: TOTAL_COLUMN.label, num: true, always: true, stickyRight: true, cellClass: 'text-[14px] font-semibold text-white', fmt: money },
   ], [savingKeys]) // eslint-disable-line react-hooks/exhaustive-deps
   const table = useDataTable({
@@ -419,6 +419,7 @@ export default function MonthlyClaims({ monthlyClaims, jobs: allJobs, monthlyHou
         <DataTable
           table={table}
           groups={GROUPS}
+          compact
           rowKey={(j) => j.jobNumber}
           exportName="monthly-claims"
           emptyText="No jobs to show."
