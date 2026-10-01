@@ -4,7 +4,9 @@ import ChartCard from './charts/ChartCard'
 import BarChart from './charts/BarChart'
 import HBarChart from './charts/HBarChart'
 import { compactHours, compactMoney } from './charts/chartScale'
-import { personTotals } from '../lib/completedJobPeople'
+import { personMonthly, personTotals } from '../lib/completedJobPeople'
+import { ACTUAL, COMPARE } from './charts/colors'
+import { ColourKey } from './charts/ColourKey'
 import { word } from '../lib/words'
 
 // Every figure on this page already exists somewhere in the dashboard. The
@@ -18,9 +20,9 @@ import { word } from '../lib/words'
 // blue-yellow axis, which every common form of colour blindness keeps. They
 // are defined as tokens in index.css so light and dark each get their own
 // step rather than one hex being reused on both grounds.
-const SERIES_1 = 'var(--viz-1)'
-const SERIES_2 = 'var(--viz-2)'
-const CRITICAL = 'var(--viz-critical)'
+const SERIES_1 = ACTUAL
+const SERIES_2 = COMPARE
+
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -69,6 +71,9 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, co
   // The bars show whatever the chart is sorted by; sorting by name keeps Their GP.
   const [personSort, setPersonSort] = useState({ key: 'weightedGp', dir: -1 })
   const personMetric = PERSON_SORTS.find((s) => s.key === personSort.key && s.key !== 'name') ?? PERSON_SORTS[0]
+  // Month by month per person, for the small trend line beside each bar —
+  // it appears once a second month is loaded.
+  const monthly = useMemo(() => personMonthly(completedJobs.filter((j) => j.type === 'quoted')), [completedJobs])
   const people = useMemo(() => personTotals(completedJobs)
     .filter((p) => p.weightedGp !== null)
     .sort((a, b) => (personSort.key === 'name'
@@ -78,9 +83,11 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, co
       label: p.name,
       fullLabel: `${p.name} — ${p.count} job${p.count === 1 ? '' : 's'}, ${p.hours} h, ${money(p.weightedGp)} profit`,
       values: [Math.round(p[personMetric.key] * 100) / 100],
-      colors: [p[personMetric.key] < 0 ? CRITICAL : SERIES_1],
+      tones: [p[personMetric.key] < 0 ? 'bad' : null],
+      spark: monthly.months.length >= 2 ? monthly.months.map((m) => monthly.people.find((x) => x.name === p.name)?.monthly[m]?.[personMetric.key] ?? null) : [],
+      sparkLabels: monthly.months.map((m) => monthShort(m)),
       p,
-    })), [completedJobs, personSort, personMetric])
+    })), [completedJobs, personSort, personMetric, monthly])
   const sortPeople = (key) => setPersonSort((prev) =>
     (prev.key === key ? { key, dir: -prev.dir } : { key, dir: key === 'name' ? 1 : -1 }))
 
@@ -219,7 +226,10 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, co
             fullLabel: label,
             jobs: list.length,
             values: [actual, quoted],
-            colors: [actual > quoted ? CRITICAL : SERIES_1, SERIES_2],
+            // The bar stays blue; the figure beside it goes red with a marker
+            // when the type is over — a red bar next to an orange one is too
+            // close to tell apart.
+            tones: [actual > quoted ? 'bad' : null, null],
             note: actual > quoted ? 'Spent more than quoted' : null,
             ratio: quoted ? actual / quoted : null,
           }
@@ -244,7 +254,7 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, co
         values: [sum(list, 'quotedPrice')],
         // Unowned is a gap, not a person, so it reads as a state rather than
         // as one more name in the list.
-        colors: [label === 'No owner' ? CRITICAL : SERIES_1],
+        tones: [label === 'No owner' ? 'bad' : null],
         note: label === 'No owner' ? 'Nobody is named on these' : null,
       }))
       .sort((a, b) => b.values[0] - a.values[0])
@@ -319,6 +329,7 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, co
           other tab can show you, because the workbook does not record them. Hover anything for
           the exact numbers; on a phone the figures are printed on the charts.
         </p>
+        <div className="mt-2"><ColourKey /></div>
       </div>
 
       <SectionHeading>Type of work and ownership</SectionHeading>
@@ -460,19 +471,19 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, co
       <SectionHeading>Completed jobs</SectionHeading>
 
       <ChartCard
-        title="GP by person"
-        question="Who has brought in the most GP on finished jobs?"
-        footnote={`Quoted jobs only — ${completedJobs.filter((j) => j.type === 'quoted').length} of the ${completedJobs.length} completed jobs; charge-up jobs aren't split per person. Each person's GP: for every job they worked on, the share of their time spent on it × their GP on that job, added up. Sort by their GP, hours or jobs (click again to flip the order) — the bars show what it is sorted by. A red bar is below zero. The full breakdown is in the Completed jobs tab.`}
+        title={`${word('theirProfit')} by person`}
+        question="Who has brought in the most on finished jobs?"
+        footnote={`Quoted jobs only — ${completedJobs.filter((j) => j.type === 'quoted').length} of the ${completedJobs.length} completed jobs; charge-up jobs aren't split per person. Each person's figure: for every job they worked on, the share of their time spent on it × their profit on that job, added up. Sort by that, hours or jobs (click again to flip the order) — the bars show what it is sorted by. A red figure is below zero. ${monthly.months.length >= 2 ? 'The small line beside each bar is their month-by-month trend; the dot is the latest month, green if up on the month before.' : 'A small month-by-month trend line appears beside each bar once a second month is loaded.'} The full breakdown is in the Completed jobs tab.`}
         table={
           <table>
-            <caption>GP by person, completed jobs</caption>
+            <caption>{word('theirProfit')} by person, completed jobs</caption>
             <tbody>
               {people.map((r) => (
                 <tr key={r.label}>
                   <th scope="row">{r.label}</th>
                   <td>{r.p.count} jobs</td>
                   <td>{r.p.hours} h</td>
-                  <td>{money(r.p.weightedGp)} GP</td>
+                  <td>{money(r.p.weightedGp)}</td>
                 </tr>
               ))}
             </tbody>

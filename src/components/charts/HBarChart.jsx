@@ -3,14 +3,47 @@ import { hBarPath, niceTicks } from './chartScale'
 import { useChartWidth } from './useChartWidth'
 import { ChartTooltip } from './ChartCard'
 
+// A row can carry `spark` (one value per month, null for a month not worked)
+// and `sparkLabels`; when at least one row has two points, a small trend line
+// is drawn to the right of the bar's figure. A row's `tones[s]` ('bad' |
+// 'good') colours that series' figure — the bar keeps its series colour, so a
+// red never sits beside an orange.
+
 // The right margin holds the value label that sits past the end of the bar.
 const M = { top: 8, right: 54, bottom: 24 }
+const SPARK_W = 72
+const TONE = { bad: 'var(--viz-critical)', good: 'var(--brand-green)' }
 const ROW_H = 34
 const BAR_GAP = 2
 
 // Horizontal bars, one or two series per row. Horizontal because the category
 // labels are job names — vertical bars would need them rotated, and rotated
 // labels are the single most common reason a chart goes unread.
+// The trend line: months left to right, scaled to the row's own range, the
+// last point marked. A month with no value breaks the line rather than
+// drawing a zero that was never earned.
+function Spark({ values, x, y, w, h }) {
+  const nums = values.filter((v) => v != null)
+  if (nums.length < 2) return null
+  const lo = Math.min(0, ...nums), hi = Math.max(0, ...nums)
+  const span = hi - lo || 1
+  const px = (i) => x + (values.length === 1 ? w / 2 : (i / (values.length - 1)) * w)
+  const py = (v) => y + h - ((v - lo) / span) * h
+  let d = '', pen = false
+  values.forEach((v, i) => { if (v == null) { pen = false; return } d += `${pen ? 'L' : 'M'}${px(i).toFixed(1)},${py(v).toFixed(1)} `; pen = true })
+  const lastI = values.length - 1 - [...values].reverse().findIndex((v) => v != null)
+  const last = values[lastI]
+  const prev = values.slice(0, lastI).filter((v) => v != null).at(-1)
+  const tone = prev == null ? 'var(--text-muted)' : last >= prev ? 'var(--brand-green)' : 'var(--viz-critical)'
+  return (
+    <g aria-hidden="true">
+      {lo < 0 && hi > 0 && <line x1={x} x2={x + w} y1={py(0)} y2={py(0)} stroke="var(--gridline)" strokeWidth={1} />}
+      <path d={d.trim()} fill="none" stroke="var(--text-muted)" strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" />
+      <circle cx={px(lastI)} cy={py(last)} r={2.5} fill={tone} />
+    </g>
+  )
+}
+
 export default function HBarChart({
   rows,
   series,
@@ -27,7 +60,9 @@ export default function HBarChart({
   // width of a phone — leaving a plot too short to compare anything in. Cap it
   // as a share of the chart instead, and let the names truncate.
   const gutter = Math.min(labelWidth, Math.round(width * 0.42))
-  const plotW = Math.max(0, width - gutter - M.right)
+  const hasSpark = rows.some((r) => (r.spark ?? []).filter((v) => v != null).length >= 2)
+  const sparkW = hasSpark ? SPARK_W : 0
+  const plotW = Math.max(0, width - gutter - M.right - sparkW)
   const height = M.top + rows.length * ROW_H + M.bottom
   const rawMax = Math.max(0, ...rows.flatMap((r) => r.values.map((v) => v ?? 0)))
   const { max, ticks } = niceTicks(rawMax, 3)
@@ -97,14 +132,16 @@ export default function HBarChart({
                   v === null || v === undefined ? null : (
                     <text
                       key={`v-${series[s2].name}`}
-                      x={Math.min(gutter + wOf(Math.max(0, v)) + 6, width - 2)}
+                      x={Math.min(gutter + wOf(Math.max(0, v)) + 6, width - sparkW - 2)}
                       y={top + s2 * (barH + BAR_GAP) + barH - 1}
-                      className="fill-[var(--text-secondary)] text-[10.5px] tabular-nums"
+                      className={`text-[10.5px] tabular-nums ${r.tones?.[s2] ? 'font-semibold' : ''}`}
+                      style={{ fill: TONE[r.tones?.[s2]] ?? 'var(--text-secondary)' }}
                     >
-                      {axisFormat(v)}
+                      {r.tones?.[s2] === 'bad' ? '▲ ' : ''}{axisFormat(v)}
                     </text>
                   ),
                 )}
+                {hasSpark && <Spark values={r.spark ?? []} x={width - sparkW + 8} y={top} w={sparkW - 14} h={ROW_H - 10} />}
                 <rect
                   x={0}
                   y={M.top + i * ROW_H}
@@ -152,6 +189,11 @@ export default function HBarChart({
             </p>
           ))}
           {rows[hover].note && <p className="mt-1.5 text-neutral-400">{rows[hover].note}</p>}
+          {(rows[hover].spark ?? []).filter((v) => v != null).length >= 2 && (
+            <p className="mt-1.5 text-neutral-400">
+              {rows[hover].spark.map((v, i) => `${rows[hover].sparkLabels?.[i] ?? i + 1}: ${v == null ? '—' : valueFormat(v)}`).join(' · ')}
+            </p>
+          )}
         </ChartTooltip>
       )}
     </div>
