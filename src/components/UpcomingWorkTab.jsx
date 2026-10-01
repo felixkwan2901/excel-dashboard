@@ -5,7 +5,6 @@ import { useSharedState } from '../lib/useSharedState'
 import CollapsibleSection from './CollapsibleSection'
 import DataTable from './table/DataTable'
 import { useDataTable } from './table/useDataTable'
-import { tip, word } from '../lib/words'
 
 // Jan-Dec hours-allocation columns (cols F-Q, 0-indexed 5-16) plus the
 // notes column (S, 0-indexed 18) — the only manual entry on this sheet.
@@ -392,7 +391,7 @@ export default function UpcomingWorkTab({ upcomingWork, onBack }) {
         <h1 className="text-2xl font-semibold text-white">Upcoming work</h1>
         <p className="mt-1 text-sm text-neutral-400">
           Planned hours per month per job, from the workbook&apos;s Upcoming Work Calculator sheet.
-          Quoted hours, hours worked and hours left are calculated; every month is a manual plan you can edit.
+          Quoted/Used/Remaining hours are calculated; every month is a manual plan you can edit.
         </p>
       </div>
 
