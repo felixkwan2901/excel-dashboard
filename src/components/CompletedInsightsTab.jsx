@@ -137,7 +137,7 @@ function WorkTypeBreakdown({ jobs, categories, onOpenJob }) {
 const TOTAL_COLS = [
   { key: 'count', label: 'Jobs' },
   { key: 'hours', label: 'Hours' },
-  { key: 'weightedGp', label: word('theirProfit') },
+  { key: 'weightedGp', label: word('personGpHour') },
 ]
 const OVER = 'var(--viz-critical)'
 
@@ -240,7 +240,7 @@ function PeopleSummary({ jobs, scope, onOpenJob }) {
                       <td colSpan={span} className="bg-white/[0.02]">
                         <div className="flex max-w-3xl flex-col gap-1.5 py-2 pl-6 text-[13px]">
                           <div className="grid grid-cols-[4rem_minmax(0,1fr)_5rem_4rem_6rem] gap-x-4 text-[11px] uppercase tracking-wide text-neutral-500">
-                            <span>Job #</span><span>Job name</span><span>Month</span><span className="text-right">Hours</span><span className="text-right">{word('theirProfit')}</span>
+                            <span>Job #</span><span>Job name</span><span>Month</span><span className="text-right">Hours</span><span className="text-right">{word('personGpHour')}</span>
                           </div>
                           {[...p.jobs].sort((a, b) => (b.job.month ?? '').localeCompare(a.job.month ?? '')).map(({ job, hours, part }) => (
                             <button type="button" key={job.jobNumber} onClick={() => onOpenJob(job.jobNumber)} title="Open on the Completed jobs tab"
