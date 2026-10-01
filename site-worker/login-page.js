@@ -27,7 +27,10 @@ const escape = (s) =>
 // panel's own dark fill takes over — an <img> in the same spot is a
 // broken-image icon in the middle of the sign-in screen. This page has one
 // job, and it cannot depend on the marketing site being up to do it.
-const HERO_PHOTO = 'https://www.cdelectrical.co.nz/wp-content/uploads/2025/08/Koawa-Studio-Long.png'
+// The 2560px original for a laptop's half-screen, the 1536px copy for a phone's
+// band — the 600px file this started with went soft at any real size.
+const HERO_PHOTO = 'https://www.cdelectrical.co.nz/wp-content/uploads/2024/12/IMG_6354-scaled.jpg'
+const HERO_PHOTO_SMALL = 'https://www.cdelectrical.co.nz/wp-content/uploads/2024/12/IMG_6354-1536x1152.jpg'
 
 // The company's own wordmark, hotlinked for the same reason as the photo:
 // one file to keep in sync, and it degrades to the plain text mark beside it
@@ -52,7 +55,7 @@ const STYLE = `
           padding:36px 40px; color:var(--hero-text); }
   /* Darken only where the words sit; the photo itself stays bright. */
   .hero::before { content:""; position:absolute; inset:0;
-                  background: linear-gradient(180deg, rgba(11,21,16,0.55) 0%, rgba(11,21,16,0) 30%, rgba(11,21,16,0) 55%, rgba(11,21,16,0.78) 100%); }
+                  background: linear-gradient(180deg, rgba(11,21,16,0.62) 0%, rgba(11,21,16,0.05) 32%, rgba(11,21,16,0.08) 55%, rgba(11,21,16,0.86) 100%); }
   .hero > * { position:relative; }
   .brand { display:flex; align-items:center; gap:12px; }
   .brand img { display:block; height:38px; width:auto; }
@@ -98,7 +101,7 @@ const STYLE = `
      it, the form sits on the solid panel underneath. */
   @media (max-width: 879px) {
     .page { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
-    .hero { min-height:200px; padding:22px 20px; background-position:center 40%; }
+    .hero { min-height:220px; padding:22px 20px; background-position:center 45%; background-image:url('${HERO_PHOTO_SMALL}'); }
     .pitch h2 { font-size:22px; }
     .pitch p { display:none; }
     .panel { border-left:0; border-top:1px solid var(--line); padding:28px 20px 32px; justify-content:flex-start; }
