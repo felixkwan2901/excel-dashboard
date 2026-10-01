@@ -230,52 +230,6 @@ function typeStats(all) {
   return { count: all.length, profit, hours: Math.round(hours * 100) / 100, gp: hours ? profit / hours : null }
 }
 
-function Stat({ label, value, sub, tone, big, onClick, title }) {
-  const Tag = onClick ? 'button' : 'div'
-  return (
-    <Tag type={onClick ? 'button' : undefined} onClick={onClick} title={title}
-      className={`flex min-w-0 flex-col gap-0.5 text-left ${onClick ? 'rounded-lg transition-colors hover:text-white' : ''}`}>
-      <span className="text-[11px] font-medium uppercase tracking-wide text-neutral-500">{label}</span>
-      <span className={`${big ? 'text-[26px]' : 'text-[18px]'} font-semibold tabular-nums leading-tight text-white`} style={tone ? { color: tone } : undefined}>{value}</span>
-      {sub && <span className="text-[12px] tabular-nums text-neutral-500">{sub}</span>}
-    </Tag>
-  )
-}
-
-// One strip instead of two cards: which month, the project GP/hr of the jobs
-// shown, how many there are, how many are over quote, and how the month compares
-// with the one before (when there is one).
-function SummaryStrip({ jobs, previousJobs, previousMonth, typeFilter, toReview, onReview, reviewOpen, month, months, onMonth }) {
-  const st = typeStats(jobs)
-  const prev = previousJobs ? typeStats(previousJobs) : null
-  const delta = prev && st.gp != null && prev.gp != null ? st.gp - prev.gp : null
-  const cu = jobs.filter((j) => j.type === 'chargeup'), q = jobs.filter((j) => j.type === 'quoted')
-  const what = typeFilter === 'all' ? 'completed' : TYPE_LABEL[typeFilter].toLowerCase()
-  return (
-    <div className="flex flex-wrap items-center gap-x-8 gap-y-2 rounded-[18px] border border-white/[0.06] bg-[#11161c] px-5 py-3">
-      <label className="flex flex-col gap-1 text-[11px] font-medium uppercase tracking-wide text-neutral-500">
-        Month
-        <select value={month} onChange={(e) => onMonth(e.target.value)}
-          className="rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-[14px] font-medium normal-case tracking-normal text-white">
-          {months.map((m) => <option key={m} value={m}>{monthName(m)}</option>)}
-          {months.length > 1 && <option value="all">All months</option>}
-        </select>
-      </label>
-      <Stat big label={`Profit per hour · ${what} jobs`} value={st.gp === null ? '—' : `${cents(st.gp)}/hr`}
-        sub={`${money(st.profit)} profit ÷ ${st.hours} hours worked`} />
-      <Stat label="Jobs" value={st.count}
-        sub={typeFilter === 'all' ? `${cu.length} charge-up ${typeStats(cu).gp == null ? '' : cents(typeStats(cu).gp)} · ${q.length} quoted ${typeStats(q).gp == null ? '' : cents(typeStats(q).gp)}` : undefined} />
-      <Stat label="Over quote" value={toReview.length} tone={toReview.length ? OVER : undefined}
-        sub={toReview.length ? `quoted jobs — ${reviewOpen ? 'hide' : 'review'} ${reviewOpen ? '▾' : '▸'}` : 'no quoted job over quote'}
-        onClick={toReview.length ? onReview : undefined} title={toReview.length ? 'Show which jobs' : undefined} />
-      {delta != null && (
-        <Stat label={`vs ${monthName(previousMonth, 'short')}`} value={`${delta >= 0 ? '+' : '−'}${cents(Math.abs(delta))}/hr`}
-          tone={delta >= 0 ? 'var(--brand-green)' : OVER} sub={`${cents(prev.gp)}/hr then`} />
-      )}
-    </div>
-  )
-}
-
 const NOT_SET = 'Not set'
 const SELECT = 'rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1 text-[13px] font-medium text-white'
 
@@ -335,7 +289,6 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob, pres
   const [hideNoGp, setHideNoGp] = useLocalStorageState('completedJobs.hideNoGp', true)
   const noGpCount = monthJobs.filter((j) => projectGpPerHour(j) === null).length
   const inMonth = useMemo(() => (hideNoGp ? monthJobs.filter((j) => projectGpPerHour(j) !== null) : monthJobs), [monthJobs, hideNoGp])
-  const previousMonth = month !== 'all' ? months[months.indexOf(month) + 1] : undefined
   const [howOpen, setHowOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [reviewOpen, setReviewOpen] = useState(Boolean(preset?.review))
@@ -478,26 +431,6 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob, pres
         )}
       </div>
 
-      <SummaryStrip jobs={byTypeShown} typeFilter={typeFilter} toReview={toReview}
-        onReview={() => setReviewOpen((v) => !v)} reviewOpen={reviewOpen}
-        month={month} months={months} onMonth={setMonthPick}
-        previousMonth={previousMonth}
-        previousJobs={previousMonth ? completedJobs.filter((j) => j.month === previousMonth && (typeFilter === 'all' || j.type === typeFilter) && (!hideNoGp || projectGpPerHour(j) !== null)) : null} />
-
-      {toReview.length > 0 && reviewOpen && (
-        <ul className="-mt-3 flex flex-col gap-1 rounded-[14px] border px-4 py-3 text-[13px]" style={{ borderColor: `color-mix(in srgb, ${OVER} 45%, transparent)`, background: `color-mix(in srgb, ${OVER} 7%, transparent)` }}>
-          {toReview.map(({ job, over }) => (
-            <li key={job.jobNumber}>
-              <button type="button" onClick={() => reviewJob(job.jobNumber)} className="text-left hover:underline">
-                <span className="font-medium text-white">{job.jobNumber}</span>{' '}
-                <span className="text-neutral-300">{job.jobName}</span>
-                <span className="text-neutral-400"> — {over.map(fmtOver).join(' · ')}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-
       {saveError && <p className="text-sm text-red-400">{saveError}</p>}
 
       <CollapsibleSection
@@ -534,8 +467,24 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob, pres
             each option are for what the other filter currently leaves. On a phone
             this bar stays pinned while the cards scroll. */}
         <div className="sticky top-0 z-20 -mx-6 mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 bg-inherit px-6 py-2 sm:static sm:mx-0 sm:gap-x-5 sm:gap-y-2 sm:bg-transparent sm:px-0 sm:py-0">
+          {/* The month lives here, on top of the table it filters, now that
+              the headline figures above it are gone. */}
+          <label className="flex items-center gap-2 text-[12px] text-neutral-500">
+            Month
+            <select value={month} onChange={(e) => setMonthPick(e.target.value)} className={SELECT}>
+              {months.map((m) => <option key={m} value={m}>{monthName(m)}</option>)}
+              {months.length > 1 && <option value="all">All months</option>}
+            </select>
+          </label>
           <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search job # or name"
             aria-label="Search completed jobs" className={`${SELECT} basis-full sm:basis-auto sm:w-56`} />
+          {toReview.length > 0 && (
+            <button type="button" onClick={() => setReviewOpen((v) => !v)} aria-expanded={reviewOpen}
+              className="rounded-full border px-3 py-1 text-[12px] font-medium transition-colors"
+              style={{ borderColor: `color-mix(in srgb, ${OVER} 50%, transparent)`, color: OVER, background: reviewOpen ? `color-mix(in srgb, ${OVER} 10%, transparent)` : undefined }}>
+              {toReview.length} over quote {reviewOpen ? '▾' : '▸'}
+            </button>
+          )}
           <label className="flex min-w-0 basis-[47%] items-center gap-1.5 text-[12px] text-neutral-500 sm:basis-auto sm:gap-2">
             <span className="sm:hidden">Type</span><span className="hidden sm:inline">Job type</span>
             <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className={`${SELECT} min-w-0 flex-1 sm:flex-none`}>
@@ -585,6 +534,20 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob, pres
             <span className="text-[12px] text-amber-300">Pick a type of work for each job in the Type of work column (Full columns).</span>
           )}
         </div>
+
+        {toReview.length > 0 && reviewOpen && (
+          <ul className="mt-3 flex flex-col gap-1 rounded-[14px] border px-4 py-3 text-[13px]" style={{ borderColor: `color-mix(in srgb, ${OVER} 45%, transparent)`, background: `color-mix(in srgb, ${OVER} 7%, transparent)` }}>
+            {toReview.map(({ job, over }) => (
+              <li key={job.jobNumber}>
+                <button type="button" onClick={() => reviewJob(job.jobNumber)} className="text-left hover:underline">
+                  <span className="font-medium text-white">{job.jobNumber}</span>{' '}
+                  <span className="text-neutral-300">{job.jobName}</span>
+                  <span className="text-neutral-400"> — {over.map(fmtOver).join(' · ')}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
 
         {/* Phone: one compact card per job — number, name, GP/hr and the hours
             line; tap for the rest (type of work, owner, the other figures, who
