@@ -4,6 +4,7 @@ import CollapsibleSection from './CollapsibleSection'
 import LastSynced from './LastSynced'
 import DataTable from './table/DataTable'
 import GpCell from './table/GpCell'
+import { tip, word } from '../lib/words'
 import { useDataTable } from './table/useDataTable'
 import { fetchJobCategories } from '../lib/jobCategoryStore'
 import { JOB_CATEGORIES } from '../lib/jobCategories'
@@ -34,14 +35,14 @@ const TYPE_GROUPS = [
   { key: 'all', label: 'All jobs' },
 ]
 const WORKTYPE_COLUMNS = [
-  { key: 'cat', label: 'Type of work', text: true, always: true, width: 220, cellClass: 'font-medium',
+  { key: 'cat', label: word('typeOfWork'), text: true, always: true, width: 220, cellClass: 'font-medium',
     render: (r) => <span className={r.cat === NOT_SET ? 'text-amber-300' : 'text-white'}>{r.cat}</span> },
   { key: 'cuN', group: 'chargeup', label: 'Jobs', num: true, always: true, render: (r) => <Num n={r.cuN} /> },
-  { key: 'cuGp', group: 'chargeup', label: 'GP/hr', num: true, always: true, fmt: cents, render: (r, ctx) => <GpCell value={r.cuGp} max={ctx.max} benchmark={ctx.benchmark} /> },
+  { key: 'cuGp', group: 'chargeup', label: word('profitPerHour'), title: tip('profitPerHour'), num: true, always: true, fmt: cents, render: (r, ctx) => <GpCell value={r.cuGp} max={ctx.max} benchmark={ctx.benchmark} /> },
   { key: 'qN', group: 'quoted', label: 'Jobs', num: true, always: true, render: (r) => <Num n={r.qN} /> },
-  { key: 'qGp', group: 'quoted', label: 'GP/hr', num: true, always: true, fmt: cents, render: (r, ctx) => <GpCell value={r.qGp} max={ctx.max} benchmark={ctx.benchmark} /> },
+  { key: 'qGp', group: 'quoted', label: word('profitPerHour'), title: tip('profitPerHour'), num: true, always: true, fmt: cents, render: (r, ctx) => <GpCell value={r.qGp} max={ctx.max} benchmark={ctx.benchmark} /> },
   { key: 'n', group: 'all', label: 'Jobs', num: true, always: true, render: (r) => <Num n={r.n} /> },
-  { key: 'gp', group: 'all', label: 'GP/hr', num: true, always: true, fmt: cents, render: (r, ctx) => <GpCell value={r.gp} max={ctx.max} benchmark={ctx.benchmark} /> },
+  { key: 'gp', group: 'all', label: word('profitPerHour'), title: tip('profitPerHour'), num: true, always: true, fmt: cents, render: (r, ctx) => <GpCell value={r.gp} max={ctx.max} benchmark={ctx.benchmark} /> },
 ]
 const Num = ({ n }) => (n ? <span className="text-[14px] tabular-nums text-white">{n}</span> : <span className="text-neutral-600">0</span>)
 const SHOW = [{ key: 'all', label: 'All' }, { key: 'chargeup', label: 'Charge-up' }, { key: 'quoted', label: 'Quoted' }]
@@ -88,7 +89,7 @@ function WorkTypeBreakdown({ jobs, categories, onOpenJob }) {
         </div>
         <table className="data-table data-table--compact">
           <thead>
-            <tr><th>Job #</th><th>Job name</th><th>Type</th><th className="num">GP/hr</th><th className="num">Profit to date</th><th className="num">Actual h</th></tr>
+            <tr><th>{word('jobNumber')}</th><th>{word('jobName')}</th><th>{word('jobType')}</th><th className="num">{word('profitPerHour')}</th><th className="num">{word('profit')}</th><th className="num">{word('hoursWorked')}</th></tr>
           </thead>
           <tbody>
             {list.map((j) => (
@@ -115,7 +116,7 @@ function WorkTypeBreakdown({ jobs, categories, onOpenJob }) {
       className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6"
       storageKey="completed-insights.worktype"
       title="Jobs by type of work"
-      description="Each type of work's completed jobs, charge-up and quoted, with the group's project GP/hr (profit to date ÷ actual hours). Green is at or above the overall rate; the bar is against the best group. Click a row to see its jobs."
+      description="Each type of work's completed jobs, charge-up and quoted, with each group's profit per hour (profit ÷ hours worked). Green is at or above the overall rate; the bar is against the best group. Click a row to see its jobs."
     >
       <DataTable
         table={table}
@@ -136,7 +137,7 @@ function WorkTypeBreakdown({ jobs, categories, onOpenJob }) {
 const TOTAL_COLS = [
   { key: 'count', label: 'Jobs' },
   { key: 'hours', label: 'Hours' },
-  { key: 'weightedGp', label: 'Their GP' },
+  { key: 'weightedGp', label: word('theirProfit') },
 ]
 const OVER = 'var(--viz-critical)'
 
@@ -173,7 +174,7 @@ function PeopleSummary({ jobs, scope, onOpenJob }) {
       className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6"
       storageKey="completed-jobs.people"
       title={`By person — ${all.length} ${all.length === 1 ? 'person' : 'people'}`}
-      description={`Quoted jobs only — charge-up jobs aren't split per person. Each person's GP month by month, and in Total for every month added together: for each job, the share of their time they spent on it × their GP on that job, added up across ${scope}. Red = they did worse than the month before. Click a person to see their jobs, and a job to open it.`}
+      description={`Quoted jobs only — charge-up jobs aren't split per person. Each person's profit month by month, and in Total for every month added together: for each job, the share of their time they spent on it × their profit on that job, added up across ${scope}. Red = they did worse than the month before. Click a person to see their jobs, and a job to open it.`}
     >
       {flagged.length > 0 && (
         <div className="mt-2 rounded-[12px] border p-3 text-[13px]" style={{ borderColor: `color-mix(in srgb, ${OVER} 45%, transparent)`, background: `color-mix(in srgb, ${OVER} 7%, transparent)` }}>
@@ -199,7 +200,7 @@ function PeopleSummary({ jobs, scope, onOpenJob }) {
           <thead>
             <tr>
               {th('name', 'Person')}
-              {months.map((m) => th(`m:${m}`, `${monthName(m, 'short')} GP`, 'num'))}
+              {months.map((m) => th(`m:${m}`, `${monthName(m, 'short')} profit`, 'num'))}
               {TOTAL_COLS.map((c) => th(c.key, `${months.length > 1 ? 'Total ' : ''}${c.label}`, 'num'))}
             </tr>
           </thead>
@@ -239,7 +240,7 @@ function PeopleSummary({ jobs, scope, onOpenJob }) {
                       <td colSpan={span} className="bg-white/[0.02]">
                         <div className="flex max-w-3xl flex-col gap-1.5 py-2 pl-6 text-[13px]">
                           <div className="grid grid-cols-[4rem_minmax(0,1fr)_5rem_4rem_8rem_6rem] gap-x-4 text-[11px] uppercase tracking-wide text-neutral-500">
-                            <span>Job #</span><span>Job name</span><span>Month</span><span className="text-right">Hours</span><span className="text-right">Share of their time</span><span className="text-right">Their GP</span>
+                            <span>Job #</span><span>Job name</span><span>Month</span><span className="text-right">Hours</span><span className="text-right">{word('shareOfTime')}</span><span className="text-right">{word('theirProfit')}</span>
                           </div>
                           {[...p.jobs].sort((a, b) => (b.job.month ?? '').localeCompare(a.job.month ?? '')).map(({ job, hours, part, timeShare }) => (
                             <button type="button" key={job.jobNumber} onClick={() => onOpenJob(job.jobNumber)} title="Open on the Completed jobs tab"

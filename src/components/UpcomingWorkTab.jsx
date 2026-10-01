@@ -5,6 +5,7 @@ import { useSharedState } from '../lib/useSharedState'
 import CollapsibleSection from './CollapsibleSection'
 import DataTable from './table/DataTable'
 import { useDataTable } from './table/useDataTable'
+import { tip, word } from '../lib/words'
 
 // Jan-Dec hours-allocation columns (cols F-Q, 0-indexed 5-16) plus the
 // notes column (S, 0-indexed 18) — the only manual entry on this sheet.
@@ -364,10 +365,10 @@ export default function UpcomingWorkTab({ upcomingWork, onBack }) {
   const columns = useMemo(() => [
     { key: 'jobNumber', label: 'Job', sticky: true, width: STICKY_WIDTHS[0], always: true, cellClass: 'whitespace-nowrap',
       get: (j) => Number(j.jobNumber), render: (j) => <span className="block truncate" title={`${j.jobNumber} ${j.jobName}`}>{j.jobNumber} {j.jobName}</span> },
-    { key: 'quotedHours', label: 'Quoted', title: 'Quoted hours', num: true, sticky: true, width: STICKY_WIDTHS[1], always: true, render: hoursCell('quotedHours') },
-    { key: 'usedHours', label: 'Used', title: 'Used hours', num: true, sticky: true, width: STICKY_WIDTHS[2], always: true, render: hoursCell('usedHours') },
-    { key: 'remainingHours', label: 'Left', title: 'Remaining hours', num: true, sticky: true, width: STICKY_WIDTHS[3], always: true, render: hoursCell('remainingHours') },
-    { key: 'planned', label: 'Planned', title: 'The twelve months added up, from what is on screen now', num: true, get: plannedForJob, render: (j) => roundHours(plannedForJob(j)) },
+    { key: 'quotedHours', label: 'Quoted', title: `${word('quotedHours')}: ${tip('quotedHours')}`, num: true, sticky: true, width: STICKY_WIDTHS[1], always: true, render: hoursCell('quotedHours') },
+    { key: 'usedHours', label: 'Worked', title: `${word('hoursWorked')}: ${tip('hoursWorked')}`, num: true, sticky: true, width: STICKY_WIDTHS[2], always: true, render: hoursCell('usedHours') },
+    { key: 'remainingHours', label: 'Left', title: `${word('hoursLeft')}: ${tip('hoursLeft')}`, num: true, sticky: true, width: STICKY_WIDTHS[3], always: true, render: hoursCell('remainingHours') },
+    { key: 'planned', label: 'Planned', title: `${word('hoursPlanned')}: the twelve months added up, from what is on screen now.`, num: true, get: plannedForJob, render: (j) => roundHours(plannedForJob(j)) },
     ...MONTH_FIELDS.map((f) => ({ key: f.key, label: f.key, num: true, group: 'months', cellClass: 'min-w-[58px] p-1', get: monthValue(f.key), render: editable(f.key, f.col, true) })),
     { key: 'notes', label: 'Notes', sortable: false, always: true, cellClass: 'min-w-[120px] p-1', render: editable('notes', NOTES_COL, false) },
   ], [values, savingKeys]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -391,7 +392,7 @@ export default function UpcomingWorkTab({ upcomingWork, onBack }) {
         <h1 className="text-2xl font-semibold text-white">Upcoming work</h1>
         <p className="mt-1 text-sm text-neutral-400">
           Planned hours per month per job, from the workbook&apos;s Upcoming Work Calculator sheet.
-          Quoted/Used/Remaining hours are calculated; every month is a manual plan you can edit.
+          Quoted hours, hours worked and hours left are calculated; every month is a manual plan you can edit.
         </p>
       </div>
 

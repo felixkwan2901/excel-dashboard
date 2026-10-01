@@ -474,6 +474,14 @@
   color: var(--text-primary);
 }
 
+/* A heading with a tooltip: dotted underline, help cursor. */
+.data-table th.th-tip {
+  cursor: help;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
+}
+
 /* The Total row for ticked jobs sits pinned to the bottom of the scrolling box. */
 .table-freeze tfoot td {
   position: sticky;

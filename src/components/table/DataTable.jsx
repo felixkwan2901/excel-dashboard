@@ -94,7 +94,7 @@ export default function DataTable({
     return (
       <th
         rowSpan={rowSpan}
-        className={[col.num && 'num', col.center && 'center-header', sortable && 'sortable', sub && 'th-sub', stickyClass(col), col.headClass].filter(Boolean).join(' ')}
+        className={[col.num && 'num', col.center && 'center-header', sortable && 'sortable', sub && 'th-sub', col.title && 'th-tip', stickyClass(col), col.headClass].filter(Boolean).join(' ')}
         style={stickyStyle(col)}
         onClick={sortable ? () => toggleSort(col.key) : undefined}
         aria-sort={sortable ? (on ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none') : undefined}
@@ -105,7 +105,6 @@ export default function DataTable({
             onClick={(e) => e.stopPropagation()} onChange={tickAll} />
         )}
         {col.label}
-        {col.title && <span className="ml-1 text-neutral-500" aria-hidden="true">ⓘ</span>}
         {on && (sort.dir === 1 ? ' ▲' : ' ▼')}
       </th>
     )

@@ -72,7 +72,7 @@ export default function NeedsAttention({ jobs, completedJobs, completedReviews, 
     const pm = personMonthly(completedJobs)
     const down = pm.people.filter((p) => p.flag)
     if (down.length) out.push({ key: 'people', icon: TrendingDown, tone: OVER, count: down.length,
-      label: `${down.length === 1 ? 'Person' : 'People'} with a lower GP/hr than ${monthName(pm.previous, 'short')}`,
+      label: `${down.length === 1 ? 'Person' : 'People'} with a lower profit per hour than ${monthName(pm.previous, 'short')}`,
       detail: down.slice(0, 3).map((p) => `${p.name} ${cents(p.flag.before)} → ${cents(p.flag.now)}`).join(' · ') + (down.length > 3 ? ' …' : ''),
       action: 'By person', onClick: onInsights })
     return out

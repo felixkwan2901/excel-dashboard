@@ -46,7 +46,7 @@ function monthLong(key) {
 // business billed, what the crew is committed to, and how the book is doing.
 // Eight charts in one column with no grouping is a wall.
 const PERSON_SORTS = [
-  { key: 'weightedGp', label: 'Their GP', series: 'Their GP', format: money, axis: compactMoney },
+  { key: 'weightedGp', label: 'Their profit', series: 'Their profit', format: money, axis: compactMoney },
   { key: 'hours', label: 'Hours', series: 'Hours', format: (v) => `${roundHours(v)} h`, axis: compactHours },
   { key: 'count', label: 'Jobs', series: 'Jobs', format: (v) => `${v} jobs`, axis: (v) => String(v) },
   { key: 'name', label: 'Name' },
@@ -75,7 +75,7 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, co
       : a[personSort.key] - b[personSort.key]) * personSort.dir)
     .map((p) => ({
       label: p.name,
-      fullLabel: `${p.name} — ${p.count} job${p.count === 1 ? '' : 's'}, ${p.hours} h, ${money(p.weightedGp)} GP`,
+      fullLabel: `${p.name} — ${p.count} job${p.count === 1 ? '' : 's'}, ${p.hours} h, ${money(p.weightedGp)} profit`,
       values: [Math.round(p[personMetric.key] * 100) / 100],
       colors: [p[personMetric.key] < 0 ? CRITICAL : SERIES_1],
       p,
@@ -326,8 +326,8 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, co
         title="What each kind of work earns an hour"
         question="Which work should we be chasing?"
         series={[
-          { name: 'Quoted GP/hr', color: SERIES_2 },
-          { name: 'Actual GP/hr', color: SERIES_1 },
+          { name: 'Quoted profit/hr', color: SERIES_2 },
+          { name: 'Profit/hr', color: SERIES_1 },
         ]}
         footnote="Gross profit per labour hour, which is the one measure that compares a two-hour callout with a nine-month build. Both figures are weighted by hours rather than averaged per job, so one small very profitable job cannot make a whole category look like the best work in the company. A shorter actual bar than quoted means that kind of work is not delivering what it was priced at. Type of work is typed in on the Projects tab — it is not in the workbook."
         table={
@@ -349,8 +349,8 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, upcomingWork, co
         <HBarChart
           rows={earningsByType}
           series={[
-            { name: 'Quoted GP/hr', color: SERIES_2 },
-            { name: 'Actual GP/hr', color: SERIES_1 },
+            { name: 'Quoted profit/hr', color: SERIES_2 },
+            { name: 'Profit/hr', color: SERIES_1 },
           ]}
           labelWidth={170}
           valueFormat={(v) => `${money(v)}/hr`}

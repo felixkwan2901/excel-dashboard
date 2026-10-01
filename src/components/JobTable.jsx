@@ -5,6 +5,7 @@ import { money, percent } from '../lib/format'
 import { useLocalStorageState } from '../lib/useLocalStorageState'
 import DataTable from './table/DataTable'
 import { useDataTable } from './table/useDataTable'
+import { tip, word } from '../lib/words'
 
 // Always shown, not part of the toggle panel.
 import { JOB_OWNERS } from '../lib/jobOwners'
@@ -14,7 +15,7 @@ import { saveJobCategory } from '../lib/jobCategoryStore'
 import { JOB_DETAIL_FIELDS } from '../lib/jobDetails'
 import { saveJobDetail } from '../lib/jobDetailsStore'
 
-const FIXED_COLUMNS = [{ key: 'jobNumber', label: 'Job Number' }, { key: 'jobName', label: 'Job Name' }]
+const FIXED_COLUMNS = [{ key: 'jobNumber', label: word('jobNumber') }, { key: 'jobName', label: word('jobName') }]
 
 // On the mobile card, the *Bar columns render a full-width progress bar
 // (CostBar has its own min-width) and read badly squeezed into a half-width
@@ -43,8 +44,8 @@ const DEFAULT_OPTIONAL_KEYS = ['jobOwner', 'jobCategory', 'costProgress', 'gpPer
 const OPTIONAL_COLUMNS = [
   // Grouped on its own rather than under a figure heading: it is the only
   // column here that is a person rather than a number.
-  { key: 'jobOwner', label: 'Owner', group: 'Job' },
-  { key: 'jobCategory', label: 'Type of work', group: 'Job' },
+  { key: 'jobOwner', label: word('owner'), tip: tip('owner'), group: 'Job' },
+  { key: 'jobCategory', label: word('typeOfWork'), tip: tip('typeOfWork'), group: 'Job' },
 
   { key: 'costProgress', label: 'Cost', group: 'Cost' },
   { key: 'totalQuotedCost', label: 'Total quoted cost', num: true, format: money, group: 'Cost' },
@@ -75,10 +76,10 @@ const OPTIONAL_COLUMNS = [
   { key: 'labourHoursRemaining', label: 'Labour hours remaining', num: true, group: 'Labour' },
   { key: 'labourHourPctRemaining', label: 'Labour hour % remaining', num: true, format: percent, group: 'Labour' },
 
-  { key: 'gpPerHour', label: 'GP $/hr', num: true, group: 'Margin' },
-  { key: 'quotedGpPerHour', label: 'Quoted GP $/hr', num: true, format: money, group: 'Margin' },
-  { key: 'marginToDate', label: 'Margin', num: true, centerHeader: true, group: 'Margin' },
-  { key: 'quotedMargin', label: 'Quoted margin', num: true, format: percent, group: 'Margin' },
+  { key: 'gpPerHour', label: word('profitPerHour'), tip: tip('profitPerHour'), num: true, group: 'Margin' },
+  { key: 'quotedGpPerHour', label: word('quotedProfitPerHour'), tip: tip('quotedProfitPerHour'), num: true, format: money, group: 'Margin' },
+  { key: 'marginToDate', label: word('margin'), tip: tip('margin'), num: true, centerHeader: true, group: 'Margin' },
+  { key: 'quotedMargin', label: word('quotedMargin'), tip: tip('quotedMargin'), num: true, format: percent, group: 'Margin' },
 
   { key: 'estimatedPctJobComplete', label: 'Est. % job complete', num: true, format: percent, group: 'Progress' },
 
@@ -550,11 +551,11 @@ export default function JobTable({
   // hideable column (the picker groups them as before), plus the Data badge
   // and the optional Trend badge.
   const columns = useMemo(() => [
-    { key: 'jobNumber', label: 'Job Number', sticky: true, width: 96, always: true },
-    { key: 'jobName', label: 'Job Name', text: true, sticky: true, width: 220, always: true,
+    { key: 'jobNumber', label: word('jobNumber'), sticky: true, width: 96, always: true },
+    { key: 'jobName', label: word('jobName'), text: true, sticky: true, width: 220, always: true,
       render: (job) => <span className="block max-w-[220px] truncate" title={job.jobName}>{job.jobName}</span> },
     ...OPTIONAL_COLUMNS.map((c) => ({
-      key: c.key, label: c.label, num: c.num, group: c.group, center: c.centerHeader,
+      key: c.key, label: c.label, title: c.tip, num: c.num, group: c.group, center: c.centerHeader,
       get: (job) => sortValue(job, c.key),
       export: (job) => (c.detail ? job[c.key] || '' : job[c.key]),
       render: (job, ctx) => renderCell(job, c, ctx),

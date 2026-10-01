@@ -493,7 +493,7 @@ export default function ProjectDetail({ job, onBack }) {
               <Field label="Quoted hours">
                 {job.quotedLabourHours === null ? '—' : roundHours(job.quotedLabourHours)}
               </Field>
-              <Field label="Actual hours">
+              <Field label="Hours worked">
                 {job.actualLabourHours === null ? '—' : roundHours(job.actualLabourHours)}
               </Field>
               <Field label="Labour cost remaining">{money(job.labourCostRemaining)}</Field>
@@ -524,8 +524,8 @@ export default function ProjectDetail({ job, onBack }) {
                 {percent(job.marginToDate)}
               </Field>
               <Field label="Quoted margin">{percent(job.quotedMargin)}</Field>
-              <Field label="GP $/hour">{money(job.gpPerHour)}</Field>
-              <Field label="Quoted GP $/hour">{money(job.quotedGpPerHour)}</Field>
+              <Field label="Profit per hour">{money(job.gpPerHour)}</Field>
+              <Field label="Quoted profit per hour">{money(job.quotedGpPerHour)}</Field>
             </Section>
           )}
 

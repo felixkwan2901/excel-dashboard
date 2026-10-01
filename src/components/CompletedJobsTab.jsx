@@ -6,6 +6,7 @@ import LastSynced from './LastSynced'
 import CompletedCompare from './CompletedCompare'
 import { useLocalStorageState } from '../lib/useLocalStorageState'
 import DataTable from './table/DataTable'
+import { tip, word } from '../lib/words'
 import GpCell from './table/GpCell'
 import { useDataTable } from './table/useDataTable'
 import { fetchJobOwners, saveJobOwner } from '../lib/jobOwnerStore'
@@ -31,41 +32,41 @@ const blink = (key, content) => (j) => (overruns(j).some((o) => o.key === OVER_B
 const numCell = (get, fmt) => (j) => { const v = get(j); return v == null ? <span className="text-neutral-500">—</span> : fmt(v) }
 function buildColumns(typeFilter) {
   return [
-    { key: 'jobNumber', label: 'Job #', get: (j) => Number(j.jobNumber), sticky: true, width: 98, always: true,
+    { key: 'jobNumber', label: word('jobNumber'), get: (j) => Number(j.jobNumber), sticky: true, width: 98, always: true,
       cellStyle: (j) => (overruns(j).length ? { boxShadow: `inset 4px 0 0 ${OVER}` } : undefined) },
-    { key: 'jobName', label: 'Job name', text: true, sticky: true, width: 260, always: true,
+    { key: 'jobName', label: word('jobName'), text: true, sticky: true, width: 260, always: true,
       render: (j) => <span className="block truncate" title={j.jobName}>{j.jobName}</span> },
-    { key: 'type', label: 'Type', text: true, always: true, get: (j) => TYPE_LABEL[j.type] ?? j.type,
+    { key: 'type', label: word('jobType'), title: tip('jobType'), text: true, always: true, get: (j) => TYPE_LABEL[j.type] ?? j.type,
       // Kept tight: the red row already marks a job to review; the no-name /
       // no-sold-hours notes live in the tooltip.
       render: (j) => <span title={checkNote(j)}>{TYPE_LABEL[j.type] ?? j.type}</span> },
-    { key: 'gpPerHour', group: 'gp', label: 'GP/hr', num: true, get: projectGpPerHour, fmt: cents, fmtTotal: (v) => `${cents(v)}/hr`,
+    { key: 'gpPerHour', group: 'gp', label: word('profitPerHour'), title: tip('profitPerHour'), num: true, get: projectGpPerHour, fmt: cents, fmtTotal: (v) => `${cents(v)}/hr`,
       render: (j, ctx) => <GpCell value={projectGpPerHour(j)} max={ctx.gpMax} benchmark={ctx.gpBenchmark} /> },
-    { key: 'quotedHours', group: 'gp', label: 'Quoted h', num: true },
-    { key: 'hours', group: 'gp', label: 'Actual h', num: true, cellStyle: overStyle('hours'), render: blink('hours', (j) => j.hours) },
+    { key: 'quotedHours', group: 'gp', label: word('quotedHours'), title: tip('quotedHours'), num: true },
+    { key: 'hours', group: 'gp', label: word('hoursWorked'), title: tip('hoursWorked'), num: true, cellStyle: overStyle('hours'), render: blink('hours', (j) => j.hours) },
     { key: 'hoursDiff', group: 'gp', label: DIFF_LABEL[typeFilter] ?? 'Diff h', title: DIFF_TITLE[typeFilter], num: true, get: hoursDiff,
       fmtTotal: (v) => `${v > 0 ? '+' : ''}${round2(v)}`, cellStyle: overStyle('hoursDiff'), render: blink('hoursDiff', (j) => <DiffHours job={j} />) },
-    { key: 'quotedProfit', group: 'margin', label: 'Quoted profit', num: true, get: (j) => j.pl?.quotedProfit, fmt: money },
-    { key: 'quotedMargin', group: 'margin', label: 'Quoted margin', num: true, get: (j) => j.pl?.quotedMargin, fmt: pct },
-    { key: 'profitToDate', group: 'margin', label: 'Profit to date', num: true, get: (j) => j.pl?.profitToDate, fmt: money },
-    { key: 'marginToDate', group: 'margin', label: 'Margin to date', num: true, get: (j) => j.pl?.marginToDate, fmt: pct },
-    { key: 'labourQuoted', group: 'labour', label: 'Quoted $', num: true, get: (j) => j.labour?.quotedCost, fmt: money },
-    { key: 'labourActual', group: 'labour', label: 'Actual $', num: true, get: (j) => j.labour?.actualCost, fmt: money,
+    { key: 'quotedProfit', group: 'margin', label: word('quotedProfit'), title: tip('quotedProfit'), num: true, get: (j) => j.pl?.quotedProfit, fmt: money },
+    { key: 'quotedMargin', group: 'margin', label: word('quotedMargin'), title: tip('quotedMargin'), num: true, get: (j) => j.pl?.quotedMargin, fmt: pct },
+    { key: 'profitToDate', group: 'margin', label: word('profit'), title: tip('profit'), num: true, get: (j) => j.pl?.profitToDate, fmt: money },
+    { key: 'marginToDate', group: 'margin', label: word('margin'), title: tip('margin'), num: true, get: (j) => j.pl?.marginToDate, fmt: pct },
+    { key: 'labourQuoted', group: 'labour', label: 'Quoted', num: true, get: (j) => j.labour?.quotedCost, fmt: money },
+    { key: 'labourActual', group: 'labour', label: 'Actual', num: true, get: (j) => j.labour?.actualCost, fmt: money,
       cellStyle: overStyle('labourActual'), render: blink('labourActual', numCell((j) => j.labour?.actualCost, money)) },
     { key: 'costQuoted', group: 'cost', label: 'Quoted', num: true, get: (j) => j.pl?.quotedCost, fmt: money },
     { key: 'costActual', group: 'cost', label: 'Actual', num: true, get: (j) => j.pl?.actualCost, fmt: money,
       cellStyle: overStyle('costActual'), render: blink('costActual', numCell((j) => j.pl?.actualCost, money)) },
     { key: 'workedBy', group: 'people', label: 'Worked by', text: true, get: (j) => contributors(j).worked[0]?.name ?? '', render: (j) => <WorkedBy job={j} /> },
-    { key: 'category', group: 'people', label: 'Type of work', text: true, sortable: true, render: (j, ctx) => ctx.cells(j).category },
-    { key: 'owner', group: 'people', label: 'Owner', text: true, render: (j, ctx) => ctx.cells(j).owner },
+    { key: 'category', group: 'people', label: word('typeOfWork'), text: true, sortable: true, render: (j, ctx) => ctx.cells(j).category },
+    { key: 'owner', group: 'people', label: word('owner'), text: true, render: (j, ctx) => ctx.cells(j).owner },
     { key: 'addedAt', group: 'people', label: 'Date added', text: true },
   ]
 }
 const GROUPS = [
-  { key: 'gp', label: 'GP $/hr' },
-  { key: 'margin', label: 'GP $ / %' },
-  { key: 'labour', label: 'Labour cost' },
-  { key: 'cost', label: 'Total cost' },
+  { key: 'gp', label: 'Hours and profit per hour' },
+  { key: 'margin', label: 'Profit' },
+  { key: 'labour', label: word('labourCost') },
+  { key: 'cost', label: word('totalCost') },
   { key: 'people', label: 'Worked by, type of work, owner', flat: true },
 ]
 const PEOPLE_KEYS = ['workedBy', 'category', 'owner', 'addedAt']
@@ -80,11 +81,11 @@ function migratedHidden() {
 // "Diff h" = quoted − actual, but it means a different thing per job type: hours
 // under quote for a quoted job, unsold hours for a charge-up job. The header and
 // each cell's tooltip say which.
-const DIFF_LABEL = { all: 'Diff h', quoted: 'Under quote h', chargeup: 'Unsold h' }
+const DIFF_LABEL = { all: word('hoursVsQuote'), quoted: word('hoursVsQuote'), chargeup: word('unsoldHours') }
 const DIFF_TITLE = {
-  all: 'Quoted h − actual h. Quoted job: hours under quote (minus = over quote). Charge-up job: hours booked but not sold.',
-  quoted: 'Quoted h − actual h: hours under quote (minus = over quote).',
-  chargeup: 'Hours booked but not sold (quoted h = sold + unsold).',
+  all: `${tip('hoursVsQuote')} On a charge-up job it is the unsold hours.`,
+  quoted: tip('hoursVsQuote'),
+  chargeup: tip('unsoldHours'),
 }
 
 // "Simple" shows the columns every job has a figure for. The quoted-only columns
@@ -146,11 +147,11 @@ const GRID_ONE = 'grid grid-cols-[minmax(0,1.6fr)_minmax(0,1.6fr)_4rem_3rem] gap
 function LabourSum({ job }) {
   const profit = projectProfit(job)
   if (!(job.hours > 0) || profit == null) {
-    return <p className="text-[12px] text-neutral-400">No sold (actual) hours, so no GP/hr{job.unsoldHours ? ` (${job.unsoldHours} h unsold)` : ''}.</p>
+    return <p className="text-[12px] text-neutral-400">No hours worked, so no profit per hour{job.unsoldHours ? ` (${job.unsoldHours} h unsold)` : ''}.</p>
   }
   return (
     <p className="text-[12px] tabular-nums text-neutral-400">
-      <span className="text-neutral-200">{cents(profit)}</span> profit to date (P&amp;L) ÷ {job.hours} actual h = <span className="font-medium text-white">{cents(projectGpPerHour(job))}/hr</span>
+      <span className="text-neutral-200">{cents(profit)}</span> profit ÷ {job.hours} hours worked = <span className="font-medium text-white">{cents(projectGpPerHour(job))}/hr</span>
     </p>
   )
 }
@@ -169,7 +170,7 @@ function Breakdown({ job }) {
         {people.length === 1
           ? 'One person did all the hours on this job.'
           : split
-            ? `${people.length} people worked on this job — each person's GP is split by the hours they worked.`
+            ? `${people.length} people worked on this job — the profit is split between them by the hours they worked.`
             : `${people.length} people worked on this job.`}
       </p>
       {people.length > 1 && (
@@ -178,7 +179,7 @@ function Breakdown({ job }) {
           <span />
           <span className="text-right">Hours</span>
           <span className="text-right">Share</span>
-          {split && <span className="text-right">Their GP</span>}
+          {split && <span className="text-right">{word('theirProfit')}</span>}
         </div>
       )}
       {people.map((p, i) => (
@@ -257,8 +258,8 @@ function SummaryStrip({ jobs, previousJobs, previousMonth, typeFilter, toReview,
           {months.length > 1 && <option value="all">All months</option>}
         </select>
       </label>
-      <Stat big label={`Project GP/hr · ${what} jobs`} value={st.gp === null ? '—' : `${cents(st.gp)}/hr`}
-        sub={`${money(st.profit)} profit to date ÷ ${st.hours} actual h`} />
+      <Stat big label={`Profit per hour · ${what} jobs`} value={st.gp === null ? '—' : `${cents(st.gp)}/hr`}
+        sub={`${money(st.profit)} profit ÷ ${st.hours} hours worked`} />
       <Stat label="Jobs" value={st.count}
         sub={typeFilter === 'all' ? `${cu.length} charge-up ${typeStats(cu).gp == null ? '' : cents(typeStats(cu).gp)} · ${q.length} quoted ${typeStats(q).gp == null ? '' : cents(typeStats(q).gp)}` : undefined} />
       <Stat label="Over quote" value={toReview.length} tone={toReview.length ? OVER : undefined}
@@ -277,7 +278,7 @@ const SELECT = 'rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1 text
 
 // Data to check, set when the job was loaded — shown as a tooltip on the type:
 // no name in Katipolt (named by its number), or no sold hours (so no GP/hr).
-const CHECK_NOTE = { 'no-name': 'No name in Katipolt — add one there and re-upload.', 'no-sold-hours': 'No actual hours, so no GP/hr.' }
+const CHECK_NOTE = { 'no-name': 'No name in Katipolt — add one there and re-upload.', 'no-sold-hours': 'No hours worked, so no profit per hour.' }
 const checkNote = (job) => (job.flags ?? []).map((f) => CHECK_NOTE[f] ?? f).join(' ') || undefined
 
 // Totals for the ticked jobs, per column. Sums for money and hours; GP/hr and the
@@ -440,7 +441,7 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob, pres
 
       <div>
         <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-          <h1 className="text-2xl font-semibold text-white">Completed jobs — GP per hour</h1>
+          <h1 className="text-2xl font-semibold text-white">Completed jobs — profit per hour</h1>
           <button type="button" onClick={() => setHowOpen((v) => !v)} aria-expanded={howOpen}
             className="text-[13px] font-medium text-brand-green hover:underline">
             How this works {howOpen ? '▾' : '▸'}
@@ -450,15 +451,15 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob, pres
         {howOpen && (
           <div className="mt-3 flex max-w-3xl flex-col gap-2 rounded-[14px] border border-white/[0.06] bg-white/[0.02] p-4 text-sm text-neutral-400">
             <p>
-              Project GP per hour for each finished job: its profit to date (the P&amp;L&apos;s actual
-              profit) ÷ actual hours — for a charge-up job, the Sold tab&apos;s labour hours.
+              Profit per hour for each finished job: its profit (what it sold for minus what it cost, from Katipolt&apos;s
+              Profit &amp; Loss Summary) ÷ the hours worked — for a charge-up job, the hours charged to the customer.
             </p>
             <p>
-              Quoted h is a quoted job&apos;s quoted hours, or a charge-up job&apos;s sold + unsold hours.
-              The difference column is quoted − actual: hours under quote for a quoted job, unsold hours for a charge-up job.
+              Quoted hours are what the quote allowed, or for a charge-up job every hour booked, charged or not.
+              Hours vs quote is quoted hours minus hours worked; for a charge-up job it is the unsold hours.
             </p>
             <p>
-              GP/hr in <span className="text-brand-green">green</span> is at or above the overall rate of the jobs shown; the bar is against the best job shown.
+              Profit/hr in <span className="text-brand-green">green</span> is at or above the overall rate of the jobs shown; the bar is against the best job shown.
               <span className="ml-1 inline-block h-3 w-3 translate-y-0.5 rounded-sm" style={{ background: OVER_TINT, boxShadow: `inset 4px 0 0 ${OVER}` }} aria-hidden="true" />{' '}
               Red rows are quoted jobs that came in over quote — the blinking figures are what went over.
             </p>
@@ -604,7 +605,7 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob, pres
                   </div>
                   <div className="shrink-0 text-right">
                     <GpCell value={projectGpPerHour(j)} max={gpMax} benchmark={gpBenchmark} />
-                    <span className="mt-1 block text-[10px] uppercase tracking-wide text-neutral-500">GP/hr</span>
+                    <span className="mt-1 block text-[10px] uppercase tracking-wide text-neutral-500">profit/hr</span>
                   </div>
                 </div>
                 {isOpen && (
@@ -617,9 +618,9 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob, pres
                       {cells(j).owner}
                     </div>
                     <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[13px]">
-                      <span className="text-neutral-400">Quoted profit · margin</span>
+                      <span className="text-neutral-400">Quoted profit · margin %</span>
                       <span className="text-right tabular-nums text-neutral-200">{j.pl?.quotedProfit == null ? '—' : `${money(j.pl.quotedProfit)} · ${pct(j.pl.quotedMargin)}`}</span>
-                      <span className="text-neutral-400">Profit · margin to date</span>
+                      <span className="text-neutral-400">Profit · margin %</span>
                       <span className="text-right tabular-nums text-neutral-200">{j.pl?.profitToDate == null ? '—' : `${money(j.pl.profitToDate)} · ${pct(j.pl.marginToDate)}`}</span>
                       <span className="text-neutral-400">Labour cost (quoted · actual)</span>
                       <span className="text-right tabular-nums text-neutral-200">{j.labour?.quotedCost == null ? '—' : money(j.labour.quotedCost)} · {j.labour?.actualCost == null ? '—' : money(j.labour.actualCost)}</span>

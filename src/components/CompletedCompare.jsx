@@ -3,6 +3,7 @@ import { Sparkles } from 'lucide-react'
 import { cents, money, percent } from '../lib/format'
 import { contributors, projectGpPerHour, timeWeighted } from '../lib/completedJobPeople'
 import { overruns } from '../lib/completedJobReview'
+import { word } from '../lib/words'
 import { workerFetch } from '@/lib/workerClient'
 
 // Ticked completed jobs side by side: the figures that say whether a job went
@@ -51,10 +52,10 @@ function Verdict({ v }) {
 }
 
 const ROWS = [
-  { label: 'Type', get: (j) => TYPE_LABEL[j.type] },
-  { label: 'GP/hr', get: (j) => (projectGpPerHour(j) == null ? '—' : `${cents(projectGpPerHour(j))}/hr`), strong: true },
-  { label: 'Quoted h', get: (j) => h(j.quotedHours) },
-  { label: 'Actual h', get: (j) => h(j.hours) },
+  { label: word('jobType'), get: (j) => TYPE_LABEL[j.type] },
+  { label: word('profitPerHour'), get: (j) => (projectGpPerHour(j) == null ? '—' : `${cents(projectGpPerHour(j))}/hr`), strong: true },
+  { label: word('quotedHours'), get: (j) => h(j.quotedHours) },
+  { label: word('hoursWorked'), get: (j) => h(j.hours) },
   {
     label: 'Hours vs quote',
     get: (j) => {
@@ -68,8 +69,8 @@ const ROWS = [
   { label: 'Labour cost — actual', get: (j) => (j.labour?.actualCost == null ? '—' : money(j.labour.actualCost)) },
   { label: 'Total cost — quoted', get: (j) => (j.pl?.quotedCost == null ? '—' : money(j.pl.quotedCost)) },
   { label: 'Total cost — actual', get: (j) => (j.pl?.actualCost == null ? '—' : money(j.pl.actualCost)) },
-  { label: 'Quoted profit · margin', get: (j) => (j.pl?.quotedProfit == null ? '—' : `${money(j.pl.quotedProfit)} · ${pct(j.pl.quotedMargin)}`) },
-  { label: 'Profit · margin to date', get: (j) => (j.pl?.profitToDate == null ? '—' : `${money(j.pl.profitToDate)} · ${pct(j.pl.marginToDate)}`) },
+  { label: 'Quoted profit · margin %', get: (j) => (j.pl?.quotedProfit == null ? '—' : `${money(j.pl.quotedProfit)} · ${pct(j.pl.quotedMargin)}`) },
+  { label: 'Profit · margin %', get: (j) => (j.pl?.profitToDate == null ? '—' : `${money(j.pl.profitToDate)} · ${pct(j.pl.marginToDate)}`) },
   { label: 'Rule check', get: (j) => <Verdict v={verdict(j)} /> },
 ]
 
@@ -198,8 +199,8 @@ export default function CompletedCompare({ jobs }) {
               <tr>
                 <th>Person</th>
                 {jobs.map((j) => <th key={j.jobNumber} className="num">{j.jobNumber}</th>)}
-                <th className="num">Total h</th>
-                <th className="num">Their GP (quoted jobs)</th>
+                <th className="num">Hours</th>
+                <th className="num">{word('theirProfit')} (quoted jobs)</th>
               </tr>
             </thead>
             <tbody>
