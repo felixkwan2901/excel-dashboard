@@ -12,7 +12,10 @@
     "deploy": "gh-pages -d dist",
     "update-jobs": "node scripts/update-jobs.mjs",
     "test": "node --test scripts/__tests__/*.test.mjs",
-    "deploy:worker": "APP_BASE=/ VITE_API_BASE=/api PWA_SELF_DESTROY=1 VITE_FIELD_APP_URL=https://cd-field.fkw24.workers.dev/ npm run build && npx wrangler deploy"
+    "deploy:worker": "APP_BASE=/ VITE_API_BASE=/api PWA_SELF_DESTROY=1 VITE_FIELD_APP_URL=https://cd-field.fkw24.workers.dev/ npm run build && npx wrangler deploy",
+    "test:screens": "vite build && playwright test",
+    "test:screens:update": "vite build && playwright test --update-snapshots",
+    "test:screens:fixtures": "cp public/Cassidy_Davies_Electrical_BPMN_Data.xlsx public/archived-jobs.json public/completed-jobs.json public/monthly-claims-log.json public/monthly-hours-log.json public/sync-meta.json public/geocode-cache.json tests/screenshots/fixtures/"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
@@ -34,6 +37,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.63.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",

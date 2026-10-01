@@ -1,0 +1,652 @@
+{
+  "2026-08": {
+    "6792": {
+      "jobName": "Major Hornbrook ",
+      "cumulativeHours": 317.25
+    },
+    "7428": {
+      "jobName": "FAB Pegasus Lakeside",
+      "cumulativeHours": 505.25
+    },
+    "7429": {
+      "jobName": "Taggart House",
+      "cumulativeHours": 34.75
+    },
+    "7658": {
+      "jobName": "Charity Hospital",
+      "cumulativeHours": 588.25
+    },
+    "7864": {
+      "jobName": "Ryans House",
+      "cumulativeHours": 283.75
+    },
+    "7901": {
+      "jobName": "St Albans Street",
+      "cumulativeHours": 102.5
+    },
+    "7912": {
+      "jobName": "71A Fendalton Road ",
+      "cumulativeHours": 58.25
+    },
+    "8127": {
+      "jobName": "Rolly Autowash",
+      "cumulativeHours": 577.75
+    },
+    "8142": {
+      "jobName": "Fisher Developements",
+      "cumulativeHours": 93.25
+    },
+    "8183": {
+      "jobName": "Murney - 1 Freight Drive + 109 Iport",
+      "cumulativeHours": 476.25
+    },
+    "8214": {
+      "jobName": "6 Tiroroa Lane",
+      "cumulativeHours": 5
+    },
+    "8234": {
+      "jobName": "Melhuish House",
+      "cumulativeHours": 224.25
+    },
+    "8308": {
+      "jobName": "Roydvale",
+      "cumulativeHours": 1212
+    },
+    "8337": {
+      "jobName": "Waimak Dairys ",
+      "cumulativeHours": 60.75
+    },
+    "8352": {
+      "jobName": "5 Sanscrit Place",
+      "cumulativeHours": 147.75
+    },
+    "8360": {
+      "jobName": "Dixon House",
+      "cumulativeHours": 260.75
+    },
+    "8670": {
+      "jobName": "Studio DB - tautara fit out",
+      "cumulativeHours": 502.25
+    },
+    "8769": {
+      "jobName": "Percival Bach",
+      "cumulativeHours": 0
+    },
+    "8824": {
+      "jobName": "3 Innovation Road",
+      "cumulativeHours": 34.75
+    },
+    "8840": {
+      "jobName": "Inline Architecture",
+      "cumulativeHours": 461.5
+    },
+    "8886": {
+      "jobName": "Monkey Toe - Fisher fit out",
+      "cumulativeHours": 143
+    },
+    "8887": {
+      "jobName": "Tenancy 2 - Fisher Fit out",
+      "cumulativeHours": 104.25
+    },
+    "8907": {
+      "jobName": "35 Mania",
+      "cumulativeHours": 48.25
+    },
+    "8923": {
+      "jobName": "4 Perry St",
+      "cumulativeHours": 11.5
+    },
+    "8946": {
+      "jobName": "Westcoast Vaults",
+      "cumulativeHours": 0
+    },
+    "9065": {
+      "jobName": "Cooltranz stage 4",
+      "cumulativeHours": 2.75
+    },
+    "9240": {
+      "jobName": "Daves Twizel Shack",
+      "cumulativeHours": 0
+    },
+    "9259": {
+      "jobName": "Andrew Reeve Stage 2",
+      "cumulativeHours": 96.25
+    },
+    "9351": {
+      "jobName": "Harewood Golf Club",
+      "cumulativeHours": 23.75
+    },
+    "9508": {
+      "jobName": "St Barnabas Church",
+      "cumulativeHours": 5.75
+    }
+  },
+  "2026-07": {
+    "6792": {
+      "jobName": "Major Hornbrook ",
+      "cumulativeHours": 317.25
+    },
+    "7428": {
+      "jobName": "FAB Pegasus Lakeside",
+      "cumulativeHours": 304.75
+    },
+    "7429": {
+      "jobName": "Taggart House",
+      "cumulativeHours": 32.25
+    },
+    "7658": {
+      "jobName": "Charity Hospital",
+      "cumulativeHours": 418
+    },
+    "7864": {
+      "jobName": "Ryans House",
+      "cumulativeHours": 266.75
+    },
+    "7901": {
+      "jobName": "St Albans Street",
+      "cumulativeHours": 0
+    },
+    "7912": {
+      "jobName": "71A Fendalton Road ",
+      "cumulativeHours": 58.25
+    },
+    "8127": {
+      "jobName": "Rolly Autowash",
+      "cumulativeHours": 388.25
+    },
+    "8142": {
+      "jobName": "Fisher Developements",
+      "cumulativeHours": 52.5
+    },
+    "8183": {
+      "jobName": "Murney - 1 Freight Drive + 109 Iport",
+      "cumulativeHours": 387.5
+    },
+    "8214": {
+      "jobName": "6 Tiroroa Lane",
+      "cumulativeHours": 5
+    },
+    "8234": {
+      "jobName": "Melhuish House",
+      "cumulativeHours": 148.5
+    },
+    "8308": {
+      "jobName": "Roydvale",
+      "cumulativeHours": 1014.25
+    },
+    "8337": {
+      "jobName": "Waimak Dairys ",
+      "cumulativeHours": 44.75
+    },
+    "8352": {
+      "jobName": "5 Sanscrit Place",
+      "cumulativeHours": 143.25
+    },
+    "8360": {
+      "jobName": "Dixon House",
+      "cumulativeHours": 260.75
+    },
+    "8670": {
+      "jobName": "Studio DB - tautara fit out",
+      "cumulativeHours": 269
+    },
+    "8769": {
+      "jobName": "Percival Bach",
+      "cumulativeHours": 0
+    },
+    "8824": {
+      "jobName": "3 Innovation Road",
+      "cumulativeHours": 34.75
+    },
+    "8840": {
+      "jobName": "Inline Architecture",
+      "cumulativeHours": 204.75
+    },
+    "8886": {
+      "jobName": "Monkey Toe - Fisher fit out",
+      "cumulativeHours": 112
+    },
+    "8887": {
+      "jobName": "Tenancy 2 - Fisher Fit out",
+      "cumulativeHours": 86.75
+    },
+    "8907": {
+      "jobName": "35 Mania",
+      "cumulativeHours": 26.75
+    },
+    "8923": {
+      "jobName": "4 Perry St",
+      "cumulativeHours": 2
+    },
+    "8946": {
+      "jobName": "Westcoast Vaults",
+      "cumulativeHours": 0
+    },
+    "9065": {
+      "jobName": "Cooltranz stage 4",
+      "cumulativeHours": 0
+    },
+    "9240": {
+      "jobName": "Daves Twizel Shack",
+      "cumulativeHours": 0
+    },
+    "9259": {
+      "jobName": "Andrew Reeve Stage 2",
+      "cumulativeHours": 0
+    },
+    "9351": {
+      "jobName": "Harewood Golf Club",
+      "cumulativeHours": 11.25
+    },
+    "9508": {
+      "jobName": "St Barnabas Church",
+      "cumulativeHours": 5.75
+    }
+  },
+  "2026-06": {
+    "6792": {
+      "jobName": "Major Hornbrook ",
+      "cumulativeHours": 248.75
+    },
+    "7428": {
+      "jobName": "FAB Pegasus Lakeside",
+      "cumulativeHours": 245.25
+    },
+    "7429": {
+      "jobName": "Taggart House",
+      "cumulativeHours": 0
+    },
+    "7658": {
+      "jobName": "Charity Hospital",
+      "cumulativeHours": 247.75
+    },
+    "7864": {
+      "jobName": "Ryans House",
+      "cumulativeHours": 185
+    },
+    "7901": {
+      "jobName": "St Albans Street",
+      "cumulativeHours": 0
+    },
+    "7912": {
+      "jobName": "71A Fendalton Road ",
+      "cumulativeHours": 49.25
+    },
+    "8127": {
+      "jobName": "Rolly Autowash",
+      "cumulativeHours": 160.75
+    },
+    "8142": {
+      "jobName": "Fisher Developements",
+      "cumulativeHours": 45.5
+    },
+    "8183": {
+      "jobName": "Murney - 1 Freight Drive + 109 Iport",
+      "cumulativeHours": 223.25
+    },
+    "8214": {
+      "jobName": "6 Tiroroa Lane",
+      "cumulativeHours": 5
+    },
+    "8234": {
+      "jobName": "Melhuish House",
+      "cumulativeHours": 78.5
+    },
+    "8308": {
+      "jobName": "Roydvale",
+      "cumulativeHours": 414.25
+    },
+    "8337": {
+      "jobName": "Waimak Dairys ",
+      "cumulativeHours": 0
+    },
+    "8352": {
+      "jobName": "5 Sanscrit Place",
+      "cumulativeHours": 89
+    },
+    "8360": {
+      "jobName": "Dixon House",
+      "cumulativeHours": 226.5
+    },
+    "8670": {
+      "jobName": "Studio DB - tautara fit out",
+      "cumulativeHours": 38
+    },
+    "8769": {
+      "jobName": "Percival Bach",
+      "cumulativeHours": 0
+    },
+    "8824": {
+      "jobName": "3 Innovation Road",
+      "cumulativeHours": 31.75
+    },
+    "8840": {
+      "jobName": "Inline Architecture",
+      "cumulativeHours": 127.25
+    },
+    "8886": {
+      "jobName": "Monkey Toe - Fisher fit out",
+      "cumulativeHours": 8
+    },
+    "8887": {
+      "jobName": "Tenancy 2 - Fisher Fit out",
+      "cumulativeHours": 6.5
+    },
+    "8907": {
+      "jobName": "35 Mania",
+      "cumulativeHours": 0
+    },
+    "8923": {
+      "jobName": "4 Perry St",
+      "cumulativeHours": 2
+    },
+    "8946": {
+      "jobName": "Westcoast Vaults",
+      "cumulativeHours": 0
+    },
+    "9065": {
+      "jobName": "Cooltranz stage 4",
+      "cumulativeHours": 0
+    },
+    "9240": {
+      "jobName": "Daves Twizel Shack",
+      "cumulativeHours": 0
+    },
+    "9259": {
+      "jobName": "Andrew Reeve Stage 2",
+      "cumulativeHours": 0
+    },
+    "9351": {
+      "jobName": "Harewood Golf Club",
+      "cumulativeHours": 0
+    },
+    "9508": {
+      "jobName": "St Barnabas Church",
+      "cumulativeHours": 0
+    }
+  },
+  "2026-09": {
+    "6792": {
+      "jobName": "Major Hornbrook ",
+      "cumulativeHours": 324.25
+    },
+    "7428": {
+      "jobName": "FAB Pegasus Lakeside",
+      "cumulativeHours": 550.75
+    },
+    "7429": {
+      "jobName": "Taggart House",
+      "cumulativeHours": 34.75
+    },
+    "7480": {
+      "jobName": "New Build",
+      "cumulativeHours": 0
+    },
+    "7658": {
+      "jobName": "Charity Hospital",
+      "cumulativeHours": 625.25
+    },
+    "7864": {
+      "jobName": "Ryans House",
+      "cumulativeHours": 283.75
+    },
+    "7901": {
+      "jobName": "St Albans Street",
+      "cumulativeHours": 106
+    },
+    "7912": {
+      "jobName": "71A Fendalton Road ",
+      "cumulativeHours": 58.25
+    },
+    "8127": {
+      "jobName": "Rolly Autowash",
+      "cumulativeHours": 625
+    },
+    "8142": {
+      "jobName": "Fisher Developements",
+      "cumulativeHours": 331.25
+    },
+    "8183": {
+      "jobName": "Murney - 1 Freight Drive + 109 Iport",
+      "cumulativeHours": 821.5
+    },
+    "8214": {
+      "jobName": "6 Tiroroa Lane",
+      "cumulativeHours": 6.5
+    },
+    "8234": {
+      "jobName": "Melhuish House",
+      "cumulativeHours": 225.5
+    },
+    "8308": {
+      "jobName": "Roydvale",
+      "cumulativeHours": 1535.92
+    },
+    "8337": {
+      "jobName": "Waimak Dairys ",
+      "cumulativeHours": 116.25
+    },
+    "8352": {
+      "jobName": "5 Sanscrit Place",
+      "cumulativeHours": 167.75
+    },
+    "8360": {
+      "jobName": "Dixon House",
+      "cumulativeHours": 260.75
+    },
+    "8386": {
+      "jobName": "Bach in Kaikoura",
+      "cumulativeHours": 0
+    },
+    "8530": {
+      "jobName": "224 Cashel St - Eastern WC Block Reno",
+      "cumulativeHours": 6
+    },
+    "8670": {
+      "jobName": "Studio DB - tautara fit out",
+      "cumulativeHours": 718.75
+    },
+    "8769": {
+      "jobName": "Percival Bach",
+      "cumulativeHours": 0
+    },
+    "8824": {
+      "jobName": "3 Innovation Road",
+      "cumulativeHours": 34.75
+    },
+    "8829": {
+      "jobName": "Resi Reno at 124 Chapter Street",
+      "cumulativeHours": 0
+    },
+    "8840": {
+      "jobName": "Inline Architecture",
+      "cumulativeHours": 472.75
+    },
+    "8886": {
+      "jobName": "Monkey Toe - Fisher fit out",
+      "cumulativeHours": 373.25
+    },
+    "8887": {
+      "jobName": "Tenancy 2 - Fisher Fit out",
+      "cumulativeHours": 216.5
+    },
+    "8907": {
+      "jobName": "35 Mania",
+      "cumulativeHours": 48.25
+    },
+    "8923": {
+      "jobName": "4 Perry St",
+      "cumulativeHours": 11.5
+    },
+    "8946": {
+      "jobName": "Westcoast Vaults",
+      "cumulativeHours": 0
+    },
+    "9065": {
+      "jobName": "Cooltranz stage 4",
+      "cumulativeHours": 90.75
+    },
+    "9240": {
+      "jobName": "Daves Twizel Shack",
+      "cumulativeHours": 24.33
+    },
+    "9259": {
+      "jobName": "Andrew Reeve Stage 2",
+      "cumulativeHours": 257.25
+    },
+    "9351": {
+      "jobName": "Harewood Golf Club",
+      "cumulativeHours": 65.75
+    },
+    "9437": {
+      "jobName": "65A Belfast Road (Revised)",
+      "cumulativeHours": 27.84
+    },
+    "9508": {
+      "jobName": "St Barnabas Church",
+      "cumulativeHours": 9.25
+    }
+  },
+  "2026-10": {
+    "6792": {
+      "jobName": "Major Hornbrook ",
+      "cumulativeHours": 324.25
+    },
+    "7428": {
+      "jobName": "FAB Pegasus Lakeside",
+      "cumulativeHours": 550.75
+    },
+    "7429": {
+      "jobName": "Taggart House",
+      "cumulativeHours": 34.75
+    },
+    "7480": {
+      "jobName": "New Build",
+      "cumulativeHours": 0
+    },
+    "7658": {
+      "jobName": "Charity Hospital",
+      "cumulativeHours": 625.25
+    },
+    "7864": {
+      "jobName": "Ryans House",
+      "cumulativeHours": 283.75
+    },
+    "7901": {
+      "jobName": "St Albans Street",
+      "cumulativeHours": 106
+    },
+    "7912": {
+      "jobName": "71A Fendalton Road ",
+      "cumulativeHours": 58.25
+    },
+    "8127": {
+      "jobName": "Rolly Autowash",
+      "cumulativeHours": 625
+    },
+    "8142": {
+      "jobName": "Fisher Developements",
+      "cumulativeHours": 331.25
+    },
+    "8183": {
+      "jobName": "Murney - 1 Freight Drive + 109 Iport",
+      "cumulativeHours": 821.5
+    },
+    "8214": {
+      "jobName": "6 Tiroroa Lane",
+      "cumulativeHours": 6.5
+    },
+    "8234": {
+      "jobName": "Melhuish House",
+      "cumulativeHours": 234
+    },
+    "8308": {
+      "jobName": "Roydvale",
+      "cumulativeHours": 1543.42
+    },
+    "8337": {
+      "jobName": "Waimak Dairys ",
+      "cumulativeHours": 116.25
+    },
+    "8352": {
+      "jobName": "5 Sanscrit Place",
+      "cumulativeHours": 167.75
+    },
+    "8360": {
+      "jobName": "Dixon House",
+      "cumulativeHours": 260.75
+    },
+    "8386": {
+      "jobName": "Bach in Kaikoura",
+      "cumulativeHours": 0
+    },
+    "8530": {
+      "jobName": "224 Cashel St - Eastern WC Block Reno",
+      "cumulativeHours": 7.75
+    },
+    "8670": {
+      "jobName": "Studio DB - tautara fit out",
+      "cumulativeHours": 740.5
+    },
+    "8769": {
+      "jobName": "Percival Bach",
+      "cumulativeHours": 31.75
+    },
+    "8824": {
+      "jobName": "3 Innovation Road",
+      "cumulativeHours": 42.75
+    },
+    "8829": {
+      "jobName": "Resi Reno at 124 Chapter Street",
+      "cumulativeHours": 0
+    },
+    "8840": {
+      "jobName": "Inline Architecture",
+      "cumulativeHours": 472.75
+    },
+    "8886": {
+      "jobName": "Monkey Toe - Fisher fit out",
+      "cumulativeHours": 393.75
+    },
+    "8887": {
+      "jobName": "Tenancy 2 - Fisher Fit out",
+      "cumulativeHours": 216.5
+    },
+    "8907": {
+      "jobName": "35 Mania",
+      "cumulativeHours": 48.25
+    },
+    "8923": {
+      "jobName": "4 Perry St",
+      "cumulativeHours": 11.5
+    },
+    "8946": {
+      "jobName": "Westcoast Vaults",
+      "cumulativeHours": 0
+    },
+    "9065": {
+      "jobName": "Cooltranz stage 4",
+      "cumulativeHours": 90.75
+    },
+    "9240": {
+      "jobName": "Daves Twizel Shack",
+      "cumulativeHours": 24.33
+    },
+    "9259": {
+      "jobName": "Andrew Reeve Stage 2",
+      "cumulativeHours": 275.25
+    },
+    "9351": {
+      "jobName": "Harewood Golf Club",
+      "cumulativeHours": 65.75
+    },
+    "9437": {
+      "jobName": "65A Belfast Road (Revised)",
+      "cumulativeHours": 27.84
+    },
+    "9508": {
+      "jobName": "St Barnabas Church",
+      "cumulativeHours": 9.25
+    }
+  }
+}

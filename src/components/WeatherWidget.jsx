@@ -24,7 +24,7 @@ export default function WeatherWidget() {
 
   if (state.status === 'loading') {
     return (
-      <div className={WIDGET_CLASS} aria-hidden="true">
+      <div className={WIDGET_CLASS} aria-hidden="true" data-screenshot="mask">
         <span className="h-3 w-16 animate-pulse rounded bg-white/[0.08]" />
       </div>
     )
@@ -35,7 +35,7 @@ export default function WeatherWidget() {
   const w = state.data
 
   return (
-    <div className={WIDGET_CLASS}>
+    <div className={WIDGET_CLASS} data-screenshot="mask">
       <span className="text-sm grayscale" aria-hidden="true">
         {w.icon}
       </span>

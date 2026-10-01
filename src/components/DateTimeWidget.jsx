@@ -30,7 +30,7 @@ export default function DateTimeWidget() {
   }, [])
 
   return (
-    <div className={WIDGET_CLASS}>
+    <div className={WIDGET_CLASS} data-screenshot="mask">
       <span className="hidden font-medium text-neutral-300 sm:inline">{DATE_FORMAT.format(now)}</span>
       <span className="hidden text-neutral-700 sm:inline">·</span>
       <span className="tabular-nums text-neutral-300">{TIME_FORMAT.format(now)}</span>

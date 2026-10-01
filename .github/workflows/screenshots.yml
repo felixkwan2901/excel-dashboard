@@ -1,0 +1,50 @@
+name: Screenshot tests
+
+# Every page, dark/light, laptop/phone, against the stored baselines — see
+# tests/screenshots/README.md. Runs after a push to main (alongside the
+# deploy, not blocking it) and on request. Missing baselines are written and
+# committed on the first run; afterwards a diff fails the job and the report
+# with the side-by-side images is attached.
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'pending-updates/**'
+      - 'public/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: screenshots
+  cancel-in-progress: true
+
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build
+      - name: Compare with the baselines (writing any that are missing)
+        run: npx playwright test --update-snapshots=missing
+      - name: Commit new baselines
+        if: success()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add tests/screenshots/__screenshots__
+          git diff --cached --quiet || (git commit -m "Screenshot baselines (linux)" && git push)
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: screenshot-report
+          path: playwright-report
+          retention-days: 14
