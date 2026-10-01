@@ -5,6 +5,7 @@ import BarChart from './charts/BarChart'
 import HBarChart from './charts/HBarChart'
 import { compactHours, compactMoney } from './charts/chartScale'
 import { personTotals } from '../lib/completedJobPeople'
+import { word } from '../lib/words'
 
 // Every figure on this page already exists somewhere in the dashboard. The
 // point of drawing them is that a table answers "what is this number" and a
@@ -46,7 +47,7 @@ function monthLong(key) {
 // business billed, what the crew is committed to, and how the book is doing.
 // Eight charts in one column with no grouping is a wall.
 const PERSON_SORTS = [
-  { key: 'weightedGp', label: 'Their profit', series: 'Their profit', format: money, axis: compactMoney },
+  { key: 'weightedGp', label: word('theirProfit'), series: word('theirProfit'), format: money, axis: compactMoney },
   { key: 'hours', label: 'Hours', series: 'Hours', format: (v) => `${roundHours(v)} h`, axis: compactHours },
   { key: 'count', label: 'Jobs', series: 'Jobs', format: (v) => `${v} jobs`, axis: (v) => String(v) },
   { key: 'name', label: 'Name' },

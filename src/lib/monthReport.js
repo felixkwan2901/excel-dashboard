@@ -18,7 +18,11 @@ export function rate(jobs) {
 }
 const stats = (jobs) => ({ count: jobs.length, profit: jobs.reduce((t, j) => t + (projectProfit(j) ?? 0), 0), hours: r2(jobs.reduce((t, j) => t + (j.hours ?? 0), 0)), gp: rate(jobs) })
 
-export function buildMonthReport(completedJobs, categories, month) {
+// Jobs with no profit per hour (no hours worked) are left out of the whole
+// report; only their count is kept, so the page can say how many.
+export function buildMonthReport(allCompletedJobs, categories, month) {
+  const noHours = allCompletedJobs.filter((j) => j.month === month && projectGpPerHour(j) === null).length
+  const completedJobs = allCompletedJobs.filter((j) => projectGpPerHour(j) !== null)
   const jobs = completedJobs.filter((j) => j.month === month)
   const cu = jobs.filter((j) => j.type === 'chargeup'), q = jobs.filter((j) => j.type === 'quoted')
   const months = [...new Set(completedJobs.map((j) => j.month).filter(Boolean))].sort()
@@ -42,7 +46,7 @@ export function buildMonthReport(completedJobs, categories, month) {
     byType, overQuote: jobsToReview(jobs), people, peopleMonths: pm.months,
     best: ranked.slice(0, 5), worst: ranked.slice(-5).reverse(),
     untyped: jobs.filter((j) => !categories?.[j.jobNumber]).length,
-    noHours: jobs.filter((j) => (j.flags ?? []).includes('no-sold-hours')).length,
+    noHours,
     categories: categories ?? {},
   }
 }
@@ -80,7 +84,7 @@ export async function downloadMonthReportExcel(report) {
     ['Month', s.monthLabel], ['Completed jobs', s.all.count], ['Charge-up', s.chargeup.count], ['Quoted', s.quoted.count],
     [word('profit'), r2(s.all.profit)], [word('hoursWorked'), s.all.hours], [word('profitPerHour'), r2(s.all.gp)],
     [`Charge-up ${word('profitPerHour')}`, r2(s.chargeup.gp)], [`Quoted ${word('profitPerHour')}`, r2(s.quoted.gp)],
-    ['Over quote', s.overQuote.length], ['No type of work', s.untyped], ['No hours worked', s.noHours],
+    ['Over quote', s.overQuote.length], ['No type of work', s.untyped], ['Left out (no profit/hr)', s.noHours],
     ...(s.previous ? [[`${monthName(s.previousMonth)} ${word('profitPerHour')}`, r2(s.previous.gp)]] : []),
   ]
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summary), 'Summary')

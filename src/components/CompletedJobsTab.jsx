@@ -327,7 +327,11 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob, pres
   const months = useMemo(() => [...new Set(completedJobs.map((j) => j.month).filter(Boolean))].sort().reverse(), [completedJobs])
   const [monthPick, setMonthPick] = useState('latest')
   const month = monthPick === 'latest' ? (months[0] ?? 'all') : monthPick
-  const inMonth = useMemo(() => (month === 'all' ? completedJobs : completedJobs.filter((j) => j.month === month)), [completedJobs, month])
+  const monthJobs = useMemo(() => (month === 'all' ? completedJobs : completedJobs.filter((j) => j.month === month)), [completedJobs, month])
+  // Jobs with no profit per hour (no hours worked) are hidden by default.
+  const [hideNoGp, setHideNoGp] = useLocalStorageState('completedJobs.hideNoGp', true)
+  const noGpCount = monthJobs.filter((j) => projectGpPerHour(j) === null).length
+  const inMonth = useMemo(() => (hideNoGp ? monthJobs.filter((j) => projectGpPerHour(j) !== null) : monthJobs), [monthJobs, hideNoGp])
   const previousMonth = month !== 'all' ? months[months.indexOf(month) + 1] : undefined
   const [howOpen, setHowOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -472,7 +476,7 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob, pres
         onReview={() => setReviewOpen((v) => !v)} reviewOpen={reviewOpen}
         month={month} months={months} onMonth={setMonthPick}
         previousMonth={previousMonth}
-        previousJobs={previousMonth ? completedJobs.filter((j) => j.month === previousMonth && (typeFilter === 'all' || j.type === typeFilter)) : null} />
+        previousJobs={previousMonth ? completedJobs.filter((j) => j.month === previousMonth && (typeFilter === 'all' || j.type === typeFilter) && (!hideNoGp || projectGpPerHour(j) !== null)) : null} />
 
       {toReview.length > 0 && reviewOpen && (
         <ul className="-mt-3 flex flex-col gap-1 rounded-[14px] border px-4 py-3 text-[13px]" style={{ borderColor: `color-mix(in srgb, ${OVER} 45%, transparent)`, background: `color-mix(in srgb, ${OVER} 7%, transparent)` }}>
@@ -547,6 +551,12 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob, pres
               })}
             </select>
           </label>
+          {noGpCount > 0 && (
+            <label className="flex items-center gap-1.5 text-[12px] text-neutral-500">
+              <input type="checkbox" checked={hideNoGp} onChange={(e) => setHideNoGp(e.target.checked)} className="accent-[var(--brand-green)]" />
+              Hide jobs with no profit/hr ({noGpCount})
+            </label>
+          )}
           {/* Phone: no column headers to click, so a sort picker instead. */}
           <label className="flex min-w-0 basis-[47%] items-center gap-1.5 text-[12px] text-neutral-500 sm:hidden">
             Sort

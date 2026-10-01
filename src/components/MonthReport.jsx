@@ -182,7 +182,7 @@ export default function MonthReport({ completedJobs, onBack, initialMonth }) {
 
         <p className="mt-4 text-[10px] text-neutral-500 print:text-neutral-600">
           Profit per hour = profit (what the job sold for minus what it cost, from Katipolt&apos;s Profit &amp; Loss Summary) ÷ hours worked.
-          {r.noHours > 0 && ` ${r.noHours} job${r.noHours === 1 ? ' has' : 's have'} no hours worked and no profit per hour.`}
+          {r.noHours > 0 && ` ${r.noHours} job${r.noHours === 1 ? '' : 's'} with no profit per hour (no hours worked) ${r.noHours === 1 ? 'is' : 'are'} left out of this report.`}
           {r.untyped > 0 && ` ${r.untyped} job${r.untyped === 1 ? ' has' : 's have'} no type of work set.`}
           {' '}Margin % = profit as a share of what the job sold for.
         </p>
