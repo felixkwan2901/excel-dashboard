@@ -327,9 +327,9 @@ function selectionTotals(jobs) {
 }
 const round2 = (v) => Math.round(v * 100) / 100
 
-export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
+export default function CompletedJobsTab({ completedJobs, onBack, focusJob, preset }) {
   const [typeFilter, setTypeFilter] = useLocalStorageState('completedJobs.typeFilter', 'all')
-  const [workFilter, setWorkFilter] = useState(null)   // a type of work picked in the filter
+  const [workFilter, setWorkFilter] = useState(preset?.work ?? null)   // a type of work picked in the filter (or preset from the home screen)
   // Months with jobs, latest first; the page opens on the latest month.
   const months = useMemo(() => [...new Set(completedJobs.map((j) => j.month).filter(Boolean))].sort().reverse(), [completedJobs])
   const [monthPick, setMonthPick] = useState('latest')
@@ -339,7 +339,7 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob }) {
   const [howOpen, setHowOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [compareOpen, setCompareOpen] = useState(false)
-  const [reviewOpen, setReviewOpen] = useState(false)
+  const [reviewOpen, setReviewOpen] = useState(Boolean(preset?.review))
   // Owner and type of work are the same per-job stores the Projects dropdowns
   // write to, so a job set in either place shows the same value in both.
   const [owners, setOwners] = useState(null)

@@ -7,6 +7,7 @@ import { Sidebar, TopStrip } from './components/SidebarNav'
 import { readTheme, applyTheme } from './lib/theme'
 import { installTableScrolling } from './lib/tableScroll'
 import StatsRow from './components/StatsRow'
+import NeedsAttention from './components/NeedsAttention'
 import JobTable from './components/JobTable'
 import ProjectDetail from './components/ProjectDetail'
 import ReviewReport from './components/ReviewReport'
@@ -255,7 +256,11 @@ export default function App() {
     pushUrlState({ view: 'upcoming-work', selectedJobId, dashboardQuery, dashboardFilter })
   }
 
-  function goCompletedJobs() {
+  // Opened from the home screen with a filter already applied (over-quote list
+  // open, or the "Not set" type of work); the tab reads it once when it mounts.
+  const [completedPreset, setCompletedPreset] = useState(null)
+  function goCompletedJobs(preset = null) {
+    setCompletedPreset(preset && typeof preset === 'object' ? preset : null)
     setView('completed-jobs')
     pushUrlState({ view: 'completed-jobs', selectedJobId, dashboardQuery, dashboardFilter })
   }
@@ -466,7 +471,7 @@ export default function App() {
             <LoadStatus status={state.status} error={state.error} onRetry={retryLoad} />
           ) : (
             <Reveal index={0}>
-              <CompletedJobsTab completedJobs={completedJobs} onBack={goHome} focusJob={completedFocus} />
+              <CompletedJobsTab completedJobs={completedJobs} onBack={goHome} focusJob={completedFocus} preset={completedPreset} />
             </Reveal>
           )}
         </main>
@@ -508,6 +513,19 @@ export default function App() {
               <LastSynced />
             </div>
           </div>
+
+          {state.status === 'ready' && (
+            <NeedsAttention
+              jobs={jobs}
+              completedJobs={completedJobs}
+              completedReviews={completedReviews}
+              monthlyClaims={monthlyClaims}
+              onProjects={goDashboard}
+              onCompleted={goCompletedJobs}
+              onMonthlyClaims={goMonthlyClaims}
+              onInsights={goCompletedInsights}
+            />
+          )}
 
           {kpis && (
             <div className="mb-2">
