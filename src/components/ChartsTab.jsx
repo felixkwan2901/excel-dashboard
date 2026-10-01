@@ -90,7 +90,10 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, completedJobs = 
   const [openPerson, setOpenPerson] = useState(null)
   const people = useMemo(() => personTotals(completed).filter((p) => p.weightedGp !== null)
     .sort((a, b) => (personSort === 'name' ? a.name.localeCompare(b.name) : b[personSort] - a[personSort])), [completed, personSort])
-  const peopleMax = Math.max(0, ...people.map((p) => p.weightedGp))
+  // The bar and the figure show whatever the rows are sorted by — GP per
+  // hour, hours or jobs; sorting by name keeps GP per hour.
+  const metric = personSort === 'hours' ? { key: 'hours', fmt: (v) => `${roundHours(v)} h` } : personSort === 'count' ? { key: 'count', fmt: (v) => `${v} job${v === 1 ? '' : 's'}` } : { key: 'weightedGp', fmt: cents }
+  const peopleMax = Math.max(0, ...people.map((p) => p[metric.key]))
 
   // ---- jobs behind a type of work, and the best / worst jobs per hour
   const [openType, setOpenType] = useState(null)
@@ -150,7 +153,7 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, completedJobs = 
         <section className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h2 className="text-[17px] font-semibold text-neutral-100">Employee KPI — {word('personGpHour')}</h2>
+              <h2 className="text-[17px] font-semibold text-neutral-100">Employee KPI — {metric.key === 'hours' ? 'Hours' : metric.key === 'count' ? 'Jobs' : word('personGpHour')}</h2>
               <p className="mt-0.5 text-[12px] text-neutral-400">{monthLabel}{work === 'all' ? '' : ` · ${work}`} · completed quoted jobs. Click a person to see the jobs behind their figure.</p>
             </div>
             <div className="flex items-center gap-1.5" role="group" aria-label="Sort people by">
@@ -166,8 +169,9 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, completedJobs = 
             <ul className="mt-4 flex flex-col gap-1">
               {people.map((p) => {
                 const isOpen = openPerson === p.name
-                const w = peopleMax > 0 ? Math.max(1.5, (Math.max(0, p.weightedGp) / peopleMax) * 100) : 0
-                const tone = p.weightedGp < 0 ? BAD : ACTUAL
+                const v = p[metric.key]
+                const w = peopleMax > 0 ? Math.max(1.5, (Math.max(0, v) / peopleMax) * 100) : 0
+                const tone = v < 0 ? BAD : ACTUAL
                 return (
                   <li key={p.name}>
                     <button type="button" onClick={() => setOpenPerson(isOpen ? null : p.name)} aria-expanded={isOpen}
@@ -180,7 +184,7 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, completedJobs = 
                       <span className="h-3 overflow-hidden rounded-full bg-white/[0.06]" aria-hidden="true">
                         <span className="block h-full rounded-full transition-[width]" style={{ width: `${w}%`, background: tone }} />
                       </span>
-                      <span className="w-20 text-right text-[15px] font-semibold tabular-nums" style={{ color: p.weightedGp < 0 ? BAD : 'var(--text-primary)' }}>{cents(p.weightedGp)}</span>
+                      <span className="w-24 text-right text-[15px] font-semibold tabular-nums" style={{ color: v < 0 ? BAD : 'var(--text-primary)' }}>{metric.fmt(v)}</span>
                     </button>
                     {isOpen && (
                       <div className="ml-14 mr-2 mb-2 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2">
