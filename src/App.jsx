@@ -463,7 +463,6 @@ export default function App() {
             <Reveal index={0}>
               <ChartsTab
                 jobs={jobs}
-                monthlyClaimsHistory={monthlyClaimsHistory}
                 completedJobs={completedJobs}
                 onOpenJob={reviewCompletedJob}
                 onBack={goHome}

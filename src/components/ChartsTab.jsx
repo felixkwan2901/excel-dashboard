@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { cents, money, percent, roundHours } from '../lib/format'
+import { cents, money, roundHours } from '../lib/format'
 import ChartCard from './charts/ChartCard'
 import HBarChart from './charts/HBarChart'
 import { compactMoney } from './charts/chartScale'
@@ -22,11 +22,7 @@ import { word } from '../lib/words'
 // Colours follow charts/colors.js: blue is what happened, orange is what it
 // is compared with, red/green only on a figure or a dot.
 
-const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-const monthShort = (key) => { const [y, m] = key.split('-'); return `${MONTH_LABELS[Number(m) - 1]} ${y.slice(2)}` }
 const NOT_SET = 'Not set'
-// This month, NZ time, as 'YYYY-MM' — the month that is still being claimed.
-const currentMonth = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Pacific/Auckland', year: 'numeric', month: '2-digit' }).format(new Date()).slice(0, 7)
 const SELECT = 'rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-[13px] font-medium text-white'
 
 // A BI-style tile: label, one big figure, one line under it.
@@ -46,7 +42,7 @@ const rate = (jobs) => {
   const h = w.reduce((t, j) => t + j.hours, 0)
   return h ? w.reduce((t, j) => t + projectProfit(j), 0) / h : null
 }
-export default function ChartsTab({ jobs, monthlyClaimsHistory, completedJobs = [], onOpenJob, onBack }) {
+export default function ChartsTab({ jobs, completedJobs = [], onOpenJob, onBack }) {
   // ---- filters: the completed-jobs month and the type of work
   const months = useMemo(() => [...new Set(completedJobs.map((j) => j.month).filter(Boolean))].sort().reverse(), [completedJobs])
   const [month, setMonth] = useState(() => months[0] ?? 'all')
@@ -64,14 +60,6 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, completedJobs = 
   const workOptions = useMemo(() => [...JOB_CATEGORIES, NOT_SET].filter((c) => completedJobs.some((j) => catOf(j) === c) || jobs.some((j) => ((j.jobCategory || '').trim() || NOT_SET) === c)), [completedJobs, jobs, categories]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- headline figures
-  const byMonth = monthlyClaimsHistory?.totalsByMonth ?? []
-  // The headline figures and the margin line use the last COMPLETE month. On
-  // the 1st, "this month" is three claims against a month of costs and reads
-  // like a collapse; the bar chart still shows the month so far, labelled.
-  const now = currentMonth()
-  const settled = byMonth.filter((t) => t.month !== now)
-  const last = settled.at(-1), prev = settled.at(-2)
-  const marginOf = (t) => (t && t.totalClaim ? (t.totalClaim - t.totalCosts) / t.totalClaim : null)
   const over = jobsToReview(completed)
 
   // ---- 3. completed jobs: profit per hour by type of work
@@ -89,7 +77,7 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, completedJobs = 
   const [personSort, setPersonSort] = useState('weightedGp')
   const [openPerson, setOpenPerson] = useState(null)
   const people = useMemo(() => personTotals(completed).filter((p) => p.weightedGp !== null)
-    .sort((a, b) => (personSort === 'name' ? a.name.localeCompare(b.name) : b[personSort] - a[personSort])), [completed, personSort])
+    .sort((a, b) => b[personSort] - a[personSort]), [completed, personSort])
   // The bar and the figure show whatever the rows are sorted by — GP per
   // hour, hours or jobs; sorting by name keeps GP per hour.
   const metric = personSort === 'hours' ? { key: 'hours', fmt: (v) => `${roundHours(v)} h` } : personSort === 'count' ? { key: 'count', fmt: (v) => `${v} job${v === 1 ? '' : 's'}` } : { key: 'weightedGp', fmt: cents }
@@ -141,70 +129,13 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, completedJobs = 
 
       {/* headline figures */}
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <Kpi label={last ? `Claimed · ${monthShort(last.month)}` : 'Claimed'} value={last ? money(last.totalClaim) : '—'} sub={prev ? `${monthShort(prev.month)}: ${money(prev.totalClaim)}` : undefined} />
-        <Kpi label={last ? `Costs · ${monthShort(last.month)}` : 'Costs'} value={last ? money(last.totalCosts) : '—'} sub={prev ? `${monthShort(prev.month)}: ${money(prev.totalCosts)}` : undefined} />
-        <Kpi label={last ? `Margin · ${monthShort(last.month)}` : 'Margin'} value={marginOf(last) == null ? '—' : percent(marginOf(last))} tone={marginOf(last) == null ? undefined : marginOf(last) < 0 ? BAD : GOOD}
-          sub={marginOf(prev) == null ? undefined : `${monthShort(prev.month)}: ${percent(marginOf(prev))}`} />
-        <Kpi label={`${word('profitPerHour')} · completed jobs`} value={overall == null ? '—' : `${cents(overall)}/hr`} sub={`${completed.length} job${completed.length === 1 ? '' : 's'} · ${monthLabel}${over.length ? ` · ${over.length} over quote` : ''}`} />
+        <Kpi label={`${word('profitPerHour')} · completed jobs`} value={overall == null ? '—' : `${cents(overall)}/hr`} sub={`${money(completed.reduce((t, j) => t + (projectProfit(j) ?? 0), 0))} profit ÷ ${roundHours(completed.reduce((t, j) => t + (j.hours ?? 0), 0))} h`} />
+        <Kpi label={`Jobs completed · ${monthLabel}`} value={completed.length} sub={`${completed.filter((j) => j.type === 'chargeup').length} charge-up · ${completed.filter((j) => j.type === 'quoted').length} quoted`} />
+        <Kpi label="Over quote" value={over.length} tone={over.length ? BAD : undefined} sub={`of ${completed.filter((j) => j.type === 'quoted').length} quoted job${completed.filter((j) => j.type === 'quoted').length === 1 ? '' : 's'}`} />
+        <Kpi label="Best-paying type of work" value={profitByType[0] ? `${cents(profitByType[0].gp)}/hr` : '—'} tone={profitByType[0] ? GOOD : undefined} sub={profitByType[0] ? `${profitByType[0].label} · ${profitByType[0].jobs} job${profitByType[0].jobs === 1 ? '' : 's'}` : 'no completed jobs yet'} />
       </div>
 
       <div className="flex flex-col gap-5">
-        {/* Employee KPI: a bar per person, their photo beside it. Click a person for their jobs. */}
-        <section className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="text-[17px] font-semibold text-neutral-100">Employee KPI — {metric.key === 'hours' ? 'Hours' : metric.key === 'count' ? 'Jobs' : word('personGpHour')}</h2>
-              <p className="mt-0.5 text-[12px] text-neutral-400">{monthLabel}{work === 'all' ? '' : ` · ${work}`} · completed quoted jobs. Click a person to see the jobs behind their figure.</p>
-            </div>
-            <div className="flex items-center gap-1.5" role="group" aria-label="Sort people by">
-              {[['weightedGp', word('personGpHour')], ['hours', 'Hours'], ['count', 'Jobs'], ['name', 'Name']].map(([k, label]) => (
-                <button key={k} type="button" onClick={() => setPersonSort(k)} aria-pressed={personSort === k}
-                  className={`rounded-full border px-3 py-1 text-[12px] font-medium transition-colors ${personSort === k ? 'border-brand-green/50 bg-brand-green/10 text-brand-green' : 'border-white/10 text-neutral-400 hover:border-white/20 hover:text-white'}`}>
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-          {people.length === 0 ? <p className="py-8 text-center text-[13px] text-neutral-400">No completed quoted jobs for this month and type of work.</p> : (
-            <ul className="mt-4 flex flex-col gap-1">
-              {people.map((p) => {
-                const isOpen = openPerson === p.name
-                const v = p[metric.key]
-                const w = peopleMax > 0 ? Math.max(1.5, (Math.max(0, v) / peopleMax) * 100) : 0
-                const tone = v < 0 ? BAD : ACTUAL
-                return (
-                  <li key={p.name}>
-                    <button type="button" onClick={() => setOpenPerson(isOpen ? null : p.name)} aria-expanded={isOpen}
-                      className={`grid w-full grid-cols-[auto_minmax(140px,220px)_minmax(0,1fr)_auto] items-center gap-4 rounded-xl px-2 py-2 text-left transition-colors hover:bg-white/[0.04] ${isOpen ? 'bg-white/[0.04]' : ''}`}>
-                      <TeamAvatar name={p.name} size={40} />
-                      <span className="flex min-w-0 flex-col leading-tight">
-                        <span className="truncate text-[14px] font-medium text-white">{p.name}</span>
-                        <span className="truncate text-[11.5px] text-neutral-500">{teamMember(p.name)?.role ?? `${p.count} job${p.count === 1 ? '' : 's'}`} · {p.hours} h</span>
-                      </span>
-                      <span className="h-3 overflow-hidden rounded-full bg-white/[0.06]" aria-hidden="true">
-                        <span className="block h-full rounded-full transition-[width]" style={{ width: `${w}%`, background: tone }} />
-                      </span>
-                      <span className="w-24 text-right text-[15px] font-semibold tabular-nums" style={{ color: v < 0 ? BAD : 'var(--text-primary)' }}>{metric.fmt(v)}</span>
-                    </button>
-                    {isOpen && (
-                      <div className="ml-14 mr-2 mb-2 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2">
-                        <div className="grid grid-cols-[4.5rem_minmax(0,1fr)_4.5rem_6rem] gap-x-4 text-[11px] uppercase tracking-wide text-neutral-500"><span>Job #</span><span>Job</span><span className="text-right">Hours</span><span className="text-right">{word('personGpHour')}</span></div>
-                        {p.jobs.map(({ job, hours, part }) => (
-                          <button type="button" key={job.jobNumber} onClick={() => onOpenJob?.(job.jobNumber)} title="Open on Completed jobs"
-                            className="grid w-full grid-cols-[4.5rem_minmax(0,1fr)_4.5rem_6rem] gap-x-4 rounded py-0.5 text-left text-[13px] tabular-nums hover:bg-white/[0.05]">
-                            <span className="text-neutral-400">{job.jobNumber}</span><span className="truncate text-neutral-200">{job.jobName}</span>
-                            <span className="text-right text-neutral-300">{hours} h</span><span className="text-right text-white">{cents(part)}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-        </section>
-
         {/* By type of work: a bar per type with a photo of that kind of job, from
             the company's own projects. Click a type for its jobs. */}
         <ChartCard title={`${word('profitPerHour')} by type of work — completed jobs`}
@@ -252,6 +183,62 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, completedJobs = 
             </ul>
           )}
         </ChartCard>
+
+        {/* Employee KPI: a bar per person, their photo beside it. Click a person for their jobs. */}
+        <section className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-[17px] font-semibold text-neutral-100">Employee KPI — {metric.key === 'hours' ? 'Hours' : metric.key === 'count' ? 'Jobs' : word('personGpHour')}</h2>
+              <p className="mt-0.5 text-[12px] text-neutral-400">{monthLabel}{work === 'all' ? '' : ` · ${work}`} · completed quoted jobs. Click a person to see the jobs behind their figure.</p>
+            </div>
+            <div className="flex items-center gap-1.5" role="group" aria-label="Sort people by">
+              {[['weightedGp', word('personGpHour')], ['hours', 'Hours'], ['count', 'Jobs']].map(([k, label]) => (
+                <button key={k} type="button" onClick={() => setPersonSort(k)} aria-pressed={personSort === k}
+                  className={`rounded-full border px-3 py-1 text-[12px] font-medium transition-colors ${personSort === k ? 'border-brand-green/50 bg-brand-green/10 text-brand-green' : 'border-white/10 text-neutral-400 hover:border-white/20 hover:text-white'}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {people.length === 0 ? <p className="py-8 text-center text-[13px] text-neutral-400">No completed quoted jobs for this month and type of work.</p> : (
+            <ul className="mt-4 flex flex-col gap-1">
+              {people.map((p) => {
+                const isOpen = openPerson === p.name
+                const v = p[metric.key]
+                const w = peopleMax > 0 ? Math.max(1.5, (Math.max(0, v) / peopleMax) * 100) : 0
+                const tone = v < 0 ? BAD : ACTUAL
+                return (
+                  <li key={p.name}>
+                    <button type="button" onClick={() => setOpenPerson(isOpen ? null : p.name)} aria-expanded={isOpen}
+                      className={`grid w-full grid-cols-[auto_minmax(140px,220px)_minmax(0,1fr)_auto] items-center gap-4 rounded-xl px-2 py-2 text-left transition-colors hover:bg-white/[0.04] ${isOpen ? 'bg-white/[0.04]' : ''}`}>
+                      <TeamAvatar name={p.name} size={40} />
+                      <span className="flex min-w-0 flex-col leading-tight">
+                        <span className="truncate text-[14px] font-medium text-white">{p.name}</span>
+                        <span className="truncate text-[11.5px] text-neutral-500">{teamMember(p.name)?.role ?? `${p.count} job${p.count === 1 ? '' : 's'}`} · {p.hours} h</span>
+                      </span>
+                      <span className="h-3 overflow-hidden rounded-full bg-white/[0.06]" aria-hidden="true">
+                        <span className="block h-full rounded-full transition-[width]" style={{ width: `${w}%`, background: tone }} />
+                      </span>
+                      <span className="w-24 text-right text-[15px] font-semibold tabular-nums" style={{ color: v < 0 ? BAD : 'var(--text-primary)' }}>{metric.fmt(v)}</span>
+                    </button>
+                    {isOpen && (
+                      <div className="ml-14 mr-2 mb-2 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+                        <div className="grid grid-cols-[4.5rem_minmax(0,1fr)_4.5rem_6rem] gap-x-4 text-[11px] uppercase tracking-wide text-neutral-500"><span>Job #</span><span>Job</span><span className="text-right">Hours</span><span className="text-right">{word('personGpHour')}</span></div>
+                        {p.jobs.map(({ job, hours, part }) => (
+                          <button type="button" key={job.jobNumber} onClick={() => onOpenJob?.(job.jobNumber)} title="Open on Completed jobs"
+                            className="grid w-full grid-cols-[4.5rem_minmax(0,1fr)_4.5rem_6rem] gap-x-4 rounded py-0.5 text-left text-[13px] tabular-nums hover:bg-white/[0.05]">
+                            <span className="text-neutral-400">{job.jobNumber}</span><span className="truncate text-neutral-200">{job.jobName}</span>
+                            <span className="text-right text-neutral-300">{hours} h</span><span className="text-right text-white">{cents(part)}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </section>
 
         <ChartCard title="Best and worst jobs per hour — completed jobs"
           footnote={`${monthLabel}. The five that paid best per hour and the five that paid worst. Click a bar to open the job on Completed jobs.`}
