@@ -11,7 +11,8 @@ import {
   saveExtraTask,
   removeExtraTask,
 } from '../lib/fieldChecklistOverridesStore'
-import { fieldProgress, isStale, toTaskRows } from '../lib/fieldProgress'
+import { fieldProgress, isStale } from '../lib/fieldProgress'
+import { jobTaskRows } from '../lib/fieldSync'
 import { money, percent, roundHours } from '../lib/format'
 import { statusReasons } from '../lib/statusReasons'
 import { pollStagedStatus } from '../lib/pollStagedStatus'
@@ -318,7 +319,8 @@ export default function ProjectDetail({ job, onBack }) {
   const fieldSummary =
     fieldState.status === 'ready' && fieldState.record
       ? {
-          ...fieldProgress(toTaskRows(fieldState.record, fieldState.catalogue)),
+          // The phone's rule: every task on the checklist, untouched ones at 0.
+          ...fieldProgress(jobTaskRows(fieldState.record, fieldState.catalogue, fieldState.overrides)),
           stale: isStale(fieldState.record.updatedAt),
           updatedAt: fieldState.record.updatedAt,
         }

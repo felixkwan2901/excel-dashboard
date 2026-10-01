@@ -1,6 +1,7 @@
 import { RefreshCw } from 'lucide-react'
 import SiteQrCode from './SiteQrCode'
-import { fieldProgress, isStale, toHistoryRows, toTaskRows } from '../lib/fieldProgress'
+import { fieldProgress, isStale, toHistoryRows } from '../lib/fieldProgress'
+import { labelledTaskRows } from '../lib/fieldSync'
 import { formatRelativeTime } from '../lib/relativeTime'
 
 // What the crew recorded on site, read-only.
@@ -25,7 +26,9 @@ export default function FieldProgressTab({ state, onRefresh, jobNumber, jobName 
     )
   }
 
-  const rows = toTaskRows(state.record, state.catalogue)
+  // The whole checklist a phone shows for this job, not just the tasks
+  // someone has touched — so the percentage here is the one on the phone's ring.
+  const rows = state.record ? labelledTaskRows(state.record, state.catalogue, state.overrides) : []
   const history = toHistoryRows(state.record, state.catalogue)
 
   if (rows.length === 0) {
@@ -49,10 +52,12 @@ export default function FieldProgressTab({ state, onRefresh, jobNumber, jobName 
       <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-white/[0.06] pb-3">
         <p className="text-[13px] text-neutral-400">
           <span className="text-[15px] font-semibold text-white tabular-nums">
-            {progress.percent}%
+            {progress.percent ?? 0}%
           </span>{' '}
-          average across {progress.total} task{progress.total === 1 ? '' : 's'} ·{' '}
-          {progress.started} started
+          of the checklist done · {progress.started} of {progress.total} task{progress.total === 1 ? '' : 's'} started
+          <span className="block text-[12px] text-neutral-500">
+            The same figure as the phone&apos;s ring: every task on this job&apos;s checklist averaged, untouched ones at 0%, ones marked &ldquo;doesn&apos;t apply&rdquo; left out.
+          </span>
         </p>
         {stale && (
           <span className="text-[12px] text-amber-400">
@@ -68,7 +73,8 @@ export default function FieldProgressTab({ state, onRefresh, jobNumber, jobName 
             className="flex items-center gap-4 border-b border-white/[0.06] py-2.5 last:border-b-0"
           >
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[13px] text-neutral-300">{row.label}</p>
+              <p className={`truncate text-[13px] ${row.recorded ? 'text-neutral-300' : 'text-neutral-500'}`}>{row.label}{row.na && <span className="ml-1.5 text-[11px] text-neutral-500">doesn&apos;t apply</span>}</p>
+              {!row.recorded && <p className="text-[12px] text-neutral-600">Not started</p>}
               {row.by && (
                 <p className="truncate text-[12px] text-neutral-500">
                   {row.by} · {formatRelativeTime(row.at)}

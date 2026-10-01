@@ -41,6 +41,18 @@ export function jobTaskRows(record, catalogue = [], jobOverrides = null) {
   return rows
 }
 
+// The same rows with the label a phone shows for each: the catalogue's, the
+// office's rewording for this job, or the crew's own for a task they added.
+export function labelledTaskRows(record, catalogue = [], jobOverrides = null) {
+  const labels = new Map()
+  for (const t of catalogue ?? []) if (t?.id) labels.set(t.id, t.label ?? t.id)
+  for (const t of jobOverrides?.extra ?? []) if (t?.id) labels.set(t.id, t.label ?? t.id)
+  for (const t of record?.extraTasks ?? []) if (t?.id) labels.set(t.id, t.label ?? t.id)
+  for (const [id, label] of Object.entries(jobOverrides?.overrides ?? {})) if (label) labels.set(id, label)
+  for (const [id, label] of Object.entries(record?.labelOverrides ?? {})) if (label) labels.set(id, label)
+  return jobTaskRows(record, catalogue, jobOverrides).map((r) => ({ ...r, label: labels.get(r.id) ?? r.id, recorded: Boolean(record?.tasks?.[r.id]) }))
+}
+
 // One record → what the dashboard shows for it. Who is on site is whoever's
 // latest visit is an arrival; "updated" is the last change to any task.
 export function summariseFieldRecord(record, catalogue = [], jobOverrides = null) {
