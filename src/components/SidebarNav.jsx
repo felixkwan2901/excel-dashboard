@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react'
 import {
   BarChart3,
-  FileText,
-  ListChecks,
   Briefcase,
   CalendarClock,
   ChevronRight,
@@ -62,8 +60,6 @@ const NAV_GROUPS = [
       { view: 'monthly-claims', label: 'Monthly claims', icon: Receipt, handler: 'onGoMonthlyClaims' },
       { view: 'completed-jobs', label: 'Completed jobs', icon: CheckCircle2, handler: 'onGoCompletedJobs' },
       { view: 'completed-insights', label: 'Completed insights', icon: BarChart3, handler: 'onGoCompletedInsights' },
-      { view: 'month-report', label: 'Month report', icon: FileText, handler: 'onGoMonthReport' },
-      { view: 'month-end', label: 'Month-end review', icon: ListChecks, handler: 'onGoMonthEnd' },
     ],
   },
   {

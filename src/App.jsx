@@ -593,7 +593,6 @@ export default function App() {
               onCompleted={goCompletedJobs}
               onMonthlyClaims={goMonthlyClaims}
               onInsights={goCompletedInsights}
-              onMonthEnd={goMonthEnd}
             />
           )}
 

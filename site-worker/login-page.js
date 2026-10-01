@@ -35,11 +35,12 @@ const HERO_PHOTO = 'https://www.cdelectrical.co.nz/wp-content/uploads/2025/08/Ko
 const LOGO_URL = 'https://www.cdelectrical.co.nz/wp-content/uploads/2023/06/header-logo-cd.png'
 
 const STYLE = `
-  :root { --ink:#0b1510; --panel:#101c15; --field:#0a130e; --line:#213128; --line-strong:#3a5244;
-          --brand:#41b44a; --brand-ink:#04170c; --text:#f3f6f3; --muted:#9db0a4; --bad:#ff9c6b; }
+  :root { --ink:#0b1510; --panel:#f7f9f7; --field:#ffffff; --line:#dfe6e0; --line-strong:#b9c6bc;
+          --brand:#1f8f3a; --brand-ink:#ffffff; --text:#14201a; --muted:#5b6b61; --bad:#b4471a;
+          --hero-text:#ffffff; --hero-muted:#d9e2dc; }
   * { box-sizing: border-box; }
   html, body { height:100%; }
-  body { margin:0; min-height:100dvh; background:var(--ink); color:var(--text);
+  body { margin:0; min-height:100dvh; background:var(--panel); color:var(--text);
          font:16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
          -webkit-font-smoothing:antialiased; }
 
@@ -48,23 +49,23 @@ const STYLE = `
 
   .hero { position:relative; overflow:hidden; background:#13211a center/cover no-repeat;
           background-image:url('${HERO_PHOTO}'); display:flex; flex-direction:column; justify-content:space-between;
-          padding:36px 40px; }
-  /* Darken where the words sit, leave the middle of the photo alone. */
+          padding:36px 40px; color:var(--hero-text); }
+  /* Darken only where the words sit; the photo itself stays bright. */
   .hero::before { content:""; position:absolute; inset:0;
-                  background: linear-gradient(180deg, rgba(11,21,16,0.72) 0%, rgba(11,21,16,0.08) 35%, rgba(11,21,16,0.15) 60%, rgba(11,21,16,0.88) 100%); }
+                  background: linear-gradient(180deg, rgba(11,21,16,0.55) 0%, rgba(11,21,16,0) 30%, rgba(11,21,16,0) 55%, rgba(11,21,16,0.78) 100%); }
   .hero > * { position:relative; }
   .brand { display:flex; align-items:center; gap:12px; }
   .brand img { display:block; height:38px; width:auto; }
   .brand .fallback { display:none; align-items:center; gap:10px; }
   .brand .fallback .dot { width:28px; height:28px; border-radius:8px; background:var(--brand); flex:none; }
   .brand .fallback b { font-size:17px; font-weight:700; letter-spacing:-0.01em; }
-  .brand .fallback span { display:block; font-size:12px; color:var(--muted); font-weight:400; letter-spacing:0.12em; text-transform:uppercase; }
+  .brand .fallback span { display:block; font-size:12px; color:var(--hero-muted); font-weight:400; letter-spacing:0.12em; text-transform:uppercase; }
   .pitch { max-width:520px; }
-  .pitch .eyebrow { margin:0 0 10px; font-size:12px; font-weight:600; letter-spacing:0.16em; text-transform:uppercase; color:var(--brand); }
+  .pitch .eyebrow { margin:0 0 10px; font-size:12px; font-weight:600; letter-spacing:0.16em; text-transform:uppercase; color:#7ee08a; }
   .pitch h2 { margin:0 0 10px; font-size:30px; line-height:1.15; letter-spacing:-0.02em; font-weight:650; }
-  .pitch p { margin:0; font-size:15px; color:#cfdad3; max-width:440px; }
+  .pitch p { margin:0; font-size:15px; color:var(--hero-muted); max-width:440px; }
 
-  .panel { background:var(--panel); border-left:1px solid var(--line);
+  .panel { background:var(--panel); border-left:1px solid var(--line); color:var(--text);
            display:flex; flex-direction:column; justify-content:center; padding:48px 40px; }
   .form { width:100%; max-width:400px; margin:0 auto; }
   h1 { margin:0 0 6px; font-size:28px; letter-spacing:-0.02em; font-weight:650; }
@@ -74,8 +75,8 @@ const STYLE = `
   input { width:100%; padding:14px 16px; margin-bottom:18px; font-size:17px; color:var(--text);
           background:var(--field); border:1px solid var(--line-strong); border-radius:12px;
           transition: border-color 120ms ease, box-shadow 120ms ease; }
-  input::placeholder { color:#5f7368; }
-  input:focus { outline:none; border-color:var(--brand); box-shadow:0 0 0 3px rgba(65,180,74,0.28); }
+  input::placeholder { color:#9aa8a0; }
+  input:focus { outline:none; border-color:var(--brand); box-shadow:0 0 0 3px rgba(31,143,58,0.22); }
   input.code { font-size:34px; font-weight:600; letter-spacing:0.4em; text-align:center; text-indent:0.4em;
                font-family:ui-monospace, SFMono-Regular, Menlo, monospace; padding:16px 8px; }
   button { width:100%; min-height:52px; padding:14px; font-size:17px; font-weight:700; cursor:pointer;
@@ -83,15 +84,15 @@ const STYLE = `
            transition: filter 120ms ease, transform 120ms ease; }
   button:hover { filter:brightness(1.08); }
   button:active { transform:translateY(1px); }
-  button:focus-visible { outline:3px solid #fff; outline-offset:2px; }
+  button:focus-visible { outline:3px solid var(--text); outline-offset:2px; }
   .err { margin:0 0 18px; padding:12px 14px; border-radius:12px; font-size:14px; line-height:1.4;
-         color:#ffd8c4; background:rgba(255,120,60,0.12); border:1px solid rgba(255,120,60,0.45); }
+         color:#7a2e0e; background:#fff1e8; border:1px solid #f2b893; }
   .err::before { content:"\\26A0\\FE0F"; margin-right:8px; }
   .alt { margin:20px 0 0; text-align:center; font-size:14px; }
-  .alt a { color:var(--text); text-decoration:underline; text-underline-offset:3px; text-decoration-color:var(--line-strong); }
+  .alt a { color:var(--text); text-decoration:underline; text-underline-offset:3px; text-decoration-color:var(--line-strong); font-weight:500; }
   .alt a:hover { color:var(--brand); text-decoration-color:var(--brand); }
   .foot { margin:26px 0 0; padding-top:18px; border-top:1px solid var(--line); font-size:13px; color:var(--muted); line-height:1.5; }
-  .legal { margin:40px auto 0; max-width:400px; width:100%; font-size:12px; color:#6f8277; }
+  .legal { margin:40px auto 0; max-width:400px; width:100%; font-size:12px; color:#8a978f; }
 
   /* A phone: the photo becomes a band across the top with the wordmark on
      it, the form sits on the solid panel underneath. */
@@ -113,7 +114,7 @@ const shell = (title, inner) => `<!doctype html>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="robots" content="noindex, nofollow" />
-<meta name="theme-color" content="#101c15" />
+<meta name="theme-color" content="#f7f9f7" />
 <title>${escape(title)} — Cassidy-Davies Electrical</title>
 <style>${STYLE}</style>
 </head>
