@@ -239,17 +239,16 @@ function PeopleSummary({ jobs, scope, onOpenJob }) {
                     <tr>
                       <td colSpan={span} className="bg-white/[0.02]">
                         <div className="flex max-w-3xl flex-col gap-1.5 py-2 pl-6 text-[13px]">
-                          <div className="grid grid-cols-[4rem_minmax(0,1fr)_5rem_4rem_8rem_6rem] gap-x-4 text-[11px] uppercase tracking-wide text-neutral-500">
-                            <span>Job #</span><span>Job name</span><span>Month</span><span className="text-right">Hours</span><span className="text-right">{word('shareOfTime')}</span><span className="text-right">{word('theirProfit')}</span>
+                          <div className="grid grid-cols-[4rem_minmax(0,1fr)_5rem_4rem_6rem] gap-x-4 text-[11px] uppercase tracking-wide text-neutral-500">
+                            <span>Job #</span><span>Job name</span><span>Month</span><span className="text-right">Hours</span><span className="text-right">{word('theirProfit')}</span>
                           </div>
-                          {[...p.jobs].sort((a, b) => (b.job.month ?? '').localeCompare(a.job.month ?? '')).map(({ job, hours, part, timeShare }) => (
+                          {[...p.jobs].sort((a, b) => (b.job.month ?? '').localeCompare(a.job.month ?? '')).map(({ job, hours, part }) => (
                             <button type="button" key={job.jobNumber} onClick={() => onOpenJob(job.jobNumber)} title="Open on the Completed jobs tab"
-                              className="grid grid-cols-[4rem_minmax(0,1fr)_5rem_4rem_8rem_6rem] gap-x-4 rounded text-left tabular-nums hover:bg-white/[0.05]">
+                              className="grid grid-cols-[4rem_minmax(0,1fr)_5rem_4rem_6rem] gap-x-4 rounded text-left tabular-nums hover:bg-white/[0.05]">
                               <span className="text-neutral-400">{job.jobNumber}</span>
                               <span className="truncate text-neutral-200">{job.jobName}</span>
                               <span className="text-neutral-400">{monthName(job.month, 'short')}</span>
                               <span className="text-right text-neutral-300">{hours} h</span>
-                              <span className="text-right text-neutral-400">{Math.round(timeShare * 1000) / 10}%</span>
                               <span className="text-right text-white">{cents(part)}</span>
                             </button>
                           ))}
