@@ -30,8 +30,12 @@ export const TEAM = {
   tom: { role: 'Team Leader — Residential', photo: `${U}2024/09/164eedc7-c818-4f04-a9e9-4737b27e93dd-224x300.jpg` },
   rhod: { role: 'Apprentice Electrician' },          // the site shows a placeholder for Rhod
   tim: { role: 'General Manager', photo: `${U}2024/08/IMG_5110-230x300.jpg` },
-  viv: { role: 'Office Manager', photo: `${U}2024/08/IMG_5093-235x300.png` },
-  jacob: { role: 'Electrician' },                    // no photo of his own on the site yet
+  viv: { role: 'Office Manager', photo: `${U}2024/07/IMG_5143-1-222x300.png` },
+  jacob: { role: 'Electrician', photo: `${U}2024/08/IMG_5093-235x300.png` },
+  // Ben is not on the team page yet. His photo is the one of him in the green
+  // shirt at the workshop door, cropped to a portrait like the others and
+  // kept in the dashboard's public/team/ — the field app reads the same file.
+  ben: { photo: `${import.meta.env.BASE_URL}team/ben.jpg` },
 }
 
 export function teamMember(fullName) {

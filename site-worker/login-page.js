@@ -27,18 +27,14 @@ const escape = (s) =>
 // panel's own dark fill takes over — an <img> in the same spot is a
 // broken-image icon in the middle of the sign-in screen. This page has one
 // job, and it cannot depend on the marketing site being up to do it.
-// Six of Cassidy-Davies' own jobs, from cdelectrical.co.nz/projects, tiled
-// across the photo side — the collage the owner preferred, inside the split
-// layout. Each is a CSS background on its own tile, so a slow or unreachable
-// marketing site shows a dark tile, never a broken-image icon.
-const PROJECT_PHOTOS = [
-  'https://www.cdelectrical.co.nz/wp-content/uploads/2025/08/1.png',
-  'https://www.cdelectrical.co.nz/wp-content/uploads/2024/12/IMG_6354-1536x1152.jpg',
-  'https://www.cdelectrical.co.nz/wp-content/uploads/2024/12/AquaPro-1536x1104.jpg',
-  'https://www.cdelectrical.co.nz/wp-content/uploads/2024/11/uploads1715202201060-6bgnn2aulol-c76a6241ef84e850120e165b75daabcb1-360-Montreal-Street-21-scaled-1-1536x1025.jpg',
-  'https://www.cdelectrical.co.nz/wp-content/uploads/2024/12/IMG_5047-1536x1092.jpg',
-  'https://www.cdelectrical.co.nz/wp-content/uploads/2025/04/Stairs.png',
-]
+// The crew in front of the workshop, the photo the company uses as its
+// banner — the full 1920px file, not the 851px cover crop, so it is sharp on
+// a laptop. It sits in the middle of the photo side at full width, with black
+// above and below and the top and bottom faded into it: the words at the top
+// and the bottom land on black, the faces in the middle stay bright. A CSS
+// background, so a slow or unreachable marketing site shows black, never a
+// broken-image icon.
+const CREW_PHOTO = 'https://www.cdelectrical.co.nz/wp-content/uploads/2025/08/Team-Shot.jpg'
 
 // The company's own wordmark, hotlinked for the same reason as the photo:
 // one file to keep in sync, and it degrades to the plain text mark beside it
@@ -58,22 +54,15 @@ const STYLE = `
   /* Two halves on a laptop: the work on the left, the form on the right. */
   .page { min-height:100dvh; display:grid; grid-template-columns: minmax(0, 1.15fr) minmax(400px, 0.85fr); }
 
-  .hero { position:relative; overflow:hidden; background:#13211a; display:flex; flex-direction:column; justify-content:space-between;
+  .hero { position:relative; overflow:hidden; background:#000; display:flex; flex-direction:column; justify-content:space-between;
           padding:36px 40px; color:var(--hero-text); }
-  /* The collage: three across, two down, a hairline between tiles. */
-  .hero__grid { position:absolute; inset:0; display:grid; grid-template-columns:3fr 2fr 2fr; grid-template-rows:1fr 1fr; gap:0;
-                filter:saturate(0.8) brightness(0.72) contrast(1.05); }
-  .hero__grid div { background:#1a2a21 center/cover no-repeat; }
-  /* The crew photo stands tall on the left; the others tile beside it. A
-     green wash over the lot ties six photos into one picture. */
-  .hero__grid div:first-child { grid-row:1 / span 2; }
-  .hero__wash { position:absolute; inset:0; z-index:1; background:#0f5c2d; mix-blend-mode:multiply; opacity:0.35; }
-  /* Darken only where the words sit; the photo itself stays bright. */
+  /* The photo: full width, centred, black either side of it top and bottom. */
+  .hero__photo { position:absolute; inset:0; background:#000 center / 100% auto no-repeat; }
+  /* Fade the top and the bottom of the picture into the black. */
   .hero::before { content:""; position:absolute; inset:0; z-index:1;
-                  background: linear-gradient(180deg, rgba(11,21,16,0.62) 0%, rgba(11,21,16,0.12) 32%, rgba(11,21,16,0.15) 55%, rgba(11,21,16,0.86) 100%); }
+                  background: linear-gradient(180deg, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.45) 18%, rgba(0,0,0,0) 36%, rgba(0,0,0,0) 62%, rgba(0,0,0,0.5) 82%, rgba(0,0,0,0.94) 100%); }
   .hero > * { position:relative; z-index:2; }
-  .hero > .hero__grid, .hero > .hero__wash { position:absolute; }
-  .hero > .hero__grid { z-index:0; }
+  .hero > .hero__photo { position:absolute; z-index:0; }
   .brand { display:flex; align-items:center; gap:12px; }
   .brand img { display:block; height:38px; width:auto; }
   .brand .fallback { display:none; align-items:center; gap:10px; }
@@ -119,7 +108,9 @@ const STYLE = `
   @media (max-width: 879px) {
     .page { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
     .hero { min-height:220px; padding:22px 20px; }
-    .hero__grid { grid-template-columns:3fr 2fr 2fr; grid-template-rows:1fr 1fr; }
+    /* A band 220px tall is shorter than the photo at full width: fill it
+       and keep the faces, which sit in the middle of the frame. */
+    .hero__photo { background-size:cover; }
     .pitch h2 { font-size:22px; }
     .pitch p { display:none; }
     .panel { border-left:0; border-top:1px solid var(--line); padding:28px 20px 32px; justify-content:flex-start; }
@@ -142,10 +133,7 @@ const shell = (title, inner) => `<!doctype html>
 <body>
   <div class="page">
     <aside class="hero" aria-hidden="true">
-      <div class="hero__grid">
-${PROJECT_PHOTOS.map((url) => `        <div style="background-image:url('${url}')"></div>`).join('\n')}
-      </div>
-      <div class="hero__wash"></div>
+      <div class="hero__photo" style="background-image:url('${CREW_PHOTO}')"></div>
       <div class="brand">
         <!-- onerror is the one inline script on this page. It runs with no
              network access of its own — swap to the plain text mark, nothing
