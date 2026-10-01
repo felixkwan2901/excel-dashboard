@@ -457,8 +457,8 @@ export default function App() {
               <ChartsTab
                 jobs={jobs}
                 monthlyClaimsHistory={monthlyClaimsHistory}
-                upcomingWork={upcomingWork}
                 completedJobs={completedJobs}
+                fieldProgress={fieldProgress}
                 onSelectJob={openJob}
                 onBack={goHome}
               />
