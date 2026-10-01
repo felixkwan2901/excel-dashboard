@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { cents, money, percent, roundHours } from '../lib/format'
 import ChartCard from './charts/ChartCard'
-import BarChart from './charts/BarChart'
 import HBarChart from './charts/HBarChart'
 import { compactMoney } from './charts/chartScale'
-import { ACTUAL, BAD, COMPARE, GOOD } from './charts/colors'
-import { monthName, projectGpPerHour, projectProfit } from '../lib/completedJobPeople'
+import { ACTUAL, BAD, GOOD } from './charts/colors'
+import { monthName, personTotals, projectGpPerHour, projectProfit } from '../lib/completedJobPeople'
+import TeamAvatar from './TeamAvatar'
+import { teamMember } from '../lib/teamPhotos'
 import { jobsToReview } from '../lib/completedJobReview'
 import { fetchJobCategories } from '../lib/jobCategoryStore'
 import { JOB_CATEGORIES } from '../lib/jobCategories'
@@ -44,7 +45,7 @@ const rate = (jobs) => {
   const h = w.reduce((t, j) => t + j.hours, 0)
   return h ? w.reduce((t, j) => t + projectProfit(j), 0) / h : null
 }
-export default function ChartsTab({ jobs, monthlyClaimsHistory, completedJobs = [], onBack }) {
+export default function ChartsTab({ jobs, monthlyClaimsHistory, completedJobs = [], onOpenJob, onBack }) {
   // ---- filters: the completed-jobs month and the type of work
   const months = useMemo(() => [...new Set(completedJobs.map((j) => j.month).filter(Boolean))].sort().reverse(), [completedJobs])
   const [month, setMonth] = useState(() => months[0] ?? 'all')
@@ -71,13 +72,6 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, completedJobs = 
   const last = settled.at(-1), prev = settled.at(-2)
   const marginOf = (t) => (t && t.totalClaim ? (t.totalClaim - t.totalCosts) / t.totalClaim : null)
   const over = jobsToReview(completed)
-  const quotedDone = completed.filter((j) => j.type === 'quoted')
-
-  // ---- 1. claimed vs costs by month
-  const moneyByMonth = useMemo(() => byMonth.map((t) => ({
-    label: monthShort(t.month), fullLabel: monthName(t.month), values: [t.totalClaim, t.totalCosts],
-    note: (t.month === now ? 'So far this month · ' : '') + (t.totalClaim - t.totalCosts < 0 ? `${money(t.totalCosts - t.totalClaim)} more spent than claimed` : `${money(t.totalClaim - t.totalCosts)} ahead`),
-  })), [byMonth, now])
 
   // ---- 3. completed jobs: profit per hour by type of work
   const overall = rate(completed)
@@ -90,13 +84,23 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, completedJobs = 
       .sort((a, b) => b.gp - a.gp)
   }, [completed, categories, overall]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ---- 4. quoted jobs: hours worked against the quote
-  const hoursVsQuote = useMemo(() => quotedDone
-    .filter((j) => j.quotedHours > 0)
-    .map((j) => ({ label: `${j.jobNumber} ${j.jobName}`, fullLabel: `${j.jobNumber} ${j.jobName}`, jobNumber: j.jobNumber,
-      values: [j.hours, j.quotedHours], tones: [j.hours > j.quotedHours + 0.005 ? 'bad' : null],
-      ratio: j.hours / j.quotedHours, note: j.hours > j.quotedHours ? `${roundHours(j.hours - j.quotedHours)} h over the quote` : `${roundHours(j.quotedHours - j.hours)} h under` }))
-    .sort((a, b) => b.ratio - a.ratio).slice(0, 12), [quotedDone])
+  // ---- people: each person's figure on the completed quoted jobs shown
+  const [personSort, setPersonSort] = useState('weightedGp')
+  const [openPerson, setOpenPerson] = useState(null)
+  const people = useMemo(() => personTotals(completed).filter((p) => p.weightedGp !== null)
+    .sort((a, b) => (personSort === 'name' ? a.name.localeCompare(b.name) : b[personSort] - a[personSort])), [completed, personSort])
+  const peopleMax = Math.max(0, ...people.map((p) => p.weightedGp))
+
+  // ---- jobs behind a type of work, and the best / worst jobs per hour
+  const [openType, setOpenType] = useState(null)
+  const typeJobs = useMemo(() => (openType ? completed.filter((j) => catOf(j) === openType).sort((a, b) => (projectGpPerHour(b) ?? -Infinity) - (projectGpPerHour(a) ?? -Infinity)) : []), [completed, openType, categories]) // eslint-disable-line react-hooks/exhaustive-deps
+  const bestWorst = useMemo(() => {
+    const ranked = completed.filter((j) => projectGpPerHour(j) !== null).sort((a, b) => projectGpPerHour(b) - projectGpPerHour(a))
+    const pick = ranked.length > 10 ? [...ranked.slice(0, 5), ...ranked.slice(-5)] : ranked
+    return pick.map((j) => ({ label: `${j.jobNumber} ${j.jobName}`, fullLabel: `${j.jobNumber} ${j.jobName}`, jobNumber: j.jobNumber,
+      values: [projectGpPerHour(j)], tones: [projectGpPerHour(j) < 0 ? 'bad' : overall != null && projectGpPerHour(j) >= overall ? 'good' : null],
+      note: `${j.type === 'quoted' ? 'Quoted' : 'Charge-up'} · ${j.hours} h · ${money(projectProfit(j))} profit` }))
+  }, [completed, overall])
 
   const monthLabel = month === 'all' ? 'all months' : monthName(month)
 
@@ -111,7 +115,7 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, completedJobs = 
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-white">Dashboard</h1>
-          <p className="mt-1 text-sm text-neutral-400">The month in money, and what the finished jobs paid per hour. Hover a bar for the exact figure.</p>
+          <p className="mt-1 text-sm text-neutral-400">What the finished jobs paid per hour — by person, by type of work, and job by job. Click anything to see what is behind it.</p>
         </div>
         <div className="flex flex-wrap items-center gap-4">
           <label className="flex items-center gap-2 text-[12px] text-neutral-500">
@@ -141,26 +145,87 @@ export default function ChartsTab({ jobs, monthlyClaimsHistory, completedJobs = 
       </div>
 
       <div className="flex flex-col gap-5">
+        {/* Employee KPI: a bar per person, their photo beside it. Click a person for their jobs. */}
+        <section className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-[17px] font-semibold text-neutral-100">Employee KPI — {word('personGpHour')}</h2>
+              <p className="mt-0.5 text-[12px] text-neutral-400">{monthLabel}{work === 'all' ? '' : ` · ${work}`} · completed quoted jobs. Click a person to see the jobs behind their figure.</p>
+            </div>
+            <div className="flex items-center gap-1.5" role="group" aria-label="Sort people by">
+              {[['weightedGp', word('personGpHour')], ['hours', 'Hours'], ['count', 'Jobs'], ['name', 'Name']].map(([k, label]) => (
+                <button key={k} type="button" onClick={() => setPersonSort(k)} aria-pressed={personSort === k}
+                  className={`rounded-full border px-3 py-1 text-[12px] font-medium transition-colors ${personSort === k ? 'border-brand-green/50 bg-brand-green/10 text-brand-green' : 'border-white/10 text-neutral-400 hover:border-white/20 hover:text-white'}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {people.length === 0 ? <p className="py-8 text-center text-[13px] text-neutral-400">No completed quoted jobs for this month and type of work.</p> : (
+            <ul className="mt-4 flex flex-col gap-1">
+              {people.map((p) => {
+                const isOpen = openPerson === p.name
+                const w = peopleMax > 0 ? Math.max(1.5, (Math.max(0, p.weightedGp) / peopleMax) * 100) : 0
+                const tone = p.weightedGp < 0 ? BAD : ACTUAL
+                return (
+                  <li key={p.name}>
+                    <button type="button" onClick={() => setOpenPerson(isOpen ? null : p.name)} aria-expanded={isOpen}
+                      className={`grid w-full grid-cols-[auto_minmax(140px,220px)_minmax(0,1fr)_auto] items-center gap-4 rounded-xl px-2 py-2 text-left transition-colors hover:bg-white/[0.04] ${isOpen ? 'bg-white/[0.04]' : ''}`}>
+                      <TeamAvatar name={p.name} size={40} />
+                      <span className="flex min-w-0 flex-col leading-tight">
+                        <span className="truncate text-[14px] font-medium text-white">{p.name}</span>
+                        <span className="truncate text-[11.5px] text-neutral-500">{teamMember(p.name)?.role ?? `${p.count} job${p.count === 1 ? '' : 's'}`} · {p.hours} h</span>
+                      </span>
+                      <span className="h-3 overflow-hidden rounded-full bg-white/[0.06]" aria-hidden="true">
+                        <span className="block h-full rounded-full transition-[width]" style={{ width: `${w}%`, background: tone }} />
+                      </span>
+                      <span className="w-20 text-right text-[15px] font-semibold tabular-nums" style={{ color: p.weightedGp < 0 ? BAD : 'var(--text-primary)' }}>{cents(p.weightedGp)}</span>
+                    </button>
+                    {isOpen && (
+                      <div className="ml-14 mr-2 mb-2 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+                        <div className="grid grid-cols-[4.5rem_minmax(0,1fr)_4.5rem_6rem] gap-x-4 text-[11px] uppercase tracking-wide text-neutral-500"><span>Job #</span><span>Job</span><span className="text-right">Hours</span><span className="text-right">{word('personGpHour')}</span></div>
+                        {p.jobs.map(({ job, hours, part }) => (
+                          <button type="button" key={job.jobNumber} onClick={() => onOpenJob?.(job.jobNumber)} title="Open on Completed jobs"
+                            className="grid w-full grid-cols-[4.5rem_minmax(0,1fr)_4.5rem_6rem] gap-x-4 rounded py-0.5 text-left text-[13px] tabular-nums hover:bg-white/[0.05]">
+                            <span className="text-neutral-400">{job.jobNumber}</span><span className="truncate text-neutral-200">{job.jobName}</span>
+                            <span className="text-right text-neutral-300">{hours} h</span><span className="text-right text-white">{cents(part)}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </section>
 
-        <ChartCard title="Claimed against costs, by month"           series={[{ name: 'Claimed', color: ACTUAL }, { name: 'Costs', color: COMPARE }]}
-          footnote={byMonth.length ? `${byMonth.length} month${byMonth.length === 1 ? '' : 's'} logged${byMonth.some((t) => t.month === now) ? `, the last one still being claimed` : ''}. A month where the orange bar is taller cost more than it billed.` : undefined}
-          table={<table><caption>Claimed and costs by month</caption><tbody>{moneyByMonth.map((d) => <tr key={d.label}><th scope="row">{d.fullLabel}</th><td>Claimed {money(d.values[0])}</td><td>Costs {money(d.values[1])}</td></tr>)}</tbody></table>}>
-          <BarChart data={moneyByMonth} height={300} series={[{ name: 'Claimed', color: ACTUAL }, { name: 'Costs', color: COMPARE }]} valueFormat={money} axisFormat={compactMoney} emptyMessage="No month-by-month claims logged yet." />
-        </ChartCard>
-
-
-        <ChartCard title={`${word('profitPerHour')} by type of work — completed jobs`}           footnote={`${monthLabel}${work === 'all' ? '' : ` · ${work}`}. Profit ÷ hours worked, weighted by hours. Green is at or above the overall ${overall == null ? '' : cents(overall) + '/hr'}; red lost money. Type of work is set on Completed jobs.`}
+        <ChartCard title={`${word('profitPerHour')} by type of work — completed jobs`}
+          footnote={`${monthLabel}${work === 'all' ? '' : ` · ${work}`}. Profit ÷ hours worked, weighted by hours. Green is at or above the overall ${overall == null ? '' : cents(overall) + '/hr'}; red lost money. Click a bar to see that type's jobs.`}
           table={<table><caption>Profit per hour by type of work, completed jobs</caption><tbody>{profitByType.map((r) => <tr key={r.label}><th scope="row">{r.label}</th><td>{r.jobs} job{r.jobs === 1 ? '' : 's'}</td><td>{r.hours} h</td><td>{cents(r.gp)}/hr</td></tr>)}</tbody></table>}>
-          <HBarChart rows={profitByType} series={[{ name: word('profitPerHour'), color: ACTUAL }]} labelWidth={170} valueFormat={(v) => `${cents(v)}/hr`} axisFormat={compactMoney} emptyMessage="No completed jobs for this month and type of work." />
+          <HBarChart rows={profitByType} series={[{ name: word('profitPerHour'), color: ACTUAL }]} labelWidth={190} valueFormat={(v) => `${cents(v)}/hr`} axisFormat={compactMoney}
+            onSelect={(r) => setOpenType(openType === r.label ? null : r.label)} emptyMessage="No completed jobs for this month and type of work." />
+          {openType && (
+            <div className="mt-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+              <div className="mb-1 flex items-center justify-between text-[12px] text-neutral-400"><span>{typeJobs.length} job{typeJobs.length === 1 ? '' : 's'} · {openType}</span><button type="button" onClick={() => setOpenType(null)} className="hover:text-white">Close</button></div>
+              {typeJobs.map((j) => (
+                <button type="button" key={j.jobNumber} onClick={() => onOpenJob?.(j.jobNumber)} title="Open on Completed jobs"
+                  className="grid w-full grid-cols-[4.5rem_minmax(0,1fr)_5.5rem_4.5rem_6rem] gap-x-4 rounded py-0.5 text-left text-[13px] tabular-nums hover:bg-white/[0.05]">
+                  <span className="text-neutral-400">{j.jobNumber}</span><span className="truncate text-neutral-200">{j.jobName}</span>
+                  <span className="text-neutral-400">{j.type === 'quoted' ? 'Quoted' : 'Charge-up'}</span><span className="text-right text-neutral-300">{j.hours} h</span>
+                  <span className="text-right font-medium" style={{ color: projectGpPerHour(j) == null ? undefined : projectGpPerHour(j) < 0 ? BAD : 'var(--text-primary)' }}>{projectGpPerHour(j) == null ? '—' : cents(projectGpPerHour(j))}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </ChartCard>
 
-        <ChartCard title="Hours worked against the quote — quoted jobs"           series={[{ name: 'Hours worked', color: ACTUAL }, { name: 'Quoted hours', color: COMPARE }]}
-          footnote={`${monthLabel}. The jobs furthest over their quote first; a red figure is over. Up to twelve shown — the rest are on Completed jobs.`}
-          table={<table><caption>Hours worked against quoted hours</caption><tbody>{hoursVsQuote.map((r) => <tr key={r.label}><th scope="row">{r.label}</th><td>Worked {roundHours(r.values[0])} h</td><td>Quoted {roundHours(r.values[1])} h</td><td>{r.note}</td></tr>)}</tbody></table>}>
-          <HBarChart rows={hoursVsQuote} series={[{ name: 'Hours worked', color: ACTUAL }, { name: 'Quoted hours', color: COMPARE }]} labelWidth={190} valueFormat={(v) => `${roundHours(v)} h`} axisFormat={(v) => `${roundHours(v)}h`} emptyMessage="No quoted jobs with a quoted hours figure for this month." />
+        <ChartCard title="Best and worst jobs per hour — completed jobs"
+          footnote={`${monthLabel}. The five that paid best per hour and the five that paid worst. Click a bar to open the job on Completed jobs.`}
+          table={<table><caption>Best and worst jobs per hour</caption><tbody>{bestWorst.map((r) => <tr key={r.label}><th scope="row">{r.label}</th><td>{r.note}</td><td>{cents(r.values[0])}/hr</td></tr>)}</tbody></table>}>
+          <HBarChart rows={bestWorst} series={[{ name: word('profitPerHour'), color: ACTUAL }]} labelWidth={230} valueFormat={(v) => `${cents(v)}/hr`} axisFormat={compactMoney}
+            onSelect={(r) => onOpenJob?.(r.jobNumber)} emptyMessage="No completed jobs with hours for this month." />
         </ChartCard>
-
-
       </div>
     </div>
   )

@@ -465,6 +465,7 @@ export default function App() {
                 jobs={jobs}
                 monthlyClaimsHistory={monthlyClaimsHistory}
                 completedJobs={completedJobs}
+                onOpenJob={reviewCompletedJob}
                 onBack={goHome}
               />
             </Reveal>
