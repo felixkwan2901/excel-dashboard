@@ -12,6 +12,7 @@ import MonthReport from './components/MonthReport'
 import MonthEndReview from './components/MonthEndReview'
 import PageSkeleton from './components/PageSkeleton'
 import Toasts from './components/Toasts'
+import { fetchFieldProgress, publishFieldJobs } from './lib/fieldJobs'
 import JobTable from './components/JobTable'
 import ProjectDetail from './components/ProjectDetail'
 import ReviewReport from './components/ReviewReport'
@@ -186,6 +187,30 @@ export default function App() {
   const monthlyClaimsHistory =
     state.status === 'ready' ? state.monthlyClaimsHistory : { months: [], totalsByMonth: [], jobs: [] }
   const archivedJobs = state.status === 'ready' ? state.archivedJobs : []
+
+  // Dashboard → field app: whenever the active jobs or their types of work
+  // change (a dropdown, an upload, an archive), rebuild the list the phones
+  // read. Debounced, and a no-op when the list is already right.
+  useEffect(() => {
+    if (state.status !== 'ready' || !jobs.length) return undefined
+    const t = setTimeout(() => { publishFieldJobs({ jobs, archivedJobs }).catch(() => {}) }, 1500)
+    return () => clearTimeout(t)
+  }, [state.status, jobs, archivedJobs])
+
+  // Field app → dashboard: every active job's site progress and who is on
+  // site, read when the data loads, again whenever the tab comes back into
+  // view, and every three minutes while it stays open.
+  const [fieldProgress, setFieldProgress] = useState(() => new Map())
+  useEffect(() => {
+    if (state.status !== 'ready' || !jobs.length) return undefined
+    let live = true
+    const load = () => { if (document.visibilityState === 'visible') fetchFieldProgress(jobs.map((j) => j.jobNumber)).then((m) => { if (live) setFieldProgress(m) }).catch(() => {}) }
+    load()
+    const onVisible = () => load()
+    document.addEventListener('visibilitychange', onVisible)
+    const timer = setInterval(load, 3 * 60 * 1000)
+    return () => { live = false; document.removeEventListener('visibilitychange', onVisible); clearInterval(timer) }
+  }, [state.status, jobs])
   const completedJobs = useMemo(() => (state.status === 'ready' ? state.completedJobs : []), [state])
   const kpis = state.status === 'ready' ? computeKpis(jobs) : null
   const flaggedJobs = useMemo(() => jobs.filter((j) => j.flagged), [jobs])
@@ -512,7 +537,7 @@ export default function App() {
             <LoadStatus status={state.status} error={state.error} onRetry={retryLoad} />
           ) : (
             <Reveal index={0}>
-              <CompletedJobsTab completedJobs={completedJobs} onBack={goHome} focusJob={completedFocus} preset={completedPreset} />
+              <CompletedJobsTab completedJobs={completedJobs} onBack={goHome} focusJob={completedFocus} preset={completedPreset} onCategorySaved={applyCategoryEdit} />
             </Reveal>
           )}
         </main>
@@ -561,6 +586,7 @@ export default function App() {
               completedJobs={completedJobs}
               completedReviews={completedReviews}
               monthlyClaims={monthlyClaims}
+              fieldProgress={fieldProgress}
               onProjects={goDashboard}
               onCompleted={goCompletedJobs}
               onMonthlyClaims={goMonthlyClaims}
@@ -583,6 +609,7 @@ export default function App() {
                 jobs={jobs}
                 onOwnerSaved={applyOwnerEdit}
                 onCategorySaved={applyCategoryEdit}
+                fieldProgress={fieldProgress}
                 onDetailSaved={applyDetailEdit}
                 query={dashboardQuery}
                 onQueryChange={updateDashboardQuery}

@@ -323,7 +323,7 @@ function selectionTotals(jobs) {
 }
 const round2 = (v) => Math.round(v * 100) / 100
 
-export default function CompletedJobsTab({ completedJobs, onBack, focusJob, preset }) {
+export default function CompletedJobsTab({ completedJobs, onBack, focusJob, preset, onCategorySaved }) {
   const [typeFilter, setTypeFilter] = useLocalStorageState('completedJobs.typeFilter', 'all')
   const [workFilter, setWorkFilter] = useState(preset?.work ?? null)   // a type of work picked in the filter (or preset from the home screen)
   // Months with jobs, latest first; the page opens on the latest month.
@@ -366,6 +366,7 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob, pres
     setSaving((prev) => { const next = new Set(prev); next.delete(token); return next })
     if (saved) {
       setMap(saved)
+      if (kind === 'category') onCategorySaved?.(job.jobNumber, value)
       toast.saved({ what: label, job, undo: () => saveField(kind, job, previous) })
     } else {
       setMap((m) => ({ ...m, [job.jobNumber]: previous }))

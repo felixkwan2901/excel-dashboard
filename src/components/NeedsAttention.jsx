@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, CheckCircle2, ChevronRight, Clock, Receipt, Tag, TrendingDown } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ChevronRight, Clock, HardHat, Receipt, Tag, TrendingDown } from 'lucide-react'
 import { fetchJobCategories } from '../lib/jobCategoryStore'
 import { monthName, personMonthly } from '../lib/completedJobPeople'
 import { cents } from '../lib/format'
@@ -29,7 +29,7 @@ function Line({ icon: Icon, tone, count, label, detail, action, onClick }) {
   )
 }
 
-export default function NeedsAttention({ jobs, completedJobs, completedReviews, monthlyClaims, onProjects, onCompleted, onMonthlyClaims, onInsights, onMonthEnd }) {
+export default function NeedsAttention({ jobs, completedJobs, completedReviews, monthlyClaims, fieldProgress, onProjects, onCompleted, onMonthlyClaims, onInsights, onMonthEnd }) {
   // Type of work lives in KV, not in the job data — read it once for the count.
   const [categories, setCategories] = useState(null)
   useEffect(() => {
@@ -69,6 +69,11 @@ export default function NeedsAttention({ jobs, completedJobs, completedReviews, 
       label: `Job${unclaimed.length === 1 ? '' : 's'} with costs this month but no claim`,
       detail: unclaimed.slice(0, 3).map((j) => `${j.jobNumber} ${j.jobName}`).join(' · ') + (unclaimed.length > 3 ? ' …' : ''),
       action: 'Monthly claims', onClick: onMonthlyClaims })
+    const staleSite = jobs.filter((j) => fieldProgress?.get(String(j.jobNumber))?.stale)
+    if (staleSite.length) out.push({ key: 'site', icon: HardHat, tone: '#f5b942', count: staleSite.length,
+      label: `Job${staleSite.length === 1 ? '' : 's'} with no site progress for over a week`,
+      detail: staleSite.slice(0, 3).map((j) => `${j.jobNumber} ${j.jobName} (${fieldProgress.get(String(j.jobNumber)).percent}%)`).join(' · ') + (staleSite.length > 3 ? ' …' : ''),
+      action: 'Projects', onClick: () => onProjects('all') })
     const pm = personMonthly(completedJobs)
     const down = pm.people.filter((p) => p.flag)
     if (down.length) out.push({ key: 'people', icon: TrendingDown, tone: OVER, count: down.length,
@@ -76,7 +81,7 @@ export default function NeedsAttention({ jobs, completedJobs, completedReviews, 
       detail: down.slice(0, 3).map((p) => `${p.name} ${cents(p.flag.before)} → ${cents(p.flag.now)}`).join(' · ') + (down.length > 3 ? ' …' : ''),
       action: 'By person', onClick: onInsights })
     return out
-  }, [jobs, completedJobs, completedReviews, monthlyClaims, categories, onProjects, onCompleted, onMonthlyClaims, onInsights])
+  }, [jobs, completedJobs, completedReviews, monthlyClaims, categories, fieldProgress, onProjects, onCompleted, onMonthlyClaims, onInsights])
 
   return (
     <section className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-5">

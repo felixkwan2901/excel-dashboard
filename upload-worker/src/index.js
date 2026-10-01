@@ -1203,12 +1203,17 @@ async function handleCommand(request, env) {
 // again: nothing in the workbook calculates from them, the projections are
 // worked out in the page itself.
 //
+// "planning:field-jobs" is the job list the field app reads. The scheduled
+// script still rebuilds it from the workbook; the dashboard rewrites the same
+// list the moment a type of work changes or a job is archived (src/lib/
+// fieldJobs.js), so a phone never waits for the daily run.
+//
 // "planning:upcoming-work" is the months of planned hours per job and the
 // note beside them — the last thing a person typed into the workbook. With
 // this one moved, nothing anybody does on the site writes to that file any
 // more; it holds only the weekly Katipolt figures.
 const APP_DATA_KEY_RE =
-  /^(weekly|completion|jobCreated|field):[A-Za-z0-9]{1,20}$|^override:(main-sheet|claim-calculator|upcoming-work)$|^planning:(staff-roster|servicing|working-days|staff-on-tools|avg-hourly-rate|job-owners|job-categories|job-details|job-checklist|field-checklist-overrides|claim-fields|upcoming-work)$|^fieldTasks:(commercial|residential)$/
+  /^(weekly|completion|jobCreated|field):[A-Za-z0-9]{1,20}$|^override:(main-sheet|claim-calculator|upcoming-work)$|^planning:(staff-roster|servicing|working-days|staff-on-tools|avg-hourly-rate|job-owners|job-categories|job-details|job-checklist|field-checklist-overrides|claim-fields|upcoming-work|field-jobs)$|^fieldTasks:(commercial|residential)$/
 
 async function handleAppDataGet(request, env) {
   const url = new URL(request.url)
