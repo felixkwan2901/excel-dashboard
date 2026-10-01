@@ -8,6 +8,7 @@ import { readTheme, applyTheme } from './lib/theme'
 import { installTableScrolling } from './lib/tableScroll'
 import StatsRow from './components/StatsRow'
 import NeedsAttention from './components/NeedsAttention'
+import MonthReport from './components/MonthReport'
 import JobTable from './components/JobTable'
 import ProjectDetail from './components/ProjectDetail'
 import ReviewReport from './components/ReviewReport'
@@ -265,6 +266,11 @@ export default function App() {
     pushUrlState({ view: 'completed-jobs', selectedJobId, dashboardQuery, dashboardFilter })
   }
 
+  function goMonthReport() {
+    setView('month-report')
+    pushUrlState({ view: 'month-report', selectedJobId, dashboardQuery, dashboardFilter })
+  }
+
   function goCompletedInsights() {
     setView('completed-insights')
     pushUrlState({ view: 'completed-insights', selectedJobId, dashboardQuery, dashboardFilter })
@@ -332,6 +338,7 @@ export default function App() {
     onGoUpcomingWork: goUpcomingWork,
     onGoCompletedJobs: goCompletedJobs,
     onGoCompletedInsights: goCompletedInsights,
+    onGoMonthReport: goMonthReport,
     onGoCharts: goCharts,
   }
   return (
@@ -448,6 +455,18 @@ export default function App() {
           ) : (
             <Reveal index={0}>
               <UpcomingWorkTab upcomingWork={upcomingWork} onBack={goHome} />
+            </Reveal>
+          )}
+        </main>
+      )}
+
+      {view === 'month-report' && (
+        <main className="dashboard">
+          {state.status !== 'ready' ? (
+            <LoadStatus status={state.status} error={state.error} onRetry={retryLoad} />
+          ) : (
+            <Reveal index={0}>
+              <MonthReport completedJobs={completedJobs} onBack={goHome} />
             </Reveal>
           )}
         </main>

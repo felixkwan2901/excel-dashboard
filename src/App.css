@@ -650,6 +650,30 @@
 /* ---------- print ---------- */
 
 @media print {
+  /* The month report is written to fit one A4 portrait sheet; a touch of
+     zoom keeps it there when a month has a long list of types or people. */
+  .month-report {
+    zoom: 0.88;
+  }
+
+  /* The app fills the window (min-height 100vh); on paper that is one page
+     height exactly, which is more than fits inside the margins — so a report
+     shorter than a page still spilled an empty second sheet. */
+  html,
+  body,
+  #root,
+  #root > * {
+    min-height: 0 !important;
+    height: auto !important;
+  }
+
+  /* Paper is white; the theme's page wash would print as a grey block. */
+  html,
+  body,
+  #root > * {
+    background: #fff !important;
+  }
+
   /* Print every row, not just what fits in the on-screen scroll box. */
   .table-scroll {
     max-height: none;

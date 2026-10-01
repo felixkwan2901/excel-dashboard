@@ -151,7 +151,7 @@ export default function CommandBox({ jobs, mainSheetColumns }) {
   }
 
   return (
-    <div className="fixed bottom-5 right-5 z-30">
+    <div className="no-print fixed bottom-5 right-5 z-30">
       {open && (
         <div className="mb-2 w-80 rounded-[16px] border border-white/10 bg-[#11161c] p-4 shadow-2xl shadow-black/40">
           <p className="mb-2 text-[13px] font-medium text-neutral-100">Tell it what to change</p>
