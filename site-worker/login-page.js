@@ -16,106 +16,95 @@ const escape = (s) =>
   String(s ?? '').replace(/[&<>"']/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
 
-// Real photos of Cassidy-Davies' own work, from their public site
-// (cdelectrical.co.nz/projects/) — a full-bleed collage behind the card, the
-// way Netflix dims a title's own backdrop behind its sign-in form rather than
-// showing a blank colour. Six is enough to tile a wide screen without an
-// obvious repeat and few enough that a slow connection still has a usable
-// page in a second or two.
+// One real photo of Cassidy-Davies' own work, from their public site
+// (cdelectrical.co.nz/projects/), as the left half of the page on a laptop and
+// a short band across the top on a phone. One photo, not a tiled wall: a wall
+// of six dimmed thumbnails read as wallpaper, and the seams between them were
+// the first thing the eye found.
 //
-// Set as CSS background-image on plain divs, not <img> tags: if
-// cdelectrical.co.nz is ever slow or down, a background-image that fails to
-// load simply shows nothing and the div's own dark fill takes over — an
-// <img> in the same situation is a broken-image icon sitting in the middle
-// of the sign-in screen. This page has one job, and it cannot depend on the
-// marketing site being up to do it.
-const PROJECT_PHOTOS = [
-  'https://www.cdelectrical.co.nz/wp-content/uploads/2025/08/Koawa-Studio-Long.png',
-  'https://www.cdelectrical.co.nz/wp-content/uploads/2024/12/IMG_6354-1536x1152.jpg',
-  'https://www.cdelectrical.co.nz/wp-content/uploads/2024/12/AquaPro-1536x1104.jpg',
-  'https://www.cdelectrical.co.nz/wp-content/uploads/2024/11/uploads1715202201060-6bgnn2aulol-c76a6241ef84e850120e165b75daabcb1-360-Montreal-Street-21-scaled-1-1536x1025.jpg',
-  'https://www.cdelectrical.co.nz/wp-content/uploads/2024/12/IMG_5047-1536x1092.jpg',
-  'https://www.cdelectrical.co.nz/wp-content/uploads/2025/04/Stairs.png',
-]
+// Set as a CSS background-image on a div, not an <img>: if cdelectrical.co.nz
+// is slow or down, a background that fails to load shows nothing and the
+// panel's own dark fill takes over — an <img> in the same spot is a
+// broken-image icon in the middle of the sign-in screen. This page has one
+// job, and it cannot depend on the marketing site being up to do it.
+const HERO_PHOTO = 'https://www.cdelectrical.co.nz/wp-content/uploads/2025/08/Koawa-Studio-Long.png'
 
-// The company's own wordmark, top-left — same placement Netflix uses for its
-// logo over the backdrop. Hotlinked for the same reason as the photos above:
-// one file to keep in sync, and it degrades to the plain text mark below it
-// (kept in the markup, hidden by CSS only once the image is confirmed
-// present) rather than a broken-image box if it fails to load.
+// The company's own wordmark, hotlinked for the same reason as the photo:
+// one file to keep in sync, and it degrades to the plain text mark beside it
+// (in the markup, revealed by the inline onerror) rather than a broken box.
 const LOGO_URL = 'https://www.cdelectrical.co.nz/wp-content/uploads/2023/06/header-logo-cd.png'
 
 const STYLE = `
-  :root { --ink:#0c1712; --card:#16261e; --line:#24382d; --brand:#41b44a;
-          --text:#ffffff; --muted:#8fa398; --bad:#ef6c1f; }
+  :root { --ink:#0b1510; --panel:#101c15; --field:#0a130e; --line:#213128; --line-strong:#3a5244;
+          --brand:#41b44a; --brand-ink:#04170c; --text:#f3f6f3; --muted:#9db0a4; --bad:#ff9c6b; }
   * { box-sizing: border-box; }
   html, body { height:100%; }
-  body { margin:0; min-height:100dvh; position:relative; overflow-x:hidden;
-         background:var(--ink); color:var(--text); padding:24px;
-         font:16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }
+  body { margin:0; min-height:100dvh; background:var(--ink); color:var(--text);
+         font:16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+         -webkit-font-smoothing:antialiased; }
 
-  /* The backdrop: a tiled grid of real project photos, dimmed and vignetted
-     so the card and the logo stay the thing your eye lands on rather than
-     competing with a bright photo behind them. Fixed, so it does not scroll
-     away on a tall page (the code-entry screen's helper text can push past
-     one viewport on a small phone). */
-  .backdrop { position:fixed; inset:0; z-index:0;
-              display:grid; grid-template-columns:repeat(3, 1fr); gap:2px;
-              filter:saturate(0.9) brightness(0.55); }
-  .backdrop div { background-size:cover; background-position:center; }
-  @media (max-width: 640px) { .backdrop { grid-template-columns:repeat(2, 1fr); } }
-  /* Netflix's own trick: a dark gradient over the photos rather than the
-     photos alone at low opacity — it darkens the edges where the eye should
-     not linger while leaving enough of the centre visible to read as "real
-     work", not wallpaper. */
-  .scrim { position:fixed; inset:0; z-index:1;
-           background:
-             radial-gradient(ellipse at center, rgba(12,23,18,0.35) 0%, rgba(12,23,18,0.88) 75%),
-             linear-gradient(180deg, rgba(12,23,18,0.75) 0%, rgba(12,23,18,0.55) 30%, rgba(12,23,18,0.85) 100%); }
+  /* Two halves on a laptop: the work on the left, the form on the right. */
+  .page { min-height:100dvh; display:grid; grid-template-columns: minmax(0, 1.15fr) minmax(400px, 0.85fr); }
 
-  .page { position:relative; z-index:2; min-height:calc(100dvh - 48px);
-          display:flex; flex-direction:column; }
-  .brand { display:flex; align-items:center; gap:10px; margin-bottom:auto;
-           padding-bottom:32px; }
-  .brand img { display:block; height:34px; width:auto; }
-  /* Shown only if the logo image fails — see the inline onerror below, the
-     one bit of "scripting" on a page that otherwise has none, and it runs
-     with no network access and no effect on the sign-in flow either way. */
+  .hero { position:relative; overflow:hidden; background:#13211a center/cover no-repeat;
+          background-image:url('${HERO_PHOTO}'); display:flex; flex-direction:column; justify-content:space-between;
+          padding:36px 40px; }
+  /* Darken where the words sit, leave the middle of the photo alone. */
+  .hero::before { content:""; position:absolute; inset:0;
+                  background: linear-gradient(180deg, rgba(11,21,16,0.72) 0%, rgba(11,21,16,0.08) 35%, rgba(11,21,16,0.15) 60%, rgba(11,21,16,0.88) 100%); }
+  .hero > * { position:relative; }
+  .brand { display:flex; align-items:center; gap:12px; }
+  .brand img { display:block; height:38px; width:auto; }
   .brand .fallback { display:none; align-items:center; gap:10px; }
-  .brand .fallback .dot { width:26px; height:26px; border-radius:8px; background:var(--brand); flex:none; }
-  .brand .fallback b { font-size:16px; font-weight:600; letter-spacing:-0.01em; }
-  .brand .fallback span { display:block; font-size:12px; color:var(--muted); font-weight:400; }
+  .brand .fallback .dot { width:28px; height:28px; border-radius:8px; background:var(--brand); flex:none; }
+  .brand .fallback b { font-size:17px; font-weight:700; letter-spacing:-0.01em; }
+  .brand .fallback span { display:block; font-size:12px; color:var(--muted); font-weight:400; letter-spacing:0.12em; text-transform:uppercase; }
+  .pitch { max-width:520px; }
+  .pitch .eyebrow { margin:0 0 10px; font-size:12px; font-weight:600; letter-spacing:0.16em; text-transform:uppercase; color:var(--brand); }
+  .pitch h2 { margin:0 0 10px; font-size:30px; line-height:1.15; letter-spacing:-0.02em; font-weight:650; }
+  .pitch p { margin:0; font-size:15px; color:#cfdad3; max-width:440px; }
 
-  .center { flex:1; display:flex; align-items:center; justify-content:center; padding:24px 0; }
-  /* Translucent black over the photos rather than a flat opaque card — this
-     is the one deliberate borrow from Netflix's own login card, because it
-     is what makes the backdrop read as behind the form instead of behind a
-     wall in front of it. backdrop-filter is skipped: it is unsupported or
-     slow on exactly the low-end/older phones this dashboard has to keep
-     working on, and the gradient above already does most of the darkening
-     work regardless. */
-  .card { width:100%; max-width:380px; background:rgba(8,16,12,0.82);
-          border:1px solid rgba(255,255,255,0.08); border-radius:16px; padding:32px 28px;
-          box-shadow:0 24px 60px rgba(0,0,0,0.45); }
-  h1 { margin:0 0 4px; font-size:22px; letter-spacing:-0.02em; }
-  p.sub { margin:0 0 22px; color:var(--muted); font-size:14px; }
+  .panel { background:var(--panel); border-left:1px solid var(--line);
+           display:flex; flex-direction:column; justify-content:center; padding:48px 40px; }
+  .form { width:100%; max-width:400px; margin:0 auto; }
+  h1 { margin:0 0 6px; font-size:28px; letter-spacing:-0.02em; font-weight:650; }
+  p.sub { margin:0 0 26px; color:var(--muted); font-size:15px; }
   p.sub b { color:var(--text); font-weight:600; }
-  label { display:block; font-size:13px; color:var(--muted); margin:0 0 6px; }
-  input { width:100%; padding:12px 14px; margin-bottom:16px; font-size:16px;
-          color:var(--text); background:#0e1a15; border:1px solid var(--line);
-          border-radius:10px; }
-  input:focus { outline:2px solid var(--brand); outline-offset:1px; border-color:transparent; }
-  input.code { font-size:28px; font-weight:600; letter-spacing:0.34em; text-align:center;
-               font-family:ui-monospace, SFMono-Regular, Menlo, monospace; padding:14px 8px; }
-  button { width:100%; padding:13px; font-size:16px; font-weight:600; cursor:pointer;
-           color:#04170c; background:var(--brand); border:0; border-radius:10px; }
-  button:hover { filter:brightness(1.07); }
-  .err { margin:0 0 18px; padding:11px 13px; border-radius:10px; font-size:14px;
-         color:#ffd9c2; background:rgba(239,108,31,0.14); border:1px solid rgba(239,108,31,0.4); }
-  .foot { margin:22px 0 0; font-size:12px; color:var(--muted); }
-  .alt { margin:18px 0 0; text-align:center; font-size:13px; }
-  .alt a { color:var(--muted); }
-  .alt a:hover { color:var(--brand); }
+  label { display:block; font-size:13px; font-weight:600; color:var(--muted); margin:0 0 8px; letter-spacing:0.01em; }
+  input { width:100%; padding:14px 16px; margin-bottom:18px; font-size:17px; color:var(--text);
+          background:var(--field); border:1px solid var(--line-strong); border-radius:12px;
+          transition: border-color 120ms ease, box-shadow 120ms ease; }
+  input::placeholder { color:#5f7368; }
+  input:focus { outline:none; border-color:var(--brand); box-shadow:0 0 0 3px rgba(65,180,74,0.28); }
+  input.code { font-size:34px; font-weight:600; letter-spacing:0.4em; text-align:center; text-indent:0.4em;
+               font-family:ui-monospace, SFMono-Regular, Menlo, monospace; padding:16px 8px; }
+  button { width:100%; min-height:52px; padding:14px; font-size:17px; font-weight:700; cursor:pointer;
+           color:var(--brand-ink); background:var(--brand); border:0; border-radius:12px;
+           transition: filter 120ms ease, transform 120ms ease; }
+  button:hover { filter:brightness(1.08); }
+  button:active { transform:translateY(1px); }
+  button:focus-visible { outline:3px solid #fff; outline-offset:2px; }
+  .err { margin:0 0 18px; padding:12px 14px; border-radius:12px; font-size:14px; line-height:1.4;
+         color:#ffd8c4; background:rgba(255,120,60,0.12); border:1px solid rgba(255,120,60,0.45); }
+  .err::before { content:"\\26A0\\FE0F"; margin-right:8px; }
+  .alt { margin:20px 0 0; text-align:center; font-size:14px; }
+  .alt a { color:var(--text); text-decoration:underline; text-underline-offset:3px; text-decoration-color:var(--line-strong); }
+  .alt a:hover { color:var(--brand); text-decoration-color:var(--brand); }
+  .foot { margin:26px 0 0; padding-top:18px; border-top:1px solid var(--line); font-size:13px; color:var(--muted); line-height:1.5; }
+  .legal { margin:40px auto 0; max-width:400px; width:100%; font-size:12px; color:#6f8277; }
+
+  /* A phone: the photo becomes a band across the top with the wordmark on
+     it, the form sits on the solid panel underneath. */
+  @media (max-width: 879px) {
+    .page { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+    .hero { min-height:200px; padding:22px 20px; background-position:center 40%; }
+    .pitch h2 { font-size:22px; }
+    .pitch p { display:none; }
+    .panel { border-left:0; border-top:1px solid var(--line); padding:28px 20px 32px; justify-content:flex-start; }
+    h1 { font-size:24px; }
+    .legal { margin-top:28px; }
+  }
+  @media (prefers-reduced-motion: reduce) { input, button { transition:none; } }
 `
 
 const shell = (title, inner) => `<!doctype html>
@@ -124,33 +113,37 @@ const shell = (title, inner) => `<!doctype html>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="robots" content="noindex, nofollow" />
+<meta name="theme-color" content="#101c15" />
 <title>${escape(title)} — Cassidy-Davies Electrical</title>
 <style>${STYLE}</style>
 </head>
 <body>
-  <div class="backdrop">
-${PROJECT_PHOTOS.map((url) => `    <div style="background-image:url('${url}')"></div>`).join('\n')}
-  </div>
-  <div class="scrim"></div>
   <div class="page">
-    <div class="brand">
-      <!-- onerror is the one inline script on this page. It runs with no
-           network access of its own — swap to the plain text mark, nothing
-           else — so it cannot become a way for a slow or unreachable
-           marketing site to hold up the sign-in flow that depends on this
-           page rendering. -->
-      <img src="${LOGO_URL}" alt="Cassidy-Davies Electrical" height="34"
-           onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
-      <div class="fallback">
-        <div class="dot"></div>
-        <div><b>Cassidy-Davies</b><span>Electrical</span></div>
+    <aside class="hero" aria-hidden="true">
+      <div class="brand">
+        <!-- onerror is the one inline script on this page. It runs with no
+             network access of its own — swap to the plain text mark, nothing
+             else — so it cannot become a way for a slow or unreachable
+             marketing site to hold up the sign-in flow. -->
+        <img src="${LOGO_URL}" alt="Cassidy-Davies Electrical" height="38"
+             onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
+        <div class="fallback">
+          <div class="dot"></div>
+          <div><b>Cassidy-Davies</b><span>Electrical</span></div>
+        </div>
       </div>
-    </div>
-    <div class="center">
-      <main class="card">
+      <div class="pitch">
+        <p class="eyebrow">Operations dashboard</p>
+        <h2>Every job, claim and finished-job profit, in one place.</h2>
+        <p>For the Cassidy-Davies office and crew. Sign in to see where every job stands today.</p>
+      </div>
+    </aside>
+    <main class="panel">
+      <div class="form">
 ${inner}
-      </main>
-    </div>
+      </div>
+      <p class="legal">Cassidy-Davies Electrical &middot; Christchurch &middot; Private &mdash; for staff only.</p>
+    </main>
   </div>
 </body>
 </html>`
@@ -191,7 +184,7 @@ export function renderLogin({
       ${hiddenNext}
       <input type="hidden" name="challenge" value="${escape(challenge)}" />
       <input type="hidden" name="email" value="${escape(email)}" />
-      <label for="code">Sign-in code</label>
+      <label for="code">Six-digit code</label>
       <input id="code" name="code" type="text" class="code" inputmode="numeric"
              pattern="[0-9]*" maxlength="6" autocomplete="one-time-code"
              autocapitalize="none" autocorrect="off" spellcheck="false"
@@ -205,13 +198,13 @@ export function renderLogin({
   if (mode === 'email') {
     return shell('Sign in', `
     <h1>Sign in</h1>
-    <p class="sub">The operations dashboard is not public. We'll email you a code.</p>
+    <p class="sub">We'll email a six-digit code to your work address. No password to remember.</p>
     ${err}
     ${notice ? `<p class="sub">${escape(notice)}</p>` : ''}
     <form method="POST" action="/auth/code" autocomplete="on">
       ${hiddenNext}
       <label for="email">Your work email</label>
-      <input id="email" name="email" type="email" value="${escape(email)}"
+      <input id="email" name="email" type="email" value="${escape(email)}" placeholder="name@cdelectrical.co.nz"
              autocapitalize="none" autocorrect="off" spellcheck="false"
              autocomplete="email" required autofocus />
       <button type="submit">Email me a code</button>
@@ -222,7 +215,7 @@ export function renderLogin({
 
   return shell('Sign in', `
     <h1>Sign in</h1>
-    <p class="sub">The operations dashboard is not public.</p>
+    <p class="sub">Your name and the password the office gave you.</p>
     ${err}
     <form method="POST" action="/auth/login" autocomplete="on">
       ${hiddenNext}
