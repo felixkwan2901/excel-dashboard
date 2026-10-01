@@ -241,14 +241,14 @@ function Stat({ label, value, sub, tone, big, onClick, title }) {
 // One strip instead of two cards: which month, the project GP/hr of the jobs
 // shown, how many there are, how many are over quote, and how the month compares
 // with the one before (when there is one).
-function SummaryStrip({ jobs, previousJobs, previousMonth, typeFilter, toReview, onReview, month, months, onMonth }) {
+function SummaryStrip({ jobs, previousJobs, previousMonth, typeFilter, toReview, onReview, reviewOpen, month, months, onMonth }) {
   const st = typeStats(jobs)
   const prev = previousJobs ? typeStats(previousJobs) : null
   const delta = prev && st.gp != null && prev.gp != null ? st.gp - prev.gp : null
   const cu = jobs.filter((j) => j.type === 'chargeup'), q = jobs.filter((j) => j.type === 'quoted')
   const what = typeFilter === 'all' ? 'completed' : TYPE_LABEL[typeFilter].toLowerCase()
   return (
-    <div className="flex flex-wrap items-center gap-x-8 gap-y-3 rounded-[18px] border border-white/[0.06] bg-[#11161c] px-5 py-4">
+    <div className="flex flex-wrap items-center gap-x-8 gap-y-2 rounded-[18px] border border-white/[0.06] bg-[#11161c] px-5 py-3">
       <label className="flex flex-col gap-1 text-[11px] font-medium uppercase tracking-wide text-neutral-500">
         Month
         <select value={month} onChange={(e) => onMonth(e.target.value)}
@@ -260,17 +260,9 @@ function SummaryStrip({ jobs, previousJobs, previousMonth, typeFilter, toReview,
       <Stat big label={`Project GP/hr · ${what} jobs`} value={st.gp === null ? '—' : `${cents(st.gp)}/hr`}
         sub={`${money(st.profit)} profit to date ÷ ${st.hours} actual h`} />
       <Stat label="Jobs" value={st.count}
-        sub={typeFilter === 'all' ? `${cu.length} charge-up · ${q.length} quoted` : undefined} />
-      {typeFilter === 'all' && (
-        <Stat label="By type" value={
-          <span className="text-[14px] font-medium">
-            <span className="text-neutral-300">Charge-up</span> {typeStats(cu).gp == null ? '—' : cents(typeStats(cu).gp)}
-            <span className="mx-2 text-neutral-600">·</span>
-            <span className="text-neutral-300">Quoted</span> {typeStats(q).gp == null ? '—' : cents(typeStats(q).gp)}
-          </span>} sub="GP/hr" />
-      )}
+        sub={typeFilter === 'all' ? `${cu.length} charge-up ${typeStats(cu).gp == null ? '' : cents(typeStats(cu).gp)} · ${q.length} quoted ${typeStats(q).gp == null ? '' : cents(typeStats(q).gp)}` : undefined} />
       <Stat label="Over quote" value={toReview.length} tone={toReview.length ? OVER : undefined}
-        sub={toReview.length ? 'quoted jobs — review' : 'no quoted job over quote'}
+        sub={toReview.length ? `quoted jobs — ${reviewOpen ? 'hide' : 'review'} ${reviewOpen ? '▾' : '▸'}` : 'no quoted job over quote'}
         onClick={toReview.length ? onReview : undefined} title={toReview.length ? 'Show which jobs' : undefined} />
       {delta != null && (
         <Stat label={`vs ${monthName(previousMonth, 'short')}`} value={`${delta >= 0 ? '+' : '−'}${cents(Math.abs(delta))}/hr`}
@@ -477,33 +469,23 @@ export default function CompletedJobsTab({ completedJobs, onBack, focusJob, pres
       </div>
 
       <SummaryStrip jobs={byTypeShown} typeFilter={typeFilter} toReview={toReview}
-        onReview={() => setReviewOpen(true)}
+        onReview={() => setReviewOpen((v) => !v)} reviewOpen={reviewOpen}
         month={month} months={months} onMonth={setMonthPick}
         previousMonth={previousMonth}
         previousJobs={previousMonth ? completedJobs.filter((j) => j.month === previousMonth && (typeFilter === 'all' || j.type === typeFilter)) : null} />
 
-      {toReview.length > 0 && (
-        <div className="rounded-[14px] border" style={{ borderColor: `color-mix(in srgb, ${OVER} 45%, transparent)`, background: `color-mix(in srgb, ${OVER} 7%, transparent)` }}>
-          <button type="button" onClick={() => setReviewOpen((v) => !v)} aria-expanded={reviewOpen}
-            className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-[13px] font-medium" style={{ color: OVER }}>
-            <span className="blink-over inline-block h-2 w-2 rounded-full" style={{ background: OVER }} aria-hidden="true" />
-            {toReview.length} quoted job{toReview.length === 1 ? '' : 's'} over quote — review
-            <span className="ml-1 text-neutral-400" aria-hidden="true">{reviewOpen ? '▾' : '▸'}</span>
-          </button>
-          {reviewOpen && (
-            <ul className="flex flex-col gap-1 px-4 pb-3 text-[13px]">
-              {toReview.map(({ job, over }) => (
-                <li key={job.jobNumber}>
-                  <button type="button" onClick={() => reviewJob(job.jobNumber)} className="text-left hover:underline">
-                    <span className="font-medium text-white">{job.jobNumber}</span>{' '}
-                    <span className="text-neutral-300">{job.jobName}</span>
-                    <span className="text-neutral-400"> — {over.map(fmtOver).join(' · ')}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+      {toReview.length > 0 && reviewOpen && (
+        <ul className="-mt-3 flex flex-col gap-1 rounded-[14px] border px-4 py-3 text-[13px]" style={{ borderColor: `color-mix(in srgb, ${OVER} 45%, transparent)`, background: `color-mix(in srgb, ${OVER} 7%, transparent)` }}>
+          {toReview.map(({ job, over }) => (
+            <li key={job.jobNumber}>
+              <button type="button" onClick={() => reviewJob(job.jobNumber)} className="text-left hover:underline">
+                <span className="font-medium text-white">{job.jobNumber}</span>{' '}
+                <span className="text-neutral-300">{job.jobName}</span>
+                <span className="text-neutral-400"> — {over.map(fmtOver).join(' · ')}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
       )}
 
       {saveError && <p className="text-sm text-red-400">{saveError}</p>}
