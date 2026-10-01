@@ -2,6 +2,9 @@ import { Fragment, useEffect, useMemo, useState } from 'react'
 import { cents, money } from '../lib/format'
 import CollapsibleSection from './CollapsibleSection'
 import LastSynced from './LastSynced'
+import DataTable from './table/DataTable'
+import GpCell from './table/GpCell'
+import { useDataTable } from './table/useDataTable'
 import { fetchJobCategories } from '../lib/jobCategoryStore'
 import { JOB_CATEGORIES } from '../lib/jobCategories'
 import { monthName, personMonthly, projectGpPerHour, projectProfit } from '../lib/completedJobPeople'
@@ -25,52 +28,85 @@ function rate(all) {
   return h ? jobs.reduce((t, j) => t + projectProfit(j), 0) / h : null
 }
 
+const TYPE_GROUPS = [
+  { key: 'chargeup', label: 'Charge-up' },
+  { key: 'quoted', label: 'Quoted' },
+  { key: 'all', label: 'All jobs' },
+]
+const WORKTYPE_COLUMNS = [
+  { key: 'cat', label: 'Type of work', text: true, always: true, width: 220, cellClass: 'font-medium',
+    render: (r) => <span className={r.cat === NOT_SET ? 'text-amber-300' : 'text-white'}>{r.cat}</span> },
+  { key: 'cuN', group: 'chargeup', label: 'Jobs', num: true, always: true, render: (r) => <Num n={r.cuN} /> },
+  { key: 'cuGp', group: 'chargeup', label: 'GP/hr', num: true, always: true, fmt: cents, render: (r, ctx) => <GpCell value={r.cuGp} max={ctx.max} benchmark={ctx.benchmark} /> },
+  { key: 'qN', group: 'quoted', label: 'Jobs', num: true, always: true, render: (r) => <Num n={r.qN} /> },
+  { key: 'qGp', group: 'quoted', label: 'GP/hr', num: true, always: true, fmt: cents, render: (r, ctx) => <GpCell value={r.qGp} max={ctx.max} benchmark={ctx.benchmark} /> },
+  { key: 'n', group: 'all', label: 'Jobs', num: true, always: true, render: (r) => <Num n={r.n} /> },
+  { key: 'gp', group: 'all', label: 'GP/hr', num: true, always: true, fmt: cents, render: (r, ctx) => <GpCell value={r.gp} max={ctx.max} benchmark={ctx.benchmark} /> },
+]
+const Num = ({ n }) => (n ? <span className="text-[14px] tabular-nums text-white">{n}</span> : <span className="text-neutral-600">0</span>)
+const SHOW = [{ key: 'all', label: 'All' }, { key: 'chargeup', label: 'Charge-up' }, { key: 'quoted', label: 'Quoted' }]
+
+// One row per type of work: how many charge-up and quoted jobs, and each
+// group's project GP/hr (profit to date ÷ actual hours, weighted by hours).
+// Click a row to see the jobs behind it; a job opens on the Completed jobs tab.
 function WorkTypeBreakdown({ jobs, categories, onOpenJob }) {
-  const [pick, setPick] = useState(null) // { cat, type } — type null = both
-  const byCat = useMemo(() => {
+  const [open, setOpen] = useState(() => new Set())
+  const [show, setShow] = useState('all')
+  const rows = useMemo(() => {
     const m = new Map()
     for (const j of jobs) {
       const cat = categories?.[j.jobNumber] || NOT_SET
       if (!m.has(cat)) m.set(cat, [])
       m.get(cat).push(j)
     }
-    return m
+    const make = (cat, list) => {
+      const cu = list.filter((j) => j.type === 'chargeup'), q = list.filter((j) => j.type === 'quoted')
+      return { cat, list, cu, q, cuN: cu.length, cuGp: rate(cu), qN: q.length, qGp: rate(q), n: list.length, gp: rate(list) }
+    }
+    return [...JOB_CATEGORIES, NOT_SET].filter((c) => m.has(c)).map((c) => make(c, m.get(c)))
   }, [jobs, categories])
-  const order = [...JOB_CATEGORIES, NOT_SET].filter((c) => byCat.has(c))
-  const of = (list, type) => (type ? list.filter((j) => j.type === type) : list)
-  const picked = pick ? of(pick.cat ? byCat.get(pick.cat) ?? [] : jobs, pick.type).sort((a, b) => (projectGp(b) ?? -Infinity) - (projectGp(a) ?? -Infinity)) : []
-  const isOn = (cat, type) => pick && pick.cat === cat && pick.type === type
+  const all = useMemo(() => ({ cuN: jobs.filter((j) => j.type === 'chargeup').length, qN: jobs.filter((j) => j.type === 'quoted').length, n: jobs.length,
+    cuGp: rate(jobs.filter((j) => j.type === 'chargeup')), qGp: rate(jobs.filter((j) => j.type === 'quoted')), gp: rate(jobs), cat: 'All types of work' }), [jobs])
+  const table = useDataTable({ id: 'completedInsights.workType', columns: WORKTYPE_COLUMNS, rows, defaultSort: { key: 'n', dir: -1 }, numbersFirst: 'desc' })
+  const max = Math.max(0, ...rows.flatMap((r) => [r.cuGp ?? 0, r.qGp ?? 0, r.gp ?? 0]))
+  const toggle = (cat) => setOpen((prev) => { const next = new Set(prev); next.has(cat) ? next.delete(cat) : next.add(cat); return next })
 
-  function Count({ cat, type, list }) {
-    const n = list.length
-    if (!n) return <span className="text-neutral-600">0</span>
-    const on = Boolean(isOn(cat, type))
+  const detail = (r) => {
+    const list = (show === 'all' ? r.list : show === 'chargeup' ? r.cu : r.q).slice().sort((a, b) => (projectGp(b) ?? -Infinity) - (projectGp(a) ?? -Infinity))
     return (
-      <button
-        type="button"
-        onClick={() => setPick(on ? null : { cat, type })}
-        aria-pressed={on}
-        className={`min-w-8 rounded-full px-2.5 py-0.5 text-[13px] font-medium tabular-nums transition-colors ${
-          on ? 'bg-brand-green/15 text-brand-green' : 'text-white hover:bg-white/[0.08]'
-        }`}
-        title={`Show the ${n} ${type ? TYPE_LABEL[type].toLowerCase() + ' ' : ''}job${n === 1 ? '' : 's'}${cat ? ` in ${cat}` : ''}`}
-      >
-        {n}
-      </button>
-    )
-  }
-
-  const row = (cat, list, bold) => {
-    const cu = of(list, 'chargeup'), q = of(list, 'quoted')
-    return (
-      <tr key={cat ?? 'all'} className={bold ? 'font-medium' : ''}>
-        <td className={cat === NOT_SET ? 'text-neutral-500' : ''}>{cat ?? 'All types of work'}</td>
-        <td className="num"><Count cat={cat} type="chargeup" list={cu} /></td>
-        <td className="num tabular-nums text-neutral-400">{cu.length ? `${cents(rate(cu))}/hr` : '—'}</td>
-        <td className="num"><Count cat={cat} type="quoted" list={q} /></td>
-        <td className="num tabular-nums text-neutral-400">{q.length ? `${cents(rate(q))}/hr` : '—'}</td>
-        <td className="num"><Count cat={cat} type={null} list={list} /></td>
-      </tr>
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center gap-2 text-[12px] text-neutral-400">
+          <span>{list.length} job{list.length === 1 ? '' : 's'} · {r.cat}</span>
+          <span className="flex overflow-hidden rounded-full border border-white/10 text-[12px] font-medium" role="group" aria-label="Which jobs to list">
+            {SHOW.map((o) => (
+              <button key={o.key} type="button" onClick={(e) => { e.stopPropagation(); setShow(o.key) }} aria-pressed={show === o.key}
+                className={`px-2.5 py-0.5 transition-colors ${show === o.key ? 'bg-brand-green/15 text-brand-green' : 'text-neutral-400 hover:text-white'}`}>
+                {o.label}
+              </button>
+            ))}
+          </span>
+        </div>
+        <table className="data-table data-table--compact">
+          <thead>
+            <tr><th>Job #</th><th>Job name</th><th>Type</th><th className="num">GP/hr</th><th className="num">Profit to date</th><th className="num">Actual h</th></tr>
+          </thead>
+          <tbody>
+            {list.map((j) => (
+              <tr key={j.jobNumber} className="cursor-pointer row-clickable" tabIndex={0} title="Open on the Completed jobs tab"
+                onClick={(e) => { e.stopPropagation(); onOpenJob(j.jobNumber) }}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onOpenJob(j.jobNumber) } }}>
+                <td>{j.jobNumber}</td>
+                <td>{j.jobName}</td>
+                <td>{TYPE_LABEL[j.type]}</td>
+                <td className="num font-medium text-white">{projectGp(j) === null ? '—' : cents(projectGp(j))}</td>
+                <td className="num">{projectProfit(j) == null ? '—' : money(projectProfit(j))}</td>
+                <td className="num">{j.hours}</td>
+              </tr>
+            ))}
+            {list.length === 0 && <tr><td colSpan={6} className="empty-row">No {show === 'all' ? '' : TYPE_LABEL[show].toLowerCase() + ' '}jobs here.</td></tr>}
+          </tbody>
+        </table>
+      </div>
     )
   }
 
@@ -78,57 +114,21 @@ function WorkTypeBreakdown({ jobs, categories, onOpenJob }) {
     <CollapsibleSection
       className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-6"
       storageKey="completed-insights.worktype"
-      title="Jobs by type and type of work"
-      description="How many completed jobs of each type of work, charge-up and quoted, with each group's project GP/hr — the jobs' profit to date ÷ their actual hours (the whole job, not just labour). Click any number to see those jobs."
+      title="Jobs by type of work"
+      description="Each type of work's completed jobs, charge-up and quoted, with the group's project GP/hr (profit to date ÷ actual hours). Green is at or above the overall rate; the bar is against the best group. Click a row to see its jobs."
     >
-      <div className="table-scroll mt-2">
-        <table className="data-table data-table--compact">
-          <thead>
-            <tr>
-              <th>Type of work</th>
-              <th className="num">Charge-up</th><th className="num">Charge-up project GP/hr</th>
-              <th className="num">Quoted</th><th className="num">Quoted project GP/hr</th>
-              <th className="num">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {order.map((cat) => row(cat, byCat.get(cat)))}
-            {row(null, jobs, true)}
-          </tbody>
-        </table>
-      </div>
-
-      {pick && (
-        <div className="mt-4 rounded-[14px] border border-white/[0.06] bg-white/[0.02] p-4">
-          <div className="mb-2 flex items-baseline justify-between gap-3">
-            <p className="text-[14px] font-medium text-white">
-              {picked.length} {pick.type ? TYPE_LABEL[pick.type].toLowerCase() + ' ' : ''}job{picked.length === 1 ? '' : 's'} · {pick.cat ?? 'all types of work'}
-            </p>
-            <button type="button" onClick={() => setPick(null)} className="text-[12px] text-neutral-400 hover:text-white">Close</button>
-          </div>
-          <div className="table-scroll">
-            <table className="data-table data-table--compact">
-              <thead>
-                <tr><th>Job #</th><th>Job name</th><th>Type</th><th className="num">Project GP/hr</th><th className="num">Profit to date</th><th className="num">Actual h</th></tr>
-              </thead>
-              <tbody>
-                {picked.map((j) => (
-                  <tr key={j.jobNumber} className="cursor-pointer" tabIndex={0} title="Open on the Completed jobs tab"
-                    onClick={() => onOpenJob(j.jobNumber)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpenJob(j.jobNumber) } }}>
-                    <td>{j.jobNumber}</td>
-                    <td>{j.jobName}</td>
-                    <td>{TYPE_LABEL[j.type]}</td>
-                    <td className="num font-medium">{projectGp(j) === null ? '—' : `${cents(projectGp(j))}/hr`}</td>
-                    <td className="num">{projectProfit(j) == null ? '—' : money(projectProfit(j))}</td>
-                    <td className="num">{j.hours}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      <DataTable
+        table={table}
+        groups={TYPE_GROUPS}
+        compact
+        showOnMobile
+        hideToolbar
+        rowKey={(r) => r.cat}
+        expandable expanded={open} onToggleExpanded={toggle} renderDetail={detail}
+        totals={all}
+        cellCtx={{ max, benchmark: all.gp }}
+        emptyText="No completed jobs yet."
+      />
     </CollapsibleSection>
   )
 }

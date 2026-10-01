@@ -6,6 +6,7 @@ import LastSynced from './LastSynced'
 import CompletedCompare from './CompletedCompare'
 import { useLocalStorageState } from '../lib/useLocalStorageState'
 import DataTable from './table/DataTable'
+import GpCell from './table/GpCell'
 import { useDataTable } from './table/useDataTable'
 import { fetchJobOwners, saveJobOwner } from '../lib/jobOwnerStore'
 import { fetchJobCategories, saveJobCategory } from '../lib/jobCategoryStore'
@@ -109,22 +110,6 @@ function DiffHours({ job }) {
   return <span title={title} className={d > 0 ? 'text-brand-green' : d < 0 ? 'text-red-400' : 'text-neutral-400'}>{d > 0 ? '+' : ''}{d}</span>
 }
 
-// The key figure: bigger than the rest of the row, with a bar against the best
-// job shown. Green when at or above the overall rate of the jobs shown, red when
-// the job lost money, otherwise plain.
-function GpCell({ value, max, benchmark }) {
-  if (value == null) return <span className="text-neutral-500">—</span>
-  const w = max > 0 ? Math.min(100, (Math.max(0, value) / max) * 100) : 0
-  const tone = value < 0 ? OVER : benchmark != null && value >= benchmark ? 'var(--brand-green)' : 'var(--text-secondary)'
-  return (
-    <span className="flex flex-col items-end gap-[3px]">
-      <span className="text-[15px] font-semibold tabular-nums leading-none" style={{ color: tone }}>{cents(value)}</span>
-      <span className="block h-[3px] w-16 overflow-hidden rounded-full bg-white/[0.07]" aria-hidden="true">
-        <span className="block h-full rounded-full" style={{ width: `${w}%`, background: tone, opacity: 0.85 }} />
-      </span>
-    </span>
-  )
-}
 
 const TYPE_LABEL = { quoted: 'Quoted', chargeup: 'Charge-up' }
 
