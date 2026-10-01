@@ -15,6 +15,8 @@ test('the field job list keeps what a phone already knows and drops archived job
   const next = buildFieldJobs(existing, jobs, new Set(['9999']))
   assert.deepEqual(next.map((j) => j.jobNumber), ['8142', '8824'])
   assert.equal(next[0].type, 'commercial', 'the type follows the type of work')
+  assert.equal(next[0].category, 'Commercial New Build', 'the Today screen groups by this')
+  assert.equal(next[1].category, undefined, 'no type of work set, so no category on the entry')
   assert.equal(next[0].address, '1 Road St', 'the address a phone already had is kept')
   assert.equal(next[0].jobName, 'Fisher Developments', 'the name follows the workbook')
   assert.equal(next[1].type, undefined, 'no type of work, no checklist type')

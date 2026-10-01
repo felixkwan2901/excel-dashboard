@@ -13,8 +13,12 @@ export function buildFieldJobs(existing, jobs, archivedNumbers = new Set()) {
     .filter((j) => !archivedNumbers.has(String(j.jobNumber)))
     .map((j) => {
       const prev = before.get(String(j.jobNumber)) ?? {}
-      const type = CATEGORY_SITE_TYPE[(j.jobCategory || '').trim()] ?? prev.type
-      return { ...prev, jobNumber: String(j.jobNumber), jobName: j.jobName, ...(type ? { type } : {}) }
+      // The type of work goes on the entry as `category` (the Today screen
+      // groups by it) and decides the checklist `type`, exactly as the script does.
+      const category = (j.jobCategory || '').trim()
+      const type = CATEGORY_SITE_TYPE[category] ?? prev.type
+      const { category: _old, ...rest } = prev // eslint-disable-line no-unused-vars
+      return { ...rest, jobNumber: String(j.jobNumber), jobName: j.jobName, ...(category ? { category } : {}), ...(type ? { type } : {}) }
     })
     .sort((a, b) => Number(a.jobNumber) - Number(b.jobNumber))
 }
