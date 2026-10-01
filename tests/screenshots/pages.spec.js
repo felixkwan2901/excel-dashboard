@@ -22,6 +22,7 @@ const PAGES = [
   { name: 'completed-jobs', url: '?v=completed-jobs' },
   { name: 'completed-insights', url: '?v=completed-insights' },
   { name: 'month-report', url: '?v=month-report' },
+  { name: 'month-end', url: '?v=month-end' },
   { name: 'charts', url: '?v=charts' },
   { name: 'update-data', url: '?v=update' },
 ]

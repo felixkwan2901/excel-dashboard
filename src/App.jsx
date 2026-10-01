@@ -9,6 +9,7 @@ import { installTableScrolling } from './lib/tableScroll'
 import StatsRow from './components/StatsRow'
 import NeedsAttention from './components/NeedsAttention'
 import MonthReport from './components/MonthReport'
+import MonthEndReview from './components/MonthEndReview'
 import JobTable from './components/JobTable'
 import ProjectDetail from './components/ProjectDetail'
 import ReviewReport from './components/ReviewReport'
@@ -266,6 +267,11 @@ export default function App() {
     pushUrlState({ view: 'completed-jobs', selectedJobId, dashboardQuery, dashboardFilter })
   }
 
+  function goMonthEnd() {
+    setView('month-end')
+    pushUrlState({ view: 'month-end', selectedJobId, dashboardQuery, dashboardFilter })
+  }
+
   function goMonthReport() {
     setView('month-report')
     pushUrlState({ view: 'month-report', selectedJobId, dashboardQuery, dashboardFilter })
@@ -339,6 +345,7 @@ export default function App() {
     onGoCompletedJobs: goCompletedJobs,
     onGoCompletedInsights: goCompletedInsights,
     onGoMonthReport: goMonthReport,
+    onGoMonthEnd: goMonthEnd,
     onGoCharts: goCharts,
   }
   return (
@@ -460,6 +467,18 @@ export default function App() {
         </main>
       )}
 
+      {view === 'month-end' && (
+        <main className="dashboard">
+          {state.status !== 'ready' ? (
+            <LoadStatus status={state.status} error={state.error} onRetry={retryLoad} />
+          ) : (
+            <Reveal index={0}>
+              <MonthEndReview completedJobs={completedJobs} onBack={goHome} onCompleted={goCompletedJobs} onInsights={goCompletedInsights} onMonthReport={goMonthReport} />
+            </Reveal>
+          )}
+        </main>
+      )}
+
       {view === 'month-report' && (
         <main className="dashboard">
           {state.status !== 'ready' ? (
@@ -543,6 +562,7 @@ export default function App() {
               onCompleted={goCompletedJobs}
               onMonthlyClaims={goMonthlyClaims}
               onInsights={goCompletedInsights}
+              onMonthEnd={goMonthEnd}
             />
           )}
 

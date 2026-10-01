@@ -29,7 +29,7 @@ function Line({ icon: Icon, tone, count, label, detail, action, onClick }) {
   )
 }
 
-export default function NeedsAttention({ jobs, completedJobs, completedReviews, monthlyClaims, onProjects, onCompleted, onMonthlyClaims, onInsights }) {
+export default function NeedsAttention({ jobs, completedJobs, completedReviews, monthlyClaims, onProjects, onCompleted, onMonthlyClaims, onInsights, onMonthEnd }) {
   // Type of work lives in KV, not in the job data — read it once for the count.
   const [categories, setCategories] = useState(null)
   useEffect(() => {
@@ -82,7 +82,10 @@ export default function NeedsAttention({ jobs, completedJobs, completedReviews, 
     <section className="rounded-[18px] border border-white/[0.06] bg-[#11161c] p-5">
       <div className="mb-3 flex items-baseline justify-between gap-3">
         <h2 className="text-[15px] font-semibold text-white">Needs attention today</h2>
-        <span className="text-[12px] text-neutral-500">{lines.length ? `${lines.length} thing${lines.length === 1 ? '' : 's'} to look at` : ''}</span>
+        <span className="flex items-center gap-3 text-[12px] text-neutral-500">
+          {lines.length ? `${lines.length} thing${lines.length === 1 ? '' : 's'} to look at` : ''}
+          {onMonthEnd && <button type="button" onClick={onMonthEnd} className="font-medium text-brand-green hover:underline">Month-end review ▸</button>}
+        </span>
       </div>
       {lines.length === 0 ? (
         <p className="flex items-center gap-2 text-[14px] text-neutral-300">

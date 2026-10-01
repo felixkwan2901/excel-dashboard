@@ -27,6 +27,7 @@ const KNOWN_VIEWS = new Set([
   'completed-jobs',
   'completed-insights',
   'month-report',
+  'month-end',
   'charts',
   'weekly-check-sheet',
   'job-completion-checklist',
