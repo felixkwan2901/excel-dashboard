@@ -37,8 +37,8 @@ export const WORDS = {
   costsToCome: { label: 'Costs still to come', tip: 'Your estimate of the costs left before the end of the month.' },
   monthTotalCost: { label: 'Total cost', tip: 'Costs this month plus what is still to come, including the profit on the labour and any retention.' },
 
-  theirProfit: { label: 'Their profit', tip: 'Their share of the profit on each job, by the hours they put in, added up.' },
-  personGpHour: { label: 'GP ($)', tip: 'Their share of the profit on each job, by the hours they put in, added up (quoted jobs only).' },
+  theirProfit: { label: 'GP ($)/Hour', tip: 'Their share of the profit on each job, by the hours they put in, added up.' },
+  personGpHour: { label: 'GP ($)/Hour', tip: 'Their share of the profit on each job, by the hours they put in, added up (quoted jobs only).' },
   shareOfTime: { label: 'Share of their time', tip: 'How much of their month went into this job.' },
 }
 
