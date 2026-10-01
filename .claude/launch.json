@@ -25,6 +25,21 @@
       ],
       "port": 5173,
       "url": "http://localhost:5173"
+    },
+    {
+      "name": "cde-field",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "/Users/felixkwan/cde-field",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5300",
+        "--strictPort"
+      ],
+      "port": 5300
     }
   ]
 }
