@@ -27,10 +27,18 @@ const escape = (s) =>
 // panel's own dark fill takes over — an <img> in the same spot is a
 // broken-image icon in the middle of the sign-in screen. This page has one
 // job, and it cannot depend on the marketing site being up to do it.
-// Two of the crew on the Kōawa Studios job (University of Canterbury) — people
-// doing the work, not a finished house. 940px, the largest the site has.
-const HERO_PHOTO = 'https://www.cdelectrical.co.nz/wp-content/uploads/2025/08/1.png'
-const HERO_PHOTO_SMALL = HERO_PHOTO
+// Six of Cassidy-Davies' own jobs, from cdelectrical.co.nz/projects, tiled
+// across the photo side — the collage the owner preferred, inside the split
+// layout. Each is a CSS background on its own tile, so a slow or unreachable
+// marketing site shows a dark tile, never a broken-image icon.
+const PROJECT_PHOTOS = [
+  'https://www.cdelectrical.co.nz/wp-content/uploads/2025/08/1.png',
+  'https://www.cdelectrical.co.nz/wp-content/uploads/2024/12/IMG_6354-1536x1152.jpg',
+  'https://www.cdelectrical.co.nz/wp-content/uploads/2024/12/AquaPro-1536x1104.jpg',
+  'https://www.cdelectrical.co.nz/wp-content/uploads/2024/11/uploads1715202201060-6bgnn2aulol-c76a6241ef84e850120e165b75daabcb1-360-Montreal-Street-21-scaled-1-1536x1025.jpg',
+  'https://www.cdelectrical.co.nz/wp-content/uploads/2024/12/IMG_5047-1536x1092.jpg',
+  'https://www.cdelectrical.co.nz/wp-content/uploads/2025/04/Stairs.png',
+]
 
 // The company's own wordmark, hotlinked for the same reason as the photo:
 // one file to keep in sync, and it degrades to the plain text mark beside it
@@ -50,13 +58,17 @@ const STYLE = `
   /* Two halves on a laptop: the work on the left, the form on the right. */
   .page { min-height:100dvh; display:grid; grid-template-columns: minmax(0, 1.15fr) minmax(400px, 0.85fr); }
 
-  .hero { position:relative; overflow:hidden; background:#13211a center/cover no-repeat;
-          background-image:url('${HERO_PHOTO}'); display:flex; flex-direction:column; justify-content:space-between;
+  .hero { position:relative; overflow:hidden; background:#13211a; display:flex; flex-direction:column; justify-content:space-between;
           padding:36px 40px; color:var(--hero-text); }
+  /* The collage: three across, two down, a hairline between tiles. */
+  .hero__grid { position:absolute; inset:0; display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(2,1fr); gap:2px;
+                filter:saturate(0.95) brightness(0.8); }
+  .hero__grid div { background:#1a2a21 center/cover no-repeat; }
   /* Darken only where the words sit; the photo itself stays bright. */
-  .hero::before { content:""; position:absolute; inset:0;
-                  background: linear-gradient(180deg, rgba(11,21,16,0.62) 0%, rgba(11,21,16,0.05) 32%, rgba(11,21,16,0.08) 55%, rgba(11,21,16,0.86) 100%); }
-  .hero > * { position:relative; }
+  .hero::before { content:""; position:absolute; inset:0; z-index:1;
+                  background: linear-gradient(180deg, rgba(11,21,16,0.62) 0%, rgba(11,21,16,0.12) 32%, rgba(11,21,16,0.15) 55%, rgba(11,21,16,0.86) 100%); }
+  .hero > * { position:relative; z-index:2; }
+  .hero > .hero__grid { position:absolute; z-index:0; }
   .brand { display:flex; align-items:center; gap:12px; }
   .brand img { display:block; height:38px; width:auto; }
   .brand .fallback { display:none; align-items:center; gap:10px; }
@@ -101,7 +113,8 @@ const STYLE = `
      it, the form sits on the solid panel underneath. */
   @media (max-width: 879px) {
     .page { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
-    .hero { min-height:220px; padding:22px 20px; background-position:center 45%; background-image:url('${HERO_PHOTO_SMALL}'); }
+    .hero { min-height:220px; padding:22px 20px; }
+    .hero__grid { grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(2,1fr); }
     .pitch h2 { font-size:22px; }
     .pitch p { display:none; }
     .panel { border-left:0; border-top:1px solid var(--line); padding:28px 20px 32px; justify-content:flex-start; }
@@ -124,6 +137,9 @@ const shell = (title, inner) => `<!doctype html>
 <body>
   <div class="page">
     <aside class="hero" aria-hidden="true">
+      <div class="hero__grid">
+${PROJECT_PHOTOS.map((url) => `        <div style="background-image:url('${url}')"></div>`).join('\n')}
+      </div>
       <div class="brand">
         <!-- onerror is the one inline script on this page. It runs with no
              network access of its own — swap to the plain text mark, nothing
