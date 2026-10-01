@@ -9,7 +9,9 @@ const BASE = '/excel-dashboard/'
 export default defineConfig({
   testDir: 'tests/screenshots',
   outputDir: 'test-results',
-  snapshotPathTemplate: '{testDir}/__screenshots__/{projectName}/{arg}{ext}',
+  // Fonts render differently on macOS and Linux, so each platform keeps its
+  // own baselines: darwin/ from a Mac, linux/ written by the CI workflow.
+  snapshotPathTemplate: '{testDir}/__screenshots__/{platform}/{projectName}/{arg}{ext}',
   fullyParallel: true,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : [['list']],
