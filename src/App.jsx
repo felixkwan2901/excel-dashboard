@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { loadWorkbook } from './lib/loadWorkbook'
 import { computeKpis } from './lib/deriveMetrics'
 import { parseUrlState, pushUrlState, replaceUrlState } from './lib/urlState'
@@ -8,30 +8,33 @@ import { readTheme, applyTheme } from './lib/theme'
 import { installTableScrolling } from './lib/tableScroll'
 import StatsRow from './components/StatsRow'
 import NeedsAttention from './components/NeedsAttention'
-import MonthReport from './components/MonthReport'
-import MonthEndReview from './components/MonthEndReview'
-import EmployeeKpiTab from './components/EmployeeKpiTab'
 import PageSkeleton from './components/PageSkeleton'
 import Toasts from './components/Toasts'
 import { fetchFieldProgress, publishFieldJobs } from './lib/fieldJobs'
 import JobTable from './components/JobTable'
-import ProjectDetail from './components/ProjectDetail'
-import ReviewReport from './components/ReviewReport'
-import UpdateData from './components/UpdateData'
-import MonthlyClaims from './components/MonthlyClaims'
-import MainSheetTab from './components/MainSheetTab'
 import ArchivedJobsPanel from './components/ArchivedJobsPanel'
-import UpcomingWorkTab from './components/UpcomingWorkTab'
-import CompletedJobsTab from './components/CompletedJobsTab'
-import ChartsTab from './components/ChartsTab'
-import CompletedInsightsTab from './components/CompletedInsightsTab'
 import { jobsToReview } from './lib/completedJobReview'
-import WeeklyCheckSheetTab from './components/WeeklyCheckSheetTab'
-import JobCompletionChecklistTab from './components/JobCompletionChecklistTab'
 import LastSynced from './components/LastSynced'
 import Reveal from './components/Reveal'
 import CommandBox from './components/CommandBox'
 import './App.css'
+
+// Every page except the overview loads its own code when first opened, so
+// the first download is only what the overview needs.
+const MonthReport = lazy(() => import('./components/MonthReport'))
+const MonthEndReview = lazy(() => import('./components/MonthEndReview'))
+const EmployeeKpiTab = lazy(() => import('./components/EmployeeKpiTab'))
+const ProjectDetail = lazy(() => import('./components/ProjectDetail'))
+const ReviewReport = lazy(() => import('./components/ReviewReport'))
+const UpdateData = lazy(() => import('./components/UpdateData'))
+const MonthlyClaims = lazy(() => import('./components/MonthlyClaims'))
+const MainSheetTab = lazy(() => import('./components/MainSheetTab'))
+const UpcomingWorkTab = lazy(() => import('./components/UpcomingWorkTab'))
+const CompletedJobsTab = lazy(() => import('./components/CompletedJobsTab'))
+const ChartsTab = lazy(() => import('./components/ChartsTab'))
+const CompletedInsightsTab = lazy(() => import('./components/CompletedInsightsTab'))
+const WeeklyCheckSheetTab = lazy(() => import('./components/WeeklyCheckSheetTab'))
+const JobCompletionChecklistTab = lazy(() => import('./components/JobCompletionChecklistTab'))
 
 const initialNav = parseUrlState()
 
@@ -403,6 +406,7 @@ export default function App() {
           onThemeChange={setTheme}
         />
 
+      <Suspense fallback={<main className="dashboard"><PageSkeleton /></main>}>
       {view === 'project' && (
         <main className="dashboard">
           {state.status !== 'ready' ? (
@@ -646,6 +650,8 @@ export default function App() {
           )}
         </main>
       )}
+
+      </Suspense>
 
       {state.status === 'ready' && <CommandBox jobs={jobs} mainSheetColumns={mainSheet.columns} />}
       </div>

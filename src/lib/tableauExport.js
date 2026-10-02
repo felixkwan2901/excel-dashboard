@@ -123,7 +123,7 @@ export function plannedHoursCsv(upcomingWork, year = new Date().getFullYear()) {
 // A BOM so Excel on Windows opens the file as UTF-8 rather than mangling the
 // en-dashes and macrons in job and street names.
 export function downloadCsv(filename, csv) {
-  const blob = new Blob([`﻿${csv}`], { type: 'text/csv;charset=utf-8' })
+  const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url

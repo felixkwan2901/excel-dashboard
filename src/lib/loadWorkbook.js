@@ -1,4 +1,6 @@
-import * as XLSX from 'xlsx'
+// The spreadsheet library is big; it's fetched alongside the data in
+// loadWorkbook() instead of being part of the page's first download.
+let XLSX
 import { fetchOverrides } from './overrides'
 import { fetchJobOwners } from './jobOwnerStore'
 import { fetchJobCategories } from './jobCategoryStore'
@@ -802,6 +804,7 @@ export async function loadWorkbook() {
   // — this bounds it so an error state (with a retry) shows up instead.
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 20_000)
+  const xlsxModule = import('xlsx')
   let res, hoursRes, claimsLogRes, archivedRes, completedRes, mainSheetOverrides, claimCalcOverrides, upcomingWorkOverrides, jobOwners, jobCategories, jobDetails, jobChecklists, claimFields, upcomingWorkFields
   try {
     ;[res, hoursRes, claimsLogRes, archivedRes, completedRes, mainSheetOverrides, claimCalcOverrides, upcomingWorkOverrides, jobOwners, jobCategories, jobDetails, jobChecklists, claimFields, upcomingWorkFields] =
@@ -826,6 +829,7 @@ export async function loadWorkbook() {
   }
   if (!res.ok) throw new Error(`Could not load the workbook (${res.status})`)
   const buffer = await res.arrayBuffer()
+  XLSX = await xlsxModule
   const workbook = XLSX.read(buffer, { type: 'array' })
 
   const jobRows = findJobsSheet(workbook)
