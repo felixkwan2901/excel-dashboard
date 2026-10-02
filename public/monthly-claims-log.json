@@ -597,8 +597,8 @@
     "7480": {
       "jobName": "New Build",
       "claim": 0,
-      "costs": 0,
-      "profit": 0
+      "costs": 4730.33,
+      "profit": -4730.33
     },
     "7658": {
       "jobName": "Charity Hospital",
@@ -639,8 +639,8 @@
     "8183": {
       "jobName": "Murney Custodian - 1 Freight Drive",
       "claim": 0,
-      "costs": 0,
-      "profit": 0
+      "costs": 1396.5599999999977,
+      "profit": -1396.5599999999977
     },
     "8214": {
       "jobName": "6 Tiroroa Lane",
@@ -657,8 +657,8 @@
     "8308": {
       "jobName": "Roydvale",
       "claim": 0,
-      "costs": 352.5,
-      "profit": -352.5
+      "costs": 452.11999999999534,
+      "profit": -452.11999999999534
     },
     "8337": {
       "jobName": "Waimak Dairys ",
@@ -681,8 +681,8 @@
     "8386": {
       "jobName": "Bach in Kaikoura",
       "claim": 0,
-      "costs": 0,
-      "profit": 0
+      "costs": 2975.43,
+      "profit": -2975.43
     },
     "8530": {
       "jobName": "224 Cashel St - Eastern WC Block Reno",
@@ -693,20 +693,20 @@
     "8670": {
       "jobName": "Studio DB - tautara fit out",
       "claim": 0,
-      "costs": 797.9000000000087,
-      "profit": -797.9000000000087
+      "costs": 1847.4199999999983,
+      "profit": -1847.4199999999983
     },
     "8769": {
       "jobName": "Percival Bach",
       "claim": 0,
-      "costs": 3041.7799999999997,
-      "profit": -3041.7799999999997
+      "costs": 2064.0699999999997,
+      "profit": -2064.0699999999997
     },
     "8824": {
       "jobName": "3 Innovation Road",
       "claim": 0,
-      "costs": 768.4200000000001,
-      "profit": -768.4200000000001
+      "costs": 2344.1000000000004,
+      "profit": -2344.1000000000004
     },
     "8829": {
       "jobName": "Resi Reno at 124 Chapter Street",
@@ -723,14 +723,14 @@
     "8886": {
       "jobName": "Monkey Toe - Fisher fit out",
       "claim": 0,
-      "costs": 16449.9,
-      "profit": -16449.9
+      "costs": 17868.639999999992,
+      "profit": -17868.639999999992
     },
     "8887": {
       "jobName": "Tenancy 2 - Fisher Fit out",
       "claim": 0,
-      "costs": 16697.65,
-      "profit": -16697.65
+      "costs": 16822.159999999996,
+      "profit": -16822.159999999996
     },
     "8907": {
       "jobName": "35 Mania",
@@ -747,14 +747,14 @@
     "8946": {
       "jobName": "Westcoast Vaults",
       "claim": 0,
-      "costs": 0,
-      "profit": 0
+      "costs": 1001.0500000000029,
+      "profit": -1001.0500000000029
     },
     "9065": {
       "jobName": "Cooltranz stage 4",
       "claim": 0,
-      "costs": 0,
-      "profit": 0
+      "costs": -399.52000000000044,
+      "profit": 399.52000000000044
     },
     "9240": {
       "jobName": "Daves Twizel Shack",
