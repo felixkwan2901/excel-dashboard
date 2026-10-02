@@ -21,20 +21,39 @@ import './App.css'
 
 // Every page except the overview loads its own code when first opened, so
 // the first download is only what the overview needs.
-const MonthReport = lazy(() => import('./components/MonthReport'))
-const MonthEndReview = lazy(() => import('./components/MonthEndReview'))
-const EmployeeKpiTab = lazy(() => import('./components/EmployeeKpiTab'))
-const ProjectDetail = lazy(() => import('./components/ProjectDetail'))
-const ReviewReport = lazy(() => import('./components/ReviewReport'))
-const UpdateData = lazy(() => import('./components/UpdateData'))
-const MonthlyClaims = lazy(() => import('./components/MonthlyClaims'))
-const MainSheetTab = lazy(() => import('./components/MainSheetTab'))
-const UpcomingWorkTab = lazy(() => import('./components/UpcomingWorkTab'))
-const CompletedJobsTab = lazy(() => import('./components/CompletedJobsTab'))
-const ChartsTab = lazy(() => import('./components/ChartsTab'))
-const CompletedInsightsTab = lazy(() => import('./components/CompletedInsightsTab'))
-const WeeklyCheckSheetTab = lazy(() => import('./components/WeeklyCheckSheetTab'))
-const JobCompletionChecklistTab = lazy(() => import('./components/JobCompletionChecklistTab'))
+const PAGES = {
+  MonthReport: () => import('./components/MonthReport'),
+  MonthEndReview: () => import('./components/MonthEndReview'),
+  EmployeeKpiTab: () => import('./components/EmployeeKpiTab'),
+  ProjectDetail: () => import('./components/ProjectDetail'),
+  ReviewReport: () => import('./components/ReviewReport'),
+  UpdateData: () => import('./components/UpdateData'),
+  MonthlyClaims: () => import('./components/MonthlyClaims'),
+  MainSheetTab: () => import('./components/MainSheetTab'),
+  UpcomingWorkTab: () => import('./components/UpcomingWorkTab'),
+  CompletedJobsTab: () => import('./components/CompletedJobsTab'),
+  ChartsTab: () => import('./components/ChartsTab'),
+  CompletedInsightsTab: () => import('./components/CompletedInsightsTab'),
+  WeeklyCheckSheetTab: () => import('./components/WeeklyCheckSheetTab'),
+  JobCompletionChecklistTab: () => import('./components/JobCompletionChecklistTab'),
+}
+const MonthReport = lazy(PAGES.MonthReport)
+const MonthEndReview = lazy(PAGES.MonthEndReview)
+const EmployeeKpiTab = lazy(PAGES.EmployeeKpiTab)
+const ProjectDetail = lazy(PAGES.ProjectDetail)
+const ReviewReport = lazy(PAGES.ReviewReport)
+const UpdateData = lazy(PAGES.UpdateData)
+const MonthlyClaims = lazy(PAGES.MonthlyClaims)
+const MainSheetTab = lazy(PAGES.MainSheetTab)
+const UpcomingWorkTab = lazy(PAGES.UpcomingWorkTab)
+const CompletedJobsTab = lazy(PAGES.CompletedJobsTab)
+const ChartsTab = lazy(PAGES.ChartsTab)
+const CompletedInsightsTab = lazy(PAGES.CompletedInsightsTab)
+const WeeklyCheckSheetTab = lazy(PAGES.WeeklyCheckSheetTab)
+const JobCompletionChecklistTab = lazy(PAGES.JobCompletionChecklistTab)
+// Once the overview is up, fetch the other pages' code in the background so
+// moving between pages doesn't wait on a download.
+const prefetchPages = () => Object.values(PAGES).forEach((load) => load().catch(() => {}))
 
 const initialNav = parseUrlState()
 
@@ -105,6 +124,11 @@ export default function App() {
   // Wide tables can be scrolled sideways with a plain mouse wheel, or by
   // grabbing and dragging them — see tableScroll.js.
   useEffect(() => installTableScrolling(), [])
+  useEffect(() => {
+    if (state.status !== 'ready') return
+    const idle = window.requestIdleCallback ?? ((fn) => setTimeout(fn, 1))
+    idle(prefetchPages)
+  }, [state.status])
 
   useEffect(() => {
     fetchWorkbook()
@@ -406,7 +430,7 @@ export default function App() {
           onThemeChange={setTheme}
         />
 
-      <Suspense fallback={<main className="dashboard"><PageSkeleton /></main>}>
+      <Suspense fallback={<div className="dashboard"><PageSkeleton /></div>}>
       {view === 'project' && (
         <main className="dashboard">
           {state.status !== 'ready' ? (
