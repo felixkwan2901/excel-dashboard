@@ -1,0 +1,1 @@
+import{D as e,O as t}from"./index-yKZCM_Pa.js";function n(n){let r=[];return n.overBudget&&r.push(`Actual cost is ${e(n.totalActualCost-n.totalQuotedCost)} over quote`),n.losingMargin&&r.push(`Margin is currently ${t(n.marginToDate)}`),r}export{n as t};
