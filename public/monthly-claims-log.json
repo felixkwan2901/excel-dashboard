@@ -597,14 +597,14 @@
     "7480": {
       "jobName": "New Build",
       "claim": 0,
-      "costs": 4730.33,
-      "profit": -4730.33
+      "costs": 4993.07,
+      "profit": -4993.07
     },
     "7658": {
       "jobName": "Charity Hospital",
       "claim": 0,
-      "costs": 0,
-      "profit": 0
+      "costs": 12033.339999999997,
+      "profit": -12033.339999999997
     },
     "7864": {
       "jobName": "Ryans House",
@@ -657,8 +657,8 @@
     "8308": {
       "jobName": "Roydvale",
       "claim": 0,
-      "costs": 452.11999999999534,
-      "profit": -452.11999999999534
+      "costs": 1308.8399999999965,
+      "profit": -1308.8399999999965
     },
     "8337": {
       "jobName": "Waimak Dairys ",
@@ -705,8 +705,8 @@
     "8824": {
       "jobName": "3 Innovation Road",
       "claim": 0,
-      "costs": 2344.1000000000004,
-      "profit": -2344.1000000000004
+      "costs": 3043.1800000000003,
+      "profit": -3043.1800000000003
     },
     "8829": {
       "jobName": "Resi Reno at 124 Chapter Street",
@@ -723,14 +723,14 @@
     "8886": {
       "jobName": "Monkey Toe - Fisher fit out",
       "claim": 0,
-      "costs": 17868.639999999992,
-      "profit": -17868.639999999992
+      "costs": 18154.879999999997,
+      "profit": -18154.879999999997
     },
     "8887": {
       "jobName": "Tenancy 2 - Fisher Fit out",
       "claim": 0,
-      "costs": 16822.159999999996,
-      "profit": -16822.159999999996
+      "costs": 16754.25,
+      "profit": -16754.25
     },
     "8907": {
       "jobName": "35 Mania",
@@ -747,8 +747,8 @@
     "8946": {
       "jobName": "Westcoast Vaults",
       "claim": 0,
-      "costs": 1001.0500000000029,
-      "profit": -1001.0500000000029
+      "costs": 1010.3700000000026,
+      "profit": -1010.3700000000026
     },
     "9065": {
       "jobName": "Cooltranz stage 4",
@@ -765,8 +765,8 @@
     "9259": {
       "jobName": "Andrew Reeve Stage 2",
       "claim": 0,
-      "costs": 2649.8799999999974,
-      "profit": -2649.8799999999974
+      "costs": 3136.779999999999,
+      "profit": -3136.779999999999
     },
     "9351": {
       "jobName": "Harewood Golf Club",
